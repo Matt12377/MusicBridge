@@ -129,6 +129,7 @@ async function fixtureContext772(t: test.TestContext, observe?: (value: unknown)
   const state = { contextCompleted: 0, closeWorkbench: 0, closeEntered: 0, closed: 0 };
   let sequence = 0, disconnected = false, closure: Promise<ResponseContext772> | undefined;
   let readContext: () => Promise<Context772> = async () => ({ epoch, datasetId, ready: true });
+  let execute:NonNullable<DomainContext772['dispatchWorkbench']>=async()=>{throw new Error('context772夹具未授权execute');};
   const nativePost = ports.port2.postMessage.bind(ports.port2);
   t.mock.method(ports.port2, 'postMessage', (value: unknown) => { observe?.(value); return nativePost(value); });
   ports.port1.on('message', (value: unknown) => { packets.push(value); for (const notify of [...listeners]) notify(); });
@@ -144,7 +145,8 @@ async function fixtureContext772(t: test.TestContext, observe?: (value: unknown)
   const domain: DomainContext772 = {
     datasetId, async dispatch() { return undefined; }, commitBoot() {},
     async workbenchContext() { try { return await readContext(); } finally { state.contextCompleted++; } },
-    async dispatchWorkbench() { throw new Error('context772夹具未授权execute'); },
+    async workbenchReadIdentity() { try { return await readContext(); } finally { state.contextCompleted++; } },
+    async dispatchWorkbench(request,context) { return execute(request,context); },
     async dispatchWorkbenchOwner() { throw new Error('context772夹具未授权owner'); },
     async closeWorkbench() { state.closeWorkbench++; workbenchClosing.resolve(); },
     async close(before) { state.closeEntered++; await before?.(); state.closed++; },
@@ -166,15 +168,18 @@ async function fixtureContext772(t: test.TestContext, observe?: (value: unknown)
   const prepared = await command('prepare');
   assert.ok(prepared.ok); assert.ok(identityContext772(prepared.result)); assert.deepEqual(prepared.result, { epoch, datasetId });
   assert.equal((await command('commitBoot')).ok, true);
-  function send(kind: MetaContext772['kind'], duration = 2000): MetaContext772 {
-    const body = {}, meta: MetaContext772 = { id: randomUUID(), epoch, datasetId, sequence: ++sequence, kind,
+  function requestFrames(kind:MetaContext772['kind'],body:unknown,duration=2000) {
+    const meta: MetaContext772 = { id: randomUUID(), epoch, datasetId, sequence: ++sequence, kind,
       requestSha256: shaContext772(jsonContext772(body)), expiresAtMs: Date.now() + duration };
-    for (const frame of framesContext772(meta, 'request', body)) ports.port1.postMessage(frame);
-    return meta;
+    return {meta,frames:framesContext772(meta,'request',body)};
+  }
+  function send(kind: MetaContext772['kind'], duration = 2000): MetaContext772 {
+    const request=requestFrames(kind,{},duration);for(const frame of request.frames)ports.port1.postMessage(frame);return request.meta;
   }
   return { state, epoch, datasetId, close, portClosed: portClosed.promise, workbenchClosing: workbenchClosing.promise,
     barrier() { return command('commitBoot'); },
     setContext(work: () => Promise<Context772>) { readContext = work; }, releaseOnCleanup(release: () => void) { releases.add(release); },
+    setExecute(work:NonNullable<DomainContext772['dispatchWorkbench']>){execute=work;},requestFrames,post(frame:FrameContext772){ports.port1.postMessage(frame);},
     send, cancel(meta: MetaContext772) { ports.port1.postMessage(controlContext772(meta, 'cancel')); },
     frames(meta: MetaContext772): FrameContext772[] { return packets.filter((value): value is FrameContext772 => frameContext772(value) && sameContext772(value, meta)); },
     frame(meta: MetaContext772, part: FrameContext772['part']) { return take((value): value is FrameContext772 => frameContext772(value) && sameContext772(value, meta) && value.part === part); },
@@ -270,3 +275,86 @@ test('辅助context772：成功end之后settled发布断链沿原abandon闭口�
   assert.equal(f.state.contextCompleted, 1); assert.equal(f.state.closeWorkbench, 1);
   assert.equal(f.state.closeEntered, 1); assert.equal(f.state.closed, 1);
 });
+
+import { libraryRemovalClock as removalClockWorker } from './helpers/library-removal-clock.js';
+import type { DatasetWorkbenchRequest as RemovalWorkerRequest } from '../src/collection/dataset-owner-protocol.js';
+
+const removalWorkerBody=():RemovalWorkerRequest=>({family:'management',command:'library.remove',payload:{commandId:randomUUID(),libraryIds:[randomUUID()]}});
+
+test('移除期限：实际Worker分片组装超过2秒零execute，remove不能凭begin延时', {timeout:5000}, async t=>{
+  const f=await fixtureContext772(t),clock=removalClockWorker(t);let calls=0;
+  f.setExecute(async()=>{calls++;throw new Error('超时组装不能进入领域')});
+  const request=f.requestFrames('execute',removalWorkerBody(),8000);
+  f.post(request.frames[0]!);await f.barrier();clock.advance(2001);
+  const failure=await f.frame(request.meta,'failure');assert.equal(failure.part,'failure');if(failure.part==='failure')assert.equal(failure.code,'TIMEOUT');
+  for(const frame of request.frames.slice(1))f.post(frame);await f.barrier();assert.equal(calls,0);clock.reset();
+});
+
+for(const mode of ['remove成功','remove到期','普通rename','普通context'] as const)test(`移除期限：实际Worker扣除组装耗时且保原绝对期限（${mode}）`,{timeout:5000},async t=>{
+  const f=await fixtureContext772(t),clock=removalClockWorker(t),entered=deferredContext772(),gate=deferredContext772();
+  f.releaseOnCleanup(gate.resolve);let signal:AbortSignal|undefined,remaining=0,calls=0;
+  const remove=removalWorkerBody(),body:RemovalWorkerRequest=mode==='普通rename'?{family:'management',command:'library.rename',payload:{commandId:randomUUID(),libraryId:randomUUID(),name:'合成名称'}}:remove;
+  f.setExecute(async(request,context)=>{calls++;signal=context.signal;remaining=context.deadlineAtMs-performance.now();entered.resolve();await gate.promise;
+    assert.ok(request.family==='management'&&(request.command==='library.remove'||request.command==='library.rename'));
+    const ids=request.command==='library.remove'?request.payload.libraryIds:request.command==='library.rename'?[request.payload.libraryId]:[];
+    return {commandId:request.payload.commandId,kind:request.command,state:'succeeded',libraryIds:ids,message:null} as import('@music-bridge/contracts').LocalLibraryManagementOperation;
+  });
+  if(mode==='普通context')f.setContext(async()=>{entered.resolve();await gate.promise;return {epoch:f.epoch,datasetId:f.datasetId,ready:true}});
+  const contextOnly=mode==='普通context',duration=mode.startsWith('remove')?8000:2000;
+  const request=f.requestFrames(contextOnly?'context':'execute',contextOnly?{}:body,duration);
+  try{
+    f.post(request.frames[0]!);await f.barrier();clock.advance(1100);
+    for(const frame of request.frames.slice(1))f.post(frame);await entered.promise;
+    if(!contextOnly)assert.ok(remaining<=duration-1100&&remaining>duration-1200,'领域收到原剩余期限，未从完整包另计');
+    clock.advance(1001);await f.barrier();
+    if(mode==='remove成功'){
+      assert.equal(signal?.aborted,false);assert.equal(f.frames(request.meta).some(frame=>frame.part==='failure'),false);
+      gate.resolve();await f.frame(request.meta,'end');assert.equal(calls,1);
+    }else{
+      if(mode==='remove到期'){assert.equal(signal?.aborted,false);clock.advance(5900);}
+      const failure=await f.frame(request.meta,'failure');assert.equal(failure.part,'failure');if(failure.part==='failure')assert.equal(failure.code,'TIMEOUT');
+      if(!contextOnly)assert.equal(signal?.aborted,true);gate.resolve();await f.frame(request.meta,'settled');
+      assert.equal(f.frames(request.meta).some(frame=>frame.part==='end'),false);
+    }
+  }finally{gate.resolve();clock.reset();}
+});
+
+for(const mode of ['组装逻辑过期','时钟回拨'] as const)test(`移除期限：实际Worker不能依赖timer回调或wall回拨延长原包（${mode}）`,{timeout:5000},async t=>{
+  const f=await fixtureContext772(t),clock=removalClockWorker(t);let calls=0,remaining=0;
+  f.setExecute(async(request,context)=>{calls++;remaining=context.deadlineAtMs-performance.now();assert.ok(request.family==='management'&&request.command==='library.remove');
+    return {commandId:request.payload.commandId,kind:'library.remove',state:'succeeded',libraryIds:request.payload.libraryIds,message:null};});
+  const request=f.requestFrames('execute',removalWorkerBody(),5000);
+  try{f.post(request.frames[0]!);await f.barrier();clock.elapse(mode==='组装逻辑过期'?2001:1000);
+    if(mode==='时钟回拨')clock.rewind(10000);
+    assert.equal(f.frames(request.meta).some(frame=>frame.part==='failure'),false,'尚未执行任何到期timer回调');
+    for(const frame of request.frames.slice(1))f.post(frame);
+    if(mode==='组装逻辑过期'){const failure=await f.frame(request.meta,'failure');assert.equal(failure.part,'failure');if(failure.part==='failure')assert.equal(failure.code,'TIMEOUT');assert.equal(calls,0);}
+    else{await f.frame(request.meta,'end');assert.equal(calls,1);assert.ok(remaining>3900&&remaining<=4000,'wall回拨不扩大首次begin冻结的5秒原余量');}
+  }finally{clock.reset();}
+});
+
+test('身份等待20秒：真实MessageChannel调度的Worker等待2.5秒领域身份读后才发布end及settled', { timeout: 8_000 }, async t => {
+  const f = await fixtureContext772(t)
+  f.setContext(async () => { await new Promise<void>(resolve => setTimeout(resolve, 2_500)); return { epoch: f.epoch, datasetId: f.datasetId, ready: true } })
+  const started = performance.now(), meta = f.send('context.identity', 20_000)
+  await f.frame(meta, 'end'); await f.frame(meta, 'settled')
+  assert.ok(performance.now() - started >= 2_400)
+  assert.deepEqual(f.frames(meta).map(frame => frame.part), ['begin', 'data', 'end', 'settled'])
+  assert.equal(f.state.contextCompleted, 1)
+})
+
+test('身份等待20秒：实际Worker取消identity先拒绝，实际task与settled仍先于closed和port关闭', { timeout: 5_000 }, async t => {
+  const publication: string[] = [], entered = deferredContext772(), held = deferredContext772()
+  const f = await fixtureContext772(t, value => {
+    if (frameContext772(value) && value.part === 'settled') publication.push('settled')
+    if (responseContext772(value) && value.operation === 'close') publication.push('closed')
+  })
+  f.releaseOnCleanup(held.resolve)
+  f.setContext(async () => { entered.resolve(); await held.promise; return { epoch: f.epoch, datasetId: f.datasetId, ready: true } })
+  const meta = f.send('context.identity', 20_000); await entered.promise; f.cancel(meta)
+  const failure = await f.frame(meta, 'failure'); assert.ok(failure.part === 'failure'); assert.equal(failure.code, 'TIMEOUT')
+  const closing = f.close(); await f.workbenchClosing
+  assert.equal(f.state.contextCompleted, 0); assert.equal(f.hasCloseResponse(), false); assert.deepEqual(publication, [])
+  held.resolve(); await f.frame(meta, 'settled'); assert.equal((await closing).ok, true); await f.portClosed
+  assert.deepEqual(publication, ['settled', 'closed']); assert.equal(f.state.contextCompleted, 1); assert.equal(f.state.closed, 1)
+})

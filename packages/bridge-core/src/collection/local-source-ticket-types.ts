@@ -1,8 +1,11 @@
+import { validateIpcResponseForCommand, type LyricsSnapshot } from '@music-bridge/contracts';
 import { isFileAudioParameters, type FileAudioParameters, isAudioAsset, isLibraryRoot, isLocalTrack, isLocalPlayRequest, type LocalPlayRequest } from '@music-bridge/contracts';
 import type { LocalSourceFacts } from '../application/local-source-facts.js';
 import type { TrackMetadata } from '../netease/types.js';
 import { LocalSourceFence } from '../stream/local-source-fence.js';
 import path from 'node:path';
+import type { RootCapability } from '../recording/source-files.js';
+import { sourceRemountProofMatchesRoot } from '../recording/source-remount-proof.js';
 export interface LocalSourceCaptureResult {
   ticketId: string; epoch: string; datasetId: string; buffer: SharedArrayBuffer;
   facts: LocalSourceFacts; metadata: TrackMetadata; format?: string; fileParameters?: FileAudioParameters;
@@ -24,9 +27,10 @@ export function isLocalSourceCaptureResult(v: unknown): v is LocalSourceCaptureR
   if (!record(f) || !closed(f,['track','asset','root','sourceRoot','relative','observation']) || !isLocalTrack(f.track) || f.track.segment !== null || !isAudioAsset(f.asset) || !isLibraryRoot(f.root)
     || !text(f.relative,4096) || path.isAbsolute(f.relative) || f.relative.split(/[\\/]/u).some(p => !p || p === '.' || p === '..')) return false;
   const s = f.sourceRoot, o = f.observation;
-  if (!record(s) || !closed(s,['id','path','dev','ino','authorized','label']) || !text(s.id) || !text(s.path,4096) || !path.isAbsolute(s.path) || s.authorized !== true
+  if (!record(s) || !closed(s,['id','path','dev','ino','authorized','label'],['readonlyRemountProof']) || !text(s.id) || !text(s.path,4096) || !path.isAbsolute(s.path) || s.authorized !== true
     || typeof s.dev !== 'string' || !/^(0|[1-9]\d{0,31}|-[1-9]\d{0,30})$/u.test(s.dev) || typeof s.ino !== 'string' || !/^(0|[1-9]\d{0,31}|-[1-9]\d{0,30})$/u.test(s.ino) || typeof s.label !== 'string' || s.label.length > 256 || !record(o)
     || !closed(o,['signature','assetId','trackId','libraryRootId','sourceRootId','fileRevision','rootRevision','locationRevision','selectionRevision']) || !text(o.signature,256) || !/^(0|[1-9]\d{0,31}|-[1-9]\d{0,30}):(0|[1-9]\d{0,31}|-[1-9]\d{0,30}):(0|[1-9]\d{0,31}):-?\d{1,24}:-?\d{1,24}$/u.test(o.signature)) return false;
+  if (Object.hasOwn(s, 'readonlyRemountProof') && !sourceRemountProofMatchesRoot(s as unknown as RootCapability)) return false;
   if (f.track.assetId !== f.asset.id || f.asset.libraryRootId !== f.root.id || f.root.sourceRootId !== s.id || f.asset.sourceRootId !== s.id || f.asset.rootRevision !== f.root.revision
     || o.assetId !== f.asset.id || o.trackId !== f.track.id || o.libraryRootId !== f.root.id || o.sourceRootId !== s.id || o.fileRevision !== f.asset.fileRevision
     || o.rootRevision !== f.root.revision || o.locationRevision !== f.asset.locationRevision || o.selectionRevision !== f.track.selectionRevision) return false;
@@ -34,4 +38,13 @@ export function isLocalSourceCaptureResult(v: unknown): v is LocalSourceCaptureR
   return record(m) && closed(m,['id','title','artists','album'],['durationMs','version']) && m.id === f.track.id && text(m.title) && typeof m.album === 'string' && m.album.length <= 512
     && Array.isArray(m.artists) && m.artists.length <= 32 && m.artists.every(a => text(a)) && (m.durationMs === undefined || typeof m.durationMs === 'number' && Number.isSafeInteger(m.durationMs) && m.durationMs >= 0)
     && (m.version === undefined || text(m.version)) && (v.format === undefined || typeof v.format === 'string' && /^[a-z0-9]{1,8}$/u.test(v.format));
+}
+
+/** 私有播放歌词只能返回本地有界正文；不能夹带Provider来源、loading或合成instrumental。 */
+export function isLocalSourceLyricsSnapshot(value: unknown): value is LyricsSnapshot {
+  if (!record(value) || !['ready','unavailable','error'].includes(String(value.status)) || value.source !== undefined
+    || value.timingSource !== 'static' || value.activeLineIndex !== -1 || value.activeWordIndex !== undefined
+    || !Array.isArray(value.lines) || (value.status === 'ready' ? value.lines.length === 0 : value.lines.length !== 0)) return false;
+  try { if (Buffer.byteLength(JSON.stringify(value),'utf8') > 128 * 1024) return false; } catch { return false; }
+  return validateIpcResponseForCommand({version:1,id:'local-playback-lyrics',ok:true,result:value},'lyrics.get').ok;
 }

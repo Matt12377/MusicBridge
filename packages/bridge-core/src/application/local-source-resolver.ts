@@ -2,6 +2,7 @@ import path from 'node:path';
 import { isLocalPlayRequest, isLocalPlayTarget, isAudioAsset, isLibraryRoot, isLocalTrack,
   type LocalPlayRequest, type LocalPlayTarget, type LocalSourceUnsupported } from '@music-bridge/contracts';
 import type { RootCapability } from '../recording/source-files.js';
+import { sourceRemountProofMatchesRoot } from '../recording/source-remount-proof.js';
 import type { CollectionRepository } from '../collection/repository.js';
 import type { ResolvedAudioStream } from '../netease/types.js';
 import type { StreamResolver, StreamResolveRequest } from '../stream/resolver-types.js';
@@ -27,11 +28,12 @@ const sameTarget = (a: LocalPlayTarget, b: LocalPlayTarget): boolean => a.core_i
 function rootShape(v: unknown, expectedId: string): v is RootCapability {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
   const r = v as Record<string, unknown>, required = ['id','path','dev','ino','authorized','label'];
-  return required.every(k => Object.hasOwn(r,k)) && Object.keys(r).length === required.length && r.id === expectedId
+  return required.every(k => Object.hasOwn(r,k)) && Object.keys(r).every(k => required.includes(k) || k === 'readonlyRemountProof') && r.id === expectedId
     && typeof r.path === 'string' && r.path.length <= 4096 && path.isAbsolute(r.path) && !/[\u0000-\u001f\u007f]/u.test(r.path)
     && typeof r.dev === 'string' && /^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(r.dev) && r.dev.length <= 32
     && typeof r.ino === 'string' && /^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(r.ino) && r.ino.length <= 32
-    && typeof r.authorized === 'boolean' && typeof r.label === 'string' && r.label.length <= 256;
+    && typeof r.authorized === 'boolean' && typeof r.label === 'string' && r.label.length <= 256
+    && (!Object.hasOwn(r, 'readonlyRemountProof') || sourceRemountProofMatchesRoot(r as unknown as RootCapability));
 }
 export type LocalFactSelection = Pick<LocalPlayRequest, 'local_track_id' | 'asset_id' | 'expected_asset_revision'>;
 function facts(repository: CollectionRepository, request: LocalFactSelection): LocalSourceFacts {

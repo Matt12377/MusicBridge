@@ -4,6 +4,36 @@ import type { LocalLibraryManagementCommand, LocalLibraryManagementPayloads, Loc
 import { useLocalWorkbenchLibrary, type LocalLibraryWorkspaceApi } from '../src/renderer/src/composables/application/local-library-workbench/library.js'
 const state: LocalLibraryManagementReadback = { datasetId: 'dataset-a', revision: '1', scanConcurrency: 12, libraries: ['library-a', 'library-b'].map(libraryId => ({ libraryId, label: '合成 ' + libraryId, role: 'catalog', online: true, watching: false, latestSnapshotId: 'snapshot-' + libraryId, totalAlbums: 501, totalTracks: 5010, scanState: 'complete' })) }
 const settings: LocalNameSettings = { revision: '1', backend: 'ollama', ollama: { endpoint: 'http://127.0.0.1:11434', model: 'synthetic-local' }, vllm: { endpoint: 'http://127.0.0.1:8000/v1', model: 'synthetic-vllm' }, cloud: { endpoint: 'https://example.invalid/v1', model: 'synthetic-cloud', keyConfigured: false } }
+
+test('目录准备失败：普通与高级入口均未生成原确认命令，刷新保留准确阶段反馈', async t => {
+  for (const advanced of [false, true]) for (const coded of [false, true]) {
+    let rejected = true
+    const f = fixture(async command => {
+      if (command === 'library.read') return state
+      if (command === 'library.import.prepare') {
+        if (rejected) throw coded ? Object.assign(new Error('合成目录未就绪'), { code: 'NOT_READY' }) : new Error('合成准备失败')
+        return { choiceId: 'ready-choice', label: '合成目录', suggestedRole: 'catalog', evidence: [] }
+      }
+      throw new Error('准备阶段不能派发写命令')
+    })
+    const model = useLocalWorkbenchLibrary({ api: f.api }); t.after(model.dispose)
+    await model.read()
+    if (advanced) await model.prepareImport(); else assert.equal(await model.addMusicLibrary(), false)
+    assert.equal(model.addFeedback.value?.phase, 'failed')
+    assert.match(model.addFeedback.value?.message ?? '', /尚未提交添加确认/u)
+    assert.doesNotMatch(model.error.value + (model.addFeedback.value?.message ?? ''), /原请求已保留|读取原状态|不要更换参数|结果尚未确认/u)
+    assert.equal(model.originals.value.length, 0); assert.equal(model.operations.value.length, 0)
+    assert.equal(model.pending.value, false)
+    assert.equal(f.calls.some(call => call.command === 'library.import.confirm'), false)
+    const feedback = model.addFeedback.value
+    await model.read(); assert.equal(model.addFeedback.value, feedback)
+    rejected = false; await model.prepareImport()
+    assert.equal(model.importChoice.value?.choiceId, 'ready-choice')
+    assert.notEqual(model.addFeedback.value?.code, 'ADD_PREPARE_FAILED')
+    assert.equal(f.calls.filter(call => call.command === 'library.import.prepare').length, 2)
+    assert.equal(f.calls.some(call => call.command === 'library.import.confirm'), false)
+  }
+})
 function fixture(run?: (command: LocalLibraryManagementCommand, payload: LocalLibraryManagementPayloads[LocalLibraryManagementCommand]) => Promise<unknown>, cancel525?: (request: import('@music-bridge/contracts').LocalLibraryManagementMainPayloads['library.import.cancel']) => Promise<import('@music-bridge/contracts').LocalLibraryManagementMainResults['library.import.cancel']>) {
   const calls: { command: string; payload: unknown }[] = [], saved = new Map<string, string>()
   let current = structuredClone(settings)
@@ -38,6 +68,137 @@ test('库角色确认显式写入，多库选择按实际dataset持久回读而�
   assert.deepEqual(f.calls.find(v => v.command === 'library.import.confirm')?.payload, { commandId: 'import-a', choiceId: 'choice-a', role: 'album' })
   const cold = useLocalWorkbenchLibrary({ api: f.api, storage: f.storage }); t.after(cold.dispose); await cold.read(); assert.deepEqual(cold.selectedLibraryIds.value, ['library-a', 'library-b'])
 })
+test('共享添加入口选择目录后沿原建议角色确认一次，双击不重复选择或另发扫描', async t => {
+  const f = fixture(), model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => 'shared-import-a' }); t.after(model.dispose)
+  await model.read()
+  const adding = model.addMusicLibrary(), duplicate = model.addMusicLibrary()
+  assert.equal(model.addingLibrary.value, true)
+  assert.deepEqual(await Promise.all([adding, duplicate]), [true, false])
+  assert.equal(f.calls.filter(call => call.command === 'library.import.prepare').length, 1)
+  assert.deepEqual(f.calls.filter(call => call.command === 'library.import.confirm').map(call => call.payload), [{ commandId: 'shared-import-a', choiceId: 'choice-a', role: 'container' }])
+  assert.equal(f.calls.some(call => call.command.startsWith('localScan.')), false)
+  assert.equal(model.importChoice.value, null)
+  assert.equal(model.addingLibrary.value, false)
+})
+test('共享添加目录选择取消后不确认导入，原库与选择保留', async t => {
+  const f = fixture(async command => command === 'library.read' ? state : command === 'library.import.prepare' ? null : Promise.reject(new Error('取消后不得写入')))
+  const model = useLocalWorkbenchLibrary({ api: f.api }); t.after(model.dispose)
+  await model.read(); model.selectLibrary('library-a', true)
+  assert.equal(await model.addMusicLibrary(), false)
+  assert.equal(f.calls.some(call => call.command === 'library.import.confirm'), false)
+  assert.deepEqual(model.selectedLibraryIds.value, ['library-a'])
+  assert.equal(model.pending.value, false)
+})
+
+test('添加反馈：选择器成功返回null也明确未添加，不生成确认且反馈保留到只读刷新后', async t => {
+  const f = fixture(async command => command === 'library.read' ? state : command === 'library.import.prepare' ? null : Promise.reject(new Error('空选择不得确认')))
+  const model = useLocalWorkbenchLibrary({ api: f.api }); t.after(model.dispose)
+  await model.read()
+  assert.equal(await model.addMusicLibrary(), false)
+  assert.equal(model.addFeedback.value?.phase, 'cancelled')
+  assert.match(model.addFeedback.value?.message ?? '', /未添加.*未启动扫描/u)
+  const feedback = model.addFeedback.value
+  await model.read(); assert.equal(model.addFeedback.value, feedback)
+  assert.equal(model.originals.value.length, 0)
+})
+
+test('添加反馈：prepare异常与内部状态变化分别可见，选择身份不重放且闭集日志不带来源', async t => {
+  const logs: string[] = []; t.mock.method(console, 'info', (line: unknown) => { logs.push(String(line)) })
+  const f = fixture(async command => command === 'library.read' ? state : Promise.reject(new Error('/private/不得进入日志/令牌')))
+  const model = useLocalWorkbenchLibrary({ api: f.api }); t.after(model.dispose)
+  await model.read(); assert.equal(await model.addMusicLibrary(), false)
+  assert.equal(model.addFeedback.value?.phase, 'failed')
+  const failed = model.addFeedback.value
+  await model.read(); assert.equal(model.addFeedback.value, failed)
+  let release!: (value: { choiceId: string; label: string; suggestedRole: 'artist'; evidence: string[] }) => void
+  const selected = new Promise<{ choiceId: string; label: string; suggestedRole: 'artist'; evidence: string[] }>(resolve => { release = resolve })
+  let allowed = true
+  const held = fixture(async command => command === 'library.read' ? state : command === 'library.import.prepare' ? selected : Promise.reject(new Error('中断后不得确认')))
+  const gated = useLocalWorkbenchLibrary({ api: held.api, canChangeLibrary: () => allowed }); t.after(gated.dispose)
+  await gated.read(); const adding = gated.addMusicLibrary()
+  assert.equal(gated.addFeedback.value?.phase, 'choosing')
+  allowed = false; release({ choiceId: 'retained-choice', label: '/private/选中的来源标签', suggestedRole: 'artist', evidence: [] })
+  assert.equal(await adding, false)
+  assert.equal(gated.addFeedback.value?.phase, 'interrupted')
+  assert.equal(gated.importChoice.value?.choiceId, 'retained-choice')
+  assert.equal(held.calls.filter(row => row.command === 'library.import.confirm').length, 0)
+  assert.equal(held.calls.filter(row => row.command === 'library.import.prepare').length, 1)
+  const entries = logs.map(line => JSON.parse(line.slice(line.indexOf('{'))))
+  assert.ok(entries.some(entry => entry.code === 'ADD_PREPARE_FAILED'))
+  assert.ok(entries.some(entry => entry.code === 'ADD_CHANGE_BLOCKED'))
+  assert.ok(entries.every(entry => /^ADD_[A-Z_]+$/u.test(entry.code)))
+  assert.doesNotMatch(logs.join('\n'), /private|令牌|选中的来源标签/u)
+})
+
+test('添加反馈：确认中持续显示，未知回执在成功read后仍保留原command且只查询原结果', async t => {
+  let reject!: (cause: Error) => void
+  const confirmation = new Promise<never>((_resolve, fail) => { reject = fail })
+  const f = fixture(async (command, payload) => command === 'library.read' ? state
+    : command === 'library.import.prepare' ? { choiceId: 'pending-choice', label: '合成新目录', suggestedRole: 'artist', evidence: [] }
+      : command === 'library.import.confirm' ? confirmation
+        : command === 'library.operation.read' ? { commandId: (payload as { commandId: string }).commandId, kind: 'library.import.confirm', state: 'succeeded', libraryIds: ['new-library'], message: null }
+          : Promise.reject(new Error('不得重放')))
+  const model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => 'same-import-command' }); t.after(model.dispose)
+  await model.read(); const adding = model.addMusicLibrary()
+  for (let i = 0; i < 5; i++) await Promise.resolve()
+  assert.equal(model.addFeedback.value?.phase, 'confirming')
+  assert.equal(model.addingLibrary.value, true)
+  reject(new Error('合成回执丢失')); assert.equal(await adding, false)
+  assert.equal(model.addFeedback.value?.phase, 'unconfirmed')
+  assert.equal(model.addFeedback.value?.commandId, 'same-import-command')
+  const unknown = model.addFeedback.value
+  await model.read(); assert.equal(model.addFeedback.value, unknown)
+  assert.equal(await model.addMusicLibrary(), false)
+  assert.equal(model.importChoice.value?.choiceId, 'pending-choice')
+  assert.equal(f.calls.filter(row => row.command === 'library.import.confirm').length, 1)
+  await model.readOriginal('same-import-command')
+  assert.equal(model.addFeedback.value?.phase, 'added')
+  assert.deepEqual(model.addFeedback.value?.libraryIds, ['new-library'])
+  assert.doesNotMatch(model.addFeedback.value?.message ?? '', /扫描完成|扫描成功/u)
+})
+
+test('添加反馈：明确失败不冒充未知或已添加，后续成功read不擦除失败回执', async t => {
+  const f = fixture(async (command, payload) => command === 'library.read' ? state
+    : command === 'library.import.prepare' ? { choiceId: 'failed-choice', label: '合成目录', suggestedRole: 'album', evidence: [] }
+      : { commandId: (payload as { commandId: string }).commandId, kind: command, state: 'failed', libraryIds: [], message: '合成明确失败' })
+  const model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => 'failed-import-command' }); t.after(model.dispose)
+  await model.read(); assert.equal(await model.addMusicLibrary(), false)
+  assert.equal(model.addFeedback.value?.phase, 'failed')
+  assert.equal(model.addFeedback.value?.commandId, 'failed-import-command')
+  const failed = model.addFeedback.value
+  await model.read(); assert.equal(model.addFeedback.value, failed)
+  assert.equal(model.importChoice.value?.choiceId, 'failed-choice')
+})
+test('首次添加后设置整理选择真实新根，用户随后主动清空的选择不会被普通刷新恢复', async t => {
+  let imported = false
+  const f = fixture(async (command, payload) => {
+    if (command === 'library.read') return { ...state, libraries: imported ? state.libraries.slice(0, 1) : [] }
+    if (command === 'library.import.prepare') return { choiceId: 'choice-a', label: '合成新音乐库', suggestedRole: 'catalog', evidence: ['合成识别角色'] }
+    if (command === 'library.import.confirm') { imported = true; return { commandId: (payload as { commandId: string }).commandId, kind: command, state: 'succeeded', libraryIds: ['library-a'], message: null } }
+    throw new Error('首次添加不得调用其他动作')
+  })
+  const model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => 'first-shared-import' }); t.after(model.dispose)
+  await model.read(); assert.deepEqual(model.selectedLibraryIds.value, [])
+  assert.equal(await model.addMusicLibrary(), true)
+  assert.deepEqual(model.selectedLibraryIds.value, ['library-a'])
+  model.selectLibraries([]); await model.read()
+  assert.deepEqual(model.selectedLibraryIds.value, [])
+})
+test('共享添加确认结果未知时保留同一原请求，不因再次添加或高级入口生成新命令', async t => {
+  let ids = 0
+  const choice = { choiceId: 'choice-a', label: '合成文件夹', suggestedRole: 'catalog', evidence: ['合成角色'] }
+  const f = fixture(async command => command === 'library.read' ? state : command === 'library.import.prepare' ? choice : Promise.reject(new Error('合成回执丢失')))
+  const model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => 'shared-import-' + ++ids }); t.after(model.dispose)
+  await model.read(); assert.equal(await model.addMusicLibrary(), false)
+  const original = structuredClone(model.originals.value[0])
+  assert.equal(await model.addMusicLibrary(), false); await model.prepareImport()
+  assert.equal(ids, 1)
+  assert.equal(f.calls.filter(call => call.command === 'library.import.prepare').length, 1)
+  assert.equal(f.calls.filter(call => call.command === 'library.import.confirm').length, 1)
+  assert.deepEqual(model.originals.value[0], original)
+  assert.equal(model.importChoice.value?.choiceId, 'choice-a')
+  assert.equal(model.locked.value, true)
+})
 test('本地清理超时保原明确库集合，UNKNOWN阻新rename和新UUID，仅query原operation', async t => {
   let ids = 0
   const f = fixture(async command => command === 'library.read' ? state : command === 'library.operation.read' ? null : Promise.reject(new Error('合成返回丢失')))
@@ -47,6 +208,106 @@ test('本地清理超时保原明确库集合，UNKNOWN阻新rename和新UUID，
   assert.equal(ids, 1); assert.deepEqual(model.originals.value[0], original); assert.equal(model.locked.value, true); assert.equal(await model.discard(), false)
   assert.deepEqual(f.calls.filter(v => v.command !== 'library.read').map(v => v.command), ['library.remove', 'library.operation.read'])
   assert.deepEqual(f.calls.find(v => v.command === 'library.remove')?.payload, { commandId: 'command-1', libraryIds: ['library-a'] })
+})
+
+test('移除反馈：处理中持续可见，未知、明确失败和异常不被成功read擦除或自动重发', async t => {
+  const logs: string[] = []; t.mock.method(console, 'info', (line: unknown) => { logs.push(String(line)) })
+  for (const outcome of ['unknown', 'failed', 'throw'] as const) await t.test(outcome, async sub => {
+    let finish!: () => void, commands = 0
+    const held = new Promise<void>(resolve => { finish = resolve })
+    const f = fixture(async (command, payload) => {
+      if (command === 'library.read') return state
+      if (command === 'library.remove') { commands++; await held; if (outcome === 'throw') throw new Error('/private/合成路径'); return { commandId: (payload as any).commandId, kind: command, state: outcome, libraryIds: ['library-a'], message: null } }
+      throw new Error('未知结果只能查询原请求')
+    })
+    const model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => 'remove-original' }); sub.after(model.dispose)
+    await model.read(); model.selectLibrary('library-a', true)
+    const removing = model.remove()
+    assert.equal(model.removeFeedback.value?.phase, 'removing')
+    finish(); assert.equal(await removing, false)
+    const feedback = model.removeFeedback.value!
+    assert.equal(feedback.phase, outcome === 'failed' ? 'failed' : 'unconfirmed')
+    assert.equal(feedback.commandId, 'remove-original')
+    assert.deepEqual(model.confirmedRemovedLibraryIds.value, [])
+    await model.read(); assert.equal(model.removeFeedback.value, feedback)
+    assert.deepEqual(model.selectedLibraryIds.value, ['library-a'])
+    assert.equal(commands, 1); assert.equal(model.originals.value.length, 1)
+    if (outcome !== 'failed') { assert.equal(await model.remove(), false); assert.equal(commands, 1) }
+  })
+  const entries = logs.map(line => JSON.parse(line.slice(line.indexOf('{'))))
+  assert.ok(entries.some(entry => entry.code === 'REMOVE_STARTED' && entry.state === 'start'))
+  assert.ok(entries.some(entry => entry.code === 'REMOVE_REQUEST_UNCONFIRMED'))
+  assert.ok(entries.some(entry => entry.code === 'REMOVE_FAILED'))
+  assert.ok(entries.every(entry => /^REMOVE_[A-Z_]+$/u.test(entry.code) && Number.isFinite(entry.elapsedMs) && entry.elapsedMs >= 0))
+  assert.doesNotMatch(logs.join('\n'), /private|合成路径/u)
+})
+
+test('移除反馈：原receipt后来成功清相应选择与捕获，只通知一次且普通read保留回执', async t => {
+  let removed = false, notifications = 0
+  const libraries = [...state.libraries, ...['library-c', 'library-d', 'library-e'].map(libraryId => ({ ...state.libraries[0]!, libraryId }))]
+  const removedIds = ['library-a', 'library-c'], retainedIds = ['library-b', 'library-d', 'library-e']
+  const f = fixture(async (command, payload) => {
+    if (command === 'library.read') return { ...state, libraries: removed ? libraries.filter(library => !removedIds.includes(library.libraryId)) : libraries }
+    if (command === 'library.capture') return { datasetId: state.datasetId, captureId: 'remove-capture', libraryIds: libraries.map(library => library.libraryId), revision: '1', lyricsLibraries: [] }
+    if (command === 'library.remove') return { commandId: (payload as any).commandId, kind: command, state: 'unknown', libraryIds: removedIds, message: null }
+    if (command === 'library.operation.read') { removed = true; return { commandId: (payload as any).commandId, kind: 'library.remove', state: 'succeeded', libraryIds: removedIds, message: null } }
+    throw new Error('只查询原移除命令')
+  })
+  const model = useLocalWorkbenchLibrary({ api: f.api, storage: f.storage, makeCommandId: () => 'remove-receipt', onChanged: () => notifications++ }); t.after(model.dispose)
+  await model.read(); model.selectLibraries(libraries.map(library => library.libraryId)); await model.captureLibraries()
+  assert.ok(model.capture.value); assert.equal(await model.remove(removedIds), false)
+  await model.readOriginal('remove-receipt')
+  assert.deepEqual(model.selectedLibraryIds.value, retainedIds); assert.equal(model.capture.value, null)
+  assert.equal(model.removeFeedback.value?.phase, 'removed'); assert.equal(notifications, 1)
+  await model.read(); await model.readOriginal('remove-receipt')
+  assert.equal(notifications, 1); assert.equal(f.calls.filter(value => value.command === 'library.remove').length, 1)
+  assert.deepEqual(JSON.parse(f.storage.getItem('musicbridge.coverdrop.libraries.dataset-a')!), retainedIds)
+})
+
+test('移除反馈：成功后read失败不倒退结果，后续同ID重新添加与旧receipt查询不再隐藏新库', async t => {
+  let removed = false, imported = false, sequence = 0
+  const f = fixture(async (command, payload) => {
+    if (command === 'library.read') { if (removed && !imported) throw new Error('合成列表回读失败'); return state }
+    if (command === 'library.remove') { removed = true; return { commandId: (payload as any).commandId, kind: command, state: 'succeeded', libraryIds: ['library-a'], message: null } }
+    if (command === 'library.operation.read') return { commandId: (payload as any).commandId, kind: 'library.remove', state: 'succeeded', libraryIds: ['library-a'], message: null }
+    if (command === 'library.import.prepare') return { choiceId: 'readded-choice', label: '同ID新库', suggestedRole: 'catalog', evidence: [] }
+    if (command === 'library.import.confirm') { imported = true; return { commandId: (payload as any).commandId, kind: command, state: 'succeeded', libraryIds: ['library-a'], message: null } }
+    throw new Error('不应派发其他命令')
+  })
+  const model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => `remove-readd-${++sequence}` }); t.after(model.dispose)
+  await model.read(); model.selectLibraries(['library-a', 'library-b']); const original = model.state.value
+  assert.equal(await model.remove(['library-a']), true)
+  assert.equal(model.state.value, original, '失败回读不能伪造新的管理revision')
+  assert.deepEqual(model.confirmedRemovedLibraryIds.value, ['library-a'])
+  assert.match(model.removeFeedback.value!.message, /已移除.*列表刷新待确认/u)
+  assert.equal(await model.addMusicLibrary(), true)
+  assert.deepEqual(model.confirmedRemovedLibraryIds.value, [])
+  model.selectLibrary('library-a', true); await model.readOriginal('remove-readd-1')
+  assert.ok(model.selectedLibraryIds.value.includes('library-a'), '旧成功回执不能清掉重新添加后的新选择')
+  assert.deepEqual(model.confirmedRemovedLibraryIds.value, [])
+})
+
+test('移除反馈：查询原结果为null或异常仍保原ID，明确成功后才清选择', async t => {
+  let outcome: 'null' | 'throw' | 'succeeded' = 'null', writes = 0
+  const f = fixture(async (command, payload) => {
+    if (command === 'library.read') return state
+    if (command === 'library.remove') { writes++; return { commandId: (payload as any).commandId, kind: command, state: 'unknown', libraryIds: ['library-a'], message: null } }
+    if (command === 'library.operation.read') {
+      assert.deepEqual(payload, { commandId: 'remove-query-only' })
+      if (outcome === 'throw') throw new Error('合成原结果读取失败')
+      return outcome === 'null' ? null : { commandId: 'remove-query-only', kind: 'library.remove', state: 'succeeded', libraryIds: ['library-a'], message: null }
+    }
+    throw new Error('不应重发移除')
+  })
+  const model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => 'remove-query-only' }); t.after(model.dispose)
+  await model.read(); model.selectLibrary('library-a', true); assert.equal(await model.remove(), false)
+  for (const next of ['null', 'throw'] as const) {
+    outcome = next; await model.readOriginal('remove-query-only'); await model.read()
+    assert.equal(model.removeFeedback.value?.phase, 'unconfirmed'); assert.deepEqual(model.selectedLibraryIds.value, ['library-a'])
+    assert.deepEqual(model.confirmedRemovedLibraryIds.value, []); assert.equal(model.originals.value.length, 1)
+  }
+  outcome = 'succeeded'; await model.readOriginal('remove-query-only')
+  assert.equal(model.removeFeedback.value?.phase, 'removed'); assert.deepEqual(model.selectedLibraryIds.value, []); assert.equal(writes, 1)
 })
 test('原快照失败独立retry只派有限snapshot命令，零重扫或Provider查询', async t => {
   const f = fixture(), model = useLocalWorkbenchLibrary({ api: f.api, makeCommandId: () => 'snapshot-retry' }); t.after(model.dispose)
@@ -404,7 +665,10 @@ test('导入意图：等待在途库读取后单次prepare，迟回选择不被�
       assert.equal(model.busy.value, false); assert.equal(ids, 0)
       assert.deepEqual(model.importChoice.value, outcome === 'chosen' ? choice : null)
       if (outcome === 'chosen') assert.equal(model.role.value, 'artist')
-      if (outcome === 'rejected') assert.notEqual(model.error.value, '')
+      if (outcome === 'rejected') {
+        assert.equal(model.addFeedback.value?.phase, 'failed')
+        assert.match(model.addFeedback.value?.message ?? '', /尚未提交添加确认/u)
+      }
       assert.equal(f.calls.some(row => row.command === 'library.import.confirm'), false)
     } finally { readReply.resolve(structuredClone(state)); choiceReply.resolve(null); await Promise.all([reading, importing, duplicate]) }
   }

@@ -1,21 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {PlaybackSnapshot,TypedIpcEvent} from '@music-bridge/contracts';
-import {validateIpcEvent} from '@music-bridge/contracts';
+import {validateIpcEvent,validateIpcRequest} from '@music-bridge/contracts';
+import {LyricsCoordinator,createLyricsRequestContext} from '../../../packages/bridge-core/src/lyrics/coordinator.js';
 import type {MusicBridgePublicApi} from '../src/preload/api.js';
 import {usePlaybackSession} from '../src/renderer/src/composables/application/usePlaybackSession.js';
 import {projectPlaybackSnapshot} from '../src/renderer/src/composables/application/playbackSnapshot.js';
 import {createPlaybackEventPublisher} from '../../../packages/bridge-core/src/application/playback-event-publisher.js';
 import {snapshot} from '../../../packages/contracts/test/mbrs006/fixture.js';
-const local='local-safe-uuid';
+const local='11111111-1111-4111-8111-111111111111';
 test('006实际compact publisher→validator→Renderer session：local身份不触云歌词/收藏/最近数字重播',async t=>{
- let cloud=0,likes=0,replays=0;const errors:unknown[]=[],events:TypedIpcEvent[]=[];
- const api={getLyrics:async()=>{cloud++;throw new Error('本地不得走云歌词');},getTrackLikeStatus:async()=>{likes++;throw new Error('本地不得查云收藏');},likeTrack:async()=>{likes++;throw new Error('本地不得写云收藏');},play:async()=>{replays++;throw new Error('本地不得数字重播');}} as unknown as MusicBridgePublicApi;
+ let cloud=0,ownerReads=0,likes=0,replays=0;const errors:unknown[]=[],events:TypedIpcEvent[]=[];
+ // 公共getLyrics现在允许本地UUID；Provider零调用须由实际Coordinator分支证明，不能再把公共读取次数叫cloud。
+ const lyrics=new LyricsCoordinator({load:async()=>{cloud++;throw new Error('本地不得走云歌词');},localFile:{isCurrent:()=>true,read:async()=>{ownerReads++;return {status:'unavailable',lines:[],activeLineIndex:-1,timingSource:'static'};}},onChange:state=>session.onLyricsChanged(state)});t.after(()=>lyrics.shutdown());
+ const api={getLyrics:async(trackId:string)=>{assert.equal(validateIpcRequest({version:1,id:'local-lyrics',command:'lyrics.get',payload:{trackId}}).ok,true);return lyrics.getLyrics(trackId);},getTrackLikeStatus:async()=>{likes++;throw new Error('本地不得查云收藏');},likeTrack:async()=>{likes++;throw new Error('本地不得写云收藏');},play:async()=>{replays++;throw new Error('本地不得数字重播');}} as unknown as MusicBridgePublicApi;
  const session=usePlaybackSession({api,getSelectedZone:()=>({zoneId:'zone-safe',displayName:'合成',selected:true}),getZoneLifecycleStatus:()=> 'selected',getSelectedQuality:()=> 'auto',getMatchResult:()=>undefined,getPendingMatch:()=>undefined,onMatchTracks:()=>{},getRoonPlaybackContext:()=>undefined,resolveFavoriteDescriptor:()=>{throw new Error('本地无Roon描述符，不可进入native收藏');},onEnterNowPlaying:()=>{},clearActionError:()=>{},onActionMessage:()=>{},onError:e=>errors.push(e),onToast:()=>{}});t.after(()=>session.dispose());
  const publisher=createPlaybackEventPublisher(event=>{events.push(event);assert.equal(validateIpcEvent(event).ok,true);if(event.event==='playback.snapshot'||event.event==='playback.state'||event.event==='playback.progress')session.acceptPlaybackStreamEvent(event);},{protocol:'compact-v1'});
- session.acceptPlaybackReady(publisher.getProtocol()!);publisher(snapshot(),{generation:1,kind:'full'});await new Promise(resolve=>setImmediate(resolve));
- assert.equal(session.currentTrack.value?.id,local);assert.equal(session.playbackSource.value,'local_file');assert.equal(session.recentTracks.value.length,0);await session.toggleTrackLike();assert.equal(cloud,0);assert.equal(likes,0);assert.equal(replays,0);assert.deepEqual(errors,[]);
- const next=snapshot();next.local!.delivery_state='BYTES_SENT';publisher(next,{generation:1,kind:'full'});assert.equal(session.playbackState.value?.local?.delivery_state,'BYTES_SENT');assert.equal(session.playbackState.value?.local?.quality.http_bytes,'NOT_TESTED');assert.ok(events.length>=2);
+ const ownedSnapshot=()=>{const value=snapshot();value.currentTrack!.id=local;value.local!.local_track_id=local;const entry=value.queue.items[0]!;entry.trackId=local;entry.track!.id=local;entry.local!.local_track_id=local;return value;};
+ const publish=(value:PlaybackSnapshot)=>{lyrics.onPlaybackChanged(value,createLyricsRequestContext(value,1));publisher(value,{generation:1,kind:'full'});};
+ session.acceptPlaybackReady(publisher.getProtocol()!);publish(ownedSnapshot());await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(session.currentTrack.value?.id,local);assert.equal(session.playbackSource.value,'local_file');assert.equal(session.recentTracks.value.length,0);await session.toggleTrackLike();assert.equal(ownerReads,1);assert.equal(cloud,0);assert.equal(likes,0);assert.equal(replays,0);assert.deepEqual(errors,[]);
+ const next=ownedSnapshot();next.local!.delivery_state='BYTES_SENT';publish(next);assert.equal(session.playbackState.value?.local?.delivery_state,'BYTES_SENT');assert.equal(session.playbackState.value?.local?.quality.http_bytes,'NOT_TESTED');assert.ok(events.length>=2);assert.equal(ownerReads,1);assert.equal(cloud,0);
 });
 test('006Renderer结构共享：只有身份叶或selection修订改变也必须投影新事实',()=>{
  const a=snapshot(),b=structuredClone(a);b.local!.session_epoch='new-opaque';const changed=projectPlaybackSnapshot(a,b);assert.notEqual(changed,a);assert.equal(changed.local!.session_epoch,'new-opaque');

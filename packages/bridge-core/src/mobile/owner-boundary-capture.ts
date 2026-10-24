@@ -5,6 +5,9 @@ import {
   type MobileCorePrivateCall, type MobileCorePrivateReply,
 } from './owner-protocol.js';
 import { allocateOwnedSealedBytes } from './owned-sealed-bytes.js';
+import { allocateOwnedSourceBytes } from './owned-source-bytes.js';
+import { captureMobileSealedRequestFromPort, captureMobileSealedReplyFromPort } from './sealed-request-transport.js';
+import { capturePlaybackHistoryRequest, capturePlaybackHistoryReply } from './playback-history-protocol.js';
 import type { MobileOwnerPrivateRequest, MobileOwnerPrivateResult, MobileSealedSave } from './types.js';
 
 const typedArray = Object.getPrototypeOf(Uint8Array.prototype) as object;
@@ -33,6 +36,10 @@ function copySealed(value: Uint8Array): Uint8Array<ArrayBuffer> {
 }
 function capturedRequest(value: MobileOwnerPrivateRequest): MobileOwnerPrivateRequest {
   const kind = data(value, 'kind');
+  if (kind === 'playback-history') {
+    const history = value as Extract<MobileOwnerPrivateRequest, { kind: 'playback-history' }>;
+    return replaceData(history, 'request', capturePlaybackHistoryRequest(data(history, 'request')));
+  }
   if (kind !== 'save' && kind !== 'playback-save') return value;
   const save = value as Extract<MobileOwnerPrivateRequest, { kind: 'save' | 'playback-save' }>;
   const request = data(save, 'request') as MobileSealedSave;
@@ -40,7 +47,23 @@ function capturedRequest(value: MobileOwnerPrivateRequest): MobileOwnerPrivateRe
   return replaceData(save, 'request', captured);
 }
 function capturedResult(value: MobileOwnerPrivateResult, request: MobileOwnerPrivateRequest): MobileOwnerPrivateResult {
+  if (request.kind === 'playback-history' && data(value, 'kind') !== 'mobile-error') {
+    const transport = captureMobileSealedReplyFromPort(value);
+    return capturePlaybackHistoryReply(transport ?? value, request.request);
+  }
+  if (request.kind === 'media-source' && request.request.operation === 'read' && data(value, 'kind') === 'mobile-source-read') {
+    // 调用者已完整核验真实入站；同步复制取得本realm资格，不登记或借用外来数组。
+    const read = value as Extract<MobileOwnerPrivateResult, { kind: 'mobile-source-read' }>;
+    const bytes = data(read, 'bytes') as Uint8Array, length = Reflect.apply(byteLength, bytes, []) as number;
+    const copy = allocateOwnedSourceBytes(length); Reflect.apply(setBytes, copy, [bytes]);
+    return replaceData(read, 'bytes', copy);
+  }
   if ((request.kind === 'load' || request.kind === 'playback-load') && data(value, 'kind') === 'sealed') {
+    const transport = captureMobileSealedReplyFromPort(value);
+    if (transport !== null) {
+      if (!isMobileOwnerPrivateResult(transport, request)) throw new Error('移动私有回复捕获失败。');
+      return transport;
+    }
     const sealed = value as Extract<MobileOwnerPrivateResult, { kind: 'sealed' }>;
     return replaceData(sealed, 'sealed', copySealed(data(sealed, 'sealed') as Uint8Array));
   }
@@ -60,15 +83,29 @@ function boundary<T>(value: T, copy: (value: T) => T): GuardedBoundary<T> {
 export function readMobileCorePrivateCallForCapture(value: unknown): GuardedBoundary<MobileCorePrivateCall> | null {
   try {
     if (types.isProxy(value) || !isMobileCorePrivateCall(value)) return null;
-    return boundary(value, call => replaceData(call, 'request', capturedRequest(data(call, 'request') as MobileOwnerPrivateRequest)));
+    return boundary(value, call => {
+      const transport = captureMobileSealedRequestFromPort(call);
+      if (transport !== null) {
+        if (!isMobileCorePrivateCall(transport)) throw new Error('移动私有传输捕获失败。');
+        return transport;
+      }
+      return replaceData(call, 'request', capturedRequest(data(call, 'request') as MobileOwnerPrivateRequest));
+    });
   } catch { return null; }
 }
 /** Owner的原epoch/sequence/boot/dataset检查先于capture；原字节不登记资格。 */
 export function readDatasetOwnerRequestForCapture(value: unknown): GuardedBoundary<DatasetOwnerRequest> | null {
   try {
     if (types.isProxy(value) || !isDatasetOwnerRequest(value)) return null;
-    return boundary(value, request => data(request, 'operation') !== 'mobileMain' ? request
-      : replaceData(request, 'mobile', capturedRequest(data(request, 'mobile') as MobileOwnerPrivateRequest)));
+    return boundary(value, request => {
+      const transport = captureMobileSealedRequestFromPort(request);
+      if (transport !== null) {
+        if (!isDatasetOwnerRequest(transport)) throw new Error('移动Owner传输捕获失败。');
+        return transport;
+      }
+      return data(request, 'operation') !== 'mobileMain' ? request
+        : replaceData(request, 'mobile', capturedRequest(data(request, 'mobile') as MobileOwnerPrivateRequest));
+    });
   } catch { return null; }
 }
 

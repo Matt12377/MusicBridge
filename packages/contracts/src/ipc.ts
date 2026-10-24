@@ -121,7 +121,9 @@ export type IpcResponse<TResult = unknown> =
 
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
-export interface IpcCommandPayloads extends LocalRelocationPlanCommandPayloads, LocalSourceWritesCommandPayloads, LocalLegacyLinksCommandPayloads, LocalOrganizerCommandPayloads, LocalArtworkCommandPayloads, LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
+import type { LocalArtistCommandPayloads, LocalArtistCommandResults, NeteaseArtistProfile } from './artist-catalog-api.js';
+
+export interface IpcCommandPayloads extends LocalArtistCommandPayloads, LocalRelocationPlanCommandPayloads, LocalSourceWritesCommandPayloads, LocalLegacyLinksCommandPayloads, LocalOrganizerCommandPayloads, LocalArtworkCommandPayloads, LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
   'localCatalog.prepare': LocalPlayRequest;
   'localCatalog.playReceipt': LocalPlayRequest;
   'playback.localTarget': Record<string, never>;
@@ -321,6 +323,9 @@ export interface IpcCommandPayloads extends LocalRelocationPlanCommandPayloads, 
   'auth.logout': Record<string, never>;
   'account.getState': Record<string, never>;
   'account.refresh': Record<string, never>;
+  'library.searchSuggestions': { query: string };
+  'library.artistProfile': { artistId: string };
+  'library.artistAlbums': { artistId: string; page: PageRequest };
   'library.search': { query: string; page: PageRequest };
   'library.searchArtists': { query: string; page: PageRequest };
   'library.searchAlbums': { query: string; page: PageRequest };
@@ -416,7 +421,7 @@ export interface IpcCommandPayloads extends LocalRelocationPlanCommandPayloads, 
   'playback.insertNext': { items: readonly PlaybackQueueRequestItem[] };
 }
 
-export interface IpcCommandResults extends LocalRelocationPlanCommandResults, LocalSourceWritesCommandResults, LocalLegacyLinksCommandResults, LocalOrganizerCommandResults, LocalArtworkCommandResults, LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
+export interface IpcCommandResults extends LocalArtistCommandResults, LocalRelocationPlanCommandResults, LocalSourceWritesCommandResults, LocalLegacyLinksCommandResults, LocalOrganizerCommandResults, LocalArtworkCommandResults, LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
   'localCatalog.prepare': LocalSourceUnsupported | LocalPlayAccepted;
   'localCatalog.playReceipt': import('./local-play-request.js').LocalPlayReceipt;
   'playback.localTarget': import('./local-play-request.js').LocalPlayTarget | null;
@@ -613,6 +618,9 @@ export interface IpcCommandResults extends LocalRelocationPlanCommandResults, Lo
   'auth.logout': PublicAuthState;
   'account.getState': PublicAccountState;
   'account.refresh': PublicAccountState;
+  'library.searchSuggestions': { keywords: string[] };
+  'library.artistProfile': NeteaseArtistProfile;
+  'library.artistAlbums': Page<AlbumSummary>;
   'library.search': Page<TrackSummary>;
   'library.searchArtists': Page<ArtistSummary>;
   'library.searchAlbums': Page<AlbumSummary>;

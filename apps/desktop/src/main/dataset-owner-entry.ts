@@ -8,13 +8,20 @@ import { loadRecordingDependenciesForOwner } from './recording-bootstrap.js'
 import { mobileDsdOptionsForOwner } from './mobile-dsd-bootstrap.js'
 import { parseDatasetOwnerWorkerData } from './dataset-owner-bootstrap.js'
 import { installPhysicalResourceCoordinator } from '../../../../packages/bridge-core/src/stream/physical-resource-locks.js'
+import { configureSharedRustMediaWorkerPool } from '../../../../packages/bridge-core/src/library/rust-media-worker.js'
+import { logLibraryOperation } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { createDatasetOwnerReadRevocation } from '../../../../packages/bridge-core/src/collection/dataset-owner-read-revocation.js'
 
 // 此入口只由受信任的Core组合层创建；不从Renderer、PATH或普通配置补造设备资格。
 if (!parentPort) {
   throw new Error('数据集所有者启动身份无效。')
 }
-const { dataDirectory, resourcesDirectory, physicalResourceBuffer,sourceWritesPort, relocationMainPort, localWorkbenchNative } = parseDatasetOwnerWorkerData(workerData)
+const { dataDirectory, resourcesDirectory, physicalResourceBuffer,albumReadRevocationBuffer,sourceWritesPort, relocationMainPort, localWorkbenchNative } = parseDatasetOwnerWorkerData(workerData)
+const albumReadRevocation = albumReadRevocationBuffer ? createDatasetOwnerReadRevocation(albumReadRevocationBuffer) : undefined
 if (physicalResourceBuffer) installPhysicalResourceCoordinator(physicalResourceBuffer)
+// 容量由可信入口一次固定；Main 与 Utility 的独立模块环境仍使用默认两槽。
+configureSharedRustMediaWorkerPool(8)
+logLibraryOperation('worker', 'media.profile', 'complete', { code: 'BULK_V2', count: 8 })
 const env = process.env
 const testMode = env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
 
@@ -34,7 +41,9 @@ attachDatasetOwnerWorkerPort(parentPort, {
       entryDirectory: path.dirname(fileURLToPath(import.meta.url)),
       resourcesDirectory,
     }, dataDirectory)
-    const prepared = prepareOwnedDatasetDomain({ dataDirectory, epoch, testMode, projection, recordingDependencies,
+    const prepared = prepareOwnedDatasetDomain({ dataDirectory, epoch, testMode, projection, recordingDependencies, localScanReadProfile: 'bulk-v2',
+      mobileSqlWorkerEntry: new URL('./mobile-sql-worker-entry.js', import.meta.url),
+      ...(albumReadRevocation ? { assertAlbumReadActive: albumReadRevocation.assertActive } : {}),
       ...(localWorkbenchNative ? { localWorkbenchNative } : {}),
       ...(sourceWritesMainActor ? { sourceWritesMainActor } : {}),
       ...(mobileDsd ? { mobileDsd } : {}) })

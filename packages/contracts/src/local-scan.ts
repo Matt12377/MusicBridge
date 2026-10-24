@@ -83,13 +83,18 @@ const nonnegative = (v: unknown): v is number => typeof v === 'number' && Number
 function scanFacts(v: unknown): boolean {
   if (!record(v) || !closed(v,['technical','coverEvidence','readEvidence']) || !record(v.technical)
     || !closed(v.technical,['container','codec','lossless','sampleRateHz','channels','bitsPerSample','durationSeconds','evidence'])
-    || !['FLAC','MPEG','MP4','WAVE','AIFF','OGG','WAVPACK','APE','TTA','MPC','TAK'].includes(String(v.technical.container)) || !scanText(v.technical.codec)
+    || typeof v.technical.container !== 'string' || !['FLAC','MPEG','MP4','WAVE','AIFF','DSF','DFF','OGG','WAVPACK','APE','TTA','MPC','TAK'].includes(v.technical.container) || !scanText(v.technical.codec)
     || !(v.technical.lossless === null || typeof v.technical.lossless === 'boolean')
     || !nonnegative(v.technical.sampleRateHz) || v.technical.sampleRateHz === 0 || !nonnegative(v.technical.channels) || v.technical.channels === 0
     || !(v.technical.bitsPerSample === null || nonnegative(v.technical.bitsPerSample))
     || !(v.technical.durationSeconds === null || nonnegative(v.technical.durationSeconds)) || v.technical.evidence !== 'bounded-parser-reported'
     || !scanArray(v.coverEvidence,8) || !record(v.readEvidence)
     || !closed(v.readEvidence,['bytesRead','readCalls','maxReadBytes','allocationBytes','elapsedMs','wholeAudioHash','wholeAudioDecode'])) return false;
+  // 与 Core 原扫描事实一致；CUE 批次标签不放宽 DSD 技术准入。
+  if (['DSF','DFF'].includes(v.technical.container) && (v.technical.codec !== 'DSD' || v.technical.lossless !== true
+    || v.technical.bitsPerSample !== 1 || ![2822400,3072000,5644800,6144000,11289600,12288000,22579200,24576000].includes(v.technical.sampleRateHz as number)
+    || !Number.isSafeInteger(v.technical.channels) || (v.technical.channels as number) > 6
+    || !nonnegative(v.technical.durationSeconds) || v.technical.durationSeconds === 0)) return false;
   for (const cover of v.coverEvidence) if (!record(cover) || !closed(cover,['mime','bytes','sha256','evidence'])
     || !(cover.mime === 'image/png' || cover.mime === 'image/jpeg') || typeof cover.bytes !== 'number' || !Number.isSafeInteger(cover.bytes)
     || cover.bytes < 1 || cover.bytes > 4*1024*1024 || typeof cover.sha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(cover.sha256)
@@ -105,7 +110,7 @@ function scanItem(v: unknown): boolean {
     || !(v.readFacts === null || scanFacts(v.readFacts))) return false;
   if (v.outcome === 'rejected') return !v.reused && v.fields === null && scanText(v.failureCode);
   return v.outcome === 'accepted' && v.failureCode === null && record(v.fields)
-    && Reflect.ownKeys(v.fields).every(k => typeof k === 'string' && ['title','artist','album','year','disc','track'].includes(k) && Object.prototype.propertyIsEnumerable.call(v.fields,k))
+    && Reflect.ownKeys(v.fields).every(k => typeof k === 'string' && ['title','artist','album','year','disc','track','albumArtist','artists','albumArtists'].includes(k) && Object.prototype.propertyIsEnumerable.call(v.fields,k))
     && isLocalMetadata(v.fields) && (v.reused ? Object.keys(v.fields).length === 0 && v.readFacts === null : scanFacts(v.readFacts));
 }
 /** CUE仅保留声明与owner快照，不是精确asset segment或播放许可。 */

@@ -24,7 +24,8 @@ import { createLibraryReadTerminalClient } from '../src/preload/library-read-ter
 import {createMBQueueClient} from '../src/preload/mb-queue-client.js'
 import { createLocalLibraryClient } from '../src/preload/local-library-client.js'
 import { createLocalAlbumClient } from '../src/preload/local-album-client.js'
-import { createLocalWorkbenchClient } from '../src/preload/local-workbench-client.js'
+import { createArtistCatalogClient } from '../src/preload/artist-catalog-client.js'
+import { createLocalWorkbenchClient, installTrustedDirectoryDrop } from '../src/preload/local-workbench-client.js'
 import { createLocalArtworkClient } from '../src/preload/local-artwork-client.js'
 import { createLocalOrganizerClient } from '../src/preload/local-organizer-client.js'
 import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
@@ -36,11 +37,32 @@ import { createPreparationZipClient } from '../src/preload/preparation-zip-clien
 import { createCommandOutboxClient, createCommandOutboxDatasetScope } from '../src/preload/command-outbox-client.js'
 import { unwrapRoonImageIpc } from '../src/roon-image-ipc.js'
 
-test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，不经过outbox或打开设备', async () => {
+test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，不经过outbox或打开设备', async t => {
   const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
   const calls: Array<[string, unknown]> = [], runId = '73000000-0000-4000-8000-000000000001'
   const contextPlayCalls: unknown[][] = []
   let exposed: ReturnType<typeof createPreloadApi> | undefined
+  let catalog: ReturnType<typeof createArtistCatalogClient> | undefined
+  let native: { subscribeDirectoryDrop(listener: () => boolean): () => void } | undefined
+  const exposedNames: string[] = [], layoutSends: string[] = [], frames = new Map<number, () => void>()
+  const documentListeners = new Map<string, (event?: unknown) => void>(), windowListeners = new Map<string, () => void>()
+  let nextFrame = 0, layoutObservations = 0
+  class Element { closest() { return null } }
+  class NativeFile {}
+  class DragEvent {}
+  // 只提供正式Preload装配所需的DOM与事件；不造可信drop，也不接触本机文件。
+  const window = { Element, File: NativeFile, DragEvent,
+    addEventListener(name: string, listener: () => void) { windowListeners.set(name, listener) },
+  }
+  const document = { readyState: 'complete', documentElement: new Element(), defaultView: window,
+    querySelector(selector: string) { assert.equal(selector, '[data-musicbridge-artwork-web-host]'); return null },
+    contains() { return false },
+    addEventListener(name: string, listener: (event?: unknown) => void) { documentListeners.set(name, listener) },
+    removeEventListener(name: string, listener: (event?: unknown) => void) { assert.equal(documentListeners.get(name), listener); documentListeners.delete(name) },
+  }
+  class ResizeObserver { constructor(_callback: () => void) {} observe() {} disconnect() {} }
+  class MutationObserver { constructor(_callback: () => void) {} observe(target: unknown) { assert.equal(target, document.documentElement); layoutObservations++ } }
+  t.after(() => { windowListeners.get('unload')?.(); assert.equal(documentListeners.has('drop'), false); assert.equal(documentListeners.has('dragover'), false) })
   const recordModule = await import('../src/preload/recording-record-client.js').catch(() => ({}))
   const replicaModule = await import('../src/preload/recording-replica-client.js').catch(() => ({}))
   const printModule = await import('../src/preload/recording-print-client.js')
@@ -51,7 +73,8 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     './library-read-terminal.js': { createLibraryReadTerminalClient },
     './local-library-client.js': { createLocalLibraryClient },
     './local-album-client.js': { createLocalAlbumClient },
-    './local-workbench-client.js': { createLocalWorkbenchClient },
+    './artist-catalog-client.js': { createArtistCatalogClient },
+    './local-workbench-client.js': { createLocalWorkbenchClient, installTrustedDirectoryDrop },
     './local-artwork-client.js': { createLocalArtworkClient },
     './local-organizer-client.js': { createLocalOrganizerClient },
     './mb-queue-client.js': {createMBQueueClient},
@@ -59,15 +82,34 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     './mobile-connection-client.js': mobileModule,
     './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
-    electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown, ...args: unknown[]) => { calls.push([channel, structuredClone(payload)]); if (channel === 'roon:library:play') contextPlayCalls.push([payload, ...args]); return channel === 'collection:readonly-settings' || channel === 'collection:set-readonly-enabled' ? { schemaVersion: 1, enabled: payload === true, mode: 'node', state: 'off' } : channel === 'collection:refresh' ? { schemaVersion: 1, refreshed: false, settings: { schemaVersion: 1, enabled: false, mode: 'node', state: 'off' } } : channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
+    electron: { contextBridge: { exposeInMainWorld: (name: string, api: unknown) => {
+      assert.ok(name === 'musicBridgeCatalog' || name === 'musicBridge' || name === 'musicBridgeNative', `非预期公开入口 ${name}`); assert.equal(exposedNames.includes(name), false); exposedNames.push(name)
+      if (name === 'musicBridge') exposed = api as ReturnType<typeof createPreloadApi>
+      else if (name === 'musicBridgeCatalog') catalog = api as typeof catalog
+      else native = api as typeof native
+    } }, webUtils: { getPathForFile() { throw new Error('本例不得读取原生文件路径') } }, ipcRenderer: {
+      send(channel: string) { assert.equal(channel, 'localWorkbench:web-layout'); layoutSends.push(channel) },
+      invoke: async (channel: string, payload: unknown, ...args: unknown[]) => { calls.push([channel, structuredClone(payload)]); if (channel === 'roon:library:play') contextPlayCalls.push([payload, ...args]); return channel === 'collection:readonly-settings' || channel === 'collection:set-readonly-enabled' ? { schemaVersion: 1, enabled: payload === true, mode: 'node', state: 'off' } : channel === 'collection:refresh' ? { schemaVersion: 1, refreshed: false, settings: { schemaVersion: 1, enabled: false, mode: 'node', state: 'off' } } : channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } },
+    } },
     './recording-attempt-client.js': { createRecordingAttemptClient }, './recording-device-client.js': { createRecordingDeviceClient }, './recording-workspace-client.js': { createRecordingWorkspaceClient }, './recording-candidate-client.js': { createRecordingCandidateClient }, './preparation-zip-client.js': { createPreparationZipClient }, './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient, createCommandOutboxDatasetScope },
     './image-diagnostic.js': { summarizePreloadRoonImage }, '../roon-image-ipc.js': { unwrapRoonImageIpc },
   }
   runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
-    exports: {}, process: { contextIsolated: true, env: {} },
+    exports: {}, process: { contextIsolated: true, env: {} }, document, window, ResizeObserver, MutationObserver,
+    requestAnimationFrame(callback: () => void) { frames.set(++nextFrame, callback); return nextFrame },
     require: (name: string) => { assert.ok(Object.hasOwn(modules, name), `非预期依赖 ${name}`); return modules[name] },
   })
   assert.ok(exposed)
+  assert.deepEqual(exposedNames, ['musicBridgeCatalog', 'musicBridge', 'musicBridgeNative']);
+  assert.ok(catalog); assert.equal(Object.isFrozen(catalog), true)
+  assert.deepEqual(Object.keys(catalog), ['listArtists', 'getArtist', 'listArtistAlbums', 'listArtistTracks', 'search', 'suggest', 'artistMatches', 'bindArtist', 'playLocalSelection'])
+  assert.ok(Object.values(catalog).every(value => typeof value === 'function'));  assert.ok(native); assert.equal(Object.isFrozen(native), true)
+  assert.deepEqual(Object.keys(native), ['subscribeDirectoryDrop'])
+  const unsubscribeNative = native.subscribeDirectoryDrop(() => false); assert.equal(typeof unsubscribeNative, 'function'); unsubscribeNative()
+  assert.equal(layoutObservations, 1); assert.ok(documentListeners.has('drop')); assert.ok(documentListeners.has('dragover')); assert.ok(windowListeners.has('unload'))
+  assert.equal(frames.size, 1); windowListeners.get('resize')?.(); documentListeners.get('scroll')?.(); assert.equal(frames.size, 1, '原布局观察合并到同一受控帧')
+  for (const [id, callback] of frames) { frames.delete(id); callback() }
+  assert.deepEqual(layoutSends, ['localWorkbench:web-layout'])
   assert.equal(calls.filter(([channel]) => channel === 'commandOutbox:context').length, 6, '共享读写范围一次，Attempt、档案、Replica、打印、设备五个独立客户端各采集一次工作库身份')
   const streamApi = exposed as unknown as { getPlaybackStreamSnapshot: () => Promise<unknown> }
   assert.equal(typeof streamApi.getPlaybackStreamSnapshot, 'function')

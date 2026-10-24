@@ -1,5 +1,6 @@
 import { isSourceWorkbenchDirectoryWire, captureSourceWorkbenchDirectoryRequest, captureSourceWorkbenchDirectoryReply, assertSourceWorkbenchDirectoryReplyForRequest, captureSourceWorkbenchDirectoryRegistrationRequest, captureSourceWorkbenchDirectoryRegistrationReply, assertSourceWorkbenchDirectoryRegistrationReplyForRequest, type SourceWorkbenchDirectoryRequest, type SourceWorkbenchDirectoryRegistrationRequest } from '../collection/source-writes-authority.js';
 import { MessageChannel, type MessagePort } from 'node:worker_threads';
+import { LIBRARY_REMOVAL_REQUEST_MS } from './library-removal-budget.js';
 import {
   LOCAL_SOURCE_WRITES_BUDGET,
   localSourceWritesDataSnapshot,
@@ -107,7 +108,7 @@ export function createUtilitySourceWritesBridge(parent: SourceWritesUtilityPort)
     if (closed) return;
     try {
       if(isSourceWorkbenchReadersWire(raw,'request')){
-        const q=captureSourceWorkbenchReadersRequest(raw);if(q.sequence!==lastReadersSequence+1||readersPending.size>=4||readersPending.has(q.requestId)||q.expiresAtMs<=Date.now()||q.expiresAtMs>Date.now()+2000)throw Error('按库读取原fence序号或期限无效。');
+        const q=captureSourceWorkbenchReadersRequest(raw);if(q.sequence!==lastReadersSequence+1||readersPending.size>=4||readersPending.has(q.requestId)||q.expiresAtMs<=Date.now()||q.expiresAtMs>Date.now()+LIBRARY_REMOVAL_REQUEST_MS)throw Error('按库读取原fence序号或期限无效。');
         lastReadersSequence=q.sequence;readersPending.set(q.requestId,q);source!.postMessage(q);return;
       }
       if(isSourceWorkbenchDirectoryWire(raw,'registration-reply')){

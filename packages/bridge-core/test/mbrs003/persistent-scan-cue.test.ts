@@ -15,6 +15,7 @@ import {createScanReadAdmission} from '../../src/library/scan-read-admission.js'
 import type {DatasetProjectionPort,DatasetProjectionCommand,DatasetProjectionCommandPayloads,DatasetProjectionCommandResults} from '../../src/collection/dataset-owner-protocol.js';
 import {isLocalScanCommandPayload,type LocalCuePreparedItem} from '@music-bridge/contracts';
 import type {CueSidecarLifecycle} from '../../src/library/cue-sidecar-reader.js';
+import {METADATA_PARSER_VERSION} from '../../src/library/metadata-reader-types.js';
 async function freshCueReader():Promise<typeof import('../../src/library/cue-sidecar-reader.js')> {
   assert.equal(process.versions.node.split('.')[0],'22');
   const declaration=process.env.MBRS003_CUE_BUILD_BINDING;assert.ok(declaration && path.isAbsolute(declaration),'root须提供实际fresh CUE编译身份');
@@ -99,7 +100,8 @@ test('旧五表32原事实兼容，CUE原子扩展与提交fault回滚，冷prep
 
   // 实际新repo延续原五表32，可信批准备故障不能留下半张CUE表。
   const injected:string[]=[];const repo=createCollectionRepository({filePath:u.file,beforeCommit:action=>{if(action === fail){injected.push(action);throw new Error('合成提交故障');}}});t.after(()=>repo.close());
-  const created=repo.localScan.start({commandId:randomUUID(),datasetId:u.datasetId,libraryRootId:u.root.id,expectedRootRevision:u.root.revision,parserVersion:'music-metadata-11.15.0/mbrs003-v1'}).job;
+  // 本用例核旧数据库结构及故障恢复；解析器身份沿当前真实Reader，不能用过时版本冒充当前解析结果。
+  const created=repo.localScan.start({commandId:randomUUID(),datasetId:u.datasetId,libraryRootId:u.root.id,expectedRootRevision:u.root.revision,parserVersion:METADATA_PARSER_VERSION}).job;
   const job=repo.localScan.resume({commandId:randomUUID(),jobId:created.jobId,expectedRevision:created.jobRevision});const stat=await readonlySourceCandidateMetadata(u.source,'disc.cue');
   const item:LocalCuePreparedItem={relative:'disc.cue',signature:stat.signature,parserVersion:'cue-text-75fps/mbrs003-v1',outcome:'rejected',failureCode:'UNBOUND_FILE',reused:false,previousSnapshotId:null,result:null};
   const batch={batchId:randomUUID(),jobId:job.jobId,expectedJobRevision:job.jobRevision,checkpointBefore:null,items:[],frontier:[],completed:true,kind:'cue-sidecars-v1' as const,cueItems:[item]};

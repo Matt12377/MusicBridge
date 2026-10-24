@@ -7,6 +7,8 @@ export type PublicErrorCode =
   | 'TIMEOUT'
   | 'CANCELLED'
   | 'NOT_READY'
+  /** 本地艺术家派生索引仍在准备；只读调用者可等待后重新查询。 */
+  | 'ARTIST_INDEX_PREPARING'
   /** Core已证实本次Begin未提交且没有可能迟到的启动；仅此码允许清除原Begin待确认命令。 */
   | 'ATTEMPT_NOT_ACCEPTED'
   | 'INVENTORY_CONFLICT'

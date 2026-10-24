@@ -1,10 +1,27 @@
 import { randomUUID } from 'node:crypto'
 import { chmod, lstat, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { logLibraryOperation } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
 
 export const MAX_CREDENTIAL_LENGTH = 64 * 1024
 const MAX_ENCRYPTED_FILE_SIZE = 128 * 1024
 const PRIVATE_FILE_MODE = 0o600
+
+const credentialStages = ['migration', 'vault-file', 'vault-availability', 'vault-read', 'vault-decrypt', 'vault-validate', 'vault-reencrypt', 'vault-result', 'core-verify', 'core-set'] as const
+const credentialStageCodes = ['NONE', 'MIGRATED', 'ALREADY_PRESENT', 'MIGRATION_FAILED', 'FILE_VALID', 'FILE_INVALID', 'STAT_FAILED',
+  'AVAILABLE', 'AVAILABILITY_FAILED', 'READ', 'READ_FAILED', 'DECRYPTED', 'DECRYPT_FAILED', 'CREDENTIAL_VALID', 'VALIDATION_FAILED',
+  'REENCRYPTED', 'REENCRYPT_INVALID', 'REENCRYPT_FAILED', 'CONFIGURED', 'MISSING', 'INVALID', 'UNAVAILABLE', 'AUTHORIZED', 'EXPIRED', 'VERIFY_FAILED', 'SET_FAILED'] as const
+type CredentialStage = typeof credentialStages[number]
+type CredentialStageCode = typeof credentialStageCodes[number]
+const resultCodes = { configured: 'CONFIGURED', missing: 'MISSING', invalid: 'INVALID', unavailable: 'UNAVAILABLE' } as const
+
+/** 仅记录固定阶段、枚举和耗时；不接收异常对象、凭据、路径或密文，诊断失败不改变安全语义。 */
+export function recordCredentialStage(stage: CredentialStage, code: CredentialStageCode, began: number): void {
+  try {
+    if (!credentialStages.includes(stage) || !credentialStageCodes.includes(code)) return
+    logLibraryOperation('library', `startup.provider-auth.${stage}`, 'complete', { code, elapsedMs: Math.max(0, performance.now() - began) })
+  } catch { /* 诊断不能改变原凭据恢复结果。 */ }
+}
 
 export interface AsyncSafeStorage {
   isAsyncEncryptionAvailable(): Promise<boolean>
@@ -95,50 +112,75 @@ export class CredentialVault {
   }
 
   async read(): Promise<CredentialVaultReadResult> {
+    const began = performance.now()
+    const finish = (result: CredentialVaultReadResult): CredentialVaultReadResult => {
+      recordCredentialStage('vault-result', resultCodes[result.status], began)
+      return result
+    }
+    let stageBegan = performance.now()
     let stat
     try {
       stat = await lstat(this.options.filePath)
     } catch (error) {
-      if (isNotFound(error)) return { status: 'missing' }
-      return { status: 'invalid' }
+      const missing = isNotFound(error)
+      recordCredentialStage('vault-file', missing ? 'MISSING' : 'STAT_FAILED', stageBegan)
+      return finish({ status: missing ? 'missing' : 'invalid' })
     }
     if (
       !isPrivateRegularFile(stat) ||
       stat.size === 0 ||
       stat.size > MAX_ENCRYPTED_FILE_SIZE
     ) {
-      return { status: 'invalid' }
+      recordCredentialStage('vault-file', 'FILE_INVALID', stageBegan)
+      return finish({ status: 'invalid' })
     }
+    recordCredentialStage('vault-file', 'FILE_VALID', stageBegan)
+    stageBegan = performance.now()
     let encryptionAvailable = false
+    let availabilityFailed = false
     try {
       encryptionAvailable = await this.options.storage.isAsyncEncryptionAvailable()
     } catch {
       encryptionAvailable = false
+      availabilityFailed = true
     }
+    recordCredentialStage('vault-availability', availabilityFailed ? 'AVAILABILITY_FAILED' : encryptionAvailable ? 'AVAILABLE' : 'UNAVAILABLE', stageBegan)
     if (!encryptionAvailable) {
-      return { status: 'unavailable' }
+      return finish({ status: 'unavailable' })
     }
 
+    stageBegan = performance.now()
     let encrypted: Buffer
     try {
       encrypted = await readFile(this.options.filePath)
     } catch {
-      return { status: 'invalid' }
+      recordCredentialStage('vault-read', 'READ_FAILED', stageBegan)
+      return finish({ status: 'invalid' })
     }
+    recordCredentialStage('vault-read', 'READ', stageBegan)
 
+    let stage: 'vault-decrypt' | 'vault-validate' | 'vault-reencrypt' = 'vault-decrypt'
+    stageBegan = performance.now()
     try {
       const decrypted = await this.options.storage.decryptStringAsync(encrypted)
+      recordCredentialStage(stage, 'DECRYPTED', stageBegan)
+      stage = 'vault-validate'; stageBegan = performance.now()
       const credential = validateCredential(decrypted.result)
+      recordCredentialStage(stage, 'CREDENTIAL_VALID', stageBegan)
       if (decrypted.shouldReEncrypt) {
+        stage = 'vault-reencrypt'; stageBegan = performance.now()
         const reencrypted = await this.options.storage.encryptStringAsync(credential)
         if (reencrypted.length === 0 || reencrypted.length > MAX_ENCRYPTED_FILE_SIZE) {
-          return { status: 'invalid' }
+          recordCredentialStage(stage, 'REENCRYPT_INVALID', stageBegan)
+          return finish({ status: 'invalid' })
         }
         await this.writeAtomically(reencrypted)
+        recordCredentialStage(stage, 'REENCRYPTED', stageBegan)
       }
-      return { status: 'configured', credential }
+      return finish({ status: 'configured', credential })
     } catch {
-      return { status: 'invalid' }
+      recordCredentialStage(stage, stage === 'vault-decrypt' ? 'DECRYPT_FAILED' : stage === 'vault-validate' ? 'VALIDATION_FAILED' : 'REENCRYPT_FAILED', stageBegan)
+      return finish({ status: 'invalid' })
     }
   }
 

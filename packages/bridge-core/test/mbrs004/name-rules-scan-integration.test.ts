@@ -1,15 +1,18 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import { mkdtemp, chmod, mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fstatSync } from 'node:fs';
 import { createCollectionRepository } from '../../src/collection/repository.js';
 import { createLocalScanCoordinator } from '../../src/collection/local-scan-coordinator.js';
 import { authorizeSourceDirectory } from '../../src/recording/source-files.js';
 import { createScanReadAdmission } from '../../src/library/scan-read-admission.js';
 import { resolveAlbumNameCandidates, inferAlbumBoundaries } from '../../src/library/local-name-rules.js';
 import type { DatasetProjectionPort, DatasetProjectionCommand, DatasetProjectionCommandPayloads, DatasetProjectionCommandResults } from '../../src/collection/dataset-owner-protocol.js';
-import type { MetadataReaderPort } from '../../src/library/metadata-reader-types.js';
+import type { MetadataReadBudget, MetadataReaderLifecycle, MetadataReaderPort, MetadataReadResult } from '../../src/library/metadata-reader-types.js';
+import { RUST_MEDIA_METADATA_PARSER_VERSION } from '../../src/library/metadata-reader-types.js';
+import type { RustMediaWorkerPool, RustMetadataReadResult } from '../../src/library/rust-media-worker.js';
 import { buildStoragePolicy } from '../../../../apps/desktop/scripts/build-storage-root.mjs';
 
 test('MBRS004 AT005/006：关闭AI，实际扫描入库与重扫保留人工名称、发行版成员和CD边界', { timeout: 30_000 }, async t => {
@@ -114,6 +117,61 @@ test('CD01规则候选：同一多碟目录artist保两边界、album合一边�
   assert.deepEqual(input,before,'角色分析与名称候选不得改写原捕获的路径/CUE/成员事实')
 })
 
+function closedFd(fd: number): boolean {
+  try { fstatSync(fd); return false; } catch (error) { return (error as NodeJS.ErrnoException).code === 'EBADF'; }
+}
+interface RustReadObservation {
+  startedAt: number; settledAt: number; readCalls: number; pendingReads: number;
+  bytesRead: number; requestedBytes: number; maxReadBytes: number; rangesValid: boolean;
+  budget: Readonly<MetadataReadBudget>; result?: RustMetadataReadResult;
+}
+function observeRustReads(t: TestContext, pool: RustMediaWorkerPool) {
+  const actual = pool.readMetadata.bind(pool), calls: RustReadObservation[] = [], order = new WeakMap<MetadataReaderLifecycle, number>();
+  let sequence = 0;
+  // 只观察真实常驻池；原解析与每次有界只读 RPC 都实际执行，不合成 worker-exit。
+  t.mock.method(pool, 'readMetadata', async (...[input, signal]: Parameters<RustMediaWorkerPool['readMetadata']>) => {
+    const call: RustReadObservation = { startedAt: ++sequence, settledAt: 0, readCalls: 0, pendingReads: 0,
+      bytesRead: 0, requestedBytes: 0, maxReadBytes: 0, rangesValid: true, budget: { ...input.budget } }; calls.push(call);
+    try {
+      call.result = await actual({ ...input, async read(offset, length) {
+        call.readCalls++; call.pendingReads++;
+        call.requestedBytes += length; call.maxReadBytes = Math.max(call.maxReadBytes, length);
+        call.rangesValid &&= Number.isSafeInteger(offset) && offset >= 0 && Number.isSafeInteger(length) && length > 0 && offset + length <= input.size;
+        try { const bytes = await input.read(offset, length); call.bytesRead += bytes.length; return bytes; } finally { call.pendingReads--; }
+      } }, signal);
+      return call.result;
+    } finally { call.settledAt = ++sequence; }
+  });
+  return { calls, mark(event: MetadataReaderLifecycle) { order.set(event, ++sequence); },
+    at(event: MetadataReaderLifecycle) { return order.get(event) ?? -1; },
+    assertQuiet() { assert.ok(calls.every(call => call.settledAt > call.startedAt && call.pendingReads === 0), 'Reader close 必须 join 真实 Rust 任务及在途只读 RPC'); } };
+}
+function actualQuiet(events: readonly MetadataReaderLifecycle[], result: MetadataReadResult, rust: ReturnType<typeof observeRustReads>, firstCall: number): void {
+  const calls = rust.calls.slice(firstCall); assert.equal(calls.length, 1, '每次实际读取须恰好调用一次真实 Rust 解析');
+  const call = calls[0]!; assert.ok(call.result); assert.ok(call.readCalls > 0); assert.equal(call.pendingReads, 0);
+  assert.equal(call.rangesValid, true); assert.ok(call.bytesRead > 0 && call.bytesRead <= call.requestedBytes);
+  assert.ok(call.requestedBytes <= call.budget.totalReadBytes); assert.ok(call.maxReadBytes <= call.budget.singleReadBytes);
+  assert.ok(call.maxReadBytes <= call.budget.singleAllocationBytes, 'Node 每次真实只读 RPC 的分配不能超过传入预算');
+  const { performance: _performance, ...actual } = call.result; assert.deepEqual(result, actual);
+  if (result.status === 'failure') assert.equal(result.readEvidence, null, '真实 Rust 失败合同不公开解析器的分配或读取统计');
+  const acquired = events.filter((event): event is Extract<MetadataReaderLifecycle, { type: 'lease-acquired' | 'lease-released' }> => event.type === 'lease-acquired');
+  const released = events.filter(event => event.type === 'lease-released'), completed = events.filter(event => event.type === 'read-complete');
+  const phases = events.filter(event => event.type === 'metadata-phase');
+  assert.equal(acquired.length, 1); assert.equal(released.length, 1); assert.equal(completed.length, 1);
+  assert.deepEqual(phases.map(event => [event.stage, event.state, event.backend]), [
+    ['read', 'start', 'rust-media-worker'], ['parse', 'start', 'rust-media-worker'],
+    ['read', result.status === 'ok' ? 'complete' : 'error', 'rust-media-worker'], ['parse', result.status === 'ok' ? 'complete' : 'error', 'rust-media-worker'],
+  ]);
+  assert.equal(new Set(phases.map(event => event.readId)).size, 1);
+  const timeline = [rust.at(acquired[0]!), rust.at(phases[0]!), rust.at(phases[1]!), call.startedAt, call.settledAt,
+    rust.at(phases[2]!), rust.at(phases[3]!), rust.at(released[0]!), rust.at(completed[0]!)];
+  assert.ok(timeline.every((at, index) => at > 0 && (index === 0 || at > timeline[index - 1]!)),
+    '真实 Rust 任务与只读 RPC 完成后才释放原 FD，最后返回本次读取；失败也不能提前放掉保护');
+  assert.equal(released[0]!.type === 'lease-released' && released[0]!.fd === acquired[0]!.fd, true);
+  assert.equal(closedFd(acquired[0]!.fd), true);
+  assert.equal(completed[0]!.type === 'read-complete' && completed[0]!.status === result.status, true);
+}
+
 import {once as cd01Once} from 'node:events'
 /** CD01组件：测试Domain只注入真实fresh Reader；唯一Scanner正常写同SQL，冷Worker仍走默认工厂；不授Main/Native资格。 */
 async function cd01RoleFixture(t:import('node:test').TestContext,role:import('@music-bridge/contracts').LocalLibraryRole|null,
@@ -123,7 +181,6 @@ async function cd01RoleFixture(t:import('node:test').TestContext,role:import('@m
   const {createCueSyntheticWave}=await import('../../src/library/local-cue-format-qualification.js')
   const {loadFreshMetadataReader}=await import('../helpers/mbrs003-audio-fixtures.js')
   const {localLibraryManagementDigest}=await import('../../src/collection/local-library-workbench/owner-journal.js')
-  const {fstatSync}=await import('node:fs')
   const policy=buildStoragePolicy(),temporary=policy.check(process.env.TMPDIR!,{mustExist:true})
   const directory=await mkdtemp(path.join(temporary,'musicbridge-cd01-role-'));await chmod(directory,0o700)
   const media=path.join(directory,...rootNames);await mkdir(media,{recursive:true,mode:0o700})
@@ -152,22 +209,36 @@ async function cd01RoleFixture(t:import('node:test').TestContext,role:import('@m
   }}
   const {createCompletedScanSnapshotView}=await import('../../src/collection/local-scan-snapshot-view.js')
   const completed=createCompletedScanSnapshotView({repository,identity})
-  let domain:ReturnType<typeof createTestDatasetDomain>|undefined,closed=false
-  const close=async()=>{if(closed)return;if(domain)await domain.close();else{repository.close();state.close()}completed.close();admission.close();closed=true}
+  let domain:ReturnType<typeof createTestDatasetDomain>|undefined,closed=false,closeReader:(()=>Promise<void>)|undefined
+  const close=async()=>{if(closed)return;if(domain)await domain.close();else{repository.close();state.close()}await closeReader?.();completed.close();admission.close();closed=true}
   t.after(close)
-  const lifecycle:import('../../src/library/metadata-reader-types.js').MetadataReaderLifecycle[]=[],fdClosed:string[]=[]
+  const lifecycle:MetadataReaderLifecycle[]=[],fdClosed:string[]=[],readTasks:Promise<MetadataReadResult>[]=[]
   const {createMetadataReader}=await loadFreshMetadataReader()
-  const reader=createMetadataReader({onLifecycle(event){lifecycle.push(event);if(event.type==='lease-released'){
+  const workers=await import(new URL('../../dist/library/rust-media-worker.js',import.meta.url).href) as typeof import('../../src/library/rust-media-worker.js')
+  const rust=observeRustReads(t,workers.getRustMediaWorkerPool())
+  const actualReader=createMetadataReader({onLifecycle(event){lifecycle.push(event);rust.mark(event);if(event.type==='lease-released'){
     try{fstatSync(event.fd);fdClosed.push('STILL_OPEN')}catch(error){fdClosed.push((error as NodeJS.ErrnoException).code??'UNKNOWN')}}}})
-  const domainOptions={collectionRepository:repository,backupWorkflowStore:state,collectionDatasetIdentity:identity,localSourceEpoch:epoch,projection,scanMetadataReader:reader}
+  closeReader=async()=>{const closing=actualReader.close();assert.equal(actualReader.close(),closing);await closing;rust.assertQuiet()}
+  const actualRead=actualReader.read.bind(actualReader)
+  // 多个扫描槽可同时排队；原 Promise 原样交回，观测按真实完成边界核对，不能把共享数组的起点当成单次读取起点。
+  t.mock.method(actualReader,'read',(...args:Parameters<MetadataReaderPort['read']>)=>{const task=actualRead(...args);readTasks.push(task);return task})
+  const domainOptions={collectionRepository:repository,backupWorkflowStore:state,collectionDatasetIdentity:identity,localSourceEpoch:epoch,projection,scanMetadataReader:actualReader}
   domain=createTestDatasetDomain(domainOptions)
   await domain.prepareWorkbench();assert.ok(domain.dispatchWorkbenchOwner);assert.ok(domain.localAlbums)
   const scanner=domain.localScan
   const started=scanner.start({commandId:randomUUID(),libraryRootId:root.id,expectedRootRevision:root.revision});await scanner.privateWait(started.jobId)
   assert.equal(scanner.get(started.jobId).phase,'completed');assert.deepEqual(scanner.get(started.jobId).progress,{visited:String(relatives.length),accepted:String(relatives.length),rejected:'0'})
   assert.ok(completed.load(root.id).lastSuccess)
-  const exits=lifecycle.filter((event):event is Extract<import('../../src/library/metadata-reader-types.js').MetadataReaderLifecycle,{type:'worker-exit'}>=>event.type==='worker-exit')
-  assert.equal(exits.length,relatives.length);assert.ok(exits.every(event=>event.exitCode===0));assert.deepEqual(fdClosed,relatives.map(()=>'EBADF'))
+  const parsed=await Promise.all(readTasks);let firstEvent=0
+  for(const result of parsed){
+    const completedAt=lifecycle.findIndex((event,index)=>index>=firstEvent&&event.type==='read-complete');assert.ok(completedAt>=firstEvent)
+    const events=lifecycle.slice(firstEvent,completedAt+1),begin=rust.at(events[0]!),end=rust.at(events.at(-1)!)
+    const calls=rust.calls.filter(call=>call.startedAt>begin&&call.settledAt<end)
+    actualQuiet(events,result,{...rust,calls},0);firstEvent=completedAt+1
+  }
+  assert.equal(firstEvent,lifecycle.length)
+  assert.equal(rust.calls.length,relatives.length);assert.equal(parsed.length,relatives.length);rust.assertQuiet()
+  assert.ok(parsed.every(result=>result.status==='ok'&&result.parserVersion===RUST_MEDIA_METADATA_PARSER_VERSION));assert.deepEqual(fdClosed,relatives.map(()=>'EBADF'))
   const tracks=repository.localCatalog.queryTracks({rootId:root.id,query:'',offset:0,limit:200}).items
   assert.equal(tracks.length,relatives.length)
   for(const relative of relatives){const scanned=repository.localScan.privateFileState(root.id,relative);assert.equal(scanned?.value.outcome,'accepted');assert.ok(scanned?.value.assetId&&scanned.value.trackId);assert.equal(scanned.value.readFacts?.technical.container,'WAVE')}
@@ -208,7 +279,10 @@ test('CD01真实Owner：单张专辑角色正常Reader扫描多碟后完整合�
   const captured=await f.capture(page.items[0]!);assert.equal(captured.resolved.capture.artistName,'周杰伦');assert.equal(captured.resolved.capture.albumName,'七里香');assert.deepEqual(captured.snapshot.searchNames?.original,{artist:'周杰伦',title:'七里香'});assert.deepEqual(captured.snapshot.searchNames?.cleaned,{artist:'周杰伦',title:'七里香'})
   assert.deepEqual(new Set(captured.resolved.group.members.map(item=>item.fact.relative)),new Set(['CD2/02.wav','CD1/01.wav','散落.wav']))
   assert.deepEqual(new Set(captured.resolved.capture.members.map(item=>item.trackId)),new Set(f.tracks.map(item=>item.track.id)));assert.ok(captured.resolved.capture.members.every(member=>member.scan?.failureCode===null));assert.equal(captured.resolved.directoryFacts.files.length,3);assert.ok(page.items.every(album=>album.editionId===null))
-  const cold=await f.cold();assert.deepEqual(cold,page)
+  // capture真实探测并保存无封面结果；冷开应保留探测后的完整权威页，而非探测前unknown快照。
+  const postCapturePage=await f.query()
+  assert.deepEqual(postCapturePage,{...page,counts:{...page.counts,'missing-artwork':1},items:page.items.map(item=>({...item,artworkState:'missing',statuses:['missing-artwork']}))})
+  const cold=await f.cold();assert.deepEqual(cold,postCapturePage)
 })
 
 test('CD01真实Owner：歌手目录按正常扫描的专辑CD边界分组，散落成员保留且缺标签名称不冒人工或AI',{timeout:30_000},async t=>{
@@ -218,7 +292,10 @@ test('CD01真实Owner：歌手目录按正常扫描的专辑CD边界分组，散
   const captured=await f.capture(album);assert.deepEqual(captured.snapshot.searchNames?.original,{artist:'周杰伦',title:'七里香'});assert.deepEqual(captured.snapshot.searchNames?.cleaned,{artist:'周杰伦',title:'七里香'});assert.ok(captured.resolved.capture.members.every(member=>member.scan?.failureCode===null));assert.equal(captured.resolved.directoryFacts.files.length,2);assert.equal(captured.resolved.capture.artistName,'周杰伦');assert.equal(captured.resolved.capture.albumName,'七里香');assert.equal(captured.resolved.capture.manualLocks?.artistName,false);assert.equal(captured.resolved.capture.manualLocks?.albumName,false)
   assert.ok(captured.resolved.capture.members.every(member=>member.trackId!==null&&f.repository.localCatalog.metadata(member.trackId).raw.artist===undefined))
   const ids=new Set<string>();for(const item of page.items){const group=await f.domain.localAlbums!.inspectAlbum({albumKey:item.id,rootId:f.root.id});for(const member of group.members){assert.equal(ids.has(member.fact.summary.track.id),false);ids.add(member.fact.summary.track.id)}}assert.deepEqual(ids,new Set(f.tracks.map(item=>item.track.id)))
-  const cold=await f.cold();assert.deepEqual(cold,page)
+  // 仅捕获的专辑已完成封面探测；其它两组保持unknown，全部身份、修订、成员与来源仍逐字段比较。
+  const postCapturePage=await f.query()
+  assert.deepEqual(postCapturePage,{...page,counts:{...page.counts,'missing-artwork':1},items:page.items.map(item=>item.id===album.id?{...item,artworkState:'missing',statuses:['missing-artwork']}:item)})
+  const cold=await f.cold();assert.deepEqual(cold,postCapturePage)
 })
 
 test('CD01真实Owner：旧catalog和container及无绑定完整成员不变，角色绑定换代拒绝旧capture而不改Source或标签',{timeout:30_000},async t=>{

@@ -4,11 +4,13 @@ import { createRequire } from 'node:module'
 import test from 'node:test'
 import { parse, compileScript, compileTemplate } from '@vue/compiler-sfc'
 import ts from 'typescript'
+import * as sidebarSearchModel from '../src/renderer/src/components/sidebar/sidebar-search-model.js'
 
 const require = createRequire(import.meta.url)
 const vue = require('vue') as typeof import('vue')
 interface Host { type: string; text: string; props: Record<string, any>; children: Host[]; parent: Host | null }
-const node = (type = ''): Host => Object.assign({ type, text: '', props: {}, children: [], parent: null }, { style: { display: '' }, getBoundingClientRect: () => ({ top: 180, right: 60 }), focus() {} })
+const node = (type = ''): Host => Object.assign({ type, text: '', props: {}, children: [], parent: null }, { style: { display: '' }, getBoundingClientRect: () => ({ top: 180, right: 60 }), focus() {}, blur() {},
+  contains(this: Host, other: Host): boolean { for (let value: Host | null = other; value; value = value.parent) if (value === this) return true; return false } })
 
 async function mount(t: test.TestContext, name: string, initial: Record<string, unknown>) {
   const { descriptor } = parse(await readFile(new URL(`../src/renderer/src/components/sidebar/${name}.vue`, import.meta.url), 'utf8'))
@@ -19,6 +21,7 @@ async function mount(t: test.TestContext, name: string, initial: Record<string, 
   const renderModule = { exports: {} as { render: (...args: any[]) => any } }
   const load = (id: string) => {
     if (id === 'vue') return vue
+    if (id.endsWith('sidebar-search-model.js')) return sidebarSearchModel
     if (id.endsWith('SidebarPlaylistRow.vue')) return { default: vue.defineComponent({
       props: ['playlist', 'expanded', 'selected'], emits: ['select'],
       setup: (props, { emit }) => () => vue.h('button', { class: 'test-playlist', onClick: () => emit('select', props.playlist.id) }, props.playlist.name),
@@ -27,7 +30,12 @@ async function mount(t: test.TestContext, name: string, initial: Record<string, 
     return require(id)
   }
   const compile = (code: string) => ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
-  new Function('require', 'module', 'exports', 'document', 'window', compile(script.content))(load, module, module.exports, { addEventListener() {}, removeEventListener() {} }, { innerWidth: 720, innerHeight: 480, addEventListener() {}, removeEventListener() {} })
+  const documentListeners = new Map<string, (event: any) => void>()
+  const windowListeners = new Map<string, (event: any) => void>()
+  const hostDocument = { addEventListener: (type: string, listener: (event: any) => void) => documentListeners.set(type, listener), removeEventListener: (type: string) => documentListeners.delete(type), getElementById: () => ({ scrollIntoView() {} }) }
+  class HostNode { static [Symbol.hasInstance](value: unknown) { return !!value && typeof value === 'object' && 'type' in value } }
+  new Function('require', 'module', 'exports', 'document', 'window', 'Node', compile(script.content))(load, module, module.exports, hostDocument, { innerWidth: 720, innerHeight: 480,
+    addEventListener: (type: string, listener: (event: any) => void) => windowListeners.set(type, listener), removeEventListener: (type: string) => windowListeners.delete(type) }, HostNode)
   new Function('require', 'module', 'exports', compile(template.code))(load, renderModule, renderModule.exports)
   const remove = (child: Host) => { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = null }
   const body = node('body')
@@ -46,7 +54,8 @@ async function mount(t: test.TestContext, name: string, initial: Record<string, 
   const all = (el: Host = root): Host[] => [el, ...el.children.flatMap(child => all(child))]
   const byClass = (name: string) => [...all(), ...all(body)].filter(el => String(el.props.class).split(' ').includes(name))
   const click = async (el: Host | undefined) => { assert.ok(el, '缺少可点击控件'); el.props.onClick(); await vue.nextTick() }
-  return { all, byClass, click, props, tick: vue.nextTick }
+  return { all, byClass, click, props, tick: vue.nextTick, pointerOutside: () => documentListeners.get('pointerdown')?.({ target: node('outside') }),
+    globalKeydown: (event: Record<string, unknown>) => windowListeners.get('keydown')?.(event) }
 }
 
 const playlists = [{ id: '301', name: '合成歌单', trackCount: 2 }]
@@ -144,4 +153,112 @@ test('设置横条不含头像，展开与收窄都能打开设置并保留当�
   assert.equal(button()?.props['aria-label'], '打开设置'); assert.equal(button()?.props['aria-current'], 'page')
   assert.equal(f.all().filter(el => el.type === 'img').length, 0)
   await f.click(button()); f.props.expanded = false; await f.tick(); await f.click(button()); assert.equal(opens, 2)
+})
+
+test('4.1 搜索草稿IME防抖，输入不提交，Esc保留文字，查看全部才提交', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const suggestions: string[] = [], submissions: string[] = [], selected: string[] = []
+  let f!: Awaited<ReturnType<typeof mount>>
+  f = await mount(t, 'SidebarSearch', { expanded: true, modelValue: '', suggestions: [{ key: 'artist:1', kind: 'artist', source: 'local', title: '合成人物', subtitle: '本地' }],
+    'onUpdate:modelValue': (value: string) => { f.props.modelValue = value }, 'onSuggest-query': (value: string) => suggestions.push(value),
+    'onSubmit-query': (value: string) => submissions.push(value), 'onSelect-suggestion': (item: { key: string }) => selected.push(item.key) })
+  const input = () => f.all().find(el => el.type === 'input')!
+  const key = async (value: string, composing = false) => { input().props.onKeydown({ key: value, isComposing: composing, preventDefault() {} }); await f.tick() }
+  input().props.onCompositionstart(); input().props.onInput({ target: { value: '合' } }); await f.tick()
+  t.mock.timers.tick(300); await key('Enter', true)
+  assert.deepEqual(suggestions, []); assert.deepEqual(submissions, []); assert.deepEqual(selected, [])
+  assert.equal(input().props['aria-expanded'], false, '组词期间不能显示未查询的空结果提示')
+  assert.equal(f.byClass('sidebar-search-popover').length, 0)
+  input().props.onCompositionend({ target: { value: '合成人物' } }); await f.tick()
+  t.mock.timers.tick(249); assert.deepEqual(suggestions, [])
+  t.mock.timers.tick(1); assert.deepEqual(suggestions, ['合成人物']); assert.deepEqual(submissions, [])
+  assert.equal(input().props['aria-expanded'], true)
+  await key('Escape'); assert.equal(input().props['aria-expanded'], false); assert.equal(f.props.modelValue, '合成人物')
+  await key('ArrowDown'); assert.equal(input().props['aria-expanded'], true)
+  await key('ArrowDown'); await key('Enter')
+  assert.deepEqual(submissions, ['合成人物']); assert.deepEqual(selected, [])
+})
+
+test('4.1 搜索下拉键盘选中跟随异步实体身份，外点关闭且不清空草稿', async t => {
+  const selected: string[] = []
+  const first = { key: 'first', kind: 'artist', source: 'local', title: '合成人物甲', subtitle: '本地' }
+  const second = { key: 'second', kind: 'album', source: 'netease', title: '合成专辑乙', subtitle: '网易云' }
+  const f = await mount(t, 'SidebarSearch', { expanded: true, modelValue: '合成', suggestions: [first, second], 'onSelect-suggestion': (item: { key: string }) => selected.push(item.key) })
+  const input = () => f.all().find(el => el.type === 'input')!
+  const key = async (value: string) => { input().props.onKeydown({ key: value, preventDefault() {} }); await f.tick() }
+  input().props.onFocus(); await f.tick(); await key('ArrowDown'); await key('ArrowDown')
+  f.props.suggestions = [second, first]; await f.tick(); await key('Enter')
+  assert.deepEqual(selected, ['second'])
+  input().props.onFocus(); await f.tick(); f.pointerOutside(); await f.tick()
+  assert.equal(input().props['aria-expanded'], false); assert.equal(f.props.modelValue, '合成')
+})
+
+test('4.1 完整搜索后输入仍聚焦，点击、方向键与⌘L重开同词都重新请求建议', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const suggestions: string[] = [], submissions: string[] = []
+  let f!: Awaited<ReturnType<typeof mount>>
+  f = await mount(t, 'SidebarSearch', { expanded: true, modelValue: '周杰伦', suggestions: [],
+    'onSuggest-query': (value: string) => suggestions.push(value),
+    // 对应真实父层 search→invalidatePreview：完整提交清掉预览，但草稿继续保留。
+    'onSubmit-query': (value: string) => { submissions.push(value); f.props.suggestions = [] } })
+  const input = () => f.all().find(el => el.type === 'input')!
+  const key = async (value: string) => { input().props.onKeydown({ key: value, preventDefault() {} }); await f.tick() }
+  input().props.onFocus(); await f.tick(); t.mock.timers.tick(250)
+  assert.deepEqual(suggestions, ['周杰伦'])
+  const reopen = [() => f.click(input()), () => key('ArrowDown'), () => key('ArrowUp'), async () => {
+    let prevented = false
+    f.globalKeydown({ key: 'l', metaKey: true, shiftKey: false, preventDefault() { prevented = true } }); await f.tick()
+    assert.equal(prevented, true)
+  }]
+  for (const [index, open] of reopen.entries()) {
+    await key('Enter'); assert.equal(input().props['aria-expanded'], false)
+    assert.equal(f.props.modelValue, '周杰伦')
+    // 不再触发 focus，覆盖真实的“提交后仍聚焦”路径。
+    await open(); assert.equal(input().props['aria-expanded'], true)
+    t.mock.timers.tick(249); assert.equal(suggestions.length, index + 1)
+    t.mock.timers.tick(1); assert.equal(suggestions.length, index + 2)
+    assert.equal(suggestions.at(-1), '周杰伦')
+  }
+  assert.deepEqual(submissions, ['周杰伦', '周杰伦', '周杰伦', '周杰伦'])
+})
+
+test('4.1 重开建议守IME，重复点击不延长防抖，换词撤销待发旧请求', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const suggestions: string[] = []
+  let f!: Awaited<ReturnType<typeof mount>>
+  f = await mount(t, 'SidebarSearch', { expanded: true, modelValue: '保留草稿', suggestions: [],
+    'onUpdate:modelValue': (value: string) => { f.props.modelValue = value }, 'onSuggest-query': (value: string) => suggestions.push(value) })
+  const input = () => f.all().find(el => el.type === 'input')!
+  const key = async (value: string) => { input().props.onKeydown({ key: value, preventDefault() {} }); await f.tick() }
+  input().props.onCompositionstart(); await f.click(input()); await key('ArrowDown')
+  let prevented = false
+  f.globalKeydown({ key: 'l', metaKey: true, preventDefault() { prevented = true } }); await f.tick()
+  t.mock.timers.tick(300)
+  assert.equal(prevented, false); assert.equal(input().props['aria-expanded'], false); assert.deepEqual(suggestions, [])
+  input().props.onCompositionend({ target: { value: '完成输入' } }); await f.tick()
+  t.mock.timers.tick(200); await f.click(input()); await key('ArrowDown')
+  t.mock.timers.tick(49); assert.deepEqual(suggestions, [])
+  t.mock.timers.tick(1); assert.deepEqual(suggestions, ['完成输入'])
+  await key('Escape'); assert.equal(f.props.modelValue, '完成输入')
+  await key('ArrowDown'); t.mock.timers.tick(100)
+  input().props.onInput({ target: { value: '换成新词' } }); await f.tick()
+  t.mock.timers.tick(249); assert.deepEqual(suggestions, ['完成输入'])
+  t.mock.timers.tick(1); assert.deepEqual(suggestions, ['完成输入', '换成新词'])
+})
+
+test('4.1 关闭后的异步建议不自动重开，Esc仍保留草稿并撤销待发重开请求', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const suggestions: string[] = []
+  const f = await mount(t, 'SidebarSearch', { expanded: true, modelValue: '保留草稿', suggestions: [], 'onSuggest-query': (value: string) => suggestions.push(value) })
+  const input = () => f.all().find(el => el.type === 'input')!
+  const key = async (value: string) => { input().props.onKeydown({ key: value, preventDefault() {} }); await f.tick() }
+  input().props.onFocus(); await f.tick(); t.mock.timers.tick(250)
+  f.pointerOutside(); await f.tick()
+  f.props.suggestions = [{ key: 'later', kind: 'artist', source: 'local', title: '迟到实体', subtitle: '本地' }]; await f.tick()
+  assert.equal(input().props['aria-expanded'], false)
+  await f.click(input()); t.mock.timers.tick(100); await key('Escape'); t.mock.timers.tick(300)
+  assert.equal(input().props['aria-expanded'], false); assert.equal(f.props.modelValue, '保留草稿')
+  assert.deepEqual(suggestions, ['保留草稿'])
+  await f.click(input()); t.mock.timers.tick(250)
+  assert.deepEqual(suggestions, ['保留草稿', '保留草稿'])
 })

@@ -1,4 +1,5 @@
 import * as dto from '@music-bridge/contracts'
+import { projectLocalAlbumArtworkReply } from './artwork-reply.js'
 import { groupLocalAlbumSnapshot, LocalAlbumReadError, LOCAL_ALBUM_MAX_BYTES, LOCAL_ALBUM_MAX_SCAN_FACTS, LOCAL_ALBUM_MAX_TRACKS } from './grouping.js'
 import type { LocalAlbumGroup, LocalAlbumGroupedSnapshot, LocalAlbumInspectRequest, LocalAlbumReadServiceOptions } from './types.js'
 
@@ -98,15 +99,16 @@ export function createLocalAlbumReadService(options: LocalAlbumReadServiceOption
       if (request.revision !== album.revision || request.editionId !== album.editionId || request.representativeTrackId !== album.representativeTrackId) return changed()
       return (async () => {
         try {
-          let image: dto.LocalArtworkImage | null = null, status: 'ready' | 'source-unavailable' = 'ready'
+          let image: dto.LocalArtworkImage | null = null, status: 'ready' | 'source-unavailable' = 'ready', grid: dto.LocalAlbumArtworkGrid | undefined
           if (album.artworkState !== 'missing' && !(album.artworkState === undefined && !album.artworkAvailable)) {
             const read = await options.port.readArtwork(request, { album, directory: group.directory, representative: group.members[0]?.fact ?? null })
-            if (read === null || typeof read !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(read)) || Reflect.ownKeys(read).length !== 2
-              || !['image', 'status'].every(key => Object.getOwnPropertyDescriptor(read, key)?.enumerable === true && Object.hasOwn(Object.getOwnPropertyDescriptor(read, key)!, 'value'))
+            if (read === null || typeof read !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(read)) || Reflect.ownKeys(read).length !== (Object.hasOwn(read, 'grid') ? 3 : 2)
+              || !['image', 'status', ...(Object.hasOwn(read, 'grid') ? ['grid'] : [])].every(key => Object.getOwnPropertyDescriptor(read, key)?.enumerable === true && Object.hasOwn(Object.getOwnPropertyDescriptor(read, key)!, 'value'))
+              || Object.hasOwn(read, 'grid') && (read.image === null || !dto.isLocalAlbumArtworkGrid(read.grid))
               || (read.status !== 'ready' && read.status !== 'source-unavailable') || read.image !== null && !dto.isLocalArtworkImage(read.image) || read.status === 'source-unavailable' && read.image !== null) return unavailable()
-            image = read.image; status = read.status
+            image = read.image; status = read.status; grid = read.grid
           }
-          const result = { ...request, image, status }
+          const result = projectLocalAlbumArtworkReply(request, { image, status, ...(grid ? { grid } : {}) })
           if (disposed || options.port.readRevision() !== revision) return changed()
           if (!dto.isLocalAlbumArtworkReply(result, request)) return unavailable()
           return structuredClone(result)

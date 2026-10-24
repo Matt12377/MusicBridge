@@ -104,7 +104,9 @@ export function createMobileContentBackend(options: MobileContentBackendOptions)
       if (!closedData(input, ['operation', 'request', 'accessToken', 'signal', 'origin'])
         || !isMobileContentOperation(input.operation) || !(input.signal instanceof AbortSignal)) throw new MobileServiceError(400, 'INVALID_REQUEST');
       const operation = input.operation, originText = input.origin, accessToken = input.accessToken, parentSignal = input.signal;
-      const request = captureMobileContentRequest(operation, input.request, codecOptions);
+      const capturedRequest = captureMobileContentRequest(operation, input.request, codecOptions);
+      // 协商只控制Main出站表示，不能流入Provider/Owner原业务请求闭集。
+      const { catalogFeatures, ...request } = capturedRequest;
       return owned(parentSignal, async signal => {
         current(signal);
         let origin: URL;
@@ -127,7 +129,8 @@ export function createMobileContentBackend(options: MobileContentBackendOptions)
           const facts = captureMobileContentReply(operation, request, scope, snapshot.reply, snapshot.context, codecOptions);
           assertMobileContentOperationKind(operation, facts.reply.body);
           const encoded = encodeMobileJsonReply(operation, facts.reply as MobileReplyMap[typeof operation], { responseOrigin: originText,
-            requestPath: request.path, content: facts.context, ...codecOptions });
+            requestPath: request.path, content: facts.context, ...codecOptions,
+            ...(catalogFeatures === 'unknown-duration-v1' ? { catalogFeatures } : {}) });
           if (!encoded.ok) throw new MobileServiceError(503, 'BUSY');
           return { ...encoded.value, context: facts.context };
         };

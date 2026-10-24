@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { sourceWritesFail } from './local-source-writes-journal.js';
 import { captureLocalLyricsPhysicalBinding, lyricsPhysicalDigest, type LocalLyricsPhysicalBinding, type LocalLyricsPhysicalGrantFact } from '../library/lyrics-source-format.js';
 import { localSourceWritesDataSnapshot, localSourceWritesRecord, isLocalLyricsId } from '@music-bridge/contracts';
+import { LIBRARY_REMOVAL_REQUEST_MS } from '../shared/library-removal-budget.js';
+import { isCanonicalNodeStatInode } from '../shared/filesystem-inode.js';
 
 export interface SourceWritesMainActor {readonly authorityId:string;readonly active:boolean}
 const actors=new WeakSet<object>();
@@ -94,7 +96,7 @@ export function consumeSourceWorkbenchReadersReply(actor:SourceWritesMainActor,r
 }
 export function requestSourceWorkbenchReadersStop(actor:SourceWritesMainActor,input:SourceWorkbenchReadersBinding,context:{signal:AbortSignal;deadlineAtMs:number}):Promise<void> {
   assertSourceWritesMainActor(actor);const s=readersActors.get(actor),binding=captureSourceWorkbenchReadersBinding(input);
-  const remaining=Math.min(2000,Math.floor(context.deadlineAtMs-performance.now()));
+  const remaining=Math.min(LIBRARY_REMOVAL_REQUEST_MS,Math.floor(context.deadlineAtMs-performance.now()));
   if(!s||s.fatal||context.signal.aborted||!Number.isFinite(remaining)||remaining<=0||s.pending.size>=4||s.sequence>=Number.MAX_SAFE_INTEGER)return Promise.reject(new Error('原撤库读取fence不可受理。'));
   const request=captureSourceWorkbenchReadersRequest({version:1,type:'workbench-readers-stop-request',purpose:'WORKBENCH_READERS',requestId:randomUUID(),sequence:++s.sequence,authorityId:actor.authorityId,expiresAtMs:Date.now()+remaining,binding});
   return new Promise((resolve,reject)=>{
@@ -334,7 +336,7 @@ export function captureSourceWorkbenchDirectoryBinding(input:unknown):SourceWork
 }
 export function captureSourceWorkbenchDirectoryPhysical(input:unknown):SourceWorkbenchDirectoryPhysical {
  const v=localSourceWritesDataSnapshot(input,8192,4096);
- if(!localSourceWritesRecord(v,['path','dev','ino','birthtimeNs','mode','uid','gid'])||typeof v.path!=='string'||!v.path.startsWith('/')||v.path==='/'||/[\x00-\x1f\x7f]/u.test(v.path)||Buffer.from(v.path).toString('utf8')!==v.path||v.path.split('/').slice(1).some(x=>!x||x==='.'||x==='..')||['dev','ino','birthtimeNs','mode','uid','gid'].some(k=>!decimal(v[k])))return sourceWritesFail('GRANT_MISMATCH');
+ if(!localSourceWritesRecord(v,['path','dev','ino','birthtimeNs','mode','uid','gid'])||typeof v.path!=='string'||!v.path.startsWith('/')||v.path==='/'||/[\x00-\x1f\x7f]/u.test(v.path)||Buffer.from(v.path).toString('utf8')!==v.path||v.path.split('/').slice(1).some(x=>!x||x==='.'||x==='..')||!isCanonicalNodeStatInode(v.ino)||['dev','birthtimeNs','mode','uid','gid'].some(k=>!decimal(v[k])))return sourceWritesFail('GRANT_MISMATCH');
  return v as unknown as SourceWorkbenchDirectoryPhysical;
 }
 export function isSourceWorkbenchDirectoryWire(input:unknown,type:'request'|'reply'|'registration-request'|'registration-reply'):boolean {

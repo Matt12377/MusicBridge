@@ -12,9 +12,35 @@ import { captureSourceNamespace, acquireSourceNamespaceRead, SourceNamespaceCapt
   type SourceNamespaceReadClaims, type SourceNamespaceHeldObservation } from '../stream/source-namespace-claims.js';
 import { parseBuffer } from 'music-metadata';
 import { isSourceTechnical, type SourceTechnical, type SourceFailure, type SourceAvailability } from '@music-bridge/contracts';
+import { sourcePlaybackExpectedSignature, sourceRemountProofMatchesRoot, type SourceRemountProof } from './source-remount-proof.js';
 
 export class SourceFileError extends Error { constructor(readonly code: SourceFailure) { super(code); } }
-export interface RootCapability { id: string; path: string; dev: string; ino: string; authorized: boolean; label: string }
+/** 播放准备私有阶段；只携带闭集枚举，不携带路径或文件事实。 */
+export type LocalReadonlyPrepareStage = 'SOURCE_NAMESPACE_CAPTURE'|'SOURCE_NAMESPACE_ACQUIRE'|'SOURCE_NAMED_CHECK'|'SOURCE_FD_OPEN'|'SOURCE_FD_STAT'|'SOURCE_FD_VERIFY'|'SOURCE_CLEANUP';
+export interface LocalReadonlyPrepareOptions {
+  assertCurrent?(): void;
+  onStage?(stage: LocalReadonlyPrepareStage, phase: 'started'|'succeeded'|'failed', error?: unknown): void;
+  onCleanupFailure?(error: unknown): void;
+}
+function readonlyPrepareObserve(options: LocalReadonlyPrepareOptions | undefined, stage: LocalReadonlyPrepareStage, phase: 'started'|'succeeded'|'failed', error?: unknown): void {
+  try { options?.onStage?.(stage, phase, error); } catch { /* 私有观察不能改变原来源保护。 */ }
+}
+async function readonlyPrepareStage<T>(options: LocalReadonlyPrepareOptions | undefined, stage: LocalReadonlyPrepareStage, operation: () => Promise<T>): Promise<T> {
+  readonlyPrepareObserve(options, stage, 'started');
+  try {
+    options?.assertCurrent?.(); const value = await operation(); options?.assertCurrent?.();
+    readonlyPrepareObserve(options, stage, 'succeeded'); return value;
+  } catch (error) { readonlyPrepareObserve(options, stage, 'failed', error); throw error; }
+}
+async function readonlyPrepareCleanup(options: LocalReadonlyPrepareOptions | undefined, operation: () => Promise<void>): Promise<void> {
+  readonlyPrepareObserve(options, 'SOURCE_CLEANUP', 'started');
+  try { await operation(); readonlyPrepareObserve(options, 'SOURCE_CLEANUP', 'succeeded'); }
+  catch (error) {
+    try { options?.onCleanupFailure?.(error); } catch { /* 未核实的关闭仍保留原失败。 */ }
+    readonlyPrepareObserve(options, 'SOURCE_CLEANUP', 'failed', error); throw error;
+  }
+}
+export interface RootCapability { id: string; path: string; dev: string; ino: string; authorized: boolean; label: string; readonlyRemountProof?: SourceRemountProof }
 export interface FileEvidence { sha256: string; size: number; signature: string; modifiedAt: string; verifiedAt: string; technical: SourceTechnical }
 const fail = (code: SourceFailure): never => { throw new SourceFileError(code); };
 const signature = (s: BigIntStats): string => [s.dev, s.ino, s.size, s.mtimeNs, s.ctimeNs].join(':');
@@ -234,47 +260,64 @@ async function checkedFile(root: RootCapability, relative: string): Promise<Chec
 }
 
 async function readonlySourceNamespace(root:RootCapability,relative:string) {
-  try { return await captureSourceNamespace(root,relative); }
+  // 证明不进入原命名位合同；原保护仍核验当前实际根的六字段能力。
+  try {
+    if (root.readonlyRemountProof === undefined) return await captureSourceNamespace(root,relative);
+    if (!sourceRemountProofMatchesRoot(root)) throw new SourceNamespaceCaptureError('OUTSIDE_ROOT');
+    return await captureSourceNamespace({ id:root.id,path:root.path,dev:root.dev,ino:root.ino,authorized:root.authorized,label:root.label },relative);
+  }
   catch(error) { if(error instanceof SourceNamespaceCaptureError)return fail(error.code);throw error; }
 }
 /** 命名位保护在目标 stat/open 前取得；inode 保护仍来自最终真实 FD。 */
-async function protectedReadonlyOpen(root: RootCapability, relative: string, validate: (first: CheckedSourceFile) => void = () => undefined): Promise<{ first: CheckedSourceFile; handle: FileHandle; guard: PhysicalResourceGuard }> {
-  const namespaceClaims = await acquireSourceNamespaceRead([await readonlySourceNamespace(root,relative)]);
-  let handle: FileHandle | undefined, physical: PhysicalResourceGuard | undefined;
+async function protectedReadonlyOpen(root: RootCapability, relative: string, validate: (first: CheckedSourceFile) => void = () => undefined, options?: LocalReadonlyPrepareOptions): Promise<{ first: CheckedSourceFile; handle: FileHandle; guard: PhysicalResourceGuard }> {
+  let namespaceClaims: SourceNamespaceReadClaims | undefined, handle: FileHandle | undefined, physical: PhysicalResourceGuard | undefined;
   try {
-    const first = await checkedFile(root,relative); validate(first);
-    handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
-    const info = await handle.stat({ bigint: true }); physical = physicalResourceLocks.acquireRead([{ dev: String(info.dev), ino: String(info.ino) }]);
+    const name = await readonlyPrepareStage(options, 'SOURCE_NAMESPACE_CAPTURE', () => readonlySourceNamespace(root,relative));
+    // 先保存已取得的资源，再做阶段后的取消检查；迟到结果不能丢失其关闭责任。
+    await readonlyPrepareStage(options, 'SOURCE_NAMESPACE_ACQUIRE', async () => { namespaceClaims = await acquireSourceNamespaceRead([name]); });
+    const first = await readonlyPrepareStage(options, 'SOURCE_NAMED_CHECK', async () => { const first = await checkedFile(root,relative); validate(first); return first; });
+    await readonlyPrepareStage(options, 'SOURCE_FD_OPEN', async () => { handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR')); });
+    await readonlyPrepareStage(options, 'SOURCE_FD_STAT', async () => { const info = await handle!.stat({ bigint: true }); physical = physicalResourceLocks.acquireRead([{ dev: String(info.dev), ino: String(info.ino) }]); });
+    const heldNamespace = namespaceClaims!;
     let released: Promise<void> | undefined;
     const guard: PhysicalResourceGuard = { release: () => released ??= (async () => {
-      try { await physical!.release(); } catch(error) { namespaceClaims.retain(); throw error; }
-      await namespaceClaims.release();
+      try { await physical!.release(); } catch(error) { heldNamespace.retain(); throw error; }
+      await heldNamespace.release();
     })() };
-    return {first,handle,guard};
+    return {first,handle:handle!,guard};
   } catch(error) {
-    try { await handle?.close(); } catch(closeError) { namespaceClaims.retain(); throw closeError; }
-    try { await physical?.release(); } catch(releaseError) { namespaceClaims.retain(); throw releaseError; }
-    await namespaceClaims.release(); throw error;
+    if (error instanceof SourceNamespaceUnverified) {
+      try { options?.onCleanupFailure?.(error); } catch { /* 原未核实保护不能被观察覆盖。 */ }
+    }
+    await readonlyPrepareCleanup(options, async () => {
+      try { await handle?.close(); } catch(closeError) { namespaceClaims?.retain(); throw closeError; }
+      try { await physical?.release(); } catch(releaseError) { namespaceClaims?.retain(); throw releaseError; }
+      await namespaceClaims?.release();
+    });
+    throw error;
   }
 }
 /** 普通播放专用只读FD；允许已授权根内硬链接，但不放宽Scanner或录音检查。
  * stat/命名身份只能拒绝可观察变化，不能证明NAS缓存或恢复时间戳的隐蔽原地修改不存在。
  * 此租约没有完整Hash证书，不能替代旧录音的严格内容证明。
  */
-export async function openLocalPlaybackReadonlySource(root: RootCapability, relative: string, expectedSignature?: string): Promise<{ handle: FileHandle; size: number; signature: string; verify(): Promise<void>; close(): Promise<void> }> {
+export async function openLocalPlaybackReadonlySource(root: RootCapability, relative: string, expectedSignature?: string, options?: LocalReadonlyPrepareOptions): Promise<{ handle: FileHandle; size: number; signature: string; verify(): Promise<void>; close(): Promise<void> }> {
   if (typeof relative !== 'string' || relative.length > 4096 || relative.includes('\0')) return fail('OUTSIDE_ROOT');
+  const currentSignature = expectedSignature === undefined ? undefined : sourcePlaybackExpectedSignature(root, expectedSignature);
+  if (expectedSignature !== undefined && currentSignature === undefined) return fail('CONTENT_CHANGED');
   const { first, handle, guard } = await protectedReadonlyOpen(root,relative,first=>{
     // Pool必须传唯一Owner捕获的signature；不能在这里以当前stat替旧catalog修订自证。
-    if (expectedSignature !== undefined && (typeof expectedSignature !== 'string' || expectedSignature.length > 256 || signature(first.info) !== expectedSignature)) return fail('CONTENT_CHANGED');
+    if (currentSignature !== undefined && signature(first.info) !== currentSignature) return fail('CONTENT_CHANGED');
     if (first.info.size < 1n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
-  }); let closing: Promise<void> | undefined;
-  const close = (): Promise<void> => closing ??= (async () => { await handle.close(); await guard.release(); })();
+  },options); let closing: Promise<void> | undefined;
+  const close = (): Promise<void> => closing ??= readonlyPrepareCleanup(options, async () => { await handle.close(); await guard.release(); });
   const verify = async (): Promise<void> => {
     const opened = await handle.stat({ bigint: true }), named = await checkedFile(root, relative);
-    if (signature(opened) !== (expectedSignature ?? signature(first.info)) || signature(named.info) !== (expectedSignature ?? signature(first.info))
+    if (signature(opened) !== (currentSignature ?? signature(first.info)) || signature(named.info) !== (currentSignature ?? signature(first.info))
       || opened.birthtimeNs !== first.info.birthtimeNs || JSON.stringify(named.directoryIds) !== JSON.stringify(first.directoryIds)) return fail('CONTENT_CHANGED');
   };
-  try { await verify(); return { handle, size: Number(first.info.size), signature: signature(first.info), verify, close }; }
+  // 只有首次 verify 属于准备预算；后续租约核验继续使用原租约寿命合同。
+  try { await readonlyPrepareStage(options, 'SOURCE_FD_VERIFY', verify); return { handle, size: Number(first.info.size), signature: signature(first.info), verify, close }; }
   catch (error) { await close(); throw error; }
 }
 
@@ -373,6 +416,8 @@ export function readonlySourceCatalogFileAvailable(root: RootCapability, relativ
       || typeof expectedSignature !== 'string' || expectedSignature.length > 256 || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30}):(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30}):\d+:-?\d+:-?\d+$/u.test(expectedSignature)) return false;
     const parts = relative.split(path.sep);
     if (parts.length > 256 || parts.some(part => !part || part === '.' || part === '..')) return false;
+    const currentSignature = sourcePlaybackExpectedSignature(root, expectedSignature);
+    if (currentSignature === undefined) return false;
     const named = () => {
       const rootInfo = lstatSync(root.path, { bigint: true });
       if (!root.authorized || !rootInfo.isDirectory() || rootInfo.isSymbolicLink() || String(rootInfo.dev) !== root.dev
@@ -393,11 +438,11 @@ export function readonlySourceCatalogFileAvailable(root: RootCapability, relativ
       return fail('OUTSIDE_ROOT');
     };
     const before = named();
-    if (signature(before.info) !== expectedSignature || before.info.size < 1n || before.info.size > 68_719_476_736n) return false;
+    if (signature(before.info) !== currentSignature || before.info.size < 1n || before.info.size > 68_719_476_736n) return false;
     // 非阻塞标志保证命名竞争替换成 FIFO 等特殊文件时，目录请求不会等待另一端。
     descriptor = openSync(before.absolute, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     const opened = fstatSync(descriptor, { bigint: true });
-    if (!opened.isFile() || signature(opened) !== expectedSignature || opened.birthtimeNs !== before.info.birthtimeNs) return false;
+    if (!opened.isFile() || signature(opened) !== currentSignature || opened.birthtimeNs !== before.info.birthtimeNs) return false;
     if (pcmHeader !== undefined) {
       const head = Buffer.alloc(12);
       if (readSync(descriptor, head, 0, head.length, 0) !== head.length) return false;
@@ -405,7 +450,7 @@ export function readonlySourceCatalogFileAvailable(root: RootCapability, relativ
       if (pcmHeader === 'WAVE' ? magic !== 'RIFF' || kind !== 'WAVE' : magic !== 'FORM' || kind !== 'AIFF') return false;
     }
     const actual = fstatSync(descriptor, { bigint: true }), after = named();
-    return actual.isFile() && signature(actual) === expectedSignature && signature(after.info) === expectedSignature
+    return actual.isFile() && signature(actual) === currentSignature && signature(after.info) === currentSignature
       && actual.birthtimeNs === opened.birthtimeNs && after.info.birthtimeNs === opened.birthtimeNs
       && JSON.stringify(after.directoryIds) === JSON.stringify(before.directoryIds);
   } catch { return false; }

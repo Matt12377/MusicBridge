@@ -1,4 +1,7 @@
+import type { MobileSqlWorkerOptions } from './local-album-browser/mobile-sql-worker.js';
+import type { Worker, WorkerOptions } from 'node:worker_threads';
 import { createLocalArtworkService } from './local-artwork-service.js';
+import { logLibraryOperation, traceLibraryImport, traceLibraryRemoval } from '../shared/library-operation-log.js';
 import { createLocalAlbumOwnerRuntime } from './local-album-browser/owner-runtime.js';
 import type { LocalAlbumLibraryOrganization } from './local-album-browser/sql-types.js';
 import { classifyDirectoryName } from '../library/local-name-rules.js';
@@ -9,10 +12,13 @@ import { loadMobileDsdConverter } from '../mobile/dsd-converter.js';
 import { createMobilePreparedCache } from '../mobile/prepared-cache.js';
 import type { MobileDsdDomainOptions, MobilePreparedCache } from '../mobile/prepared-cache-types.js';
 import { isMobileOwnerPrivateRequest } from '../mobile/owner-protocol.js';
-import {materializeMBEdition,materializeLocalAlbumQueue} from './mb-queue-materializer.js';
+import {materializeMBEdition,materializeLocalAlbumQueue,materializeLocalSearchQueue} from './mb-queue-materializer.js';
+import { createLocalArtistSearchService } from './local-artist-search.js';
+import { createArtistMetadataBackfillCoordinator, type ArtistMetadataBackfillCoordinator } from './local-artist-metadata-backfill.js';
 import { createLocalSourceTickets } from './local-source-tickets.js';
 import {createLocalRelocationCoordinator} from './local-relocation-coordinator.js';
 import { createLocalScanCoordinator } from './local-scan-coordinator.js';
+import { createLocalSourceReadProjection } from './local-source-read-projection.js';
 import { createCompletedScanSnapshotView } from './local-scan-snapshot-view.js';
 import { createLocalWorkbenchReadService, createLocalLibraryManagementRuntime, type LocalLibraryManagementRuntime, type LocalLibraryManagementJobPort, type LocalWorkbenchReadContext, type LocalLibraryManagementJobInput } from './local-library-workbench/read-service.js';
 import { createLocalWorkbenchMBOnlyWriter, type LocalWorkbenchMBOnlyWriter } from './local-library-workbench/owner-writer.js';
@@ -30,6 +36,8 @@ import { requestSourceWorkbenchReadersStop } from './source-writes-authority.js'
 import type { LocalWorkbenchPlanCapture, LocalWorkbenchProtectedWriter, LocalCueAudioProbe } from './local-library-workbench/types.js';
 import type { LocalWorkbenchResolvedReadCapture } from './local-library-workbench/read-service.js';
 import type { MetadataReaderPort } from '../library/metadata-reader-types.js';
+import { closeRustMediaWorkerPool } from '../library/rust-media-worker.js';
+import { runLibraryShutdownStep, type LibraryShutdownStage } from '../shared/library-shutdown-log.js';
 import { createRecordingPrintCoordinator } from '../recording/print-coordinator.js';
 import { createRecordingReplicaInput } from '../recording/replica-input.js';
 import { createReplicaDeviceSessionCoordinator } from '../recording/replica-device-session.js';
@@ -92,10 +100,17 @@ import { DatasetWorkbenchWireError, isDatasetWorkbenchOwnerRequest, isDatasetWor
     datasetNameOriginalStartSha256, DATASET_NAME_PROVIDER_CONTENT_BYTES, DatasetNameProviderBridgeError, type DatasetWorkbenchRequest, type DatasetWorkbenchResult, type DatasetWorkbenchExecutionContext, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetProjectionPort, type DatasetProjectionTicket, type OwnedDatasetDomain, type DatasetWorkbenchNativeConfiguration } from './dataset-owner-protocol.js';
 
 export interface DatasetDomainOptions {
+  mobileSqlWorker?: MobileSqlWorkerOptions;
+  /** 可信Owner的单向只读撤销；不参与Source许可或写事务核验。 */
+  assertAlbumReadActive?(): void;
+  /** 仅可信桌面 Owner 组合开启；通用领域工厂继续使用旧两槽。 */
+  localScanReadProfile?: 'bulk-v2';
   sourceWritesMainActor?: SourceWritesMainActor;
   mobileDsd?: MobileDsdDomainOptions;
   localWorkbenchNative?: DatasetWorkbenchNativeConfiguration;
   localSourceEpoch?: string;
+  /** 仅本机可重建派生索引；生产工厂按实际DatasetIdentity隔离。 */
+  artistSearchDirectory?: string | null;
   collectionRepository: CollectionRepository;
   backupWorkflowStore: BackupWorkflowStore;
   collectionDatasetIdentity?: DatasetIdentity;
@@ -157,21 +172,33 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   let closing = false, closed: Promise<void> | undefined;
   const assertDataset = () => identity.assertCurrent();
   const assertOpen = () => { if (closing) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库正在关闭，请重新读取当前状态。'); assertDataset(); };
+  const sourceReads = options.projection ? createLocalSourceReadProjection({ projection: options.projection, assertCurrent: assertDataset,
+    concurrency: options.localScanReadProfile === 'bulk-v2' ? 8 : 2 }) : undefined;
+  const sourceProjection = sourceReads?.port;
   const pendingDispatches = new Set<Promise<unknown>>();
   // 仅实际持久DatasetIdentity安装设置作者；测试旧工厂的临时UUID不能取得新账本许可。
   if(options.collectionDatasetIdentity) collection.localCatalog.privateBindWorkbenchDataset(options.collectionDatasetIdentity);
   const scanSettings=options.collectionDatasetIdentity?collection.localCatalog.privateScanSettingsStore(options.collectionDatasetIdentity):undefined;
   const completedScanSnapshots=options.collectionDatasetIdentity?createCompletedScanSnapshotView({repository:collection,identity:options.collectionDatasetIdentity}):undefined;
   let scanBootReady=!options.commitBoot;
+  let notifyArtworkBatch: (rootId: string, sourceRevision: string) => void = () => {};
+  let artistBackfill: ArtistMetadataBackfillCoordinator | undefined;
+  let artistMainReady = false;
   const mobileOwnerEpoch = options.localSourceEpoch ?? randomUUID();
   const localTickets = createLocalSourceTickets(collection, options.localSourceEpoch ?? randomUUID(), identity.datasetId, () => { assertOpen(); if (!scanBootReady) throw new Error('本地事实Owner尚未boot。'); });
   const localScan=createLocalScanCoordinator({repository:collection,datasetId:identity.datasetId,assertCurrent:assertDataset,dsdMetadataEnabled:mobilePreparedCache?.qualified === true,cueInputMetadataEnabled:options.localWorkbenchNative?.cue !== null && options.localWorkbenchNative?.cue !== undefined,assertReady:()=>{if(!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未commitBoot。');},
+    ...(options.localScanReadProfile ? {localScanReadProfile:options.localScanReadProfile}:{}),
+    onCommitted:job=>{if(!closing)notifyArtworkBatch(job.libraryRootId,`${job.jobId}:${job.phase==='completed'?'completed':'scanning'}`);},
     ...(scanSettings?{identity:options.collectionDatasetIdentity!,settings:scanSettings}:{}),
-    ...(completedScanSnapshots?{onCompleted:async(job,context)=>{if(context?.retry)completedScanSnapshots.retry(job.jobId);else completedScanSnapshots.captureCompleted(job.jobId);}}:{}),
-    ...(options.projection ? {projection:options.projection}:{}),...(test?.scanMetadataReader ? {reader:test.scanMetadataReader}:{})});
-  /** 原导入command关联一次扫描；旧回执只查询当前job，不重放parser或恢复旧运行。 */
+    ...(completedScanSnapshots?{onCompleted:async(job,context)=>{
+      if(context?.retry){completedScanSnapshots.retry(job.jobId);return;}
+      completedScanSnapshots.captureCompleted(job.jobId);
+      await recoverArtistMetadataAfterScan(job);
+    }}:{}),
+    ...(sourceProjection ? {projection:sourceProjection}:{}),...(test?.scanMetadataReader ? {reader:test.scanMetadataReader}:{})});
+  /** 原目录操作command关联一次扫描；旧回执只查询当前job，不重放parser或恢复旧运行。 */
   async function startInitialLibraryScan(commandId:string,root:Readonly<workbenchDto.LibraryRoot>):Promise<void>{
-    assertOpen();if(!workbenchDto.isCollectionId(commandId)||!workbenchDto.isLibraryRoot(root)||root.role!=='library')throw new LocalWorkbenchPlanError('CHANGED','首次扫描的原导入或Root身份无效。');
+    assertOpen();if(!workbenchDto.isCollectionId(commandId)||!workbenchDto.isLibraryRoot(root)||root.role!=='library')throw new LocalWorkbenchPlanError('CHANGED','目录扫描的原操作或Root身份无效。');
     root=Object.freeze({...root});
     let receipt=localScan.receipt(commandId);
     if(!receipt){
@@ -181,41 +208,87 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
         if(!scanBootReady||current.role!=='library'||current.sourceRootId!==root.sourceRootId||current.revision!==root.revision
           ||!collection.localCatalog.privateLibraryManagementRootAvailable(root.id)||!source.authorized||!actual.authorized
           ||actual.id!==source.id||actual.path!==source.path||actual.dev!==source.dev||actual.ino!==source.ino)
-          throw new LocalWorkbenchPlanError('CHANGED','首次扫描的原库修订、来源许可或撤库状态已改变。');
+          throw new LocalWorkbenchPlanError('CHANGED','目录扫描的原库修订、来源许可或撤库状态已改变。');
       };
-      checkNew();if(await sourceRootAvailability(source)!=='ONLINE')throw new LocalWorkbenchPlanError('CHANGED','首次扫描的原来源尚未在线，原Root与命令保留。');checkNew();
+      checkNew();if(await sourceRootAvailability(source)!=='ONLINE')throw new LocalWorkbenchPlanError('CHANGED','目录扫描的原来源尚未在线，原Root与命令保留。');checkNew();
       receipt=localScan.receipt(commandId);
       if(!receipt){localScan.start({commandId,libraryRootId:root.id,expectedRootRevision:root.revision});receipt=localScan.receipt(commandId);}
     }
     if(!receipt||receipt.operation!=='start'||receipt.commandId!==commandId||receipt.result.datasetId!==identity.datasetId
       ||receipt.result.libraryRootId!==root.id||receipt.result.sourceRootId!==root.sourceRootId||receipt.result.rootRevision!==root.revision)
-      throw new LocalWorkbenchPlanError('CHANGED','原首次扫描回执不属于同一导入与Root。');
+      throw new LocalWorkbenchPlanError('CHANGED','原目录扫描回执不属于同一操作与Root。');
     const current=localScan.get(receipt.jobId);
     if(current.jobId!==receipt.jobId||current.datasetId!==identity.datasetId||current.libraryRootId!==root.id
       ||current.sourceRootId!==root.sourceRootId||current.rootRevision!==root.revision)
-      throw new LocalWorkbenchPlanError('CHANGED','原首次扫描任务身份已改变，不能创建替代任务。');
+      throw new LocalWorkbenchPlanError('CHANGED','原目录扫描任务身份已改变，不能创建替代任务。');
   }
   // BackupCoordinator仍使用唯一原store的方法与事务；其close只提出关闭请求。
   // domain必须等录音清理、激活/文件回调及在途dispatch收口后，才真正关闭维护库连接。
   const maintenanceForCoordinator: BackupWorkflowStore = { ...maintenance, close() {} };
-  const localRelocation=createLocalRelocationCoordinator({repository:collection,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','owner尚未commitBoot。');},beforeMutation:()=>localScan.yieldForMedia(),onRegistered:(request,root)=>startInitialLibraryScan(request.commandId,root)});
-  const localArtwork = createLocalArtworkService({ repository: collection, assertCurrent: assertOpen, ...(options.projection ? { projection: options.projection } : {}) });
-  const albumRuntime = createLocalAlbumOwnerRuntime({ repository: collection, ...(options.collectionDatasetIdentity ? { datasetId: identity.datasetId } : {}), ...(options.projection ? { projection: options.projection } : {}),
+  const localRelocation=createLocalRelocationCoordinator({repository:collection,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','owner尚未commitBoot。');},beforeMutation:()=>localScan.yieldForMedia(),onRegistered:(request,root)=>startInitialLibraryScan(request.commandId,root),onRelinked:async(request,root)=>{if(root.role==='library')await startInitialLibraryScan(request.commandId,root);}});
+  const localArtwork = createLocalArtworkService({ repository: collection, assertCurrent: assertOpen, ...(sourceProjection ? { projection: sourceProjection } : {}) });
+  const albumReadActive = options.assertAlbumReadActive
+  const albumRuntime = createLocalAlbumOwnerRuntime({ repository: collection,
+    ...(options.mobileSqlWorker ? { mobileSqlWorker: options.mobileSqlWorker } : {}), ...(options.collectionDatasetIdentity ? { datasetId: identity.datasetId } : {}), ...(sourceProjection ? { projection: sourceProjection } : {}),
+    ...(options.assertAlbumReadActive ? { assertReadActive: options.assertAlbumReadActive } : {}),
     lyricsInventory:{revision:()=>collection.localCatalog.privateLyricsInventoryRevision(identity.datasetId),
-      read:(trackId,rootId,fileRevision)=>collection.localCatalog.privateLyricsInventoryRead(identity.datasetId,trackId,rootId,fileRevision)},
+      read:(trackId,rootId,fileRevision)=>collection.localCatalog.privateLyricsInventoryRead(identity.datasetId,trackId,rootId,fileRevision),
+      ...(options.collectionDatasetIdentity && albumReadActive ? { withRead: <T>(read: () => T): T => collection.localCatalog.privateWithLyricsInventoryRead(identity.datasetId, read, () => {
+        if (closing || !scanBootReady || options.assertAlbumReadActive !== albumReadActive) throw new CollectionError('INVENTORY_UNAVAILABLE', '歌词库存原Owner已停止或读取作者已变化。')
+        albumReadActive()
+      }) } : {})},
     assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '本地专辑 Owner 尚未 commitBoot。'); },
     readRootViews: () => localRelocation.roots(),
     ...(options.collectionDatasetIdentity ? { readLibraryOrganizations } : {}) });
+  notifyArtworkBatch = (rootId, sourceRevision) => albumRuntime.background?.notifyChanged(rootId, sourceRevision);
+  const artistCurrent = () => { assertDataset(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '本地艺人 Owner 尚未 commitBoot。'); };
+  const localArtists = createLocalArtistSearchService({ collection, localAlbums: albumRuntime.localAlbums,
+    directory: options.artistSearchDirectory ?? null, assertCurrent: artistCurrent,
+    // 交互查询先等待当前补读FD安全退出，避免自己追加的观察打断原分页快照。
+    beforeRefresh: async () => { await artistBackfill?.suspend(); },
+    // resume只归还临时借用；自动启动仍只由本代Main-ready设置，人工暂停保持。
+    afterRefresh: () => { if(!closing && !workbenchLife.signal.aborted)artistBackfill?.resume(); } });
+  artistBackfill = options.collectionDatasetIdentity && options.projection && !test ? createArtistMetadataBackfillCoordinator({
+    collection, directory: options.artistSearchDirectory ?? null, assertCurrent: artistCurrent,
+    isBusy: () => pendingDispatches.size > 0 || localArtists.preparing || albumRuntime.isPlaybackBusy(),
+    read: (candidate, signal) => localScan.privateReadArtistMetadata(candidate, signal),
+    onState: state => logLibraryOperation('library', 'artists.metadata-backfill', state.phase === 'needs-attention' ? 'error' : 'complete',
+      { code: state.phase.toUpperCase().replaceAll('-', '_'), count: state.succeeded, total: state.succeeded + state.failed + state.pending }),
+  }) : undefined;
+  async function recoverArtistMetadataAfterScan(job: Readonly<workbenchDto.ScanJobRecord>): Promise<void> {
+    if (!artistBackfill || closing || workbenchLife.signal.aborted) return;
+    assertOpen();
+    const recovered = structuredClone(job), root = collection.localCatalog.root(job.libraryRootId);
+    const source = collection.sources.root(job.sourceRootId);
+    const checkRecovered = () => {
+      assertOpen();
+      const current = localScan.get(recovered.jobId), actual = collection.localCatalog.root(recovered.libraryRootId);
+      const currentSource = collection.sources.root(recovered.sourceRootId);
+      if (!scanBootReady || workbenchLife.signal.aborted || recovered.phase !== 'completed'
+        || recovered.datasetId !== identity.datasetId || current.phase !== 'completed' || current.jobRevision !== recovered.jobRevision
+        || current.datasetId !== recovered.datasetId || current.libraryRootId !== recovered.libraryRootId
+        || current.sourceRootId !== recovered.sourceRootId || current.rootRevision !== recovered.rootRevision
+        || actual.role !== 'library' || actual.id !== root.id || actual.revision !== recovered.rootRevision
+        || actual.sourceRootId !== recovered.sourceRootId || !collection.localCatalog.privateLibraryManagementRootAvailable(actual.id)
+        || !source.authorized || !currentSource.authorized || currentSource.id !== source.id
+        || currentSource.path !== source.path || currentSource.dev !== source.dev || currentSource.ino !== source.ino)
+        throw new LocalWorkbenchPlanError('CHANGED','完成扫描的原Owner、有效库或来源身份已改变，补读不自动恢复。');
+    };
+    checkRecovered();
+    if (await sourceRootAvailability(source) !== 'ONLINE') return;
+    checkRecovered();
+    await artistBackfill.recoverAfterScan(recovered, checkRecovered);
+  }
   const mobileOwner = createMobileOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: mobileOwnerEpoch,
-    localAlbums: albumRuntime.localAlbums, dsdToPcmAvailable:()=>mobilePreparedCache?.qualified === true,
+    localAlbums: albumRuntime.localAlbums, isPlaybackBusy: albumRuntime.isPlaybackBusy, dsdToPcmAvailable:()=>mobilePreparedCache?.qualified === true,
     assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动 Owner 尚未 commitBoot。'); } });
-  // 004内容继续原同步发行账本；002目录使用同一Owner的异步目录投影。
+  // 内容复用同一 Owner 的隔离目录读取；同步提交围栏只取原投影修订，不重查目录页。
   const mobileContent = createMobileContentOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: mobileOwnerEpoch,
-    catalog: { dispatch: mobileOwner.dispatchLegacy }, limits: { stateBytes: 16 * 1024 * 1024, receipts: 1024, albums: 10000,
+    catalog: { dispatch: mobileOwner.dispatch, catalogRevision: mobileOwner.catalogRevision, refresh: mobileOwner.refreshCatalog }, limits: { stateBytes: 16 * 1024 * 1024, receipts: 1024, albums: 10000,
       favoriteTracks: 100000, playlists: 10000, playlistTracks: 100000 },
     assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '内容 Owner 尚未 commitBoot。'); } });
   const mobileSources = createMobileOwnerSourceService({ collection, tickets: localTickets, datasetId: identity.datasetId,
-    localAlbums: albumRuntime.localAlbums, ...(mobilePreparedCache ? { preparedCache: mobilePreparedCache } : {}),
+    localAlbums: albumRuntime.localAlbums, beginActivity: albumRuntime.beginMobilePlaybackActivity, ...(mobilePreparedCache ? { preparedCache: mobilePreparedCache } : {}),
     ownerEpoch: options.localSourceEpoch ?? randomUUID(), assertCurrent: () => {
       assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动源 Owner 尚未 commitBoot。');
     } });
@@ -378,7 +451,8 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
           const raw=error.raw;
           if(error.physicalClosed&&raw&&raw.exitCode===2&&raw.signal===null&&raw.pidClosed&&raw.overflow===null&&raw.stdout.length===0
             &&(raw.stderr.equals(Buffer.from('STRUCTURE_PROBE_ENTRY_BUDGET\n'))||raw.stderr.equals(Buffer.from('STRUCTURE_PROBE_CHILD_FD_BUDGET\n')))){
-            current();await rootCurrent();current();
+            logLibraryOperation('library','import.owner.role-budget','hit',{id:entry.binding.choiceId,code:raw.stderr.equals(Buffer.from('STRUCTURE_PROBE_ENTRY_BUDGET\n'))?'PROBE_ENTRY_BUDGET_CLOSED':'PROBE_CHILD_FD_BUDGET_CLOSED'});
+            await traceLibraryImport('owner.role-budget-check',entry.binding.choiceId,async()=>{current();await rootCurrent();current();});
             return {choiceId:entry.binding.choiceId,label:entry.root.label,suggestedRole:'catalog',
               evidence:['已核验原Main选择对象及实际Owner目录FD。','达到有限条目/子目录预算，未形成结构建议，请手动确认角色。']};
           }
@@ -460,16 +534,16 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     directoryContext(context);if(binding.datasetId!==identity.datasetId||binding.ownerEpoch!==options.localSourceEpoch)throw new LocalWorkbenchPlanError('CHANGED','原目录不属于当前Owner。');
     const existing=approvedDirectories.get(binding.choiceId);
     if(existing&&lyricsPhysicalDigest(existing.binding)!==lyricsPhysicalDigest(binding))throw new LocalWorkbenchPlanError('CHANGED','目录choice不能换原批准。');
-    const proof=await requestWorkbenchDirectoryApproval(context.mainActor,existing?'revalidate':'approve',binding,binding.originalUi,context.signal,context.deadlineAtMs);
-    directoryContext(context);const physical=assertSourceWorkbenchDirectoryApproval(proof,context.mainActor,binding,binding.originalUi);
+    const proof=await traceLibraryImport('owner.proof',binding.choiceId,()=>requestWorkbenchDirectoryApproval(context.mainActor,existing?'revalidate':'approve',binding,binding.originalUi,context.signal,context.deadlineAtMs));
+    const physical=await traceLibraryImport('owner.proof-check',binding.choiceId,()=>{directoryContext(context);return assertSourceWorkbenchDirectoryApproval(proof,context.mainActor,binding,binding.originalUi);});
     if(!existing){
       if([...approvedDirectories.values()].filter(value=>!value.ownerClosed).length>=100||approvedDirectories.size>=10000)throw new LocalWorkbenchPlanError('CHANGED','原目录许可已达到当前上限。');
-      const certified=await authorizeSourceDirectory(physical.path),fd=await open(physical.path,constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_DIRECTORY);
+      const certified=await traceLibraryImport('owner.authorize',binding.choiceId,()=>authorizeSourceDirectory(physical.path)),fd=await traceLibraryImport('owner.fd',binding.choiceId,()=>open(physical.path,constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_DIRECTORY));
       const entry={binding:structuredClone(binding),root:{...certified,id:binding.choiceId},fd,approval:proof,ui:structuredClone(binding.originalUi),active:true,ownerClosed:false};
-      try{await assertDirectory(entry,physical);directoryContext(context);approvedDirectories.set(binding.choiceId,entry);}catch(error){await fd.close();throw error;}
+      try{await traceLibraryImport('owner.fd-check',binding.choiceId,async()=>{await assertDirectory(entry,physical);directoryContext(context);approvedDirectories.set(binding.choiceId,entry);});}catch(error){await fd.close();throw error;}
     }else{if(existing.ownerClosed||!existing.active)throw new LocalWorkbenchPlanError('CHANGED','原目录批准已消费或撤销。');await assertDirectory(existing,physical);existing.approval=proof;existing.ui=structuredClone(binding.originalUi);}
     const entry=approvedDirectories.get(binding.choiceId)!;
-    if(binding.kind==='library')try{entry.suggestion=await readLibrarySuggestion(entry,context);}
+    if(binding.kind==='library')try{entry.suggestion=await traceLibraryImport('owner.role',binding.choiceId,()=>readLibrarySuggestion(entry,context));}
     catch(error){entry.active=false;if(roleProbeUnknown.has(binding.choiceId)){invalidateSourceWorkbenchDirectory(context.mainActor,binding);throw error;}
       await entry.fd.close();try{await entry.fd.stat();throw new Error('原角色探测FD关闭未核实。');}
       catch(closedError){if((closedError as NodeJS.ErrnoException).code!=='EBADF')throw closedError;}entry.ownerClosed=true;
@@ -773,17 +847,20 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
         const ownerContext=managementContexts.get(context);if(!ownerContext)throw new DatasetWorkbenchWireError('NOT_READY');
         assertWorkbench(ownerContext);await startInitialLibraryScan(commandId,root);assertWorkbench(ownerContext);
       },
-      async removeResources(libraryId,context,removingLibraries,original){
+      assertRemoveCurrent(context){const ownerContext=managementContexts.get(context);if(!ownerContext)throw new DatasetWorkbenchWireError('NOT_READY');assertWorkbench(ownerContext);},
+      async removeResources(libraryId,context,removingLibraries,original,pin){
         const ownerContext=managementContexts.get(context);if(!ownerContext)throw new DatasetWorkbenchWireError('NOT_READY');
         const accepting=()=>assertWorkbench(ownerContext);accepting();
-        const binding=collection.localCatalog.privateLibraryManagementRead(identity,'binding',libraryId);
-        if(!binding||binding.record.sourceRootId!==collection.localCatalog.root(libraryId).sourceRootId)throw new DatasetWorkbenchWireError('NOT_READY');
+        const root=collection.localCatalog.root(libraryId),binding=collection.localCatalog.privateLibraryManagementRead(identity,'binding',libraryId);
+        if(pin.libraryId!==libraryId||root.role!=='library'||root.sourceRootId!==pin.sourceRootId||root.revision!==pin.rootRevision
+          ||(pin.bindingSha256===null?binding!==null:!binding||binding.recordSha256!==pin.bindingSha256))throw new DatasetWorkbenchWireError('NOT_READY');
         const removal=collection.localCatalog.privateLibraryManagementRead(identity,'operation',original.commandId);
         if(!removal||removal.record.revision!==1||removal.record.receipt.state!=='running'||removal.record.original.command!=='library.remove'
           ||removal.record.originalSha256!==original.originalSha256||!removal.record.receipt.libraryIds.includes(libraryId))throw new DatasetWorkbenchWireError('NOT_READY');
+        await albumRuntime.background?.removeRoot(libraryId);accepting();
         if(libraryWatch){await libraryWatch.remove(libraryId);const watched=libraryWatch.inspect(libraryId);
           if(watched.watching||watched.leaseRetained||watched.failed||watched.status!=='disabled')throw new DatasetWorkbenchWireError('NOT_READY');}
-        else if(binding.record.watchEnabled)throw new DatasetWorkbenchWireError('NOT_READY');
+        else if(binding?.record.watchEnabled)throw new DatasetWorkbenchWireError('NOT_READY');
         await localScan.privateQuiesceLibrary(libraryId,ownerContext);
         const preparations=[...cuePreparationLives.values()].filter(value=>value.roots.includes(libraryId));for(const value of preparations)value.controller.abort();
         const preparationResults=await Promise.allSettled(preparations.map(value=>value.done));
@@ -808,7 +885,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
         await localSourceWrites.privateStopLibrary(libraryId,{identity,commandId:original.commandId,originalSha256:original.originalSha256});
         // 原已受理Core writer仍可能消费Main私有图/目录；先cancel/join原writer，再封Main原库读取。
         if(options.sourceWritesMainActor){
-          await requestSourceWorkbenchReadersStop(options.sourceWritesMainActor,{...original,libraryId,datasetId:identity.datasetId,ownerEpoch:ownerContext.identity.epoch},ownerContext);accepting();
+          await traceLibraryRemoval('owner.fence',original.commandId,()=>requestSourceWorkbenchReadersStop(options.sourceWritesMainActor!,{...original,libraryId,datasetId:identity.datasetId,ownerEpoch:ownerContext.identity.epoch},ownerContext));accepting();
         }else if(!test)throw new DatasetWorkbenchWireError('NOT_READY');
         await Promise.all([localArtwork.removeLibrary(libraryId),albumRuntime.artwork.removeLibrary(libraryId)]);
         workbenchRead!.invalidateRoot(libraryId);albumRuntime.localAlbums.invalidateRoot(libraryId);
@@ -963,6 +1040,13 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     const registry = await workbenchRegistry!; assertWorkbench(context);
     let value: DatasetWorkbenchOwnerResult;
     switch (request.command) {
+      case 'lifecycle.mainReady':
+        if (workbenchClose || workbenchLife.signal.aborted) throw new DatasetWorkbenchWireError('NOT_READY');
+        // Main确认只开启原调度；start保留持久暂停/取消，不能替换为resume。
+        if (options.collectionDatasetIdentity && options.projection) albumRuntime.background?.start();
+        // commitBoot仍在Main资源恢复之前；艺人补读只能在本代Main实际就绪后启动。
+        if (!artistMainReady) { artistMainReady = true; artistBackfill?.start(); }
+        value = true; break;
       case 'read.albums':
         value = await workbenchRead!.readAlbums(request.payload, context);
         if(!libraryManagement)throw new DatasetWorkbenchWireError('NOT_READY');
@@ -1041,7 +1125,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       workbenchLife.abort();
       const failures: unknown[] = [];
       // 新输入先封；实际job/provider/写作者、Native和原目录FD静止以后才交还SQL。
-      for (const close of [() => workbenchPreparation, () => libraryManagement?.close(), () => libraryWatch?.close(), () => lyricsRuntime?.close(),
+      for (const close of [() => albumRuntime.background?.close(), () => workbenchPreparation, () => libraryManagement?.close(), () => libraryWatch?.close(), () => lyricsRuntime?.close(),
         () => lyricsNative?.close(), () => lyricsTags?.close(), () => cueActor?.close(), () => cueNative?.close(), () => cueTags?.close(),
         () => Promise.allSettled([...cuePreparations.values()]), () => Promise.all([...directoryClosures.values()]),
         () => Promise.allSettled([...roleProbeFlights]),
@@ -1134,11 +1218,12 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const domain: DatasetDomain = {
     prepareWorkbench,registerWorkbenchDirectory,revokeWorkbenchDirectory,
     async workbenchContext() { assertWorkbench(); await workbenchRegistry; assertWorkbench(); return { epoch: options.localSourceEpoch!, datasetId: identity.datasetId, ready: true }; },
+    async workbenchReadIdentity() { assertWorkbench(); return { epoch: options.localSourceEpoch!, datasetId: identity.datasetId, ready: true }; },
     dispatchWorkbench: (request,context)=>trackWorkbench(context,()=>dispatchWorkbench(request,context)),
     dispatchWorkbenchOwner: (request, context) => trackWorkbench(context, () => dispatchWorkbenchOwner(request, context)),
     readLyricsGrantOriginal,
     closeWorkbench,
-    datasetId: identity.datasetId, collection, localScan, localRelocation, localRelocationPlans, localArtwork, localAlbums: albumRuntime.localAlbums, localOrganizer, localLegacyLinks, localSourceWrites, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
+    datasetId: identity.datasetId, collection, localScan, localRelocation, localRelocationPlans, localArtwork, localAlbums: albumRuntime.localAlbums, localArtists, localOrganizer, localLegacyLinks, localSourceWrites, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
     ...(recordingDeviceSelection ? { recordingDeviceSelection } : {}), recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica, physicalLinks, masterDrafts, assertOpen,
     dispatch(request) {
       const pending = dispatchDatasetCommand(domain, request);
@@ -1154,12 +1239,27 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       assertOpen();
       const current=()=>{assertOpen();if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','队列Owner尚未就绪。');};
       const pending = request.command==='localAlbum.materializeQueue'
-        ? materializeLocalAlbumQueue(collection,albumRuntime.localAlbums,request.payload.selection,identity.datasetId,request.payload.expiresAtMs,current)
+        ? request.payload.selection.context
+          ? materializeLocalSearchQueue(collection,localArtists,request.payload.selection,request.payload.expiresAtMs,current)
+          : materializeLocalAlbumQueue(collection,albumRuntime.localAlbums,request.payload.selection,identity.datasetId,request.payload.expiresAtMs,current)
         : dispatchLocalAlbumRead(domain, request);
       pendingDispatches.add(pending); return pending.finally(() => pendingDispatches.delete(pending));
     },
     mobileMain(request) {
       const pending = Promise.resolve().then(() => {
+        if (request.kind === 'playback-activity') {
+          if (!isMobileOwnerPrivateRequest(request) || request.datasetId !== identity.datasetId) return {
+            kind: 'mobile-error' as const, status: 400 as const, code: 'INVALID_REQUEST' as const, retryable: false, outcome: null,
+          };
+          assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动 Owner 尚未 commitBoot。');
+          if (request.request.operation === 'end' && request.request.ownerEpoch !== mobileOwnerEpoch) return {
+            kind: 'mobile-error' as const, status: 409 as const, code: 'SOURCE_CHANGED' as const, retryable: false, outcome: null,
+          };
+          const leaseId = request.request.operation === 'begin' ? albumRuntime.beginMobileControlActivity()
+            : (albumRuntime.endMobileControlActivity(request.request.leaseId), request.request.leaseId);
+          return { kind: 'playback-activity' as const, datasetId: identity.datasetId, ownerEpoch: mobileOwnerEpoch,
+            operation: request.request.operation, leaseId };
+        }
         if (request.kind === 'content') {
           if (!isMobileOwnerPrivateRequest(request) || request.datasetId !== identity.datasetId) return {
             kind: 'content-error' as const, status: 400 as const, code: 'INVALID_REQUEST' as const,
@@ -1186,10 +1286,22 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     loadMBQueue: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','队列Owner尚未就绪。'); return collection.mbQueue.load(identity.datasetId); },
     saveMBQueue: request => { assertOpen(); if (!scanBootReady || request.queue.datasetId !== identity.datasetId) throw new CollectionError('INVENTORY_UNAVAILABLE','队列工作库不匹配。'); return collection.mbQueue.save(request); },
     captureLocalSource: selection => localTickets.capture(selection),
+    readLocalSourceLyrics(ticketId) {
+      assertOpen(); const pending = localTickets.readLyrics(ticketId);
+      pendingDispatches.add(pending); return pending.finally(() => pendingDispatches.delete(pending));
+    },
     revalidateLocalSource: ticketId => localTickets.revalidate(ticketId),
     releaseLocalSource: ticketId => localTickets.release(ticketId),
     sealLocalSources: () => localTickets.seal(),
-    async commitBoot() { assertOpen();await options.commitBoot?.();scanBootReady=true; },
+    async commitBoot() { assertOpen();await options.commitBoot?.();assertOpen();scanBootReady=true;
+      // 数据库提交后才可读取原Root与库存；外层Owner仍等本方法完成才开放请求。
+      // 全库审计及摘要在独立只读连接准备好，不能消耗手机首个请求的期限。
+      await albumRuntime.localAlbums.privateMobile.prepare?.();
+      assertOpen();
+      void collection.localScan.privateWarmDisplayFileParameters();
+      // 原持久目录事实已可查询；后台仅续跑有系统中断证据且当前ONLINE的任务。
+      if(options.collectionDatasetIdentity && options.projection)localScan.privateStartRecovery();
+    },
     readonlySnapshotStamp() {
       assertOpen();
       const stamp = collection.readonlySnapshotStamp();
@@ -1211,39 +1323,59 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     failureForError(id, error, command) { return (options.failureForError ?? failureForError)(id, error, command ?? 'commandOutbox.context'); },
     close(beforeConnectionClose) {
       if (closed) return closed;
-      closing = true; localTickets.seal();
+      closing = true; localTickets.seal(); sourceReads?.seal();
       closed = (async () => {
         const failures: unknown[] = [];
-        const stop = async (operation: () => unknown) => { try { await operation(); } catch (error) { failures.push(error); } };
-        await stop(() => mobileContent.close());
-        await stop(() => mobileSources.close());
+        const stop = async (stage: LibraryShutdownStage, operation: () => unknown) => { try { await runLibraryShutdownStep(stage, operation); } catch (error) { failures.push(error); } };
+        await stop('owner.background', async () => {
+          const stopped = await Promise.allSettled([artistBackfill?.close(),localArtists.close(),albumRuntime.background?.close()]);
+          const failures = stopped.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
+          if(failures.length)throw new AggregateError(failures,'后台艺人、补读与封面任务尚未全部静止。');
+        });
+        await stop('owner.mobile', () => mobileContent.close());
+        await stop('owner.mobile-sources', async () => {
+          const results = await Promise.allSettled([Promise.resolve().then(() => mobileSources.close()), localTickets.joinLyrics()]);
+          const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected').map(r => r.reason);
+          if (failures.length) throw new AggregateError(failures, '移动与本地歌词来源尚未全部静止。');
+        });
         // 前序失败仍尽力停止后续原资源；任何收尾失败都保留两库，不发送静止成功回执，也不自动重试。
-        await stop(() => recordingReplica.close()); await stop(() => recordingPrints.close()); await stop(() => recordingRecords.close()); await stop(() => recordingAttempts.close());
-        await stop(() => recordingDeviceSelection?.close()); await stop(() => recordingOutput.close()); await stop(() => recordingPlans.close());
-        await stop(() => backups.close()); await stop(() => archive.close()); await stop(() => execution.close()); await stop(() => prepared.close()); await stop(() => preparationZips.close()); await stop(() => preparation.close()); await stop(() => masterVersions.close());
-        await stop(() => closeWorkbench());
-        await stop(() => localSourceWrites.close());
-        await stop(() => localRelocationPlans.close());
-        await stop(() => localArtwork.close());
-        await stop(() => albumRuntime.close());
-        await stop(() => localOrganizer.close());
-        await stop(() => localLegacyLinks.close());
-        await stop(() => localScan.close());
-        await stop(() => completedScanSnapshots?.close());
-        await stop(() => localRelocation.close());
-        await stop(() => sourceCandidates.close()); await stop(() => sources.close());
-        await Promise.allSettled([...pendingDispatches]);
-        await stop(() => beforeConnectionClose?.());
+        await stop('owner.replica', () => recordingReplica.close()); await stop('owner.prints', () => recordingPrints.close()); await stop('owner.records', () => recordingRecords.close()); await stop('owner.attempts', () => recordingAttempts.close());
+        await stop('owner.devices', () => recordingDeviceSelection?.close()); await stop('owner.output', () => recordingOutput.close()); await stop('owner.plans', () => recordingPlans.close());
+        await stop('owner.backups', () => backups.close()); await stop('owner.archive', () => archive.close()); await stop('owner.execution', () => execution.close()); await stop('owner.prepared', () => prepared.close()); await stop('owner.zip', () => preparationZips.close()); await stop('owner.preparation', () => preparation.close()); await stop('owner.versions', () => masterVersions.close());
+        await stop('owner.workbench', () => closeWorkbench());
+        await stop('owner.source-writes', () => localSourceWrites.close());
+        await stop('owner.relocation-plans', () => localRelocationPlans.close());
+        await stop('owner.artwork', () => localArtwork.close());
+        await stop('owner.albums', () => albumRuntime.close());
+        await stop('owner.organizer', () => localOrganizer.close());
+        await stop('owner.legacy', () => localLegacyLinks.close());
+        await stop('owner.scan', async () => {
+          const errors: unknown[] = [];
+          try { await localScan.close(); } catch (error) { errors.push(error); }
+          // 所有实际读者已请求停止后，再核共享队列与迟到票据；前序失败仍要执行此收口。
+          try { await sourceReads?.close(); } catch (error) { errors.push(error); }
+          if (errors.length) throw new AggregateError(errors, '扫描与来源读取调度未全部静止。');
+        });
+        await stop('owner.media-worker', () => closeRustMediaWorkerPool());
+        await stop('owner.snapshots', () => completedScanSnapshots?.close());
+        await stop('owner.relocation', () => localRelocation.close());
+        await stop('owner.candidates', () => sourceCandidates.close()); await stop('owner.sources', () => sources.close());
+        await runLibraryShutdownStep('owner.dispatches', () => Promise.allSettled([...pendingDispatches]));
+        await stop('owner.mobile', () => mobileOwner.close());
+        await stop('owner.barrier', () => beforeConnectionClose?.());
         // 其余原资源没有静止证明时保留唯一SourceSafety，不能先清预留再声称Owner关闭。
-        if(failures.length===0)await stop(()=>localSourceWrites.closeSourceSafety());
+        if(failures.length===0)await stop('owner.source-safety', ()=>localSourceWrites.closeSourceSafety());
         if (failures.length === 1) throw failures[0];
         if (failures.length > 1) throw new AggregateError(failures, '工作库收尾失败；已尽力停止全部资源，保留连接供故障处理。');
-        if (options.closeConnections) options.closeConnections();
-        else { try { collection.close(); } finally { maintenance.close(); } }
+        await runLibraryShutdownStep('owner.connections', () => {
+          if (options.closeConnections) options.closeConnections();
+          else { try { collection.close(); } finally { maintenance.close(); } }
+        });
       })();
       return closed;
     },
   };
+  if(scanBootReady && options.collectionDatasetIdentity && options.projection)localScan.privateStartRecovery();
   return domain;
 }
 
@@ -1253,6 +1385,11 @@ export function createTestDatasetDomain(options: TestDatasetDomainOptions = {}):
 }
 
 export interface OwnedDatasetDomainOptions {
+  mobileSqlWorkerEntry?: URL;
+  /** 私有测试工厂；生产缺省使用打包后的专用只读Worker。 */
+  mobileSqlWorkerFactory?: (options: WorkerOptions) => Worker;
+  assertAlbumReadActive?(): void;
+  localScanReadProfile?: 'bulk-v2';
   sourceWritesMainActor?: SourceWritesMainActor;
   mobileDsd?: MobileDsdDomainOptions;
   localWorkbenchNative?: DatasetWorkbenchNativeConfiguration;
@@ -1288,9 +1425,13 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
       } catch { outputRunRecovery = { safe: false, pendingRuns: 0, reason: 'OUTPUT_RUN_UNVERIFIED' }; }
     }
     const common: DatasetDomainOptions = {
+      mobileSqlWorker: { databaseFile: dataset.databaseFile, ...(options.mobileSqlWorkerEntry ? { entry: options.mobileSqlWorkerEntry } : {}), ...(options.mobileSqlWorkerFactory ? { workerFactory: options.mobileSqlWorkerFactory } : {}) },
+      ...(options.assertAlbumReadActive ? { assertAlbumReadActive: options.assertAlbumReadActive } : {}),
+      ...(options.localScanReadProfile ? { localScanReadProfile: options.localScanReadProfile } : {}),
       ...(options.mobileDsd ? { mobileDsd: options.mobileDsd } : {}),
       ...(options.localWorkbenchNative ? { localWorkbenchNative: options.localWorkbenchNative } : {}),
       localSourceEpoch: options.epoch, collectionRepository: dataset.repository, backupWorkflowStore: dataset.store,
+      artistSearchDirectory: path.join(options.dataDirectory,'artist-search',dataset.datasetId),
       ...(options.sourceWritesMainActor ? { sourceWritesMainActor: options.sourceWritesMainActor } : {}),
       collectionDatasetIdentity: { datasetId: dataset.datasetId, assertCurrent: dataset.assertIdentity },
       backupPrivateRoot: dataset.privateRoot, ...(dataset.contentBinding ? { backupContentBinding: dataset.contentBinding } : {}),

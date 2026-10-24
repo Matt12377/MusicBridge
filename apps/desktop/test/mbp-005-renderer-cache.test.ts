@@ -259,14 +259,16 @@ test('MBP005 R1：真实App account.changed清私有值后恢复列表且不重�
     getLikedTracks: async () => { likedCalls++; return page('恢复的喜欢') }, getUserPlaylists: async () => { playlistCalls++; return [{ id: 'playlist-a', name: '恢复的歌单', trackCount: 1 }] },
     getDailyRecommendations: async () => { dailyCalls++; return { dayKey: '2026-10-01', tracks: [] } } })
   t.after(() => library.dispose()); library.applyAuthState({ status: 'authorized' }); await turn(); assert.equal(likedCalls, 1); assert.equal(playlistCalls, 1); assert.equal(accountCalls, 1)
-  const script = ts.transpileModule(`let pageCacheEpoch=0; ${invalidate}; return event => { ${branch} }`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
-  const scopeEpoch = ref(0); let artworkInvalidations = 0
-  const execute = new Function('pageCache', 'netease', 'journey', 'playback', 'recentTracks', 'applyAccountState', 'search', 'currentView', 'roonGridScopeEpoch', 'roonArtworkCache', script)(
-    createLibraryPageCache(), library, { resetPrivatePath() {} }, { invalidateCollectionOperation() {} }, ref([]), library.applyAccountState, { invalidateAccountScope() {}, resume() {} }, ref('liked'), scopeEpoch, { clear() { artworkInvalidations++ } }) as (event: unknown) => void
+  const script = ts.transpileModule(`let pageCacheEpoch=0, catalogActionGeneration=0; ${invalidate}; return event => { ${branch} }`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
+  const scopeEpoch = ref(0), catalogActionPending = ref(true), invalidatedSources: string[] = [], cancelledSources: string[] = []; let artworkInvalidations = 0
+  const execute = new Function('pageCache', 'netease', 'journey', 'playback', 'recentTracks', 'applyAccountState', 'search', 'currentView', 'roonGridScopeEpoch', 'roonArtworkCache', 'catalog', 'catalogData', 'catalogActionPending', script)(
+    createLibraryPageCache(), library, { resetPrivatePath() {} }, { invalidateCollectionOperation() {} }, ref([]), library.applyAccountState, { invalidateAccountScope() {}, resume() {} }, ref('liked'), scopeEpoch, { clear() { artworkInvalidations++ } },
+    { invalidateSource(source: string) { invalidatedSources.push(source) } }, { cancelSource(source: string) { cancelledSources.push(source) } }, catalogActionPending) as (event: unknown) => void
   execute({ event: 'account.changed', payload: { state: { status: 'ready', profile: { userId: '合成用户', displayName: '合成账户' } } } }); await turn()
   assert.equal(likedCalls, 2); assert.equal(playlistCalls, 2); assert.equal(library.likedPage.value.items[0]?.id, '恢复的喜欢'); assert.equal(library.playlists.value[0]?.name, '恢复的歌单')
   assert.equal(accountCalls, 1, '可信profile事件恢复数据时不得再读profile触发反馈'); assert.equal(dailyCalls, 2, '沿applyAccountState原逻辑刷新一次daily，恢复函数不再重复')
   assert.equal(scopeEpoch.value, 1, '身份轮转同步废弃旧收藏解析作用域'); assert.equal(artworkInvalidations, 1, '身份轮转同步清旧图片租期，不由迟到回执重放')
+  assert.deepEqual(invalidatedSources, ['netease']); assert.deepEqual(cancelledSources, ['netease']); assert.equal(catalogActionPending.value, false)
 })
 
 test('MBP005 R1：collection恰在0/29999ms为fresh，30000ms恢复重采', async t => {
@@ -348,7 +350,10 @@ async function dispatchAppRootSelect(kind: 'album' | 'artist' | 'genre' | 'playl
   const { descriptor } = parse(await readFile(new URL('../src/renderer/src/App.vue', import.meta.url), 'utf8'))
   const plural = { album: 'albums', artist: 'artists', genre: 'genres', playlist: 'playlists' }[kind]
   const section = descriptor.template!.content.split(`currentView === 'roon-${plural}'`)[1]!.split('</section>')[0]!
-  const expression = section.match(/@select="([^"]+)"/)![1]!
+  // 艺术家页现由CatalogWorkspace承载Roon插槽；仍执行真实Roon列表的点击绑定。
+  const gridTag = kind === 'album' ? 'RoonAlbumGrid' : 'RoonEntityGrid'
+  const grid = section.match(new RegExp(`<${gridTag}\\b[\\s\\S]*?/>`, 'u'))?.[0]; assert.ok(grid, '缺少实际Roon列表组件')
+  const expression = grid.match(/@select="([^"]+)"/)?.[1]; assert.ok(expression, '缺少实际Roon条目点击绑定')
   const ast = ts.createSourceFile('App.ts', descriptor.scriptSetup!.content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const functions: string[] = []
   function visit(node: import('typescript').Node): void {

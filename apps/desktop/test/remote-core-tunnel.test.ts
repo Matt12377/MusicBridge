@@ -14,6 +14,10 @@ import {
   type RemoteSshProcess,
 } from '../src/main/remote-core-tunnel.js'
 
+const boundOutput = (remotePort = 38512, localPort = 38502): string =>
+  `debug1: Local forwarding listening on 127.0.0.1 port 19330.\r\n` +
+  `debug1: remote forward success for: listen 127.0.0.1:${remotePort}, connect 127.0.0.1:${localPort}\r\n`
+
 class FakeOutput extends EventEmitter {
   emitText(value: string): void {
     this.emit('data', Buffer.from(value))
@@ -29,14 +33,14 @@ class FakeSshProcess extends EventEmitter implements RemoteSshProcess {
     super()
   }
 
-  start(): void {
+  start(remotePort = 38512, localPort = 38502): void {
     if (this.exitAfterSpawn) {
       const exitAfterSpawn = this.exitAfterSpawn
       queueMicrotask(() => {
         if (exitAfterSpawn.stderr) this.stderr.emitText(exitAfterSpawn.stderr)
         this.emit('exit', exitAfterSpawn.code, null)
       })
-    }
+    } else queueMicrotask(() => this.stderr.emitText(boundOutput(remotePort, localPort)))
   }
 
   kill(): boolean {
@@ -49,6 +53,12 @@ class FakeSshProcess extends EventEmitter implements RemoteSshProcess {
     if (stderr) this.stderr.emitText(stderr)
     this.emit('exit', code, null)
   }
+}
+
+function startFake<T extends FakeSshProcess>(process: T, args?: readonly string[]): T {
+  const forwarding = args?.[args.indexOf('-R') + 1]?.split(':')
+  process.start(forwarding?.[1] ? Number(forwarding[1]) : 38512, forwarding?.[3] ? Number(forwarding[3]) : 38502)
+  return process
 }
 
 function managerHarness(options: {
@@ -67,12 +77,12 @@ function managerHarness(options: {
   const spawn: RemoteCoreTunnelSpawn = (command, args, spawnOptions) => {
     spawnCalls.push({ command, args, shell: spawnOptions.shell })
     const process = options.processes[processIndex++] ?? new FakeSshProcess({ code: 255 })
-    process.start()
+    startFake(process, args)
     return process
   }
   const manager = new RemoteCoreTunnelManager({
     spawn,
-    boundGraceMs: 0,
+    boundTimeoutMs: 1_000,
     healthProbe: async ({ remoteStreamPort }) => {
       healthCalls.push(remoteStreamPort)
       return options.health ? options.health(remoteStreamPort) : true
@@ -105,6 +115,164 @@ test('SSH target only accepts a safe user@host or configured alias', () => {
   assert.equal(isSafeSshTarget('a'.repeat(256)), false)
 })
 
+test('V4 SSH：慢握手存活超过旧150ms窗口也不能提前重启Core，双转发确认后才就绪', async t => {
+  const child = new FakeSshProcess()
+  let bound = 0, health = 0
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, spawn: () => child,
+    onTunnelBound: () => { bound++ }, healthProbe: async () => { health++; return true } })
+  t.after(() => manager.stop())
+  const starting = manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+  await new Promise(resolve => setTimeout(resolve, 180))
+  assert.equal(bound, 0, 'SSH进程存活不等于认证完成和转发绑定完成。')
+  assert.equal(health, 0)
+  assert.equal(manager.getState().status, 'checking')
+  child.stderr.emitText(boundOutput().slice(0, 42))
+  child.stderr.emitText(boundOutput().slice(42))
+  assert.equal((await starting).status, 'ready')
+  assert.equal(bound, 1); assert.equal(health, 1)
+})
+
+test('V4 SSH：握手截止仍无原转发确认时保留本地Core，停止原SSH并报连接失败', async () => {
+  const child = new FakeSshProcess()
+  let bound = 0, health = 0, spawns = 0
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 20,
+    spawn: () => { spawns++; return child }, onTunnelBound: () => { bound++ },
+    healthProbe: async () => { health++; return true } })
+  try {
+    const state = await manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+    assert.equal(state.errorCode, 'SSH_CONNECTION_FAILED'); assert.equal(state.status, 'failed')
+    assert.equal(bound, 0); assert.equal(health, 0); assert.equal(spawns, 1); assert.equal(child.killed, true)
+    assert.equal(child.stderr.listenerCount('data'), 0)
+  } finally { await manager.stop() }
+})
+
+test('V4 SSH：只有同目标的本地监听与远端转发ACK齐全才可切Core', async t => {
+  const child = new FakeSshProcess()
+  let bound = 0
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, spawn: () => child,
+    onTunnelBound: () => { bound++ }, healthProbe: async () => true })
+  t.after(() => manager.stop())
+  const starting = manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38602, autoReconnect: false })
+  await new Promise(resolve => setImmediate(resolve))
+  child.stderr.emitText(boundOutput(38513, 38602))
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(bound, 0)
+  child.stderr.emitText(boundOutput(38512, 38502))
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(bound, 0)
+  child.stderr.emitText(boundOutput(38512, 38602))
+  assert.equal((await starting).status, 'ready'); assert.equal(bound, 1)
+})
+
+test('V4 SSH：严格主机身份失败按SSH安全配置失败报告，不扫描八个远端端口', async () => {
+  const harness = managerHarness({ processes: [new FakeSshProcess({ code: 255, stderr: 'Host key verification failed.' })] })
+  const state = await harness.manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+  assert.equal(state.errorCode, 'SSH_AUTH_REQUIRED'); assert.equal(harness.spawnCalls.length, 1)
+  assert.equal(harness.healthCalls.length, 0)
+  await harness.manager.stop()
+})
+
+test('V4 SSH：同代health失败先停止原隧道，再等待一次本地回退，失败不冒充成功', async () => {
+  const child = new FakeSshProcess(), events: string[] = []
+  let release!: () => void, bound!: () => void
+  const held = new Promise<void>(resolve => { release = resolve }), entered = new Promise<void>(resolve => { bound = resolve })
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000,
+    spawn: () => { queueMicrotask(() => child.stderr.emitText(boundOutput())); return child },
+    onTunnelBound: () => { events.push('core.bound') }, healthProbe: async () => false,
+    onTunnelUnavailable: async state => {
+      assert.equal(child.killed, true); assert.equal(state.errorCode, 'REMOTE_HEALTH_UNAVAILABLE')
+      events.push('fallback.start'); bound(); await held; events.push('fallback.complete')
+    } })
+  let settled = false
+  const starting = manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false }).then(value => { settled = true; return value })
+  try {
+    await entered; assert.equal(settled, false); assert.deepEqual(events, ['core.bound', 'fallback.start'])
+    release(); const result = await starting
+    assert.equal(result.errorCode, 'REMOTE_HEALTH_UNAVAILABLE'); assert.equal(result.status, 'failed')
+    assert.deepEqual(events, ['core.bound', 'fallback.start', 'fallback.complete'])
+  } finally { release(); await starting; await manager.stop() }
+})
+
+test('V4 SSH：回退失败明确报Core切换失败，且stop撤销health后不再调用回退', async () => {
+  const failed = new FakeSshProcess()
+  const first = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000,
+    spawn: () => { queueMicrotask(() => failed.stderr.emitText(boundOutput())); return failed },
+    healthProbe: async () => false, onTunnelUnavailable: () => { throw new Error('合成本地回退失败。') } })
+  try {
+    assert.equal((await first.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })).errorCode, 'CORE_RESTART_FAILED')
+  } finally { await first.stop() }
+  const child = new FakeSshProcess()
+  let release!: (value: boolean) => void, enter!: () => void, unavailable = 0
+  const health = new Promise<boolean>(resolve => { release = resolve }), entered = new Promise<void>(resolve => { enter = resolve })
+  const second = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000,
+    spawn: () => { queueMicrotask(() => child.stderr.emitText(boundOutput())); return child },
+    healthProbe: () => { enter(); return health }, onTunnelUnavailable: () => { unavailable++ } })
+  const starting = second.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+  await entered; const stopping = second.stop(); release(false)
+  await starting; assert.equal((await stopping).status, 'idle'); assert.equal(unavailable, 0)
+})
+
+test('V4 SSH：握手中的stop取消等待，迟到ACK不能再切Core', async () => {
+  const child = new FakeSshProcess()
+  let bound = 0, unavailable = 0
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, spawn: () => child,
+    onTunnelBound: () => { bound++ }, onTunnelUnavailable: () => { unavailable++ }, healthProbe: async () => true })
+  const starting = manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+  await new Promise(resolve => setImmediate(resolve))
+  const stopping = manager.stop()
+  await starting; assert.equal((await stopping).status, 'idle')
+  child.stderr.emitText(boundOutput()); await new Promise(resolve => setImmediate(resolve))
+  assert.equal(bound, 0); assert.equal(unavailable, 0); assert.equal(child.killed, true)
+  assert.equal(child.stderr.listenerCount('data'), 0)
+  assert.equal(manager.getState().status, 'idle')
+})
+
+test('V4 SSH：健康结果被新start撤销时不回退新目标，旧结果晚到不能覆盖新连接', async () => {
+  const children = [new FakeSshProcess(), new FakeSshProcess()]
+  let release!: (value: boolean) => void, enter!: () => void, calls = 0, healthCalls = 0, unavailable = 0
+  const held = new Promise<boolean>(resolve => { release = resolve }), entered = new Promise<void>(resolve => { enter = resolve })
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000,
+    spawn: (_command, args) => startFake(children[calls++]!, args),
+    healthProbe: () => { if (++healthCalls === 1) { enter(); return held }; return Promise.resolve(true) },
+    onTunnelUnavailable: () => { unavailable++ } })
+  const initial = manager.start({ sshTarget: 'core-first', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+  try {
+    await entered
+    const replacement = manager.start({ sshTarget: 'core-second', remoteStreamPort: 38512, localStreamPort: 38602, autoReconnect: false })
+    await initial
+    assert.equal((await replacement).sshTarget, 'core-second')
+    release(false); await new Promise(resolve => setImmediate(resolve))
+    assert.equal(manager.getState().status, 'ready'); assert.equal(unavailable, 0)
+    assert.equal(children[0]!.killed, true); assert.equal(children[1]!.killed, false)
+  } finally { release(false); await initial; await manager.stop() }
+})
+
+test('V4 SSH：显式reconnect的health失败沿原链只回退一次', async () => {
+  const children = [new FakeSshProcess(), new FakeSshProcess()]
+  let calls = 0, healthCalls = 0, unavailable = 0, bound = 0
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000,
+    spawn: (_command, args) => startFake(children[calls++]!, args),
+    onTunnelBound: () => { bound++ }, healthProbe: async () => ++healthCalls === 1,
+    onTunnelUnavailable: () => { unavailable++ } })
+  try {
+    assert.equal((await manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })).status, 'ready')
+    assert.equal((await manager.reconnect()).errorCode, 'REMOTE_HEALTH_UNAVAILABLE')
+    assert.equal(bound, 2); assert.equal(unavailable, 1)
+    assert.equal(children[0]!.killed, true); assert.equal(children[1]!.killed, true)
+  } finally { await manager.stop() }
+})
+
+test('V4 SSH：ACK后立即退出的旧SSH不能再触发Core重启', async () => {
+  const child = new FakeSshProcess()
+  let bound = 0, unavailable = 0
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000,
+    spawn: () => { queueMicrotask(() => { child.stderr.emitText(boundOutput()); child.exit(255) }); return child },
+    onTunnelBound: () => { bound++ }, onTunnelUnavailable: () => { unavailable++ }, healthProbe: async () => true })
+  try {
+    const state = await manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+    assert.equal(state.status, 'failed'); assert.equal(state.errorCode, 'SSH_CONNECTION_FAILED')
+    assert.equal(bound, 0); assert.equal(unavailable, 0)
+  } finally { await manager.stop() }
+})
+
 test('SSH commands are fixed, loopback-only, and never forward the control port', () => {
   const tunnelArgs = buildTunnelSshArgs('roonstation@core-mac', 38512, 38502)
   const healthArgs = buildHealthCheckSshArgs('roonstation@core-mac', 38512)
@@ -122,6 +290,12 @@ test('SSH commands are fixed, loopback-only, and never forward the control port'
     'ControlMaster=no',
     '-o',
     'ControlPath=none',
+    '-o',
+    'ConnectTimeout=5',
+    '-o',
+    'ConnectionAttempts=1',
+    '-o',
+    'LogLevel=DEBUG1',
     '-o',
     'ServerAliveInterval=15',
     '-o',
@@ -170,7 +344,7 @@ test('default health probe accepts only the bounded remote health body through a
     assert.equal(spawnOptions.shell, false)
     mutableCalls.push([...args])
     const process = new FakeSshProcess()
-    process.start()
+    startFake(process, args)
     if (args.includes('/usr/bin/curl')) {
       queueMicrotask(() => {
         process.stdout.emitText('{"ok":true,"mode":"remote-core-development"}')
@@ -179,7 +353,7 @@ test('default health probe accepts only the bounded remote health body through a
     }
     return process
   }
-  const manager = new RemoteCoreTunnelManager({ spawn, boundGraceMs: 0 })
+  const manager = new RemoteCoreTunnelManager({ spawn, boundTimeoutMs: 1_000 })
 
   const state = await manager.start({
     sshTarget: 'core-mac',
@@ -201,8 +375,8 @@ test('MBR002：探测超时终止并确认Fake SSH退出，未知退出保留所
     override kill(signal?: NodeJS.Signals): boolean { this.signals.push(signal); return true }
   }
   const tunnel = new FakeSshProcess(), probe = new HeldProcess(); let spawns = 0
-  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, healthTimeoutMs: 20, stopGraceMs: 10,
-    spawn: (_command, args) => { ++spawns; return args.includes('/usr/bin/curl') ? probe : tunnel },
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, healthTimeoutMs: 20, stopGraceMs: 10,
+    spawn: (_command, args) => { ++spawns; return args.includes('/usr/bin/curl') ? probe : startFake(tunnel, args) },
   })
   const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false }
   const failed = await manager.start(config)
@@ -221,7 +395,7 @@ test('MBR002：停止直接取消正在等待的探测，迟到健康结果不�
   const entered = new Promise<void>(resolve => { enter = resolve })
   const held = new Promise<boolean>(resolve => { finish = resolve })
   const process = new FakeSshProcess()
-  const manager = new RemoteCoreTunnelManager({ spawn: () => process, boundGraceMs: 0, healthTimeoutMs: 5_000,
+  const manager = new RemoteCoreTunnelManager({ spawn: (_command, args) => startFake(process, args), boundTimeoutMs: 1_000, healthTimeoutMs: 5_000,
     healthProbe: async input => { signal = input.signal; enter(); return held },
   })
   const starting = manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
@@ -235,8 +409,8 @@ test('MBR002：停止直接取消正在等待的探测，迟到健康结果不�
 
 test('MBR002：探测输出超预算拒绝而不是截断成可接受JSON', async () => {
   const tunnel = new FakeSshProcess(), probe = new FakeSshProcess()
-  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, spawn: (_command, args) => {
-    if (!args.includes('/usr/bin/curl')) return tunnel
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, spawn: (_command, args) => {
+    if (!args.includes('/usr/bin/curl')) return startFake(tunnel, args)
     queueMicrotask(() => { probe.stdout.emitText('{"ok":true,"mode":"remote-core-development"}' + ' '.repeat(4_096)); probe.exit(0) })
     return probe
   } })
@@ -392,14 +566,14 @@ test('MBR002：spawn失败的close确认释放所有权，不要求不存在的e
   class UnspawnedProcess extends FakeSshProcess { override kill(): boolean { return false } }
   const failed = new UnspawnedProcess(), healthy = new FakeSshProcess()
   let spawns = 0
-  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, stopGraceMs: 5,
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, stopGraceMs: 5,
     healthProbe: async () => true,
     spawn: () => {
       if (++spawns === 1) {
         queueMicrotask(() => { failed.emit('error', new Error('合成spawn失败')); failed.emit('close', -2, null) })
         return failed
       }
-      return healthy
+      return startFake(healthy)
     },
   })
   const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false }
@@ -435,7 +609,7 @@ test('MBR002：探测回调同步触发stop也能立即取消，不遗漏已触�
   const entered = new Promise<void>(resolve => { enter = resolve })
   const held = new Promise<boolean>(resolve => { finish = resolve })
   let stopping: Promise<RemoteCoreTunnelState> | undefined
-  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, spawn: () => new FakeSshProcess(),
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, spawn: () => startFake(new FakeSshProcess()),
     healthProbe: input => { stopping = manager.stop(); assert.equal(input.signal?.aborted, true); enter(); return held },
   })
   const starting = manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
@@ -455,8 +629,8 @@ test('MBR002：kill同步报错不能重入发第二次TERM，未退出仍阻断
     }
   }
   const tunnel = new FakeSshProcess(), probe = new FailedKillProcess(); let spawns = 0
-  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, healthTimeoutMs: 10, stopGraceMs: 5,
-    spawn: (_command, args) => { ++spawns; return args.includes('/usr/bin/curl') ? probe : tunnel },
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, healthTimeoutMs: 10, stopGraceMs: 5,
+    spawn: (_command, args) => { ++spawns; return args.includes('/usr/bin/curl') ? probe : startFake(tunnel, args) },
   })
   const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false }
   try {
@@ -476,7 +650,7 @@ test('MBR002：断连状态观察者同步新start，旧清理仍绑定发布前
   let spawns = 0, finish!: () => void, replacement: Promise<RemoteCoreTunnelState> | undefined
   const held = new Promise<void>(resolve => { finish = resolve })
   const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: true }
-  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, spawn: () => processes[spawns++]!, healthProbe: async () => true,
+  const manager = new RemoteCoreTunnelManager({ boundTimeoutMs: 1_000, spawn: () => startFake(processes[spawns++]!), healthProbe: async () => true,
     onStateChanged: state => { if (state.status === 'disconnected') replacement = manager.start(config) },
     onDisconnected: () => held,
   })

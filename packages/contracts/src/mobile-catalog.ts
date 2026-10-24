@@ -3,7 +3,7 @@ import { MOBILE_CODEC_LIMITS, MOBILE_COMMON_SCHEMAS, MOBILE_ID_SCHEMA, isMobileI
 import type { MobileAudioInfo, MobileCodecLimits, MobileDecodeResult, MobileId, MobileRevision, MobileSchemaRegistry, MobileSource } from './mobile-common.js';
 
 export interface MobileAlbum { id: MobileId; title: string; artists: string[]; source: MobileSource; editionLabel: string; trackCount: number; artworkId?: MobileId }
-export interface MobileTrack { id: MobileId; title: string; artists: string[]; albumId: MobileId; source: MobileSource; sourceItemId: MobileId; versionId: MobileId; contentRevision: MobileRevision; editionLabel: string; durationMs: number; audio: MobileAudioInfo; availability: 'available' | 'missing' | 'unavailable'; artworkId?: MobileId }
+export interface MobileTrack { id: MobileId; title: string; artists: string[]; albumId: MobileId; source: MobileSource; sourceItemId: MobileId; versionId: MobileId; contentRevision: MobileRevision; editionLabel: string; durationMs: number | null; audio: MobileAudioInfo; availability: 'available' | 'missing' | 'unavailable'; artworkId?: MobileId }
 export interface MobileAlbumPage { items: MobileAlbum[]; nextCursor: string | null; libraryRevision: string }
 export interface MobileTrackPage { items: MobileTrack[]; nextCursor: string | null; libraryRevision: string }
 export interface MobileSearchQuery { limit?: number; cursor?: string; q?: string; source?: 'all' | MobileSource; albumId?: MobileId }
@@ -14,7 +14,8 @@ export interface MobileCatalogResponseMap { album: MobileAlbum; track: MobileTra
 export const MOBILE_CATALOG_SCHEMAS: MobileSchemaRegistry = {
   ...MOBILE_COMMON_SCHEMAS,
   Album:{type:'object',required:['id','title','artists','source','editionLabel','trackCount'],additionalProperties:true,properties:{id:MOBILE_ID_SCHEMA,title:{type:'string'},artists:{type:'array',items:{type:'string'}},source:{enum:['local','netease']},editionLabel:{type:'string'},artworkId:MOBILE_ID_SCHEMA,trackCount:{type:'integer',minimum:0}}},
-  Track:{type:'object',required:['id','title','artists','albumId','source','sourceItemId','versionId','contentRevision','editionLabel','durationMs','audio','availability'],additionalProperties:true,properties:{id:MOBILE_ID_SCHEMA,title:{type:'string'},artists:{type:'array',items:{type:'string'}},albumId:MOBILE_ID_SCHEMA,source:{enum:['local','netease']},sourceItemId:MOBILE_ID_SCHEMA,versionId:MOBILE_ID_SCHEMA,contentRevision:MOBILE_ID_SCHEMA,editionLabel:{type:'string'},durationMs:{type:'integer',minimum:0},artworkId:MOBILE_ID_SCHEMA,audio:{$ref:'#/components/schemas/AudioInfo'},availability:{enum:['available','missing','unavailable']}}},
+  // 未知时长是明确的本地不可播放展示事实；缺键、可播和Provider未知值仍不合法。
+  Track:{type:'object',required:['id','title','artists','albumId','source','sourceItemId','versionId','contentRevision','editionLabel','durationMs','audio','availability'],additionalProperties:true,properties:{id:MOBILE_ID_SCHEMA,title:{type:'string'},artists:{type:'array',items:{type:'string'}},albumId:MOBILE_ID_SCHEMA,source:{enum:['local','netease']},sourceItemId:MOBILE_ID_SCHEMA,versionId:MOBILE_ID_SCHEMA,contentRevision:MOBILE_ID_SCHEMA,editionLabel:{type:'string'},durationMs:{type:['integer','null'],minimum:0},artworkId:MOBILE_ID_SCHEMA,audio:{$ref:'#/components/schemas/AudioInfo'},availability:{enum:['available','missing','unavailable']}},allOf:[{if:{required:['durationMs'],properties:{durationMs:{type:'null'}}},then:{properties:{source:{const:'local'},availability:{const:'unavailable'}}}}]},
   AlbumPage:{type:'object',required:['items','nextCursor','libraryRevision'],additionalProperties:true,properties:{items:{type:'array',items:{$ref:'#/components/schemas/Album'}},nextCursor:{type:['string','null']},libraryRevision:{type:'string'}}},
   TrackPage:{type:'object',required:['items','nextCursor','libraryRevision'],additionalProperties:true,properties:{items:{type:'array',items:{$ref:'#/components/schemas/Track'}},nextCursor:{type:['string','null']},libraryRevision:{type:'string'}}},
   MobileSearchQuery:{type:'object',additionalProperties:false,properties:{limit:{type:'integer',minimum:1,maximum:100},cursor:{type:'string'},q:{type:'string',maxLength:200},source:{enum:['all','local','netease']},albumId:MOBILE_ID_SCHEMA}},
@@ -56,7 +57,7 @@ export type MobileAlbumProjection = MobileAlbum;
 export function mapLocalDetailToMobileTrack(raw:LocalLibraryTrackDetail, binding:MobileCatalogIdentityBinding, projection:MobileCatalogProjection):MobileDecodeResult<MobileTrack> {
   const captured = mobileDataSnapshot(raw); if (!captured.ok || !mobileRecord(captured.value)) return mobileFailure('INVALID_RESPONSE','detail');
   const detail = captured.value as unknown as LocalLibraryTrackDetail;
-  if (!detail.track || !detail.asset || !Array.isArray(detail.editions) || !detail.fileParameters || detail.fileParameters.durationMs === null
+  if (!detail.track || !detail.asset || !Array.isArray(detail.editions) || !detail.fileParameters
     || detail.track.id !== binding.localTrackId || detail.asset.id !== binding.assetId || detail.track.assetId !== binding.assetId || detail.asset.fileRevision !== binding.fileRevision
     || detail.track.selectionRevision !== binding.selectionRevision || (detail.track.segment?.id ?? null) !== binding.segmentId
     || !detail.editions.some(e => e.id === binding.editionId && e.revision === binding.editionRevision)

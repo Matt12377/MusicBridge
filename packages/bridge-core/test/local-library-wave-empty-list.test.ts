@@ -1,21 +1,31 @@
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test, { after, type TestContext } from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { fstatSync, type Stats } from 'node:fs';
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { MetadataReaderLifecycle, MetadataReaderPort, MetadataReadResult } from '../src/library/metadata-reader-types.js';
+import type { MetadataReadBudget, MetadataReaderLifecycle, MetadataReaderPort, MetadataReadResult } from '../src/library/metadata-reader-types.js';
+import { DEFAULT_METADATA_READ_BUDGET, RUST_MEDIA_METADATA_PARSER_VERSION } from '../src/library/metadata-reader-types.js';
+import type { RustMediaWorkerPool, RustMetadataReadResult } from '../src/library/rust-media-worker.js';
 import type { ScanPreparedBatch } from '../src/collection/local-scan-store.js';
 import type { DatasetProjectionPort, DatasetProjectionCommand, DatasetProjectionCommandPayloads,
   DatasetProjectionCommandResults } from '../src/collection/dataset-owner-protocol.js';
 import { loadFreshMetadataReader } from './helpers/mbrs003-audio-fixtures.js';
 
+// 原 Reader.close 只归还本 Reader；全部用例收尾后关闭同一 fresh dist 的常驻池。
+after(async () => {
+  const workers = await import(new URL('../dist/library/rust-media-worker.js', import.meta.url).href) as typeof import('../src/library/rust-media-worker.js');
+  await workers.closeRustMediaWorkerPool();
+});
+
 // 只生成自有合成媒体；不读取普通 App 曲库、不改标签、不把有限兼容证明当作整曲可播放验收。
 const OLD_PARSER = 'music-metadata-11.15.0/mbrs003-v1';
-const NEW_PARSER = 'music-metadata-11.15.0/mbrs003-v4';
+const NEW_PARSER = RUST_MEDIA_METADATA_PARSER_VERSION;
 const frames = 4800, sampleRate = 48000, channels = 2, bits = 24, blockAlign = channels * bits / 8;
 const expectedTags = Object.freeze({ title: '合成 ID3 标题', artist: '合成 ID3 艺人', album: '合成 INFO 专辑' });
 const ordinaryTags = Object.freeze({ title: '合成普通 INFO 标题', artist: '合成普通 INFO 艺人', album: '合成普通 INFO 专辑' });
+const expectedFields = Object.freeze({ ...expectedTags, artists: [expectedTags.artist], albumArtists: [] });
+const ordinaryFields = Object.freeze({ ...ordinaryTags, artists: [ordinaryTags.artist], albumArtists: [] });
 const hash = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 function chunk(id: string, payload: Buffer, declaredBytes = payload.length): Buffer {
@@ -76,7 +86,8 @@ async function modules() {
   const scanner = await import(new URL('../dist/collection/local-scan-coordinator.js', import.meta.url).href) as typeof import('../src/collection/local-scan-coordinator.js');
   const admission = await import(new URL('../dist/library/scan-read-admission.js', import.meta.url).href) as typeof import('../src/library/scan-read-admission.js');
   const locks = await import(new URL('../dist/stream/physical-resource-locks.js', import.meta.url).href) as typeof import('../src/stream/physical-resource-locks.js');
-  return { reader, files, repository, scanner, admission, locks };
+  const workers = await import(new URL('../dist/library/rust-media-worker.js', import.meta.url).href) as typeof import('../src/library/rust-media-worker.js');
+  return { reader, files, repository, scanner, admission, locks, workers };
 }
 function metadataIdentity(stat: Stats): Readonly<Record<string, string>> {
   return Object.fromEntries(['dev', 'ino', 'size', 'mode', 'uid', 'gid', 'nlink', 'mtimeMs', 'ctimeMs', 'birthtimeMs'].map(key =>
@@ -85,26 +96,63 @@ function metadataIdentity(stat: Stats): Readonly<Record<string, string>> {
 function closedFd(fd: number): boolean {
   try { fstatSync(fd); return false; } catch (error) { return (error as NodeJS.ErrnoException).code === 'EBADF'; }
 }
-function actualQuiet(events: readonly MetadataReaderLifecycle[], result: MetadataReadResult): void {
-  const starts = events.filter((event): event is Extract<MetadataReaderLifecycle, { type: 'worker-start' | 'worker-online' }> => event.type === 'worker-start');
-  assert.equal(starts.length, 1, '每次读取必须真正启动固定 Worker');
-  const start = starts[0]!;
-  const acquired = events.findIndex(event => event.type === 'lease-acquired' && event.fd === start.fd);
-  const exited = events.findIndex(event => event.type === 'worker-exit' && event.threadId === start.threadId);
-  const released = events.findIndex(event => event.type === 'lease-released' && event.fd === start.fd);
-  const completed = events.findIndex(event => event.type === 'read-complete');
-  assert.equal(acquired >= 0 && exited > acquired && released > exited && completed > released, true,
-    '实际 Worker exit→原 FD release→完成；失败也不能先放掉真实保护');
-  assert.equal(closedFd(start.fd), true);
-  const completion = events[completed]!;
-  assert.equal(completion.type === 'read-complete' && completion.status === result.status, true);
-  const exit = events[exited]!; assert.equal(exit.type === 'worker-exit' && exit.exitCode === 0, true);
+interface RustReadObservation {
+  startedAt: number; settledAt: number; readCalls: number; pendingReads: number;
+  bytesRead: number; requestedBytes: number; maxReadBytes: number; rangesValid: boolean;
+  budget: Readonly<MetadataReadBudget>; result?: RustMetadataReadResult;
+}
+function observeRustReads(t: TestContext, pool: RustMediaWorkerPool) {
+  const actual = pool.readMetadata.bind(pool), calls: RustReadObservation[] = [], order = new WeakMap<MetadataReaderLifecycle, number>();
+  let sequence = 0;
+  // 只观察真实常驻池；原解析与每次有界只读 RPC 都实际执行，不合成 worker-exit。
+  t.mock.method(pool, 'readMetadata', async (...[input, signal]: Parameters<RustMediaWorkerPool['readMetadata']>) => {
+    const call: RustReadObservation = { startedAt: ++sequence, settledAt: 0, readCalls: 0, pendingReads: 0,
+      bytesRead: 0, requestedBytes: 0, maxReadBytes: 0, rangesValid: true, budget: { ...input.budget } }; calls.push(call);
+    try {
+      call.result = await actual({ ...input, async read(offset, length) {
+        call.readCalls++; call.pendingReads++;
+        call.requestedBytes += length; call.maxReadBytes = Math.max(call.maxReadBytes, length);
+        call.rangesValid &&= Number.isSafeInteger(offset) && offset >= 0 && Number.isSafeInteger(length) && length > 0 && offset + length <= input.size;
+        try { const bytes = await input.read(offset, length); call.bytesRead += bytes.length; return bytes; } finally { call.pendingReads--; }
+      } }, signal);
+      return call.result;
+    } finally { call.settledAt = ++sequence; }
+  });
+  return { calls, mark(event: MetadataReaderLifecycle) { order.set(event, ++sequence); },
+    at(event: MetadataReaderLifecycle) { return order.get(event) ?? -1; },
+    assertQuiet() { assert.ok(calls.every(call => call.settledAt > call.startedAt && call.pendingReads === 0), 'Reader close 必须 join 真实 Rust 任务及在途只读 RPC'); } };
+}
+function actualQuiet(events: readonly MetadataReaderLifecycle[], result: MetadataReadResult, rust: ReturnType<typeof observeRustReads>, firstCall: number): void {
+  const calls = rust.calls.slice(firstCall); assert.equal(calls.length, 1, '每次实际读取须恰好调用一次真实 Rust 解析');
+  const call = calls[0]!; assert.ok(call.result); assert.ok(call.readCalls > 0); assert.equal(call.pendingReads, 0);
+  assert.equal(call.rangesValid, true); assert.ok(call.bytesRead > 0 && call.bytesRead <= call.requestedBytes);
+  assert.ok(call.requestedBytes <= call.budget.totalReadBytes); assert.ok(call.maxReadBytes <= call.budget.singleReadBytes);
+  assert.ok(call.maxReadBytes <= call.budget.singleAllocationBytes, 'Node 每次真实只读 RPC 的分配不能超过传入预算');
+  const { performance: _performance, ...actual } = call.result; assert.deepEqual(result, actual);
+  if (result.status === 'failure') assert.equal(result.readEvidence, null, '真实 Rust 失败合同不公开解析器的分配或读取统计');
+  const acquired = events.filter((event): event is Extract<MetadataReaderLifecycle, { type: 'lease-acquired' | 'lease-released' }> => event.type === 'lease-acquired');
+  const released = events.filter(event => event.type === 'lease-released'), completed = events.filter(event => event.type === 'read-complete');
+  const phases = events.filter(event => event.type === 'metadata-phase');
+  assert.equal(acquired.length, 1); assert.equal(released.length, 1); assert.equal(completed.length, 1);
+  assert.deepEqual(phases.map(event => [event.stage, event.state, event.backend]), [
+    ['read', 'start', 'rust-media-worker'], ['parse', 'start', 'rust-media-worker'],
+    ['read', result.status === 'ok' ? 'complete' : 'error', 'rust-media-worker'], ['parse', result.status === 'ok' ? 'complete' : 'error', 'rust-media-worker'],
+  ]);
+  assert.equal(new Set(phases.map(event => event.readId)).size, 1);
+  const timeline = [rust.at(acquired[0]!), rust.at(phases[0]!), rust.at(phases[1]!), call.startedAt, call.settledAt,
+    rust.at(phases[2]!), rust.at(phases[3]!), rust.at(released[0]!), rust.at(completed[0]!)];
+  assert.ok(timeline.every((at, index) => at > 0 && (index === 0 || at > timeline[index - 1]!)),
+    '真实 Rust 任务与只读 RPC 完成后才释放原 FD，最后返回本次读取；失败也不能提前放掉保护');
+  assert.equal(released[0]!.type === 'lease-released' && released[0]!.fd === acquired[0]!.fd, true);
+  assert.equal(closedFd(acquired[0]!.fd), true);
+  assert.equal(completed[0]!.type === 'read-complete' && completed[0]!.status === result.status, true);
 }
 function success(result: MetadataReadResult): Extract<MetadataReadResult, { status: 'ok' }> {
   assert.equal(result.status, 'ok', '有限空 LIST 兼容必须真正完成解析');
   return result;
 }
 function bounded(result: MetadataReadResult): void {
+  if (result.status === 'failure') { assert.equal(result.readEvidence, null); return; }
   assert.ok(result.readEvidence);
   assert.equal(result.readEvidence.bytesRead > 0 && result.readEvidence.bytesRead <= 32 * 1024 * 1024, true);
   assert.equal(result.readEvidence.maxReadBytes <= 8 * 1024 * 1024, true);
@@ -113,7 +161,7 @@ function bounded(result: MetadataReadResult): void {
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 async function fixture(t: TestContext, sourceFiles: Readonly<Record<string, Buffer>>) {
-  const m = await modules(), temporary = process.env.TMPDIR;
+  const m = await modules(), rust = observeRustReads(t, m.workers.getRustMediaWorkerPool()), temporary = process.env.TMPDIR;
   assert.ok(temporary && path.isAbsolute(temporary), 'Root 必须提供外置 FIX/tmp');
   assert.equal(await realpath(temporary), temporary);
   const parent = await lstat(temporary);
@@ -137,7 +185,7 @@ async function fixture(t: TestContext, sourceFiles: Readonly<Record<string, Buff
   t.after(async () => {
     const errors: unknown[] = [];
     for (const cleanup of [...cleanups].reverse()) try { await cleanup(); } catch (error) { errors.push(error); }
-    try { await unchanged(); assert.deepEqual(m.locks.physicalResourceLocks.combinedSnapshot(), beforeClaims); } catch (error) { errors.push(error); }
+    try { rust.assertQuiet(); await unchanged(); assert.deepEqual(m.locks.physicalResourceLocks.combinedSnapshot(), beforeClaims); } catch (error) { errors.push(error); }
     if (errors.length) throw new AggregateError(errors, '合成 WAV 的 FD、资源保护或原字节未完成真实收口。');
   });
   for (const [relative, bytes] of Object.entries(sourceFiles)) {
@@ -153,26 +201,27 @@ async function fixture(t: TestContext, sourceFiles: Readonly<Record<string, Buff
     const original = originals.get(relative); assert.ok(original); assert.ok(root);
     return { root, relative, expectedSignature: original.signature };
   };
-  return { m, directory, media, root, originals, input, unchanged, addCleanup: (cleanup: () => void | Promise<void>) => cleanups.push(cleanup) };
+  return { m, rust, directory, media, root, originals, input, unchanged, addCleanup: (cleanup: () => void | Promise<void>) => cleanups.push(cleanup) };
 }
 function openedReader(f: Fixture) {
-  const events: MetadataReaderLifecycle[] = [], reader = f.m.reader.createMetadataReader({ onLifecycle: event => events.push(event) });
-  f.addCleanup(() => reader.close());
+  const events: MetadataReaderLifecycle[] = [], reader = f.m.reader.createMetadataReader({ onLifecycle(event) { events.push(event); f.rust.mark(event); } });
+  f.addCleanup(async () => { const closing = reader.close(); assert.equal(reader.close(), closing); await closing; f.rust.assertQuiet(); });
   return { reader, events, async read(relative: string) {
-    const first = events.length, result = await reader.read(f.input(relative));
-    actualQuiet(events.slice(first), result); bounded(result); return result;
+    const first = events.length, firstCall = f.rust.calls.length, result = await reader.read(f.input(relative));
+    actualQuiet(events.slice(first), result, f.rust, firstCall);
+    assert.deepEqual(f.rust.calls[firstCall]!.budget, DEFAULT_METADATA_READ_BUDGET); bounded(result); return result;
   } };
 }
 
 test('本地 WAV 空 LIST：固定 Worker 保留后续 ID3/INFO 与准确 PCM 参数、原字节', { timeout: 30_000 }, async t => {
   const f = await fixture(t, { 'control.wav': taggedWave(0), 'empty.wav': taggedWave(1), 'two-empty.wav': taggedWave(2) });
   const actual = openedReader(f), control = success(await actual.read('control.wav'));
-  assert.deepEqual(control.fields, expectedTags);
+  assert.deepEqual(control.fields, expectedFields);
   assert.deepEqual(control.technical, { container: 'WAVE', codec: 'PCM', lossless: true,
     sampleRateHz: sampleRate, channels, bitsPerSample: bits, durationSeconds: frames / sampleRate, evidence: 'bounded-parser-reported' });
   for (const relative of ['empty.wav', 'two-empty.wav']) {
     const value = success(await actual.read(relative));
-    assert.deepEqual(value.fields, expectedTags, 'ID3 的 title/artist 和之后 INFO 的 album 必须完整保留');
+    assert.deepEqual(value.fields, expectedFields, 'ID3 的 title/artist 和之后 INFO 的 album 及原多值艺人必须完整保留');
     assert.deepEqual(value.technical, control.technical, '空 LIST 不改变完整 fmt/GUID 读到的技术事实');
     assert.deepEqual(value.coverEvidence, control.coverEvidence); assert.deepEqual(value.coverEvidence, []);
     assert.equal(value.parserVersion, NEW_PARSER);
@@ -239,8 +288,8 @@ test('本地 WAV 旧 v3 已接受错格式：v4 实际重读、身份与人工�
   assert.deepEqual(track, oldTrack); assert.equal(asset.libraryRootId, oldAsset.libraryRootId); assert.equal(asset.sourceRootId, oldAsset.sourceRootId);
   assert.equal(repo.localCatalog.privateAssetLocator(asset.id).relative, relative);
   assert.equal(BigInt(asset.fileRevision) > BigInt(oldAsset.fileRevision), true, '新解析事实推进既有资产修订，不另造实体');
-  assert.deepEqual(metadata.override, override); assert.deepEqual(metadata.raw, expectedTags);
-  assert.deepEqual(metadata.effective, { ...expectedTags, ...override.fields });
+  assert.deepEqual(metadata.override, override); assert.deepEqual(metadata.raw, expectedFields);
+  assert.deepEqual(metadata.effective, { ...expectedFields, ...override.fields });
   const observations = repo.localCatalog.observations(oldTrack.id);
   assert.deepEqual(observations.slice(0, historicalObservations.length), historicalObservations);
   assert.equal(observations.length, historicalObservations.length + 1); assert.equal(observations.at(-1)!.parserVersion, NEW_PARSER);
@@ -255,7 +304,7 @@ test('本地 WAV 旧 v3 已接受错格式：v4 实际重读、身份与人工�
   activeSession = scanSession(f, cold, datasetId); const again = activeSession;
   const reused = again.coordinator.start({ commandId: randomUUID(), libraryRootId: root.id, expectedRootRevision: root.revision });
   await again.coordinator.privateWait(reused.jobId);
-  assert.equal(again.observations.length, 0); assert.equal(again.events.filter(event => event.type === 'worker-start').length, 0);
+  assert.equal(again.observations.length, 0); assert.equal(again.rustCalls, 0);
   assert.deepEqual(cold.localScan.privateFileState(root.id, relative)!.value, state.value);
   assert.deepEqual(cold.localCatalog.asset(asset.id), asset); assert.deepEqual(cold.localCatalog.track(track.id), track);
   assert.deepEqual(cold.localCatalog.metadata(track.id), metadata); assert.deepEqual(cold.localCatalog.observations(track.id), observations);
@@ -269,7 +318,7 @@ test('本地 WAV 旧 v3 已接受错格式：v4 实际重读、身份与人工�
 test('本地 WAV 普通 LIST：真实 INFO 标签及 PCM 参数保持原语义', { timeout: 30_000 }, async t => {
   const f = await fixture(t, { 'ordinary.wav': ordinaryWave() }), actual = openedReader(f);
   const value = success(await actual.read('ordinary.wav'));
-  assert.deepEqual(value.fields, ordinaryTags); assert.deepEqual(value.coverEvidence, []);
+  assert.deepEqual(value.fields, ordinaryFields); assert.deepEqual(value.coverEvidence, []);
   assert.deepEqual(value.technical, { container: 'WAVE', codec: 'PCM', lossless: true, sampleRateHz: sampleRate, channels,
     bitsPerSample: bits, durationSeconds: frames / sampleRate, evidence: 'bounded-parser-reported' });
   await f.unchanged();
@@ -291,7 +340,7 @@ test('本地 WAV 空 LIST 兼容不能放过越界、截断或非零短 LIST', {
     const value = await actual.read(relative); assert.equal(value.status, 'failure');
     if (value.status === 'failure') assert.equal(value.code, 'PARSE_FAILED', '只容忍已验界的零长可选块，不弱化负 ignore 或 RIFF 边界');
   }
-  assert.deepEqual(success(await actual.read('valid-after.wav')).fields, ordinaryTags, '坏容器不能污染下一真实 Worker');
+  assert.deepEqual(success(await actual.read('valid-after.wav')).fields, ordinaryFields, '坏容器不能污染下一真实 Worker');
   await f.unchanged();
 });
 
@@ -308,17 +357,20 @@ function scanSession(f: Fixture, repo: ReturnType<Fixture['m']['repository']['cr
     },
   };
   const events: MetadataReaderLifecycle[] = [], observations: { relative: string; result: MetadataReadResult }[] = [];
-  const actual = f.m.reader.createMetadataReader({ onLifecycle: event => events.push(event) });
+  const firstSessionCall = f.rust.calls.length;
+  const actual = f.m.reader.createMetadataReader({ onLifecycle(event) { events.push(event); f.rust.mark(event); } });
   const reader: MetadataReaderPort = {
     async read(input, signal) {
-      const first = events.length, result = await actual.read(input, signal);
-      actualQuiet(events.slice(first), result); bounded(result); observations.push({ relative: input.relative, result }); return result;
+      const first = events.length, firstCall = f.rust.calls.length, result = await actual.read(input, signal);
+      actualQuiet(events.slice(first), result, f.rust, firstCall);
+      assert.deepEqual(f.rust.calls[firstCall]!.budget, DEFAULT_METADATA_READ_BUDGET); bounded(result); observations.push({ relative: input.relative, result }); return result;
     }, close: () => actual.close(),
   };
   const coordinator = f.m.scanner.createLocalScanCoordinator({ repository: repo, datasetId,
     assertCurrent() { repo.readonlySnapshotStamp(); }, projection, reader });
-  return { coordinator, admission, events, observations, async close() {
-    try { await coordinator.close(); } finally { admission.close(); repo.close(); }
+  return { coordinator, admission, events, observations, get rustCalls() { return f.rust.calls.length - firstSessionCall; }, async close() {
+    try { await coordinator.close(); const closing = actual.close(); assert.equal(actual.close(), closing); await closing; f.rust.assertQuiet(); }
+    finally { admission.close(); repo.close(); }
   } };
 }
 
@@ -366,7 +418,7 @@ test('本地 WAV 旧 v1 失败记录：新版本真实增量读入标签和技�
   assert.equal(next.observations.length, 1, '未改源签名的旧失败必须真实重读，不能拼造或复用 readFacts');
   assert.equal(next.observations[0]!.relative, relative);
   const parsed = success(next.observations[0]!.result); assert.equal(parsed.parserVersion, NEW_PARSER);
-  assert.deepEqual(parsed.fields, expectedTags);
+  assert.deepEqual(parsed.fields, expectedFields);
   const state = repo.localScan.privateFileState(root.id, relative); assert.ok(state);
   assert.equal(state.value.outcome, 'accepted'); assert.equal(state.value.failureCode, null);
   assert.equal(state.value.signature, signature); assert.equal(state.value.parserVersion, NEW_PARSER);
@@ -377,9 +429,9 @@ test('本地 WAV 旧 v1 失败记录：新版本真实增量读入标签和技�
   assert.equal(repo.localCatalog.privateAssetLocator(asset.id).relative, relative);
   assert.equal(asset.sourceRootId, source.id); assert.equal(track.assetId, asset.id);
   assert.equal(repo.localCatalog.pageTracks({ offset: 0, limit: 200 }).total, 1);
-  assert.deepEqual(metadata, { raw: expectedTags, override: null, effective: expectedTags });
+  assert.deepEqual(metadata, { raw: expectedFields, override: null, effective: expectedFields });
   assert.equal(tags.length, 1); assert.equal(tags[0]!.source, 'tag'); assert.equal(tags[0]!.parserVersion, NEW_PARSER);
-  assert.deepEqual(tags[0]!.fields, expectedTags);
+  assert.deepEqual(tags[0]!.fields, expectedFields);
   assert.deepEqual(repo.localScan.get(failed.jobId), failed, '原失败 job/receipt 不被新事实改写');
   assert.deepEqual(repo.localScan.receipt(historicalCommit.commandId), historicalReceipt);
   assert.deepEqual(next.admission.resourceCounts(), { permits: 0, revoked: 0, watches: 0, timers: 0, closed: false });
@@ -394,7 +446,7 @@ test('本地 WAV 旧 v1 失败记录：新版本真实增量读入标签和技�
   const last = again.coordinator.start({ commandId: randomUUID(), libraryRootId: root.id, expectedRootRevision: root.revision });
   await again.coordinator.privateWait(last.jobId);
   assert.equal(again.coordinator.get(last.jobId).phase, 'completed'); assert.equal(again.observations.length, 0);
-  assert.equal(again.events.filter(event => event.type === 'worker-start').length, 0, '新版本已认证同签名 accepted 仍复用原事实');
+  assert.equal(again.rustCalls, 0, '新版本已认证同签名 accepted 仍复用原事实，不再进入真实 Rust 解析');
   assert.deepEqual(cold.localScan.privateFileState(root.id, relative)!.value, state.value);
   assert.deepEqual(cold.localCatalog.asset(asset.id), asset); assert.deepEqual(cold.localCatalog.track(track.id), track);
   assert.deepEqual(cold.localCatalog.metadata(track.id), metadata); assert.deepEqual(cold.localCatalog.observations(track.id), tags);
@@ -437,6 +489,7 @@ test('本地 WAV 可选封面：误标 WebP 不拒整份元数据、PNG/JPEG 证
     'mislabeled-webp.wav': wave([{ mime: 'image/png', data: webp }]),
     'mixed-cover.wav': wave([{ mime: 'image/jpeg', data: png }, { mime: 'image/png', data: webp },
       { mime: 'image/png', data: jpeg }, { mime: 'image/jpeg', data: unknown }]),
+    'eight-unknown-covers.wav': wave(Array.from({ length: 8 }, (_, index) => ({ mime: 'image/png', data: Buffer.from(`未知图片 ${index}`, 'utf8') }))),
     ...budgetFailures, 'valid-after-covers.wav': wave([{ mime: 'image/png', data: png }, { mime: 'image/jpeg', data: jpeg }]),
   });
   const actual = openedReader(f), beforeClaims = f.m.locks.physicalResourceLocks.combinedSnapshot();
@@ -445,19 +498,22 @@ test('本地 WAV 可选封面：误标 WebP 不拒整份元数据、PNG/JPEG 证
   const evidence = [{ mime: 'image/png', bytes: png.length, sha256: hash(png), evidence: 'encoded-bytes-magic-and-digest' },
     { mime: 'image/jpeg', bytes: jpeg.length, sha256: hash(jpeg), evidence: 'encoded-bytes-magic-and-digest' }];
   const omitted = success(await actual.read('mislabeled-webp.wav'));
-  assert.deepEqual(omitted.fields, expectedTags); assert.deepEqual(omitted.technical, audio);
+  assert.deepEqual(omitted.fields, expectedFields); assert.deepEqual(omitted.technical, audio);
   assert.deepEqual(omitted.coverEvidence, [], '未支持的可选 WebP 不产生 PNG/JPEG 证据，也不拒绝整份元数据');
   assert.equal(omitted.parserVersion, NEW_PARSER);
   const mixed = success(await actual.read('mixed-cover.wav'));
-  assert.deepEqual(mixed.fields, expectedTags); assert.deepEqual(mixed.technical, audio);
+  assert.deepEqual(mixed.fields, expectedFields); assert.deepEqual(mixed.technical, audio);
   assert.deepEqual(mixed.coverEvidence, evidence, '仅原 PNG/JPEG 字节魔数与整张摘要决定证据，不相信 APIC 的 MIME 声明');
   assert.equal(mixed.parserVersion, NEW_PARSER);
+  const eight = success(await actual.read('eight-unknown-covers.wav'));
+  assert.deepEqual(eight.fields, expectedFields); assert.deepEqual(eight.technical, audio);
+  assert.deepEqual(eight.coverEvidence, [], '8张未知图片仍可省略证据，第9张必须触发原数量预算');
   for (const relative of Object.keys(budgetFailures)) {
     const result = await actual.read(relative); assert.equal(result.status, 'failure');
     if (result.status === 'failure') assert.equal(result.code, 'BUDGET_EXCEEDED', '省略未支持图片不能省略其原大小、总量、数量或文本预算');
   }
   const after = success(await actual.read('valid-after-covers.wav'));
-  assert.deepEqual(after.fields, expectedTags); assert.deepEqual(after.technical, audio); assert.deepEqual(after.coverEvidence, evidence);
+  assert.deepEqual(after.fields, expectedFields); assert.deepEqual(after.technical, audio); assert.deepEqual(after.coverEvidence, evidence);
   assert.equal(after.parserVersion, NEW_PARSER);
   assert.deepEqual(f.m.locks.physicalResourceLocks.combinedSnapshot(), beforeClaims, '全部真实 Worker/FD 完成关闭后，原资源保护必须已释放');
   await f.unchanged();

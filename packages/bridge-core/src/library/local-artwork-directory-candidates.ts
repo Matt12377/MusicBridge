@@ -1,13 +1,27 @@
 import path from 'node:path'
 import { isLocalCatalogText } from '@music-bridge/contracts'
+import { classifyDirectoryName } from './local-name-rules.js'
 import { readonlySourceCaseMatchedCandidateMetadata, readonlySourceDirectoryEntries, SourceFileError, type RootCapability } from '../recording/source-files.js'
 
 const preferredNames = ['cover.jpg', 'cover.jpeg', 'cover.png', 'folder.jpg', 'folder.png', 'front.jpg', 'front.png', 'cover.tiff', 'cover.tif', 'cover.webp'] as const
 
+/** 只规划同Root内明确子碟的父一级；名称不授予目录或文件读取资格。 */
+export function localArtworkDiscParentDirectory(directory: string): string | null {
+  if (!directory || directory.length > 4096 || /[\\\u0000-\u001f\u007f]/u.test(directory)
+    || directory.startsWith('/') || /^[a-z]:/iu.test(directory)) return null
+  const parts = directory.split('/')
+  if (parts.length > 64 || parts.some(part => !part || part === '.' || part === '..')
+    || classifyDirectoryName(parts.at(-1)!) !== 'disc') return null
+  const parent = path.posix.dirname(directory)
+  return parent === '.' ? '' : parent
+}
+
+export type LocalArtworkDiscoveryIssue = 'DIRECTORY_UNAVAILABLE' | 'DIRECTORY_TRUNCATED' | 'PREFERRED_NAMES_AMBIGUOUS' | 'NONPREFERRED_NAMES_AMBIGUOUS'
+
 /** 只枚举原专辑目录；名称仅负责发现，原FD字节仍须由可信Main实际解码。 */
 export async function* readonlyLocalArtworkCandidateNames(options: {
-  root: RootCapability; directory: string; signal: AbortSignal; deadlineMs: number
-  assertCurrent(): void; hasCandidateSlot(): boolean; unresolved(): void
+  root: RootCapability; directory: string; signal: AbortSignal; deadlineMs: number; preferredOnly?: true
+  assertCurrent(): void; hasCandidateSlot(): boolean; unresolved(reason: LocalArtworkDiscoveryIssue): void
 }): AsyncGenerator<string> {
   // 固定名直读先于目录遍历；大目录或任意readdir顺序不能挡住原固定名。
   for (const name of preferredNames) {
@@ -21,7 +35,7 @@ export async function* readonlyLocalArtworkCandidateNames(options: {
     }
   }
   options.assertCurrent()
-  if (!options.hasCandidateSlot()) return
+  if (options.preferredOnly || !options.hasCandidateSlot()) return
   let listed: Awaited<ReturnType<typeof readonlySourceDirectoryEntries>>
   try {
     listed = await readonlySourceDirectoryEntries(options.root, options.directory === '.' ? '' : options.directory,
@@ -29,13 +43,13 @@ export async function* readonlyLocalArtworkCandidateNames(options: {
   } catch (error) {
     // 可选发现失败不吞掉已读固定副本；关闭未确认、身份变更与取消仍沿原错误拒绝。
     if (error instanceof SourceFileError && (error.code === 'MISSING' || error.code === 'IO_ERROR')) {
-      options.assertCurrent(); options.unresolved(); return
+      options.assertCurrent(); options.unresolved('DIRECTORY_UNAVAILABLE'); return
     }
     throw error
   }
   options.assertCurrent()
   // 截断不能证明只有这一张图；不为判断第513项而突破原读取上限。
-  if (listed.truncated) { options.unresolved(); return }
+  if (listed.truncated) { options.unresolved('DIRECTORY_TRUNCATED'); return }
   const files = listed.entries.filter(entry => entry.isFile() && !entry.isSymbolicLink()
     && isLocalCatalogText(entry.name) && Buffer.byteLength(entry.name) <= 1024
     && !entry.name.startsWith('.') && !/[\\/\u0000-\u001f\u007f]/u.test(entry.name)
@@ -43,10 +57,10 @@ export async function* readonlyLocalArtworkCandidateNames(options: {
     && !preferredNames.some(name => name === entry.name))
   for (const preferred of preferredNames) {
     const matches = files.filter(entry => entry.name.toLowerCase() === preferred)
-    if (matches.length > 1) { options.unresolved(); return }
+    if (matches.length > 1) { options.unresolved('PREFERRED_NAMES_AMBIGUOUS'); return }
     if (matches.length === 1) { options.assertCurrent(); yield matches[0]!.name; if (!options.hasCandidateSlot()) return }
   }
   const other = files.filter(entry => !preferredNames.some(name => name === entry.name.toLowerCase()))
   if (other.length === 1) { options.assertCurrent(); yield other[0]!.name }
-  else if (other.length > 1) options.unresolved()
+  else if (other.length > 1) options.unresolved('NONPREFERRED_NAMES_AMBIGUOUS')
 }

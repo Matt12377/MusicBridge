@@ -46,6 +46,10 @@ function collectionFor(runtime: DatasetDispatchTarget): CollectionRepository {
   if (!runtime.collection) throw new CollectionError('INVENTORY_UNAVAILABLE', '库存服务尚未就绪，请重试。');
   return runtime.collection;
 }
+function artistsFor(runtime: DatasetDispatchTarget) {
+  if (!runtime.localArtists) throw new CollectionError('INVENTORY_UNAVAILABLE', '本地艺人服务尚未就绪，请重试。');
+  return runtime.localArtists;
+}
 
 function scanFor(runtime:DatasetDispatchTarget) {
   if(!runtime.localScan) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未就绪。');return runtime.localScan;
@@ -193,7 +197,11 @@ async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcReque
     case 'localArtwork.stage': return artworkFor(runtime).stage(request.payload as IpcCommandPayloads['localArtwork.stage']);
     case 'localArtwork.readCandidates': return artworkFor(runtime).readCandidates(request.payload as IpcCommandPayloads['localArtwork.readCandidates']);
     case 'localArtwork.cancelLookup': return artworkFor(runtime).cancelLookup((request.payload as IpcCommandPayloads['localArtwork.cancelLookup']).lookupId);
-    case 'localRelocation.roots': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.roots();
+    case 'localRelocation.roots': {
+      if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');
+      const roots=await runtime.localRelocation.roots(),catalog=collectionFor(runtime).localCatalog;
+      return roots.filter(view=>catalog.privateLibraryManagementRootVisible(view.root.id));
+    }
     case 'localRelocation.registerRoot': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.registerRoot(request.payload as IpcCommandPayloads['localRelocation.registerRoot']);
     case 'localRelocation.capture': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.capture(request.payload as IpcCommandPayloads['localRelocation.capture']);
     case 'localRelocation.confirm': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.confirm(request.payload as IpcCommandPayloads['localRelocation.confirm']);
@@ -226,6 +234,11 @@ async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcReque
     case 'localCatalog.observeMetadata': return collectionFor(runtime).localCatalog.observeMetadata(request.payload as IpcCommandPayloads['localCatalog.observeMetadata']);
     case 'localCatalog.overrideMetadata': return collectionFor(runtime).localCatalog.overrideMetadata(request.payload as IpcCommandPayloads['localCatalog.overrideMetadata']);
     case 'localCatalog.pageTracks': return collectionFor(runtime).localCatalog.pageTracks(request.payload as IpcCommandPayloads['localCatalog.pageTracks']);
+    case 'localArtist.list': return artistsFor(runtime).queryArtists(request.payload as IpcCommandPayloads['localArtist.list'], 'interactive');
+    case 'localArtist.get': return artistsFor(runtime).artist((request.payload as IpcCommandPayloads['localArtist.get']).artistId, 'interactive');
+    case 'localArtist.albums': return artistsFor(runtime).queryArtistAlbums(request.payload as IpcCommandPayloads['localArtist.albums'], 'interactive');
+    case 'localArtist.tracks': return artistsFor(runtime).queryArtistTracks(request.payload as IpcCommandPayloads['localArtist.tracks'], 'interactive');
+    case 'localArtist.search': return artistsFor(runtime).search(request.payload as IpcCommandPayloads['localArtist.search'], 'interactive');
     case 'localCatalog.queryTracks': return collectionFor(runtime).localCatalog.queryTracks(request.payload as IpcCommandPayloads['localCatalog.queryTracks']);
     case 'localCatalog.trackDetail': {
       const repository = collectionFor(runtime), detail = repository.localCatalog.trackDetail((request.payload as IpcCommandPayloads['localCatalog.trackDetail']).trackId);

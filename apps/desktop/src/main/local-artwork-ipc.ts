@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import * as dto from '@music-bridge/contracts';
 import type { CoreSupervisor } from './core-supervisor.js';
 import type { PhotoDecoderImage } from './collection-photos.js';
-import { LocalArtworkImageError, normalizeLocalArtwork, readLocalArtworkFile } from './local-artwork-image.js';
+import { LocalArtworkImageError, normalizeLocalArtworkInWorker, readLocalArtworkFile } from './local-artwork-image.js';
 import { captureSourceWriteOriginal } from './source-write-original.js';
 
 type Active = { id: string; cancelled: boolean; abort: AbortController };
@@ -39,10 +39,10 @@ export function installLocalArtworkHandlers<E>(options: {
     try { await current(datasetId); alive(); return await run(entry,alive); }
     finally { active.delete(scope); }
   }
-  async function stage(datasetId: string, target: dto.LocalArtworkTarget, bytes: Uint8Array, origin: dto.LocalArtworkOrigin, sourceIdentity: string, sourceLabel: string, alive: () => void, remoteSource?:dto.LocalArtworkRemoteSource) {
+  async function stage(datasetId: string, target: dto.LocalArtworkTarget, bytes: Uint8Array, origin: dto.LocalArtworkOrigin, sourceIdentity: string, sourceLabel: string, alive: () => void, remoteSource?:dto.LocalArtworkRemoteSource, signal?:AbortSignal) {
     let original: Uint8Array | undefined;
     try { if (options.attachOriginal) original = captureSourceWriteOriginal(bytes); } catch { /* 留存能力不改变原 MB 选图准入。 */ }
-    alive(); const image = normalizeLocalArtwork(original ?? bytes,options.decode); alive(); await current(datasetId); alive();
+    alive(); const { image } = await normalizeLocalArtworkInWorker(original ?? bytes,signal); alive(); await current(datasetId); alive();
     const context = publicContext(await options.supervisor.requestInternal('localArtwork.stage', {target,image,origin,sourceIdentity,sourceLabel,...(remoteSource?{remoteSource}:{})},datasetId));
     if (original && options.attachOriginal) {
       const candidates = context.candidates.filter(candidate => candidate.origin === origin && candidate.sourceIdentity === sourceIdentity
@@ -69,7 +69,7 @@ export function installLocalArtworkHandlers<E>(options: {
       let context=publicContext(await options.supervisor.request('localArtwork.context',{trackId:target.trackId,editionId:target.editionId},datasetId)); alive();
       for (const item of copies.items) {
         const bytes=Buffer.from(item.base64,'base64'); if (bytes.toString('base64')!==item.base64 || bytes.length>dto.LOCAL_ARTWORK_INPUT_BYTES) throw new Error('封面来源副本无效。');
-        try { context=await stage(datasetId,target,bytes,item.origin,item.sourceIdentity,item.sourceLabel,alive); }
+        try { context=await stage(datasetId,target,bytes,item.origin,item.sourceIdentity,item.sourceLabel,alive,undefined,entry.abort.signal); }
         catch(error) { alive(); if (!(error instanceof LocalArtworkImageError)) throw error; /* 坏图片不挡其余候选，原选择保留。 */ }
       }
       alive(); return copies.status==='source-unavailable' && !context.selection?.candidate && !context.candidates.length ? {...context,status:'source-unavailable'} : context;
@@ -77,11 +77,11 @@ export function installLocalArtworkHandlers<E>(options: {
   });
   handle('localArtwork:pick', async(event,value) => {
     const v=envelope(event,value,['target']); if (!dto.isLocalArtworkTarget(v.target)) throw new Error('[INVALID_IPC_REQUEST] 选图目标无效。'); const target=v.target,datasetId=v.datasetId as string;
-    return lookup(event,datasetId,target,async(_entry,alive) => {
+    return lookup(event,datasetId,target,async(entry,alive) => {
       const picked=await options.pick(); alive(); if (picked.canceled) return null;
       if (picked.filePaths.length!==1) throw new Error('请每次选择一张图片。');
       const bytes=await readLocalArtworkFile(picked.filePaths[0]!); alive();
-      return stage(datasetId,target,bytes,'manual',createHash('sha256').update(bytes).digest('hex'),'手选图片',alive);
+      return stage(datasetId,target,bytes,'manual',createHash('sha256').update(bytes).digest('hex'),'手选图片',alive,undefined,entry.abort.signal);
     });
   });
   handle('localArtwork:search',async(event,value) => {
@@ -100,7 +100,7 @@ export function installLocalArtworkHandlers<E>(options: {
         if (!(providerId==='commons-cc0-v1'?dto.isCommonsArtworkSource(item.source):dto.isCoverArtArchiveSource(item.source)) || item.bytes.length>dto.LOCAL_ARTWORK_INPUT_BYTES) throw new Error('远程封面来源无效。');
         const sourceIdentity=createHash('sha256').update(JSON.stringify([item.source,createHash('sha256').update(item.bytes).digest('hex')])).digest('hex');
         const label=dto.isCommonsArtworkSource(item.source) ? `Wikimedia Commons · ${item.source.title.slice(0,470)}` : `Cover Art Archive · ${item.source.releaseTitle.slice(0,240)} · ${item.source.artist.slice(0,200)}`;
-        try { result=await stage(datasetId,target,item.bytes,'provider',sourceIdentity,label,alive,item.source); }
+        try { result=await stage(datasetId,target,item.bytes,'provider',sourceIdentity,label,alive,item.source,entry.abort.signal); }
         catch(error) { alive(); if (!(error instanceof LocalArtworkImageError)) throw error; }
       }
       alive(); return result;
@@ -109,7 +109,7 @@ export function installLocalArtworkHandlers<E>(options: {
   handle('localArtwork:import',async(event,value) => {
     const v=envelope(event,value,['target','bytes']); if (!dto.isLocalArtworkTarget(v.target) || !(v.bytes instanceof Uint8Array) || !(v.bytes.buffer instanceof ArrayBuffer) || v.bytes.length<4 || v.bytes.length>dto.LOCAL_ARTWORK_INPUT_BYTES) throw new Error('[INVALID_IPC_REQUEST] 请拖入一张不超过4 MiB的PNG或JPEG图片。');
     const target=v.target,bytes=Buffer.from(v.bytes),datasetId=v.datasetId as string;
-    return lookup(event,datasetId,target,async(_entry,alive) => stage(datasetId,target,bytes,'manual',createHash('sha256').update(bytes).digest('hex'),'拖入图片',alive));
+    return lookup(event,datasetId,target,async(entry,alive) => stage(datasetId,target,bytes,'manual',createHash('sha256').update(bytes).digest('hex'),'拖入图片',alive,undefined,entry.abort.signal));
   });
   handle('localArtwork:cancel',async(event,value) => {
     const v=envelope(event,value,['target']); if (!dto.isLocalArtworkTarget(v.target)) throw new Error('[INVALID_IPC_REQUEST] 取消目标无效。');

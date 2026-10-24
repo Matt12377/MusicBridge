@@ -84,3 +84,9 @@ export * from './mobile-content.js';
 export * from './mobile-wire.js';
 export * from './mobile-media-stream.js';
 export * from "./local-library-lyrics.js";
+
+export * from './artist-search.js';
+export * from './artist-catalog-api.js';
+
+export * from './mobile-artist-search.js';
+export * from './mobile-pairing-bootstrap.js';

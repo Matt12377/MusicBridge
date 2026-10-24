@@ -23,7 +23,7 @@ export function localArtworkCandidatePresentation(candidate: LocalArtworkCandida
   const source = candidate?.remoteSource
   if (candidate?.provider === musicProvider && isCoverArtArchiveSource(source)) {
     return { label: [source.releaseTitle, source.artist || '艺人未提供', source.releaseDate ?? '日期未提供', source.country ?? '国家未提供'].join(' · '), origin: 'Cover Art Archive · 音乐发行封面', searchText: [source.releaseTitle, source.artist, source.releaseDate, source.country, source.releaseId].filter(Boolean).join(' '),
-      notice: '封面权利状态未核实；仅用于 MusicBridge 显示，文件写回仍需独立整理计划。',
+      notice: '封面权利状态未核实；仅用于 Mousa 显示，文件写回仍需独立整理计划。',
       fields: [
         { label: '发行', text: source.releaseTitle }, { label: '艺人', text: source.artist || '未提供' }, { label: '发行日期', text: source.releaseDate ?? '未提供' }, { label: '国家', text: source.country ?? '未提供' },
         { label: '来源发行页', text: source.releaseUrl }, { label: '来源发行身份', text: source.releaseId }, { label: '封面图片身份', text: source.imageId },

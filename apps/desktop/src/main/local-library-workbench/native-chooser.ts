@@ -1,4 +1,5 @@
 import { lyricsPhysicalDigest as directoryDigest } from '../../../../../packages/bridge-core/src/library/lyrics-source-format.js'
+import { logLibraryOperation, traceLibraryImport } from '../../../../../packages/bridge-core/src/shared/library-operation-log.js'
 import type { SourceWorkbenchDirectoryUi, SourceWorkbenchDirectoryBinding, SourceWorkbenchDirectoryRequest, SourceWorkbenchDirectoryReply, SourceWorkbenchDirectoryRegistrationReply } from '../../../../../packages/bridge-core/src/collection/source-writes-authority.js'
 import type { LocalWorkbenchRootMainAuthor, LocalWorkbenchRootAuthorBinding, LocalWorkbenchRootMainRequest, LocalWorkbenchMainPreparationContext } from './service.js'
 import * as directoryDto from '@music-bridge/contracts'
@@ -49,17 +50,17 @@ function absentGroup(pid: number): boolean {
 export function localWorkbenchNativePromptScript(mode: Mode): string {
   const header = "ObjC.import('Cocoa'); const app=$.NSApplication.sharedApplication; app.setActivationPolicy(1); app.activateIgnoringOtherApps(true);"
   if (mode === 'secret') return `function run(){${header}
-const alert=$.NSAlert.alloc.init; alert.messageText='Music Bridge：云端模型 API 密钥';
+const alert=$.NSAlert.alloc.init; alert.messageText='Mousa：云端模型 API 密钥';
 alert.informativeText='密钥仅保存到本机加密保险库。'; alert.addButtonWithTitle('保存'); alert.addButtonWithTitle('取消');
 const field=$.NSSecureTextField.alloc.initWithFrame($.NSMakeRect(0,0,360,24)); alert.accessoryView=field;
-alert.window.initialFirstResponder=field; const response=alert.runModal;
+alert.window.initialFirstResponder=field; const response=Number(ObjC.unwrap(alert.runModal));
 if(response!==1000)return JSON.stringify({cancelled:true,value:null});
 return JSON.stringify({cancelled:false,value:ObjC.unwrap(field.stringValue)});}\n`
   const directory = mode === 'cue-target' || mode === 'library'
   return `function run(){${header}
-const panel=$.NSOpenPanel.openPanel; panel.title='${mode === 'library' ? 'Music Bridge：选择本地音乐库目录' : directory ? 'Music Bridge：选择独立 CUE 输出目录' : 'Music Bridge：选择封面图片'}';
+const panel=$.NSOpenPanel.openPanel; panel.title='${mode === 'library' ? 'Mousa：选择本地音乐库目录' : directory ? 'Mousa：选择独立 CUE 输出目录' : 'Mousa：选择封面图片'}';
 panel.canChooseFiles=${!directory}; panel.canChooseDirectories=${directory}; panel.allowsMultipleSelection=false;
-panel.canCreateDirectories=${directory}; const response=panel.runModal;
+panel.canCreateDirectories=${directory}; const response=Number(ObjC.unwrap(panel.runModal));
 if(response!==1)return JSON.stringify({cancelled:true,value:null});
 return JSON.stringify({cancelled:false,value:ObjC.unwrap(panel.URL.path)});}\n`
 }
@@ -238,8 +239,8 @@ export function createLocalWorkbenchNativeChooser(options: LocalWorkbenchNativeC
   async function chooseLibrary(context: LocalWorkbenchMainContext): Promise<LocalLibraryImportChoice | null> {
     // 缺Root实际注册端点时拒绝，不能先弹框再虚构choice/evidence。
     if (!options.registerLibraryDirectory) return fail('原Owner目录许可登记尚未装配。')
-    await fence(context); const chosen = await host.request('library', context.signal); await fence(context)
-    if (chosen.cancelled) return null
+    await fence(context); const chosen = await traceLibraryImport('main.native',undefined,()=>host.request('library', context.signal)); await fence(context)
+    if (chosen.cancelled) {logLibraryOperation('library','import.main.native','cancelled',{code:'NATIVE_CANCELLED'});return null}
     return approveLibraryDirectory(chosen.value!, context)
   }
   async function chooseDroppedLibrary(absolute: string, context: LocalWorkbenchMainContext): Promise<LocalLibraryImportChoice> {
@@ -257,9 +258,9 @@ export function createLocalWorkbenchNativeChooser(options: LocalWorkbenchNativeC
     if (!originalLibraryRegister || options.registerLibraryDirectory !== originalLibraryRegister || options.assertCurrent !== originalAuthorGuard)
       return fail('原Owner目录登记或Main作者已改变。')
     await fence(context)
-    const root: RootCapability = { id: randomUUID(), ...await authorizeSourceDirectory(absolute) }
+    const choiceId=randomUUID(),root: RootCapability = { id:choiceId, ...await traceLibraryImport('main.authorize',choiceId,()=>authorizeSourceDirectory(absolute)) }
     if (original && (root.path !== original.path || root.dev !== original.dev || root.ino !== original.ino)) return fail('拖入的原目录在批准前已被替换。')
-    const holding=await holdDirectory(root)
+    const holding=await traceLibraryImport('main.held',root.id,()=>holdDirectory(root))
     if (original && ['path', 'dev', 'ino', 'birthtimeNs', 'mode', 'uid', 'gid'].some(key => holding.physical[key as keyof SourceWorkbenchDirectoryPhysical] !== original[key as keyof SourceWorkbenchDirectoryPhysical])) {
       await holding.handle.close(); return fail('拖入的原目录FD身份已改变。')
     }
@@ -274,9 +275,9 @@ export function createLocalWorkbenchNativeChooser(options: LocalWorkbenchNativeC
     try {
       await fence(context)
       if (options.registerLibraryDirectory !== originalLibraryRegister || options.assertCurrent !== originalAuthorGuard) return fail('原Owner目录登记或Main作者已改变。')
-      const result = await originalLibraryRegister.call(options,approved,context); await fence(context); return result
+      const result = await traceLibraryImport('main.registration',root.id,()=>originalLibraryRegister.call(options,approved,context)); await fence(context); return result
     }
-    catch(error) { await approved.close(); throw error }
+    catch(error) { await traceLibraryImport('main.cleanup',root.id,()=>approved.close()); throw error }
   }
   async function librarySelection<T>(operation: () => Promise<T>): Promise<T> {
     if (librarySelectionActive) return fail('另一个原库目录选择尚未收口。')
@@ -374,11 +375,13 @@ export function createLocalWorkbenchDirectoryMainBridge(options:{
  async function register(kind:'library'|'cue',object:LocalWorkbenchApprovedLibraryDirectory|LocalWorkbenchApprovedCueTarget,context:LocalWorkbenchMainContext):Promise<SourceWorkbenchDirectoryRegistrationReply>{
   const token=(context as LocalWorkbenchDirectoryUiContext).directoryUiToken,item=token?tokens.get(token):undefined,author=await live(context);if(!item||item.author!==author||item.ui.command!==(kind==='library'?'library.import.prepare':'localWorkbench.cue.target')||approved.has(object)||entries.size>=32)throw Error('目录对象没有Main真实原UI受理条目。');
   tokens.delete(token!); // 同一受理条目只允许一次实际Native选择对象登记。
-  const physical=await options.chooser.inspectHeldDirectory(object,context),root=kind==='library'?await options.chooser.inspectApprovedLibraryDirectory(object as LocalWorkbenchApprovedLibraryDirectory,context):await options.chooser.inspectApprovedCueTarget(object as LocalWorkbenchApprovedCueTarget,context);
+  const physical=kind==='library'?await traceLibraryImport('main.bridge-held',undefined,()=>options.chooser.inspectHeldDirectory(object,context)):await options.chooser.inspectHeldDirectory(object,context);
+  const root=kind==='library'?await traceLibraryImport('main.bridge-approved',undefined,()=>options.chooser.inspectApprovedLibraryDirectory(object as LocalWorkbenchApprovedLibraryDirectory,context)):await options.chooser.inspectApprovedCueTarget(object as LocalWorkbenchApprovedCueTarget,context);
   const issuedAtMs=Date.now(),revision=kind==='cue'?(object as LocalWorkbenchApprovedCueTarget).revision:directoryDigest({physical,scope:{datasetId:author.binding.datasetId,ownerEpoch:author.binding.ownerEpoch,childGeneration:author.binding.childGeneration},ui:item.ui});
   const binding=captureSourceWorkbenchDirectoryBinding({datasetId:author.binding.datasetId,ownerEpoch:author.binding.ownerEpoch,childGeneration:author.binding.childGeneration,kind,choiceId:root.id,revision,issuedAtMs,expiresAtMs:issuedAtMs+600000,originalUi:item.ui}),entry:DirectoryMainEntry={author,binding,approved:object,context,physical,approvedSent:false,registered:false,revoking:false,closed:false,confirmationAccepted:false,cancellationAccepted:false};
   entries.set(binding.choiceId,entry);approved.set(object,entry)
-  const reply=await options.registration('register',binding,author.binding,context.signal);if(!reply.ok)throw Error('原Owner目录登记未确认。');entry.registered=true;await object.assertCurrent(context);if(options.currentAuthor()!==author||context.signal.aborted)throw Error('目录原登记已换代。');return reply
+  const registration=()=>options.registration('register',binding,author.binding,context.signal);
+  const reply=kind==='library'?await traceLibraryImport('main.bridge-registration',binding.choiceId,registration):await registration();if(!reply.ok){if(kind==='library')logLibraryOperation('library','import.main.bridge-registration','error',{id:binding.choiceId,code:'OWNER_REGISTRATION_REJECTED'});throw Error('原Owner目录登记未确认。');}entry.registered=true;await object.assertCurrent(context);if(options.currentAuthor()!==author||context.signal.aborted)throw Error('目录原登记已换代。');return reply
  }
  function closeEntry(entry:DirectoryMainEntry,signal?:AbortSignal):Promise<void>{
   if(entry.closing)return entry.closing;entry.revoking=true;entry.closing=(async()=>{

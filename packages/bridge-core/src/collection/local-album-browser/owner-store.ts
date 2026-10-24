@@ -1,5 +1,7 @@
+import { logLibraryOperation } from '../../shared/library-operation-log.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
+import { localAlbumScanPath, type LocalAlbumScanPoint } from './scan-delta.js';
 import { LOCAL_WORKBENCH_JOURNAL_OPERATION, LOCAL_LIBRARY_MANAGEMENT_OPERATION, LOCAL_LYRICS_JOURNAL_OPERATION, LOCAL_LYRICS_ROOT_OPERATION } from '../local-library-workbench/owner-journal.js';
 import { LOCAL_CUE_OUTPUT_OPERATION } from '../local-cue-output-protocol.js';
 import { LOCAL_SCAN_SETTINGS_OPERATION } from '../local-scan-settings.js';
@@ -10,6 +12,7 @@ interface RevisionCache {
   statements: Map<string, ReturnType<DatabaseSync['prepare']>>;
   schemaVersion?: number;
   barrier?: string;
+  point?: LocalAlbumScanPoint;
   catalog?: string;
   scan?: string;
 }
@@ -24,12 +27,12 @@ function statement(db: DatabaseSync, sql: string): ReturnType<DatabaseSync['prep
   if (saved) return saved;
   const prepared = db.prepare(sql); statements.set(sql, prepared); return prepared;
 }
-function clearResults(cache: RevisionCache): void { delete cache.barrier; delete cache.catalog; delete cache.scan; }
+function clearResults(cache: RevisionCache): void { delete cache.barrier; delete cache.point; delete cache.catalog; delete cache.scan; }
 function sqlNumber(value: unknown): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new Error('专辑修订SQL屏障无效，本次未返回缓存。');
   return value;
 }
-function readBarrier(db: DatabaseSync, cache: RevisionCache): { key: string; transaction: boolean } {
+function readBarrier(db: DatabaseSync, cache: RevisionCache): { key: string; point: LocalAlbumScanPoint; transaction: boolean } {
   const changes = sqlNumber(statement(db, 'SELECT total_changes() n').get()?.n);
   const version = sqlNumber(statement(db, 'PRAGMA data_version').get()?.data_version);
   const schema = sqlNumber(statement(db, 'PRAGMA schema_version').get()?.schema_version);
@@ -37,19 +40,34 @@ function readBarrier(db: DatabaseSync, cache: RevisionCache): { key: string; tra
   if (typeof transaction !== 'boolean') throw new Error('专辑修订事务屏障无效，本次未返回缓存。');
   if (cache.schemaVersion !== undefined && cache.schemaVersion !== schema) { cache.statements.clear(); clearResults(cache); }
   cache.schemaVersion = schema;
-  return { key: JSON.stringify([changes, version, schema, transaction]), transaction };
+  return { key: JSON.stringify([changes, version, schema, transaction]), point: { changes, version, schema }, transaction };
 }
 /** 只复用同原连接非事务内的hash；guard/certificate及实际SQL屏障每次仍执行。 */
 function revision(db: DatabaseSync, kind: 'catalog' | 'scan', read: () => string): string {
   const cache = cacheFor(db);
   try {
     const before = readBarrier(db, cache);
-    if (before.transaction || cache.barrier !== before.key) clearResults(cache);
-    const saved = cache[kind], value = !before.transaction && saved !== undefined ? saved : read();
+    if (before.transaction) clearResults(cache);
+    else if (cache.barrier !== before.key) {
+      // 只续用原队列或完整capture证书认可的连续提交；空扫描批仍会改变扫描修订。
+      const path = cache.point && localAlbumScanPath(db, cache.point, before.point, { revisionStableOnly: true });
+      if (!path || path.directories.length || path.cues.length) clearResults(cache);
+    }
+    const saved = cache[kind], value = !before.transaction && saved !== undefined ? saved : (() => {
+      const started = performance.now();
+      try {
+        const value = read();
+        logLibraryOperation('cache', 'albums.revision.recompute', 'complete', { code: kind === 'catalog' ? 'CATALOG' : 'SCAN', elapsedMs: performance.now() - started });
+        return value;
+      } catch (error) {
+        logLibraryOperation('cache', 'albums.revision.recompute', 'error', { code: kind === 'catalog' ? 'CATALOG_FAILED' : 'SCAN_FAILED', elapsedMs: performance.now() - started });
+        throw error;
+      }
+    })();
     const after = readBarrier(db, cache);
     if (after.key !== before.key) throw new Error('专辑修订读取期间SQL已变化，本次未返回混合水位。');
     // 同连接两次只读事务可能具有不同快照，事务内不发布或命中revision结果。
-    if (!after.transaction) { cache.barrier = after.key; cache[kind] = value; }
+    if (!after.transaction) { cache.barrier = after.key; cache.point = after.point; cache[kind] = value; }
     return value;
   } catch (error) { revisions.delete(db); throw error; }
 }

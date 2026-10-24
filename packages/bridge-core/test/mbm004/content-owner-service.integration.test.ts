@@ -71,6 +71,71 @@ function providerRequest(f: Fixture, revision: string, cursor?: string): MobileR
     query: { source: 'netease', accountDomain: f.scope.accountDomain, favoritesRevision: revision, limit: 100, ...(cursor ? { cursor } : {}) }, body: null };
 }
 
+function holdCatalog(t: Parameters<typeof ownerFixture>[0], f: Fixture, all = false) {
+  let enter!: () => void, release!: () => void, held = 0;
+  const entered = new Promise<void>(resolve => { enter = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
+  const original = f.catalog.dispatch;
+  t.mock.method(f.catalog, 'dispatch', async (...args: Parameters<typeof original>) => {
+    const result = original(...args);
+    if (held++ === 0 || all) { enter(); await gate; }
+    return result;
+  });
+  return { entered, release, count: () => held };
+}
+
+test('内容Owner：隔离目录等待期间事实变化拒绝未提交写入，原保存guard仍同步', async t => {
+  const f = await ownerFixture(t), initial = await getFavorite(f), gate = holdCatalog(t, f);
+  const pending = f.dispatch(albumWrite(f, initial.favoritesRevision, true, 'catalog.changed'));
+  try {
+    await gate.entered;
+    f.repository.localCatalog.createEdition({ commandId: randomUUID(), title: '等待期间的真实库修订', edition: '合成变化' });
+  } finally { gate.release(); }
+  failure(await pending, 'SOURCE_CHANGED', 409);
+  assert.equal((await getFavorite(f)).favorite, null);
+});
+
+test('内容Owner：隔离目录等待期间并发提交仍按原CAS拒绝旧状态，不覆盖已提交回执', async t => {
+  const f = await ownerFixture(t), initial = await getFavorite(f), gate = holdCatalog(t, f);
+  const pending = f.dispatch(albumWrite(f, initial.favoritesRevision, false, 'catalog.stale'));
+  let committed: MobileContentOwnerResult;
+  try {
+    await gate.entered;
+    committed = await f.dispatch(albumWrite(f, initial.favoritesRevision, true, 'catalog.winner'));
+    assert.equal(favoriteBody(committed).favorite?.albumFavorite, true);
+  } finally { gate.release(); }
+  failure(await pending, 'REVISION_CONFLICT', 409);
+  assert.equal((await getFavorite(f)).favorite?.albumFavorite, true);
+  assert.deepEqual(snapshot(await f.dispatch(albumWrite(f, initial.favoritesRevision, true, 'catalog.winner'))).reply,
+    snapshot(committed!).reply);
+});
+
+test('内容Owner：收藏曲目隔离读取期间内容修订改变拒绝旧页', async t => {
+  const f = await ownerFixture(t), initial = await getFavorite(f);
+  const favorite = favoriteBody(await f.dispatch(albumWrite(f, initial.favoritesRevision)));
+  const gate = holdCatalog(t, f);
+  const reading = f.dispatch({ action: 'dispatch', operation: 'listFavoriteAlbumTracks', scope: f.scope,
+    request: { path: `/mobile/v1/ui/favorites/albums/${encodeURIComponent(f.track.albumId)}/tracks`,
+      pathParameters: { albumId: f.track.albumId }, query: { source: 'local', accountDomain: f.scope.accountDomain,
+        favoritesRevision: favorite.favoritesRevision }, body: null } });
+  try {
+    await gate.entered;
+    assert.equal(favoriteBody(await f.dispatch(albumWrite(f, favorite.favoritesRevision, false, 'catalog.remove'))).favorite, null);
+  } finally { gate.release(); }
+  failure(await reading, 'SOURCE_CHANGED', 409);
+});
+
+test('内容Owner：隔离目录在途占用原16槽，实际完成前不归还容量', async t => {
+  const f = await ownerFixture(t), gate = holdCatalog(t, f, true);
+  const requests = Array.from({ length: 16 }, () => f.dispatch({ action: 'local-album', scope: f.scope, albumId: f.track.albumId }));
+  try {
+    await gate.entered;
+    failure(await f.dispatch({ action: 'local-album', scope: f.scope, albumId: f.track.albumId }), 'BUSY', 503);
+    assert.equal(gate.count(), 16, '超额请求不能越过内容占用限制进入原目录端口。');
+  } finally { gate.release(); }
+  assert.ok((await Promise.all(requests)).every(result => result.kind === 'content-album'));
+  assert.equal((await f.dispatch({ action: 'local-album', scope: f.scope, albumId: f.track.albumId })).kind, 'content-album');
+});
+
 test('内容Owner：初始化沿原epoch，Scope必须显式登记，换key不能静默重建', async t => {
   const f = await ownerFixture(t);
   const context = await f.dispatch({ action: 'context', serverId: f.serverId });

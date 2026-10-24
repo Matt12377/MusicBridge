@@ -1,3 +1,4 @@
+import { mobileHttpConnectionHeaders } from './mobile-http-reuse.js'
 import { mobileRangeWindowObserve, mobileRangeWindowFailure } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js';
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
@@ -6,6 +7,7 @@ import {
 } from '@music-bridge/contracts'
 import { MobileServiceError } from '../../../../packages/bridge-core/src/mobile/types.js'
 import type { MobileRangeTimingContext, MobileRangeTimingSpan } from './mobile-range-timing.js'
+import { captureMobileMediaReadBudget } from '../../../../packages/bridge-core/src/mobile/media-read-budget.js'
 
 /** 只存在于可信 Main；这些回调不得进入 structuredClone/RPC 或 Renderer。 */
 export interface MobileMediaReader {
@@ -71,8 +73,10 @@ export async function sendMobileMediaResponse(
   request: IncomingMessage, response: ServerResponse, reply: MobileMediaReply,
   signal: AbortSignal, limits: Readonly<MobileMediaResponseLimits> = {},
   timing?: MobileRangeTimingContext,
+  reuseVerified = false,
 ): Promise<void> {
   const controller = new AbortController()
+  const mediaBudget = captureMobileMediaReadBudget()
   let failure: MobileMediaResponseError | undefined, sentBytes = 0, established = false
   let establishmentTimer: ReturnType<typeof setTimeout> | undefined
   let idleTimer: ReturnType<typeof setTimeout> | undefined
@@ -96,6 +100,7 @@ export async function sendMobileMediaResponse(
     if (controller.signal.aborted) throw failure ?? new MobileMediaResponseError('ABORTED')
     if (request.aborted || response.destroyed || response.writableEnded) throw new MobileMediaResponseError('PEER_CLOSED')
     if (Date.now() >= ticketExpiresAtMs) { stop('TICKET_EXPIRED'); throw failure! }
+    mediaBudget?.assertCurrent()
   }
   const progress = () => {
     if (!established) { established = true; clearTimeout(establishmentTimer); establishmentTimer = undefined }
@@ -203,7 +208,7 @@ export async function sendMobileMediaResponse(
     const snapshot = checked.value, read = reply.reader.read.bind(reply.reader), beforeSend = reply.beforeSend.bind(reply)
     resourceSignal = reply.resourceAbortSignal; resourceSignal.addEventListener('abort', externalAbort, { once: true })
     if (signal.aborted || resourceSignal.aborted || request.aborted) stop('ABORTED')
-    establishmentTimer = setTimeout(() => stop('ESTABLISH_TIMEOUT'), establishMs)
+    establishmentTimer = setTimeout(() => stop('ESTABLISH_TIMEOUT'), mediaBudget?.remainingMs() ?? establishMs)
     const armTicket = () => {
       const remaining = ticketExpiresAtMs - Date.now()
       if (remaining <= 0) { stop('TICKET_EXPIRED'); return }
@@ -213,7 +218,7 @@ export async function sendMobileMediaResponse(
       const span = timing?.start(stage, ordinal); timingActive = span
       try {
         guard(); clearTimeout(idleTimer); idleTimer = undefined
-        authorityTimer = setTimeout(() => stop('ESTABLISH_TIMEOUT'), establishMs)
+        authorityTimer = setTimeout(() => stop('ESTABLISH_TIMEOUT'), mediaBudget?.remainingMs() ?? establishMs)
         try { await wait(mobileRangeWindowObserve(stage === 'initial-authority' ? 'sender.initial-authority' : 'sender.before-write-authority', () => Promise.resolve().then(beforeSend)), 'AUTHORITY_CHECK_FAILED'); guard() }
         finally {
           clearTimeout(authorityTimer); authorityTimer = undefined
@@ -224,7 +229,7 @@ export async function sendMobileMediaResponse(
     }
     armTicket(); guard(); await authority('initial-authority')
     response.writeHead(snapshot.status, [...headers.filter(([name]) => name.toLowerCase() !== 'cache-control').flatMap(([name, value]) => [name, value]),
-      'Connection', 'close', 'Cache-Control', 'no-store', 'X-Content-Type-Options', 'nosniff'])
+      ...mobileHttpConnectionHeaders(response,snapshot.status,reuseVerified&&!signal.aborted&&!controller.signal.aborted), 'Cache-Control', 'no-store', 'X-Content-Type-Options', 'nosniff'])
     if (snapshot.operation !== 'headMediaAsset' && snapshot.status !== 400 && snapshot.status !== 416) {
       for (;;) {
         guard()
@@ -233,7 +238,14 @@ export async function sendMobileMediaResponse(
         const maxBytes = Math.min(MOBILE_MEDIA_RESPONSE_LIMITS.maxChunkBytes, Math.max(1, remaining))
         const reading = timing?.start(remaining === 0 ? 'eof-read' : 'read', remaining === 0 ? 0 : ++readOrdinal)
         timingActive = reading
-        const chunk = await wait(mobileRangeWindowObserve('sender.read', () => Promise.resolve().then(() => read(maxBytes, controller.signal))), 'READER_FAILED')
+        // 服务器仍在执行一次原read时不是客户端不消费；真正写/drain继续沿原5s限制。
+        if (mediaBudget) { clearTimeout(idleTimer); idleTimer = undefined }
+        let chunk: Uint8Array | null
+        try {
+          chunk = await wait(mobileRangeWindowObserve('sender.read', () => Promise.resolve().then(() => read(maxBytes, controller.signal))), 'READER_FAILED')
+        } finally {
+          if (mediaBudget && established && !controller.signal.aborted) idleTimer = setTimeout(() => stop('IDLE_TIMEOUT'), idleMs)
+        }
         guard()
         if (chunk === null) {
           const complete = validateMobileMediaStreamCompletion(snapshot, sentBytes)

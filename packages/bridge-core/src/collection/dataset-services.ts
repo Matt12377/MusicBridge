@@ -35,6 +35,7 @@ export interface DatasetServices {
   localRelocation: LocalRelocationCoordinator;
   localArtwork: LocalArtworkService;
   localAlbums?: LocalAlbumOwnerService;
+  localArtists?: import('./local-artist-search.js').LocalArtistSearchService;
   localOrganizer: LocalOrganizerService;
   localLegacyLinks: LocalLegacyLinksService;
   localSourceWrites: LocalSourceWritesService;

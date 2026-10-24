@@ -173,6 +173,7 @@ test('CoverDrop真实remount保多库选择中的原B读范围和查询筛选位
     const host = await mountVueSfc(leaf, f.file, f.props)
     f.workspace.selectLibraries([f.A, f.B]); await f.browser.setScope({ query: '合成B', rootId: f.B, filter: 'missing-lyrics' }); await f.browser.openAlbum(f.summary, { scrollTop: 725 }); await host.settle()
     assert.deepEqual(f.workspace.selectedLibraryIds.value, [f.A, f.B]); assert.equal(f.browser.snapshot.value.rootId, f.B)
+    assert.deepEqual(f.browser.snapshot.value.selectedAlbum, f.summary, '卸载前必须确实打开原B专辑，不能以两份空详情证明恢复')
   })
   const original = f.browser.snapshot.value; assert.equal(original.active, false); assert.equal(original.rootId, f.B)
   await t.test('同模型重新挂载', async leaf => {
@@ -434,7 +435,8 @@ test('CoverDrop常驻刷新按钮：正常墙实际点击经原model更新ready�
       if (request.refresh === true) values = values.map((value): import('@music-bridge/contracts').LocalAlbumSummary => value.id === request.albumKey
         ? { ...value, artworkAvailable: true, artworkState: 'available', statuses: [...value.statuses.filter(status => status !== 'missing-artwork'), ...(value.statuses.includes('has-artwork') ? [] : ['has-artwork' as const])] } : value)
       const reply = { albumKey: request.albumKey, rootId: request.rootId, editionId: request.editionId, representativeTrackId: request.representativeTrackId,
-        revision: request.revision, image: replacing ? newImage : oldImage }
+        // 原生Owner提供有界网格副本；本SFC宿主不模拟Chromium位图解码。
+        revision: request.revision, image: replacing ? newImage : oldImage, grid: (replacing ? newImage : oldImage).display }
       assert.equal(dto.isLocalAlbumArtworkReply(reply, request), true); assert.equal(Object.hasOwn(reply, 'refresh'), false)
       return reply
     },

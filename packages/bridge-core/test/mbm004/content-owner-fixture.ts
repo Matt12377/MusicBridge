@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { TestContext } from 'node:test';
+import { after, type TestContext } from 'node:test';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -15,6 +15,15 @@ import type { MobileContentOwnerRequest, MobileContentOwnerResult, MobileContent
 import { isMobileOwnerPrivateRequest, isMobileOwnerPrivateResult } from '../../src/mobile/owner-protocol.js';
 import type { MobileContentScope, MobileContentStateLimits } from '../../src/mobile/content-types.js';
 import { audioFixture, loadFreshMetadataReader } from '../helpers/mbrs003-audio-fixtures.js';
+import { closeRustMediaWorkerPool } from '../../src/library/rust-media-worker.js';
+
+// fresh Reader 使用 dist 的常驻池；源模块与编译模块各自收尾，测试须自然退出。
+after(async () => {
+  const compiled = await import(new URL('../../dist/library/rust-media-worker.js', import.meta.url).href) as typeof import('../../src/library/rust-media-worker.js');
+  const closed = await Promise.allSettled([closeRustMediaWorkerPool(), compiled.closeRustMediaWorkerPool()]);
+  const failures = closed.filter((result): result is PromiseRejectedResult => result.status === 'rejected').map(result => result.reason);
+  if (failures.length) throw new AggregateError(failures, '内容测试的原 Rust 池尚未全部静止。');
+});
 
 export const contentLimits: MobileContentStateLimits = { stateBytes: 4 * 1024 * 1024, receipts: 1024,
   albums: 1000, favoriteTracks: 1000, playlists: 1000, playlistTracks: 1000 };

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { fstatSync } from 'node:fs';
 import { mkdir, mkdtemp, open, readFile, rename, rm, stat, writeFile, type FileHandle } from 'node:fs/promises';
@@ -13,6 +13,10 @@ import type { DatasetProjectionCommand, DatasetProjectionCommandPayloads, Datase
 import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 import { createScanReadAdmission } from '../src/library/scan-read-admission.js';
 import { PhysicalResourceBusy, physicalResourceLocks } from '../src/stream/physical-resource-locks.js';
+import { closeRustMediaWorkerPool } from '../src/library/rust-media-worker.js';
+
+// 各 fixture 先 join 服务和原 FD；测试进程结束时才关闭服务实际使用的 src 共享池。
+after(closeRustMediaWorkerPool);
 
 const hash = (bytes: string | Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 const portableRoot = new URL('./fixtures/mbrs003/audio/', import.meta.url);

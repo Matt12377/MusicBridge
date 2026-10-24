@@ -201,6 +201,7 @@ import {authorizeSourceDirectory as artwork715Authorize} from '../src/recording/
 import {LocalAlbumReadError as artwork715ReadError} from '../src/collection/local-album-browser/grouping.js';
 import {readLocalEmbeddedArtwork as artwork715Embedded} from '../src/library/local-artwork-embedded-reader.js';
 import {createScanReadAdmission as artwork715Admission} from '../src/library/scan-read-admission.js';
+import {normalizeLocalArtworkInWorker as artwork715Normalize} from '../src/library/artwork-image.js';
 import type {ScanPreparedItem} from '../src/collection/local-scan-store.js';
 import type {ScanReadFacts} from '../src/collection/local-scan-facts.js';
 import {localLibraryManagementDigest as artwork715Digest,type LocalLibraryManagementOperationRecord,type LocalLibraryManagementBindingRecord} from '../src/collection/local-library-workbench/owner-journal.js';
@@ -216,11 +217,15 @@ function artwork715WithoutPicture(source:Buffer):Buffer {
   return Buffer.concat([source.subarray(0,4),...blocks,source.subarray(offset)]);
 }
 async function artwork715Display():Promise<artwork715Dto.LocalArtworkImage> {
-  const bytes=await artwork715ReadFile(new URL('./fixtures/mbrs012-source/owned-cover-16.jpg',import.meta.url));
-  assert.equal(bytes.length,960);assert.equal(artwork715Sha(bytes),'555f7915442690ccb14754bd0da000ceadfbdcfb50b4e3402f55d4806e3e989d');
-  const image:artwork715Dto.LocalArtworkImage={original:{mime:'image/jpeg',bytes:bytes.length,sha256:artwork715Sha(bytes),width:16,height:16},
-    display:{mime:'image/jpeg',bytes:bytes.length,sha256:artwork715Sha(bytes),width:16,height:16,dataUrl:'data:image/jpeg;base64,'+bytes.toString('base64')}};
-  assert.ok(artwork715Dto.isLocalArtworkImage(image));return image;
+  const bytes=await artwork715ReadFile(new URL('./fixtures/mbrs003/audio/inputs/cover-small.png',import.meta.url));
+  assert.equal(bytes.length,681);assert.equal(artwork715Sha(bytes),'243ddd560483dfae4f0ac0cce1e922a7828baab254b6df5d3402d0fec4f06e45');
+  // 固定原图通过真实Rust转换；不把旧Main替身JPEG当成新链路的展示原图。
+  const {image}=await artwork715Normalize(bytes);assert.ok(artwork715Dto.isLocalArtworkImage(image));
+  assert.deepEqual(image.original,{mime:'image/png',bytes:681,sha256:artwork715Sha(bytes),width:16,height:16});
+  const display=Buffer.from(image.display.dataUrl.slice('data:image/jpeg;base64,'.length),'base64');
+  assert.equal(display.length,image.display.bytes);assert.equal(artwork715Sha(display),image.display.sha256);
+  const sof=display.indexOf(Buffer.from([0xff,0xc0]));assert.ok(sof>=0);
+  assert.equal(display.readUInt16BE(sof+5),16);assert.equal(display.readUInt16BE(sof+7),16);return image;
 }
 /** 两轨来自已封自有FLAC；hasArtwork由实际提取的coverEvidence经原scan SQL产生。 */
 async function artworkDomainFixture715(t:test.TestContext,coveredIndex:number=1){
@@ -271,8 +276,7 @@ async function artworkDomainFixture715(t:test.TestContext,coveredIndex:number=1)
     else if(command==='normalizeLocalAlbumArtwork'){
       const copies=(payload as {copies:artwork715Dto.LocalArtworkSourceCopies}).copies,copy=copies.items[0];assert.ok(copy,'有图路径必须实际取得原编码图');
       const bytes=Buffer.from(copy.base64,'base64');normalizedOriginals.push(artwork715Sha(bytes));assert.equal(artwork715Sha(bytes),entry.expectedCover!.sha256);
-      const normalized:DatasetProjectionCommandResults['normalizeLocalAlbumArtwork']={image:{original:{mime:'image/png',bytes:bytes.length,sha256:artwork715Sha(bytes),width:16,height:16},display:display.display},status:'ready'};
-      result=normalized;
+      throw new Error('本Gate要求实际Rust规范化；不能悄然退回Main替身JPEG。');
     }else throw new Error('Domain封面用例只允许原扫描准入及展示归一化投影');
     return result as DatasetProjectionCommandResults[C];
   }};
@@ -293,7 +297,7 @@ test('Domain封面B：首无图次内嵌图，墙与首次详情同预览且publ
   const f=await artworkDomainFixture715(t),tuple=structuredClone(f.artworkRequest);
   const detail=await f.owner('read.albums',f.readRequest);assert.ok(artwork715Dto.isLocalWorkbenchReadback(detail));assert.equal(detail.albums[0]!.currentArtwork?.previewUrl,f.display.display.dataUrl);
   const wall=await f.domain.localAlbums!.getArtwork(f.artworkRequest);assert.ok(artwork715Dto.isLocalAlbumArtworkReply(wall,f.artworkRequest));assert.ok(wall.image);assert.equal(wall.image.original.sha256,f.expectedCoverSha);
-  assert.equal(detail.albums[0]!.currentArtwork?.previewUrl,wall.image.display.dataUrl);assert.deepEqual(f.artworkRequest,tuple);
+  assert.equal(detail.albums[0]!.currentArtwork?.previewUrl,wall.image.display.dataUrl);assert.deepEqual(f.artworkRequest,tuple);assert.equal(f.normalizedOriginals.length,0);
   const after=await f.domain.localAlbums!.inspectAlbum({albumKey:f.summary.id,rootId:f.root.id,revision:f.summary.revision});assert.equal(after.summary.id,f.summary.id);assert.equal(after.summary.representativeTrackId,f.group.members[0]!.fact.summary.track.id);assert.equal(after.summary.rootId,f.root.id);assert.equal(after.summary.revision,f.summary.revision);
 });
 
@@ -308,7 +312,8 @@ test('Domain封面B：无内嵌图仍用原public代表fallback实读缺图，�
     const f=await artworkDomainFixture715(t,coveredIndex),read=await f.owner('read.albums',f.readRequest),copies=await f.owner('artwork.readLocal',{datasetId:f.domain.datasetId,capture:read.albums[0]!.capture});
     assert.equal(copies.status,'ready');
     if(coveredIndex<0){assert.deepEqual(copies.items,[]);assert.equal(read.albums[0]!.currentArtwork,null);assert.equal(f.normalizedOriginals.length,0);}
-    else{assert.equal(copies.items.length,1);assert.equal(artwork715Sha(Buffer.from(copies.items[0]!.base64,'base64')),f.expectedCoverSha);assert.equal(read.albums[0]!.currentArtwork?.previewUrl,f.display.display.dataUrl);}
+    else{assert.equal(copies.items.length,1);assert.equal(artwork715Sha(Buffer.from(copies.items[0]!.base64,'base64')),f.expectedCoverSha);assert.equal(read.albums[0]!.currentArtwork?.previewUrl,f.display.display.dataUrl);
+      const wall=await f.domain.localAlbums!.getArtwork(f.artworkRequest);assert.ok(wall.image);assert.equal(wall.image.original.sha256,f.expectedCoverSha);assert.equal(wall.image.display.dataUrl,read.albums[0]!.currentArtwork?.previewUrl);assert.equal(f.normalizedOriginals.length,0);}
     assert.equal(f.summary.representativeTrackId,f.group.members[0]!.fact.summary.track.id);assert.equal(f.artworkRequest.rootId,f.root.id);
   }
 });

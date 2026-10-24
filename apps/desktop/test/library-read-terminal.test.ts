@@ -13,6 +13,8 @@ import { createLibraryReadTraceWriter, LIBRARY_READ_TRACE_PREFIX } from '../src/
 import { createRoonLibraryService } from '../../../packages/bridge-core/src/roon/library.js'
 import { createRoonPublicLibrary } from '../../../packages/bridge-core/src/roon/public-library.js'
 import { attachCoreRuntimePort, type CoreRuntimeForIpc } from '../../../packages/bridge-core/src/utility-main.js'
+import { copyMobileCapabilityTraceRecord, MOBILE_CAPABILITY_TRACE_PREFIX } from '../../../packages/bridge-core/src/mobile/capability-trace.js'
+import { LIBRARY_OPERATION_PREFIX, readLibraryOperationLine } from '../../../packages/bridge-core/src/shared/library-operation-log.js'
 
 const turn = () => new Promise<void>(resolve => setImmediate(resolve))
 class Port implements CoreMessagePort {
@@ -123,14 +125,50 @@ test('逐请求终端整链：非空 raw 被 hint 过滤有计数，SDK 私密�
   assert.doesNotMatch(failed.lines.join(''), /Cookie|private-|stack/u)
 })
 
-test('逐请求终端：生产关闭不启用 utility pipe、IPC 尾参数或终端日志', async t => {
+test('逐请求终端：生产关闭私有诊断与 IPC 尾参数，utility pipe 仅转发闭集运营行', async t => {
   const h = await harness(false, 'list', false); t.after(h.close); assert.equal((await read(h)).items.length, 1); await turn()
-  assert.equal(h.forkOptions[0]?.stdio, 'ignore'); assert.deepEqual(h.lines, [])
+  assert.equal(h.forkOptions[0]?.stdio, 'pipe'); assert.deepEqual(h.lines, [])
   const calls: unknown[][] = [], client = createLibraryReadTerminalClient(async (...args) => { calls.push(args); return { items: [] } }, false)
   await client.readLibrary({ id: 'production-read', command: 'roon.library.albums', payload: pageRequest, deadlineAtMs: Date.now() + 1000 }); await client.cancelLibraryRead('production-read')
   assert.equal(calls.length, 2); assert.equal(calls[0]?.length, 2); assert.equal(calls[1]?.length, 2)
   assert.equal(buildCoreEnvironment({}, { startupTest: false, uiE2e: false, coreCrashGate: false, libraryReadTrace: false }).MUSIC_BRIDGE_LIBRARY_READ_TRACE, '0')
   assert.equal(buildCoreEnvironment({}, { startupTest: false, uiE2e: false, coreCrashGate: false, libraryReadTrace: true }).MUSIC_BRIDGE_LIBRARY_READ_TRACE, '1')
+
+  const privateTraceLines: string[] = []
+  createLibraryReadTraceWriter({ enabled: true, write: line => privateTraceLines.push(line) })({ stage: 'core.receive', command: 'roon.library.albums', coreReadId: '11111111-1111-4111-8111-111111111111' })
+  assert.equal(privateTraceLines.length, 1)
+  const capabilityTrace = copyMobileCapabilityTraceRecord({ schema: 'mb.mobile-capability-trace.v1', component: 'core', requestSha256: 'a'.repeat(64), parentSha256: null,
+    relatedSha256: null, epochMs: 1, elapsedMs: 0, stage: 'provider.content.mapping.duration', phase: 'ok', role: 'business', name: 'UNKNOWN', code: 'OK', outcome: null, aborted: null, initState: 'none' })
+  assert.ok(capabilityTrace)
+  const operation = { version: 1, part: 'library', action: 'read.fixture', state: 'complete', atMs: 1, slow: false, message: '音乐库：完成', count: 1 }
+  const operationLine = LIBRARY_OPERATION_PREFIX + JSON.stringify(operation) + '\n'
+  assert.deepEqual(readLibraryOperationLine(operationLine.trimEnd()), operation)
+  const output = { stdout: [] as string[], stderr: [] as string[] }
+  const stdoutWrite = t.mock.method(process.stdout, 'write', ((chunk: string | Uint8Array) => { output.stdout.push(String(chunk)); return true }) as typeof process.stdout.write)
+  const stderrWrite = t.mock.method(process.stderr, 'write', ((chunk: string | Uint8Array) => { output.stderr.push(String(chunk)); return true }) as typeof process.stderr.write)
+  try {
+    // 合法私有行也必须服从默认 OFF；不能只靠无效输入证明不泄漏。
+    for (const stream of [h.child.stdout, h.child.stderr]) {
+      for (const line of ['SDK Cookie=private-raw-secret\n', privateTraceLines[0]!, MOBILE_CAPABILITY_TRACE_PREFIX + JSON.stringify(capabilityTrace) + '\n']) stream.emit('data', Buffer.from(line))
+      for (const extra of [{ payload: { cookie: 'private-cookie' } }, { cookie: 'private-cookie' }, { stack: 'private-stack' }]) {
+        const forged = LIBRARY_OPERATION_PREFIX + JSON.stringify({ ...operation, ...extra }) + '\n'
+        assert.equal(readLibraryOperationLine(forged.trimEnd()), null)
+        stream.emit('data', Buffer.from(forged))
+      }
+    }
+    const forgedCapability = { ...capabilityTrace, payload: { cookie: 'private-cookie' } }
+    assert.equal(copyMobileCapabilityTraceRecord(forgedCapability), null)
+    h.child.stdout.emit('data', Buffer.from(MOBILE_CAPABILITY_TRACE_PREFIX + JSON.stringify(forgedCapability) + '\n'))
+    h.child.stderr.emit('data', Buffer.from(operationLine))
+    h.child.stderr.emit('data', Buffer.from(JSON.stringify({ level: 'warn', event: 'queue_replace_failed', code: 'NETEASE_REQUEST_FAILED', reason: 'request-budget' }) + '\n'))
+    assert.deepEqual(output, { stdout: [], stderr: [] }); assert.deepEqual(h.lines, [])
+
+    h.child.stdout.emit('data', Buffer.from(operationLine.slice(0, 20)))
+    assert.deepEqual(output, { stdout: [], stderr: [] })
+    h.child.stdout.emit('data', Buffer.from(operationLine.slice(20)))
+    assert.deepEqual(output, { stdout: [operationLine], stderr: [] }); assert.deepEqual(h.lines, [])
+    assert.doesNotMatch(output.stdout.join('') + output.stderr.join(''), /private-|Cookie|payload|stack|library:read|MUSICBRIDGE_MOBILE_CAPABILITY_TRACE/u)
+  } finally { stdoutWrite.mock.restore(); stderrWrite.mock.restore() }
 })
 
 test('逐请求终端：Main stderr 接线只转发安全播放失败原因，丢弃 SDK 凭据文本', async t => {

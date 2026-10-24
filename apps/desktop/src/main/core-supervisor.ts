@@ -1,28 +1,40 @@
+import { MOBILE_RESOURCE_CAPACITY_FLAG } from '../../../../packages/bridge-core/src/mobile/resource-capacity-trace.js';
+import { attachMobileSealedCoreReplyReceiver } from '../../../../packages/bridge-core/src/mobile/sealed-request-transport.js'
+import { registerCatalogHttpNonce, dropCatalogHttpNonce } from '../../../../packages/bridge-core/src/mobile/catalog-http-observation.js'
+import { captureMobileOwnerLoadTrace, withMobileOwnerLoadTrace, markMobileOwnerLoadTrace, observeMobileOwnerLoadTrace, copyMobileOwnerLoadTraceFrame, type MobileOwnerLoadTraceContext } from '../../../../packages/bridge-core/src/mobile/owner-load-trace.js'
 import { mobileRangeWindowRpc } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js'
 import { createDesktopArtworkReader, collectDesktopArtwork } from '../../../../packages/bridge-core/src/shared/desktop-artwork-trace-node.js'
 import { captureLocalAlbumContext, withLocalAlbumContext, localAlbumPhase, localAlbumMatch, localAlbumReject, localAlbumLink, emitLocalAlbumNodeTrace, collectLocalAlbumSafeTrace, snapshotLocalAlbumReadTrace, type LocalAlbumNodeContext } from '../../../../packages/bridge-core/src/shared/local-album-read-trace-node.js'
 import { createLocalAlbumSafeTraceReader, type LocalAlbumTraceStage } from '../shared/library-read-trace.js'
 import { createLocalPlaybackEvidenceCollector, writeLocalPlaybackGuardSync, type LocalPlaybackEvidenceRecord, type LocalPlaybackGuardSink } from './local-playback-evidence.js'
-import { collectMobileCapabilityTrace, createMobileCapabilityTraceReader, snapshotMobileCapabilityTrace } from '../../../../packages/bridge-core/src/mobile/capability-trace.js'
+import { collectMobileCapabilityTrace, createMobileCapabilityTraceReader, snapshotMobileCapabilityTrace, type MobileCapabilityTraceRecord } from '../../../../packages/bridge-core/src/mobile/capability-trace.js'
+import { createMobilePrivateContentTraceRelay } from '../../../../packages/bridge-core/src/mobile/private-content-trace-relay.js'
 import { responseFailure } from '../../../../packages/bridge-core/src/shared/ipc-failure.js'
 import { captureDatasetNameProviderRequest, captureDatasetNameProviderReply, assertDatasetNameProviderReplyForRequest, DATASET_NAME_PROVIDER_FAILURES, type DatasetNameProviderFailure, type DatasetNameProviderRequest, type DatasetNameProviderCommand } from '../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
 import { isSourceWorkbenchDirectoryWire, captureSourceWorkbenchDirectoryRequest, captureSourceWorkbenchDirectoryReply, assertSourceWorkbenchDirectoryReplyForRequest, captureSourceWorkbenchDirectoryRegistrationRequest, captureSourceWorkbenchDirectoryRegistrationReply, assertSourceWorkbenchDirectoryRegistrationReplyForRequest, type SourceWorkbenchDirectoryRequest, type SourceWorkbenchDirectoryReply, type SourceWorkbenchDirectoryBinding, type SourceWorkbenchDirectoryRegistrationRequest, type SourceWorkbenchDirectoryRegistrationReply } from '../../../../packages/bridge-core/src/collection/source-writes-authority.js'
 import { isSourceWritesLyricsGrantWire, isSourceWritesLyricsVerifyWire, captureSourceWritesLyricsGrantRequest, captureSourceWritesLyricsGrantReply, captureSourceWritesLyricsVerifyRequest, captureSourceWritesLyricsVerifyReply, assertSourceWritesLyricsGrantReplyForRequest, assertSourceWritesLyricsVerifyReplyForRequest, type SourceWritesLyricsGrantRequest, type SourceWritesLyricsGrantReply, type SourceWritesLyricsVerifyRequest, type SourceWritesLyricsVerifyReply } from '../../../../packages/bridge-core/src/collection/source-writes-authority.js'
 import { lyricsPhysicalDigest } from '../../../../packages/bridge-core/src/library/lyrics-source-format.js'
 import { isSourceWorkbenchReadersWire, captureSourceWorkbenchReadersRequest, captureSourceWorkbenchReadersReply, type SourceWorkbenchReadersRequest, type SourceWorkbenchReadersReply } from '../../../../packages/bridge-core/src/collection/source-writes-authority.js'
-import { captureDatasetLyricsProviderRequest, captureDatasetLyricsProviderReply, assertDatasetLyricsProviderReplyForRequest, DATASET_LYRICS_PROVIDER_FAILURES, type DatasetLyricsProviderRequest, type DatasetLyricsProviderReply, type DatasetLyricsProviderFailure, type DatasetProjectionCommandResults, type DatasetLyricsProviderCommand, captureDatasetWorkbenchNativeConfiguration, type DatasetWorkbenchNativeConfiguration, isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest, type DatasetWorkbenchResult, type DatasetWorkbenchContext } from '../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
+import { captureDatasetLyricsProviderRequest, captureDatasetLyricsProviderReply, assertDatasetLyricsProviderReplyForRequest, DATASET_LYRICS_PROVIDER_FAILURES, type DatasetLyricsProviderRequest, type DatasetLyricsProviderReply, type DatasetLyricsProviderFailure, type DatasetProjectionCommandResults, type DatasetLyricsProviderCommand, captureDatasetWorkbenchNativeConfiguration, type DatasetWorkbenchNativeConfiguration, isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, datasetWorkbenchOperationMs, isDatasetWorkbenchContextKind, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest, type DatasetWorkbenchResult, type DatasetWorkbenchContext } from '../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
 import { isLocalAlbumArtworkMainRequest, isLocalAlbumArtworkMainCancel, isLocalAlbumArtworkMainReply, type LocalAlbumArtworkMainRequest, type LocalAlbumArtworkMainReply, isLocalAlbumMainRequest, isLocalAlbumMainResponse, type LocalAlbumMainRequest, type LocalAlbumMainResponse } from '../../../../packages/bridge-core/src/collection/local-album-browser/main-protocol.js'
 import { isLibraryReadCommand } from '@music-bridge/contracts'
 import { localSourceWritesMainRequestSnapshot, localSourceWritesMainResponseSnapshot, localSourceWritesDataSnapshot, localSourceWritesRecord, type LocalSourceWritesPrivateCommand, type LocalSourceWritesPrivateCommandPayloads, type LocalSourceWritesPrivateCommandResults } from '@music-bridge/contracts'
 import { localRelocationMainRequestSnapshot, localRelocationMainResponseSnapshot, localRelocationDataSnapshot, localRelocationRecord, type LocalRelocationMainCommand, type LocalRelocationMainCommandPayloads, type LocalRelocationMainCommandResults } from '@music-bridge/contracts'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
+import { captureMobileCapabilityContext } from '../../../../packages/bridge-core/src/mobile/capability-trace.js'
+import { withCatalogTrace, withCatalogTraceScope, catalogTraceAsync, catalogTraceEvent, type CatalogTraceSeed } from '../../../../packages/bridge-core/src/mobile/catalog-private-trace.js'
 import { isMobileOwnerPrivateRequest, type MobileCorePrivateCall } from '../../../../packages/bridge-core/src/mobile/owner-protocol.js'
+import { encodeMobileSealedCoreRequest } from '../../../../packages/bridge-core/src/mobile/sealed-request-transport.js'
 import { captureMobileCorePrivateReply } from '../../../../packages/bridge-core/src/mobile/owner-boundary-capture.js'
 import { MobileAuthPersistenceError, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult } from '../../../../packages/bridge-core/src/mobile/types.js'
-import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, MOBILE_CONTENT_RPC_BOUNDS,
+import { captureMobileMediaReadBudget, type MobileMediaReadBudget } from '../../../../packages/bridge-core/src/mobile/media-read-budget.js'
+import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, MOBILE_CONTENT_RPC_BOUNDS, mobileContentLateSourceRequest, mobileContentLateResponseAllowed,
   type MobileContentCoreRequest, type MobileContentCoreResponse } from '../../../../packages/bridge-core/src/mobile/content-rpc.js'
 import { createLibraryReadTraceStreamReader, emitLibraryReadTrace, libraryReadTraceFailure, type LibraryReadTraceSink } from '../shared/library-read-trace.js'
 import { createPlaybackFailureTraceStreamReader } from '../shared/playback-failure-trace.js'
+import { createLibraryOperationLogReader, logLibraryOperation } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { sameMobileContentScope } from '../../../../packages/bridge-core/src/mobile/content-service.js'
+import type { MobileContentCancelRecheck } from './mobile-content-port.js'
 
 import {
   IPC_VERSION,
@@ -124,6 +136,7 @@ interface WorkbenchMainBinding {datasetId:string;ownerEpoch:string;childGenerati
 interface WorkbenchMainAuthor {
   readonly binding:Readonly<WorkbenchMainBinding>
   assertCurrent(binding:Readonly<WorkbenchMainBinding>):Promise<void>
+  assertReadCurrent?(binding:Readonly<WorkbenchMainBinding>):Promise<void>
   request(request:DatasetWorkbenchRequest,context:{binding:Readonly<WorkbenchMainBinding>;signal:AbortSignal;deadlineAtMs:number}):Promise<DatasetWorkbenchResult>
   requestOwner<C extends DatasetWorkbenchOwnerCommand>(command:C,payload:DatasetWorkbenchOwnerPayloads[C],context:{binding:Readonly<WorkbenchMainBinding>;signal:AbortSignal;deadlineAtMs:number}):Promise<DatasetWorkbenchOwnerResults[C]>
 }
@@ -148,7 +161,12 @@ export function shouldRefreshTrayForCoreEvent(event: TypedIpcEvent): boolean {
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 2_000
+// 只扩展本地专辑读取的Main等待；控制请求、Source许可及FD预算仍由原门禁核收。
+const LOCAL_ALBUM_READ_WAIT_TIMEOUT_MS = 20_000
+const SHUTDOWN_REQUEST_TIMEOUT_MS = 30_000
 const DEFAULT_STARTUP_TIMEOUT_MS = 60_000
+// 大曲库先完成原Owner核验，再准备持久只读查询连接；手机请求不承担这段冷准备。
+const PRIVATE_PERSISTENT_OWNER_STARTUP_TIMEOUT_MS = 300_000
 // 两份 WAV 的完整 Hash 读取各自最多 15 分钟；撤销仍走短控制请求。
 const PREPARED_FILE_REQUEST_TIMEOUT_MS = 35 * 60_000
 const LIBRARY_REQUEST_TIMEOUT_MS = 10_000
@@ -203,7 +221,9 @@ export class CoreSupervisor {
   private restartPromise: Promise<void> | undefined
   private manualRestartPromise: Promise<void> | undefined
   private shutdownPromise: Promise<void> | undefined
+  private shutdownReceipt: { id: string; child: CoreChildProcess; port: CoreMessagePort; generation: number; timedOut: boolean; acknowledged: boolean } | undefined
   private readyTimeoutOverride: number | undefined
+  private persistentOwnerStartupConfigured = false
   private activationFlight: { request: ActivateRestoredDataset; expectedDatasetId: string | undefined; promise: Promise<RestoreActivationView> } | undefined
   private shuttingDown = false
   /** 公开停止/重启请求单调推进；复用原close也不能丢掉后来的停止意图。 */
@@ -223,8 +243,13 @@ export class CoreSupervisor {
   getLocalPlaybackEvidenceSnapshot() { return this.localPlaybackEvidence.snapshot() }
   getMobileCapabilityTraceSnapshot() { return snapshotMobileCapabilityTrace() }
   private readonly localAlbumPending = new Map<string, { trace?: LocalAlbumNodeContext; call: LocalAlbumMainRequest; generation: number; port: CoreMessagePort; timer: NodeJS.Timeout; resolve(value: LocalAlbumMainResponse): void; reject(error: CoreIpcError): void }>()
-  private readonly mobilePending = new Map<string, { call: MobileCorePrivateCall; timer: NodeJS.Timeout; reject(error: MobileAuthPersistenceError): void; resolve(result: MobileOwnerPrivateResult): void }>()
+  private readonly mobileOwnerLoadContexts = new Map<number, MobileOwnerLoadTraceContext>()
+  private mobileCatalogRelay: ReturnType<typeof createMobilePrivateContentTraceRelay> | undefined
+  private readonly mobilePending = new Map<string, { call: MobileCorePrivateCall; trace?: MobileOwnerLoadTraceContext; timer: NodeJS.Timeout | undefined;
+    mediaRead?: { budget: Readonly<MobileMediaReadBudget>; port: CoreMessagePort; generation: number };
+    reject(error: MobileAuthPersistenceError): void; resolve(result: MobileOwnerPrivateResult): void }>()
   private readonly mobileContentPending = new Map<string, { call: MobileContentCoreRequest; generation: number;
+    logicalUnknown: boolean; lateTarget?: Extract<MobileContentCoreRequest, { action: 'source' }>; previousCancelId?: string;
     timer: NodeJS.Timeout; rangeTransport?: ReturnType<typeof mobileRangeWindowRpc>; detachAbort(): void; reject(error: MobileAuthPersistenceError): void; resolve(result: MobileContentCoreResponse): void }>()
   private _status: CoreSupervisorStatus = 'stopped'
 
@@ -245,12 +270,22 @@ export class CoreSupervisor {
       performance?: PerformanceTraceRecorder
       performanceContext?: () => PerformanceTraceContext | undefined
       libraryReadTrace?: LibraryReadTraceSink
+      /** 仅当前Core安全闭集旁注；回调失败不能影响原请求或私有reader。 */
+      onMobileCapabilityTrace?: (record: MobileCapabilityTraceRecord) => void
     },
   ) {
     const timeout = options.startupTimeoutMs
     if (timeout !== undefined && (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > DEFAULT_STARTUP_TIMEOUT_MS)) {
       throw new CoreIpcError('INVALID_IPC_REQUEST', 'Core 启动等待期限无效')
     }
+  }
+
+  /** 仅Main持久Owner组合在首次start前固定；原显式短期限和恢复覆盖仍优先。 */
+  configurePrivatePersistentOwnerStartup(): void {
+    if (this._status !== 'stopped' || this.startupGeneration !== 0 || this.child !== undefined || this.persistentOwnerStartupConfigured) {
+      throw new CoreIpcError('NOT_READY', '持久Owner启动策略只能在首次启动前固定一次')
+    }
+    this.persistentOwnerStartupConfigured = true
   }
 
   /** 仅Main已编译metadata在首次start前配置；不扩大原构造器或公开IPC。 */
@@ -268,11 +303,11 @@ export class CoreSupervisor {
     const sameRoute=()=>route===this.startupAttempt&&route.generation===this.startupGeneration&&route.child===this.child&&route.port===this.port&&this.sourceWritesPort===port
     const originalBinding=()=>binding!==undefined&&binding.authorityRef===route&&binding.childGeneration===route.generation&&binding.datasetId===q.binding.datasetId&&binding.ownerEpoch===q.binding.ownerEpoch
     if(!sameRoute()||!originalBinding()||(!this.shuttingDown&&(!this.isCurrentRoute(route)||this._status!=='ready'))
-      ||q.sequence!==this.readersSequence+1||q.expiresAtMs<=Date.now()||q.expiresAtMs>Date.now()+2000||this.readersTasks.size>=4
+      ||q.sequence!==this.readersSequence+1||q.expiresAtMs<=Date.now()||q.expiresAtMs>Date.now()+DATASET_WORKBENCH_BOUNDS.libraryRemoveMs||this.readersTasks.size>=4
       ||this.readersAuthorityId!==undefined&&this.readersAuthorityId!==q.authorityId||this.lyricsGrantAuthorityId!==undefined&&this.lyricsGrantAuthorityId!==q.authorityId
       ||this.directoryAuthorityId!==undefined&&this.directoryAuthorityId!==q.authorityId)throw new CoreIpcError('INVALID_IPC_RESPONSE','按库读取fence不是同原物理actor与实际作者')
     this.readersSequence=q.sequence;this.readersAuthorityId??=q.authorityId
-    const controller=new AbortController(),deadlineAtMs=performance.now()+Math.min(2000,q.expiresAtMs-Date.now());let closed=false,expired=false
+    const controller=new AbortController(),deadlineAtMs=performance.now()+Math.min(DATASET_WORKBENCH_BOUNDS.libraryRemoveMs,q.expiresAtMs-Date.now());let closed=false,expired=false
     const task=Promise.resolve().then(async()=>{
       if(!this.readersProducer)throw new CoreIpcError('NOT_READY','按库读取join作者未装配')
       await this.readersProducer(q,{binding:binding!,signal:controller.signal,deadlineAtMs});closed=true
@@ -556,29 +591,102 @@ export class CoreSupervisor {
 
   /** 可信 Main 的闭集移动能力；不在 Renderer 的通用 command 列表内。 */
   async requestMobileMain(input: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
+    let trace = captureMobileOwnerLoadTrace()
+    const note = (stage: Parameters<typeof markMobileOwnerLoadTrace>[1], outcome: Parameters<typeof markMobileOwnerLoadTrace>[2]) =>
+      withMobileOwnerLoadTrace(trace, () => markMobileOwnerLoadTrace('main', stage, outcome))
     const port = this.port, generation = this.startupGeneration
     if (!port || this._status !== 'ready' || this.shuttingDown || !isMobileOwnerPrivateRequest(input) || this.mobilePending.size >= 32) {
+      note('main.admission', 'not-sent')
       throw new MobileAuthPersistenceError('not-sent')
     }
-    const call: MobileCorePrivateCall = { type: 'mobile-main-request', id: randomUUID(), request: structuredClone(input) }
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.mobilePending.delete(call.id); reject(new MobileAuthPersistenceError('unknown')) }, LIBRARY_REQUEST_TIMEOUT_MS)
-      this.mobilePending.set(call.id, { call, timer, reject, resolve })
+    const mediaBudget = input.kind === 'load' ? captureMobileMediaReadBudget() : undefined
+    try { mediaBudget?.assertCurrent() }
+    catch (error) {
+      // 仅可信纯读预算自身的取消属于未发送；不能把请求取消升级为共享认证存储故障。
+      if (mediaBudget?.signal.aborted && Object.is(error, mediaBudget.signal.reason)) throw new MobileAuthPersistenceError('not-sent')
+      throw error
+    }
+    if (input.kind !== 'load') trace = undefined
+    note('main.admission', 'ok')
+    if (trace) this.mobileOwnerLoadContexts.set(trace.ordinal, trace)
+    const callId = randomUUID()
+    const capability = captureMobileCapabilityContext()
+    let catalogTrace: CatalogTraceSeed | undefined
+    try {
+      if (this.options.onMobileCapabilityTrace && capability?.privateContentDiagnostic === true && input.kind === 'catalog' && input.request.operation === 'listTracks') {
+        catalogTrace = { schema: 1, requestSha256: capability.requestSha256, nonceSha256: createHash('sha256').update(callId).digest('hex'), offset: input.request.offset, limit: input.request.limit }
+        if(this.mobileCatalogRelay?.registerCatalog(catalogTrace))registerCatalogHttpNonce(catalogTrace);else {dropCatalogHttpNonce(catalogTrace.requestSha256);catalogTrace=undefined}
+      }
+    } catch { catalogTrace = undefined }
+    const original: MobileCorePrivateCall = { type: 'mobile-main-request', id: callId, request: input, ...(trace ? { ownerLoadTrace: trace.ordinal } : {}), ...(catalogTrace ? { catalogTrace } : {}) }
+    const wire = encodeMobileSealedCoreRequest(original)
+    const call: MobileCorePrivateCall = { ...original, request: structuredClone(input) }
+    return withCatalogTraceScope(catalogTrace, 'main', () => {
+      catalogTraceEvent('main.request', 'begin')
+      return catalogTraceAsync('main.owner-await', async () => {
+        const result = await new Promise<MobileOwnerPrivateResult>((resolve, reject) => {
+      // 仅媒体纯读保留同一个原RPC；HTTP资格由唯一Range总闸终止，物理32槽等原回包。
+      const timer = mediaBudget ? undefined : setTimeout(() => { note('main.timeout', 'timeout'); this.mobilePending.delete(call.id); reject(new MobileAuthPersistenceError('unknown')) }, LIBRARY_REQUEST_TIMEOUT_MS)
+      this.mobilePending.set(call.id, { call, timer, reject, resolve, ...(trace ? { trace } : {}),
+        ...(mediaBudget ? { mediaRead: { budget: mediaBudget, port, generation } } : {}) })
+      let postAttempted = false
       try {
         if (this.port !== port || this.startupGeneration !== generation || this.shuttingDown) throw new Error('移动路由已撤销。')
-        port.postMessage(call)
-      } catch { clearTimeout(timer); this.mobilePending.delete(call.id); reject(new MobileAuthPersistenceError('unknown')) }
+        mediaBudget?.assertCurrent()
+        postAttempted = true
+        observeMobileOwnerLoadTrace('main', 'main.post', () => port.postMessage(wire === original ? call : wire))
+      } catch {
+        note('main.post', 'post-failed')
+        if (!mediaBudget || !postAttempted) {
+          clearTimeout(timer); this.mobilePending.delete(call.id)
+          reject(new MobileAuthPersistenceError(mediaBudget ? 'not-sent' : 'unknown'))
+        }
+        // 已尝试投递后的异常不证明Owner静止；只等同call回包或原child真实退出。
+      }
+        })
+        try { mediaBudget?.assertCurrent() }
+        catch (error) {
+          // 原Owner回包已物理收口；只隔离该请求的取消，不放宽其他异常或未知写入。
+          if (mediaBudget?.signal.aborted && Object.is(error, mediaBudget.signal.reason)) throw new MobileAuthPersistenceError('unknown')
+          throw error
+        }
+        if ('kind' in result && result.kind === 'mobile-error') catalogTraceEvent('main.result','reject',{error:{code:result.code},matched:false})
+        else catalogTraceEvent('main.result','ok',{matched:true})
+        return result
+      })
     })
   }
-  private closeMobilePending(): void {
-    for (const pending of this.mobilePending.values()) { clearTimeout(pending.timer); pending.reject(new MobileAuthPersistenceError('unknown')) }
-    this.mobilePending.clear()
+  private closeMobilePending(physicalExit = false, route?: { port: CoreMessagePort; generation: number }): void {
+    for (const [id, pending] of this.mobilePending) {
+      if (pending.mediaRead) {
+        if (!physicalExit || route && (pending.mediaRead.port !== route.port || pending.mediaRead.generation !== route.generation)) continue
+      } else if (route) continue
+      withMobileOwnerLoadTrace(pending.trace, () => markMobileOwnerLoadTrace('main', 'main.close', 'closed', 'cleanup'))
+      clearTimeout(pending.timer); pending.reject(new MobileAuthPersistenceError('unknown'))
+      this.mobilePending.delete(id)
+    }
+    this.mobileOwnerLoadContexts.clear()
   }
 
   /** 004独立闭集的可信Main请求；不是Renderer/public command。未知工作仍占位至quiet或进程退出。 */
-  async requestMobileContentMain(input: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse> {
+  async requestMobileContentMain(input: MobileContentCoreRequest, signal: AbortSignal, recheck?: MobileContentCancelRecheck): Promise<MobileContentCoreResponse> {
     const port = this.port, generation = this.startupGeneration;
     const call = captureMobileContentCoreRequest(input);
+    let lateTarget = mobileContentLateSourceRequest(call) ? call : undefined;
+    if (recheck !== undefined) {
+      const previous = this.mobileContentPending.get(recheck.previousCancelId), original = previous?.call;
+      // 复核只能沿同代仍保留的原cancel。新Core的空目标ACK不能替旧Core授quiet。
+      if (call.action !== 'cancel' || original?.action !== 'cancel' || previous?.generation !== generation
+        || original.requestId !== call.requestId || original.snapshotId !== call.snapshotId
+        || (original.scope === null || call.scope === null ? original.scope !== call.scope : !sameMobileContentScope(original.scope, call.scope))) {
+        throw new MobileAuthPersistenceError('unknown');
+      }
+      lateTarget = previous.lateTarget;
+    } else if (call.action === 'cancel') {
+      const original = this.mobileContentPending.get(call.requestId);
+      if (original?.generation === generation && mobileContentLateSourceRequest(original.call) && call.snapshotId === null
+        && call.scope !== null && sameMobileContentScope(call.scope, original.call.scope)) lateTarget = original.call;
+    }
     const control = call.action === 'cancel' || call.action === 'invalidate-device' || call.action === 'revalidate'
       || call.action === 'source' && (call.request.operation === 'release' || call.request.operation === 'close-read');
     const maximum = control ? MOBILE_CONTENT_RPC_BOUNDS.inflight : MOBILE_CONTENT_RPC_BOUNDS.inflight - 1;
@@ -588,14 +696,20 @@ export class CoreSupervisor {
       throw new MobileAuthPersistenceError('not-sent');
     }
     return new Promise((resolve, reject) => {
-      const cancel = () => reject(new MobileAuthPersistenceError('unknown'));
+      const cancel = () => {
+        const pending = this.mobileContentPending.get(call.id); if (pending) pending.logicalUnknown = true;
+        reject(new MobileAuthPersistenceError('unknown'));
+      };
       const timer = setTimeout(cancel, MOBILE_CONTENT_RPC_BOUNDS.requestMs);
       signal.addEventListener('abort', cancel, { once: true });
-      this.mobileContentPending.set(call.id, { call, generation, timer,
+      this.mobileContentPending.set(call.id, { call, generation, timer, logicalUnknown: false,
+        ...(lateTarget ? { lateTarget } : {}), ...(recheck ? { previousCancelId: recheck.previousCancelId } : {}),
         rangeTransport: mobileRangeWindowRpc(call.id, call.action === 'source' ? call.request.operation : call.action, control ? 'cleanup' : 'business', 'content.rpc.retained'),
         detachAbort: () => signal.removeEventListener('abort', cancel), reject, resolve });
       try {
         if (signal.aborted || this.port !== port || this.startupGeneration !== generation || this.shuttingDown) throw new Error('内容路由已撤销。');
+        // 仅选中Range的闭集旁注；失败不改变原RPC的受理、顺序、槽位或返回。
+        try { const seed = this.mobileContentPending.get(call.id)?.rangeTransport?.seed(); if (seed) port.postMessage(seed); } catch { /* 原业务post照常。 */ }
         port.postMessage(call);
       } catch {
         // 同步post失败的受理边界也不猜测；保留原nonce直到该Core确实退出。
@@ -702,7 +816,7 @@ export class CoreSupervisor {
   }
   /** 只记录原localAlbum读取内的context首拒；成功不输出，诊断失败不改变原异常或Promise。 */
   private workbenchContextTraceFailure(trace:LocalAlbumNodeContext|undefined,stage:LocalAlbumTraceStage,error:unknown,meta?:DatasetWorkbenchMeta,mappedCode:unknown=null,routeMatched:boolean|null=null):void{
-    if(!trace||meta&&meta.kind!=='context')return
+    if(!trace||meta&&!isDatasetWorkbenchContextKind(meta.kind))return
     try{withLocalAlbumContext(trace,()=>{
       localAlbumPhase(stage);if(routeMatched!==null)localAlbumMatch('route',routeMatched)
       // 原meta只有真实失败才关联；不为成功context输出begin/ok或占用证据环。
@@ -720,7 +834,7 @@ export class CoreSupervisor {
     if(value.part==='settled'){if(!item.expired){const error=new CoreIpcError('INVALID_IPC_RESPONSE','原整理响应未完整结束');this.workbenchContextTraceFailure(item.trace,'context.supervisor.response',error,item.meta,null,true);item.reject(error)}this.workbenchQuiet(value.id);return}
     try{
       const result=item.assembly.accept(value);if(result===undefined)return
-      if(item.meta.kind==='context'){
+      if(isDatasetWorkbenchContextKind(item.meta.kind)){
         if(!isDatasetWorkbenchContext(result)||result.datasetId!==item.meta.datasetId||item.meta.epoch!==null&&result.epoch!==item.meta.epoch)throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
       }else if(item.meta.kind==='owner'){if(!item.request||!isDatasetWorkbenchOwnerRequest(item.request)||!isDatasetWorkbenchOwnerResult(item.request.command,result,item.request.payload,item.meta.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')}
       else if(!item.request||!isDatasetWorkbenchRequest(item.request)||!isDatasetWorkbenchResult(item.request,result,item.meta.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
@@ -729,7 +843,7 @@ export class CoreSupervisor {
       item.resolve(result);this.workbenchQuiet(value.id)
     }catch(error){item.expired=true;const code=error instanceof DatasetWorkbenchWireError?error.code:'INVALID_IPC_RESPONSE';this.workbenchContextTraceFailure(item.trace,'context.supervisor.dto',error,item.meta,code,true);item.reject(new CoreIpcError(code,'原整理响应未通过完整核验'));this.workbenchCancel(item)}
   }
-  private workbenchRpc(route:StartupAttempt,datasetId:string,epoch:string|null,request:DatasetWorkbenchRequest|DatasetWorkbenchOwnerRequest|null,read?:{signal?:AbortSignal;deadlineAtMs?:number}):Promise<unknown>{
+  private workbenchRpc(route:StartupAttempt,datasetId:string,epoch:string|null,request:DatasetWorkbenchRequest|DatasetWorkbenchOwnerRequest|null,read?:{signal?:AbortSignal;deadlineAtMs?:number;identityOnly?:true}):Promise<unknown>{
     const trace=request===null?captureLocalAlbumContext():undefined
     let guardStage:LocalAlbumTraceStage='context.supervisor.route'
     const currentRoute=this.isCurrentRoute(route)
@@ -737,9 +851,10 @@ export class CoreSupervisor {
     if(!currentRoute||(guardStage='context.supervisor.ready',this._status!=='ready')||(guardStage='context.supervisor.budget',this.workbenchPending.size>=24)||(guardStage='context.supervisor.cancel',read?.signal?.aborted)){
       const error=new CoreIpcError('NOT_READY','当前整理Utility未就绪');this.workbenchContextTraceFailure(trace,guardStage,error,undefined,null,currentRoute);throw error
     }
-    const remaining=Math.min(2000,Math.floor((read?.deadlineAtMs??performance.now()+2000)-performance.now()))
+    const body=request??{},kind:DatasetWorkbenchMeta['kind']=request?('family'in request?'execute':'owner'):read?.identityOnly?'context.identity':'context'
+    const budget=datasetWorkbenchOperationMs(kind,body),remaining=Math.min(budget,Math.floor((read?.deadlineAtMs??performance.now()+budget)-performance.now()))
     if(remaining<=0){const error=new CoreIpcError('TIMEOUT','原整理响应期限已到');this.workbenchContextTraceFailure(trace,'context.supervisor.cancel',error);throw error}
-    const body=request??{},meta:DatasetWorkbenchMeta={id:randomUUID(),epoch,datasetId,sequence:++this.workbenchSequence,kind:request?('family'in request?'execute':'owner'):'context',requestSha256:datasetWorkbenchSha(datasetWorkbenchJson(body)),expiresAtMs:Date.now()+remaining}
+    const meta:DatasetWorkbenchMeta={id:randomUUID(),epoch,datasetId,sequence:++this.workbenchSequence,kind,requestSha256:datasetWorkbenchSha(datasetWorkbenchJson(body)),expiresAtMs:Date.now()+remaining}
     return new Promise((resolve,reject)=>{
       const onAbort=()=>{const item=this.workbenchPending.get(meta.id);if(item&&!item.expired){item.expired=true;const error=new CoreIpcError('TIMEOUT','原整理请求尚未确认');this.workbenchContextTraceFailure(item.trace,'context.supervisor.cancel',error,item.meta);item.reject(error);this.workbenchCancel(item)}}
       const item={route,meta,...(trace?{trace}:{}),request:request?structuredClone(request):null,assembly:createDatasetWorkbenchAssembler(meta,'response'),timer:setTimeout(onAbort,remaining),expired:false,detach(){read?.signal?.removeEventListener('abort',onAbort)},resolve,reject}
@@ -766,6 +881,7 @@ export class CoreSupervisor {
       }
       return {binding,
         assertCurrent:async(value:Readonly<WorkbenchMainBinding>)=>{check(value);const fresh=await this.workbenchRpc(route,binding.datasetId,binding.ownerEpoch,null);check(value);if(!isDatasetWorkbenchContext(fresh)||fresh.epoch!==binding.ownerEpoch||fresh.datasetId!==binding.datasetId)throw new CoreIpcError('OUTBOX_SCOPE_MISMATCH','原整理Owner身份已改变')},
+        assertReadCurrent:async(value:Readonly<WorkbenchMainBinding>)=>{check(value);const fresh=await this.workbenchRpc(route,binding.datasetId,binding.ownerEpoch,null,{identityOnly:true});check(value);if(!isDatasetWorkbenchContext(fresh)||fresh.epoch!==binding.ownerEpoch||fresh.datasetId!==binding.datasetId)throw new CoreIpcError('OUTBOX_SCOPE_MISMATCH','原只读Owner身份已改变')},
         request:async(request:DatasetWorkbenchRequest,context:{binding:Readonly<WorkbenchMainBinding>;signal:AbortSignal;deadlineAtMs:number})=>{check(context.binding);if(!isDatasetWorkbenchRequest(request))throw new CoreIpcError('INVALID_IPC_REQUEST','整理命令不在39闭集');const result=await this.workbenchRpc(route,binding.datasetId,binding.ownerEpoch,structuredClone(request),context);check(context.binding);return result as DatasetWorkbenchResult},
         requestOwner:async<C extends DatasetWorkbenchOwnerCommand>(command:C,payload:DatasetWorkbenchOwnerPayloads[C],context:{binding:Readonly<WorkbenchMainBinding>;signal:AbortSignal;deadlineAtMs:number}):Promise<DatasetWorkbenchOwnerResults[C]>=>{
           check(context.binding);const request={command,payload}
@@ -848,7 +964,7 @@ export class CoreSupervisor {
     if (!port || !route || !this.isCurrentRoute(route) || this._status!=='ready' || this.shuttingDown) throw new CoreIpcError('NOT_READY','本地专辑作者尚未就绪')
     if (this.localAlbumPending.has(call.id)) throw new CoreIpcError('INVALID_IPC_REQUEST','本地专辑读取身份重复')
     return new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>withLocalAlbumContext(trace, () => { this.localAlbumPending.delete(call.id); localAlbumPhase('supervisor.timeout'); const error=new CoreIpcError('TIMEOUT','本地专辑读取暂未确认，请重新读取'); localAlbumReject(error); reject(error); }),Math.min(DEFAULT_REQUEST_TIMEOUT_MS,this.options.requestTimeoutMs??DEFAULT_REQUEST_TIMEOUT_MS))
+      const timer=setTimeout(()=>withLocalAlbumContext(trace, () => { this.localAlbumPending.delete(call.id); localAlbumPhase('supervisor.timeout'); const error=new CoreIpcError('TIMEOUT','本地专辑读取暂未确认，请重新读取'); localAlbumReject(error); reject(error); }),Math.min(LOCAL_ALBUM_READ_WAIT_TIMEOUT_MS,this.options.requestTimeoutMs??LOCAL_ALBUM_READ_WAIT_TIMEOUT_MS))
       this.localAlbumPending.set(call.id,{call,generation,port,timer,...(trace ? {trace} : {}),
         resolve: value => withLocalAlbumContext(trace, () => { emitLocalAlbumNodeTrace('ok'); resolve(value); }),
         reject: error => withLocalAlbumContext(trace, () => { localAlbumReject(error); reject(error); }) })
@@ -945,7 +1061,7 @@ export class CoreSupervisor {
     const traceContext = recorder?.context(parent ? { traceId: parent.traceId, requestId: id, parentRequestId: parent.requestId } : { requestId: id })
     const performanceSpan = recorder?.start('ipc', traceContext, {}, { command })
     const timedCommand = command === 'commandOutbox.execute' && 'command' in payload ? String(payload.command) : command
-    const timeoutMs =
+    const timeoutMs = closing ? SHUTDOWN_REQUEST_TIMEOUT_MS :
       ['recordingReplica.inspect', 'recordingOutput.check', 'recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight', 'recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze', 'recordingPreparationZip.preview', 'recordingPreparationZip.start'].includes(timedCommand)
       ? PREPARED_FILE_REQUEST_TIMEOUT_MS
       : command === 'localCatalog.prepare' || command.startsWith('playback.') || command === 'roon.library.play' || command === 'roon.library.queue'
@@ -977,12 +1093,14 @@ export class CoreSupervisor {
       }
       const timer = setTimeout(() => {
         this.removePending(id)
+        if (this.shutdownReceipt?.id === id) this.shutdownReceipt.timedOut = true
         cancelCoreRead()
         performanceSpan?.cancel()
         performanceSpan?.end('cancelled')
         emitRead('main.cancel', { outcome: 'timeout', reason: 'main-deadline' })
         reject(new CoreIpcError('TIMEOUT', 'Core request timed out'))
       }, deadlineAtMs === undefined ? timeoutMs : Math.max(1, deadlineAtMs - Date.now()))
+      if (closing) this.shutdownReceipt = { id, ...closing, timedOut: false, acknowledged: false }
       read?.signal?.addEventListener('abort', abort, { once: true })
       this.pending.set(id, { command, internal, timer, resolve, reject, ...(read?.trace ? { rendererReadId: read.trace.rendererReadId } : {}), ...(accept ? { accept } : {}), ...(deadlineAtMs === undefined ? {} : { readDeadlineAtMs: deadlineAtMs, cancelCoreRead }), ...(read?.signal ? { detachReadAbort: () => read.signal?.removeEventListener('abort', abort) } : {}), ...(performanceSpan ? { performanceSpan } : {}) })
       recorder?.setGauge('activeRequestCount', this.pending.size)
@@ -1015,7 +1133,7 @@ export class CoreSupervisor {
     const work = this.shutdownInternal()
     this.shutdownPromise = work
     try { await work }
-    catch (error) { if (this.shutdownPromise === work) this.shutdownPromise = undefined; throw error }
+    catch (error) { if (this.shutdownPromise === work && !this.shutdownReceipt) this.shutdownPromise = undefined; throw error }
   }
 
   async restart(env?: NodeJS.ProcessEnv, options?: { readyTimeoutMs?: number }): Promise<void> {
@@ -1138,7 +1256,7 @@ export class CoreSupervisor {
     try {
       child = this.options.dependencies.fork(
         this.options.entryPath,
-        [],
+        process.argv.includes(MOBILE_RESOURCE_CAPACITY_FLAG) ? [MOBILE_RESOURCE_CAPACITY_FLAG] : [],
         {
           cwd: this.options.cwd,
           env: { ...(this.options.env ?? {}) },
@@ -1152,14 +1270,23 @@ export class CoreSupervisor {
     }
     const consumeLocalAlbum = createLocalAlbumSafeTraceReader(collectLocalAlbumSafeTrace)
     const consumeArtwork = createDesktopArtworkReader(row => { if (this.child === child) collectDesktopArtwork(row) })
-    const consumeMobileCapability = createMobileCapabilityTraceReader(row => { if (this.child === child) collectMobileCapabilityTrace(row) })
+    const privateMobileRelay = createMobilePrivateContentTraceRelay({ enabled: this.options.onMobileCapabilityTrace !== undefined,
+      sink: line => { process.stdout.write(line) } })
+    this.mobileCatalogRelay = privateMobileRelay
+    const consumeMobileCapability = createMobileCapabilityTraceReader(row => {
+      if (this.child !== child) return
+      collectMobileCapabilityTrace(row)
+      privateMobileRelay.capability(row)
+      try { this.options.onMobileCapabilityTrace?.(row) } catch { /* 旁注分发失败不改变当前Core或原业务。 */ }
+    })
+    const consumeLibraryOperation = createLibraryOperationLogReader(line => { if (this.child === child) process.stdout.write(line) })
     const writeLocalPlaybackGuard = this.options.dependencies.writeLocalPlaybackGuard ?? writeLocalPlaybackGuardSync
     const forwardLocalPlaybackGuard: LocalPlaybackGuardSink = row => {
       if (this.child !== child) return false
       writeLocalPlaybackGuard(row)
       return true
     }
-    child.stdout?.on('data', chunk => { try { const text = chunk.toString(); consumeMobileCapability(text); consumeLocalAlbum(text); consumeArtwork(text); this.localPlaybackEvidence.consume(text,forwardLocalPlaybackGuard) } catch { /* 只消费闭schema行，不转发原stdout。 */ } })
+    child.stdout?.on('data', chunk => { try { const text = chunk.toString(); consumeLibraryOperation(text); consumeMobileCapability(text); if (this.child === child) { privateMobileRelay.collection(text); privateMobileRelay.catalog(text) }; consumeLocalAlbum(text); consumeArtwork(text); this.localPlaybackEvidence.consume(text,forwardLocalPlaybackGuard) } catch { /* 只消费闭schema行，不转发原stdout。 */ } })
     if (!this.options.libraryReadTrace) child.stderr?.on('data', () => { /* 消费原stderr以避免反压，不转发。 */ })
     if (this.options.libraryReadTrace) {
       const consume = createLibraryReadTraceStreamReader(this.options.libraryReadTrace)
@@ -1167,6 +1294,7 @@ export class CoreSupervisor {
       const consumePlaybackFailure = createPlaybackFailureTraceStreamReader(line => { process.stderr.write(line) })
       child.stderr?.on('data', chunk => { try { consumePlaybackFailure(String(chunk)) } catch { /* 其他 SDK 输出和错误栈只消费、不转发。 */ } })
     }
+    this.shutdownReceipt = undefined
     this.child = child
     this.port = channel.port2
     this.sourceWritesPort = sourceChannel?.port2
@@ -1216,7 +1344,7 @@ export class CoreSupervisor {
     }
     const readyTimer = setTimeout(() => {
       failStart(new CoreIpcError('TIMEOUT', 'Core 启动与恢复等待超时'))
-    }, this.readyTimeoutOverride ?? this.options.startupTimeoutMs ?? DEFAULT_STARTUP_TIMEOUT_MS)
+    }, this.readyTimeoutOverride ?? this.options.startupTimeoutMs ?? (this.persistentOwnerStartupConfigured ? PRIVATE_PERSISTENT_OWNER_STARTUP_TIMEOUT_MS : DEFAULT_STARTUP_TIMEOUT_MS))
     const startupClient: CoreStartupClient = {
       get playbackEvents() { return attempt.playbackEvents },
       request: <C extends IpcCommand>(command: C, payload: IpcCommandPayloads[C], expectedDatasetId?: string) => this.sendRequest(command, payload, false, expectedDatasetId, attempt) as Promise<IpcCommandResults[C]>,
@@ -1240,10 +1368,15 @@ export class CoreSupervisor {
     }
 
     const handleExit = (code: number): void => {
+      if (this.child === child && this.shuttingDown) logLibraryOperation('library', 'shutdown.supervisor-exit', code === 0 ? 'complete' : 'error', {
+        code: code === 0 ? 'EXIT_ZERO' : 'EXIT_FAILURE', count: [...this.pending.values()].filter(item => item.command === 'core.shutdown').length,
+      })
+      if (this.shutdownReceipt?.child === child) { this.shutdownReceipt = undefined; this.shutdownPromise = undefined }
       confirmExit()
       if (this.childExit?.child === child) this.childExit = undefined
       clearTimeout(readyTimer)
       attempt.valid = false
+      this.closeMobilePending(true, { port: channel.port2, generation: attempt.generation })
       if (this.child !== child) return
       this.options.onLifecycle?.({ event: 'exit', code })
       this.child = undefined
@@ -1268,7 +1401,7 @@ export class CoreSupervisor {
     }
 
     child.once('exit', handleExit)
-    channel.port2.on('message', (event) => {
+    attachMobileSealedCoreReplyReceiver(channel.port2, (event) => {
       if (this.child !== child || this.port !== channel.port2) return
       if(event.data&&typeof event.data==='object'&&['local-album-artwork-main-request','local-album-artwork-main-cancel'].includes(String(Object.getOwnPropertyDescriptor(event.data,'type')?.value))){
         try{const ports=Object.getOwnPropertyDescriptor(event,'ports')?.value;if(ports!==undefined&&(!Array.isArray(ports)||ports.length!==0))throw new CoreIpcError('INVALID_IPC_RESPONSE','封面来源不得转移端口');this.receiveLocalAlbumArtwork(event.data,attempt)}catch{this.failLocalAlbumArtworkRoute(attempt)}
@@ -1303,6 +1436,12 @@ export class CoreSupervisor {
         })
         return
       }
+      if (event.data && typeof event.data === 'object' && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-range-window-core') {
+        const id = Object.getOwnPropertyDescriptor(event.data, 'id')?.value;
+        const pending = typeof id === 'string' ? this.mobileContentPending.get(id) : undefined;
+        if (pending?.generation === attempt.generation && attempt.valid && !this.shuttingDown) pending.rangeTransport?.coreFrame(event.data);
+        return;
+      }
       if (event.data && typeof event.data === 'object' && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-content-core-response') {
         const id = Object.getOwnPropertyDescriptor(event.data, 'id')?.value;
         const pending = typeof id === 'string' ? this.mobileContentPending.get(id) : undefined;
@@ -1310,11 +1449,31 @@ export class CoreSupervisor {
         try {
           const response = captureMobileContentCoreResponse(event.data, pending.call);
           const unknown = 'kind' in response && response.kind === 'error' && response.outcome === 'unknown';
+          // Main先取消时，Core首个正常read回包只证明原RPC已结束；丢字节，不授FD quiet或复活调用者。
+          if (pending.logicalUnknown && pending.call.action === 'source' && pending.call.request.operation === 'read'
+            && response.action === 'source' && 'kind' in response && response.kind === 'source' && response.result.kind === 'mobile-source-read') {
+            this.settleMobileContent(pending.call.id, true, { code: 'ABORTED' });
+            return;
+          }
+          if (unknown) pending.logicalUnknown = true;
+          else if (pending.logicalUnknown && (pending.call.action === 'cancel' || mobileContentLateSourceRequest(pending.call))
+            && (!pending.lateTarget || !mobileContentLateResponseAllowed(pending.call, response))) return;
           if (!unknown) this.settleMobileContent(pending.call.id, 'kind' in response && response.kind === 'error', response);
           if (response.action === 'cancel' && 'kind' in response && response.kind === 'cancelled') {
             const original = this.mobileContentPending.get(response.requestId);
             if (original?.generation === attempt.generation) {
               original.reject(new MobileAuthPersistenceError('unknown')); this.settleMobileContent(response.requestId, true, { code: 'ABORTED' });
+            }
+            // 只消费原同代媒体目标的旧cancel；原目标即使已移除，其完整请求仍由受控pending引用保存。
+            const previous = pending.previousCancelId ? this.mobileContentPending.get(pending.previousCancelId) : undefined;
+            const target = pending.lateTarget, prior = previous?.call, current = pending.call;
+            if (previous?.generation === attempt.generation && previous.lateTarget === target && target
+              && prior?.action === 'cancel' && current.action === 'cancel' && prior.requestId === target.id
+              && current.requestId === target.id && prior.snapshotId === null && current.snapshotId === null
+              && prior.scope !== null && current.scope !== null && sameMobileContentScope(prior.scope, target.scope)
+              && sameMobileContentScope(current.scope, target.scope)) {
+              previous.reject(new MobileAuthPersistenceError('unknown'));
+              this.settleMobileContent(prior.id, true, { code: 'ABORTED' });
             }
           }
           if (response.action === 'invalidate-device' && 'ok' in response && response.ok === true && pending.call.action === 'invalidate-device') {
@@ -1333,14 +1492,34 @@ export class CoreSupervisor {
         } catch { pending.rangeTransport?.malformed(); pending.reject(new MobileAuthPersistenceError('unknown')); }
         return;
       }
+      if (event.data && typeof event.data === 'object' && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-owner-load-trace') {
+        const frame = copyMobileOwnerLoadTraceFrame(event.data)
+        if (frame && attempt.valid && !this.shuttingDown) {
+          try { this.mobileOwnerLoadContexts.get(frame.event.ordinal)?.emit(frame.event) } catch { /* 旁注不能改变原RPC。 */ }
+        }
+        return
+      }
       if (event.data && typeof event.data === 'object' && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-main-response') {
         const id = Object.getOwnPropertyDescriptor(event.data, 'id')?.value
         const pending = typeof id === 'string' ? this.mobilePending.get(id) : undefined
         if (!pending) return
-        clearTimeout(pending.timer); this.mobilePending.delete(id)
-        const reply = attempt.valid && !this.shuttingDown ? captureMobileCorePrivateReply(event.data, pending.call) : null
-        if (!reply) pending.reject(new MobileAuthPersistenceError('unknown'))
-        else pending.resolve(reply.result)
+        const originalMediaRoute = pending.mediaRead?.port === channel.port2 && pending.mediaRead.generation === attempt.generation
+        withMobileOwnerLoadTrace(pending.trace, () => markMobileOwnerLoadTrace('main', 'main.receive', 'ok'))
+        const reply = withMobileOwnerLoadTrace(pending.trace, () => observeMobileOwnerLoadTrace('main', 'main.capture', () =>
+          (attempt.valid && !this.shuttingDown || originalMediaRoute) ? captureMobileCorePrivateReply(event.data, pending.call) : null))
+        if (!reply) {
+          withMobileOwnerLoadTrace(pending.trace, () => markMobileOwnerLoadTrace('main', 'main.capture', 'invalid'))
+          if (pending.mediaRead) return
+          clearTimeout(pending.timer); this.mobilePending.delete(id)
+          pending.reject(new MobileAuthPersistenceError('unknown'))
+        }
+        else {
+          if (pending.mediaRead && !originalMediaRoute) return
+          clearTimeout(pending.timer); this.mobilePending.delete(id)
+          if (pending.mediaRead && (!attempt.valid || this.shuttingDown || this._status !== 'ready'
+            || this.port !== pending.mediaRead.port || this.startupGeneration !== pending.mediaRead.generation)) pending.reject(new MobileAuthPersistenceError('unknown'))
+          else pending.resolve(reply.result)
+        }
         return
       }
       const parsed = parseIpcRuntimeMessage(event.data)
@@ -1384,7 +1563,23 @@ export class CoreSupervisor {
         return
       }
       const pending = this.pending.get(message.id)
-      if (!pending) return
+      if (!pending) {
+        const receipt = this.shutdownReceipt
+        if (!receipt || !receipt.timedOut || receipt.acknowledged || receipt.id !== message.id
+          || receipt.child !== child || receipt.port !== channel.port2 || this.child !== child || this.port !== receipt.port
+          || receipt.generation !== this.startupGeneration) return
+        const response = validateIpcResponseForCommand(message, 'core.shutdown')
+        if (!response.ok || !response.value.ok) return
+        try {
+          // 迟到只交还原Core的正常退出资格，原TIMEOUT关闭Promise仍保持失败。
+          receipt.port.postMessage({ version: 1, type: 'musicbridge.core-shutdown-received', requestId: receipt.id })
+          receipt.acknowledged = true
+          logLibraryOperation('library', 'shutdown.supervisor-late-receipt', 'complete', { code: 'LATE_RECEIPT_SENT' })
+        } catch {
+          logLibraryOperation('library', 'shutdown.supervisor-late-receipt', 'error', { code: 'LATE_RECEIPT_POST_FAILED' })
+        }
+        return
+      }
       if (pending.readDeadlineAtMs !== undefined && Date.now() >= pending.readDeadlineAtMs) {
         clearTimeout(pending.timer)
         this.removePending(message.id)
@@ -1400,6 +1595,9 @@ export class CoreSupervisor {
             pending.command as IpcInternalCommand,
           )
         : validateIpcResponseForCommand(message, pending.command)
+      if (pending.command === 'core.shutdown') logLibraryOperation('library', 'shutdown.supervisor-response', response.ok && response.value.ok ? 'complete' : 'error', {
+        code: !response.ok ? 'RESPONSE_INVALID' : response.value.ok ? 'ACK_SUCCESS' : 'ACK_FAILURE',
+      })
       if (!response.ok) {
         clearTimeout(pending.timer)
         this.removePending(message.id)
@@ -1413,7 +1611,14 @@ export class CoreSupervisor {
       if (isLibraryReadCommand(pending.command)) emitLibraryReadTrace(this.options.libraryReadTrace, { stage: 'main.response', command: pending.command, coreReadId: message.id,
         ...(pending.rendererReadId ? { rendererReadId: pending.rendererReadId } : {}), ...(response.value.ok ? { outcome: 'ok' } : { ...libraryReadTraceFailure(response.value.error), reason: 'upstream-response' }) })
       if (response.value.ok) {
-        try { pending.accept?.(response.value.result); pending.resolve(response.value.result) }
+        try {
+          if (pending.command === 'core.shutdown') {
+            // 原关闭成功回执已在Main核收；确认交还同一端口后Utility才可正常退出。
+            channel.port2.postMessage({ version: 1, type: 'musicbridge.core-shutdown-received', requestId: message.id })
+            logLibraryOperation('library', 'shutdown.supervisor-received', 'complete', { code: 'RECEIPT_SENT' })
+          }
+          pending.accept?.(response.value.result); pending.resolve(response.value.result)
+        }
         catch (error) { pending.reject(error instanceof CoreIpcError ? error : new CoreIpcError('INTERNAL_ERROR', 'Core 启动恢复未完成')) }
       } else {
         pending.reject(new CoreIpcError(response.value.error.code, response.value.error.message))
@@ -1526,7 +1731,7 @@ export class CoreSupervisor {
     this.revokeWorkbenchRequests(error,physicalExit)
     for(const flight of this.albumArtworkFlights)flight.controller.abort()
     this.closeLocalAlbumPending(error)
-    this.closeMobilePending()
+    this.closeMobilePending(physicalExit)
     this.closeMobileContentPending()
     for (const [id, pending] of this.pending) {
       clearTimeout(pending.timer)

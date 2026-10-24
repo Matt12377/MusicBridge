@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { roonTrackIdFromReference } from '@music-bridge/contracts'
-import type { PlaybackSnapshot, PlaybackStreamSnapshot, PlaybackStreamStamp, RoonLibraryItem } from '@music-bridge/contracts'
+import { effectScope, nextTick, watch } from 'vue'
+import { isLocalAlbumArtworkReply, isLocalAlbumTrackItem, roonTrackIdFromReference } from '@music-bridge/contracts'
+import type { LocalAlbumArtworkReply, LocalAlbumArtworkRequest, LocalAlbumSummary, LocalAlbumTrackItem, PlaybackSnapshot, PlaybackStreamSnapshot, PlaybackStreamStamp, RoonLibraryItem } from '@music-bridge/contracts'
 import type { MusicBridgePublicApi } from '../src/preload/api.js'
 import { usePlaybackSession, type PlaybackSessionOptions } from '../src/renderer/src/composables/application/usePlaybackSession.js'
+import { useLocalPlaybackArtwork } from '../src/renderer/src/composables/application/useLocalPlaybackArtwork.js'
+import { createPlaybackClock } from '../src/renderer/src/components/player/playbackClock.js'
+import { localPlaybackSeekAllowed } from '../src/renderer/src/components/player/details.js'
 import { useRendererLifecycle } from '../src/renderer/src/composables/application/useRendererLifecycle.js'
 import { favoriteDescriptorForRoonItem } from '../src/renderer/src/composables/playbackFavorites.js'
 
@@ -21,7 +25,7 @@ function deferred<T>() { let resolve!: (value: T) => void, reject!: (error: Erro
 const tick = () => new Promise<void>(resolve => setImmediate(resolve))
 function fixture(apiOverrides: Partial<MusicBridgePublicApi> = {},
   resolveFavoriteDescriptor: PlaybackSessionOptions['resolveFavoriteDescriptor'] = () => { throw new Error('不应读取收藏描述符') }) {
-  const calls = { seed: 0, legacy: 0, lyrics: 0, like: 0, favorite: 0 }, errors: unknown[] = []
+  const calls = { seed: 0, legacy: 0, lyrics: 0, like: 0, favorite: 0 }, errors: unknown[] = [], messages: string[] = []
   const api = {
     getPlaybackStreamSnapshot: async () => { calls.seed++; return { stamp: stamp(), snapshot: snapshot() } },
     getPlaybackState: async () => { calls.legacy++; return snapshot() },
@@ -33,8 +37,8 @@ function fixture(apiOverrides: Partial<MusicBridgePublicApi> = {},
     getZoneLifecycleStatus: () => 'selected', getSelectedQuality: () => 'auto', getMatchResult: () => undefined,
     getPendingMatch: () => undefined, onMatchTracks: () => undefined, getRoonPlaybackContext: () => undefined,
     resolveFavoriteDescriptor, onEnterNowPlaying: () => undefined,
-    clearActionError: () => undefined, onActionMessage: () => undefined, onError: e => errors.push(e), onToast: () => undefined })
-  return { session, calls, errors, api }
+    clearActionError: () => undefined, onActionMessage: message => messages.push(message), onError: e => errors.push(e), onToast: () => undefined })
+  return { session, calls, errors, messages, api }
 }
 
 test('MBP006 compact bootstrap与百progress零队列扫描、零喜欢/最近重算', async t => {
@@ -421,7 +425,7 @@ for (const phase of ['PLAYING', 'PAUSED'] as const) {
     t.after(() => h.session.dispose()); await h.session.initializePlaybackStream()
     const settled: (number | undefined)[] = []
     await h.session.seekPlayback(50000, result => settled.push(result))
-    assert.equal(sends, 1); assert.equal(reads, 2); assert.deepEqual(settled, [])
+    assert.equal(sends, 1); assert.equal(reads, 1); assert.deepEqual(settled, [])
     h.session.acceptPlaybackStreamEvent({ event: 'playback.progress', payload: { stamp: stamp(2, { source: 'local_file' }), positionMs: 11000 } })
     assert.deepEqual(settled, [])
     h.session.acceptPlaybackStreamEvent({ event: 'playback.progress', payload: { stamp: stamp(3, { source: 'local_file' }), positionMs: 50000 } })
@@ -454,7 +458,7 @@ test('本地seek950：compact ACK后失权使后续目标位置也不能确认�
   h.session.acceptPlaybackStreamEvent({ event: 'playback.snapshot', payload: localSeekEnvelope950(localSeekSnapshot950('SUBMISSION_UNKNOWN'), 2) })
   assert.deepEqual(settled, [undefined])
   h.session.acceptPlaybackStreamEvent({ event: 'playback.snapshot', payload: localSeekEnvelope950(localSeekSnapshot950('PLAYING', 50000), 3) })
-  assert.equal(sends, 1); assert.equal(reads, 2); assert.deepEqual(settled, [undefined]); assert.deepEqual(h.errors, [])
+  assert.equal(sends, 1); assert.equal(reads, 1); assert.deepEqual(settled, [undefined]); assert.deepEqual(h.errors, [])
 })
 
 test('本地seek950：attempt会话Core换代再恢复原值仍使旧ACK失效', async t => {
@@ -512,4 +516,151 @@ test('本地seek950：legacy已确认播放暂停仍按原回执结束草稿', a
     await h.session.seekPlayback(50000, result => settled.push(result))
     assert.equal(sends, 1); assert.equal(reads, 2); assert.deepEqual(settled, [50000]); assert.deepEqual(h.errors, [])
   }
+})
+
+
+const seekId951 = (value: number) => `33333333-3333-4333-8333-${String(value).padStart(12, '0')}`
+function seekMember951(): LocalAlbumTrackItem {
+  const metadata = { title: '合成本地进度', artist: '合成作者', album: '合成专辑' }
+  const member: LocalAlbumTrackItem = { facts: {
+    track: { id: seekId951(1), assetId: seekId951(2), selectionRevision: '1', segment: null },
+    asset: { id: seekId951(2), libraryRootId: seekId951(3), sourceRootId: seekId951(4), rootRevision: '1', fileRevision: '1', locationRevision: '1', sampleFrames: null, timebaseHz: null },
+    metadata: { raw: metadata, effective: metadata, override: null }, versionTokens: [], editions: [], fileParameters: null,
+  }, disc: 1, trackNumber: 1, sequence: 1, statuses: ['has-artwork'] }
+  assert.ok(isLocalAlbumTrackItem(member)); return member
+}
+function seekSnapshot951(phase: 'PLAYING' | 'PAUSED' = 'PLAYING', positionMs = 10000): PlaybackSnapshot {
+  const value = localSeekSnapshot950(phase, positionMs), member = seekMember951()
+  value.currentTrack!.id = member.facts.track.id
+  value.queue.items[0]!.trackId = member.facts.track.id
+  value.queue.items[0]!.track!.id = member.facts.track.id
+  value.queue.items[0]!.local!.local_track_id = member.facts.track.id
+  value.queue.items[0]!.local!.asset_id = member.facts.asset.id
+  value.local!.local_track_id = member.facts.track.id; value.local!.asset_id = member.facts.asset.id
+  return value
+}
+function seekArtworkReply951(request: LocalAlbumArtworkRequest): LocalAlbumArtworkReply {
+  const display = { mime: 'image/jpeg' as const, bytes: 3, sha256: 'a'.repeat(64), width: 512, height: 512, dataUrl: 'data:image/jpeg;base64,/9j/' }
+  const reply: LocalAlbumArtworkReply = { ...request, status: 'ready', image: { original: { mime: display.mime, bytes: display.bytes, sha256: display.sha256, width: 512, height: 512 }, display } }
+  assert.ok(isLocalAlbumArtworkReply(reply, request)); return reply
+}
+async function drainArtwork951(): Promise<void> { for (let turn = 0; turn < 8; turn++) { await Promise.resolve(); await nextTick() } }
+// 原session、真实封面叶、真实DTO与原seek授权谓词；只合成preload结果，不访问文件或Roon。
+function artworkSeekFixture951(t: test.TestContext, overrides: Partial<MusicBridgePublicApi> = {}, phase: 'PLAYING' | 'PAUSED' = 'PLAYING') {
+  const value = seekSnapshot951(phase), member = seekMember951()
+  const album: LocalAlbumSummary = { id: 'synthetic-seek-album', rootId: member.facts.asset.libraryRootId, kind: 'source-directory', editionId: null,
+    representativeTrackId: member.facts.track.id, title: '合成专辑', artists: ['合成作者'], year: null, versionLabel: null,
+    trackCount: 1, revision: 'album-1', artworkAvailable: true, artworkState: 'available', statuses: ['has-artwork'] }
+  const opened = [{ album, tracks: [member] }], scope = effectScope()
+  let reads = 0, imageReads = 0
+  const h = fixture({ ...overrides, getPlaybackStreamSnapshot: async () => {
+    reads++; return overrides.getPlaybackStreamSnapshot ? overrides.getPlaybackStreamSnapshot() : localSeekEnvelope950(value)
+  } })
+  const artwork = scope.run(() => useLocalPlaybackArtwork({ getDatasetId: () => seekId951(90),
+    isReadReady: () => h.session.playbackSyncStatus.value === 'ready', getClockIdentity: () => h.session.playbackClockIdentity.value,
+    getSnapshot: () => h.session.playbackState.value, getTrack: () => h.session.currentTrack.value,
+    getOpenedAlbums: () => opened, read: async request => { imageReads++; return seekArtworkReply951(request) } }))!
+  t.after(() => { scope.stop(); h.session.dispose() })
+  const progress = (sequence: number, positionMs: number) => h.session.acceptPlaybackStreamEvent({ event: 'playback.progress',
+    payload: { stamp: localSeekEnvelope950(value, sequence).stamp, positionMs } })
+  const start = async () => { await h.session.initializePlaybackStream(); await drainArtwork951(); assert.equal(imageReads, 1); assert.ok(artwork.currentTrack.value?.artworkUrl) }
+  return { ...h, artwork, value, progress, start, reads: () => reads, imageReads: () => imageReads,
+    allowed: () => h.session.playbackSyncStatus.value === 'ready' && localPlaybackSeekAllowed(h.session.playbackState.value, 'zone-a') }
+}
+
+for (const phase of ['PLAYING', 'PAUSED'] as const) {
+  test(`健康seek951：${phase}真实ACK和目标观测之间保持可拖、当前封面且零额外seed`, async t => {
+    const ack = deferred<{ positionMs: number }>(); let sends = 0
+    const h = artworkSeekFixture951(t, { seek: () => { sends++; return ack.promise } }, phase)
+    await h.start(); const originalImage = h.artwork.currentTrack.value!.artworkUrl!, transitions: unknown[] = []
+    const stop = watch(() => [h.session.playbackSyncStatus.value, h.artwork.currentTrack.value?.artworkUrl] as const,
+      value => transitions.push([...value]), { flush: 'sync' }); t.after(stop)
+    const settled: (number | undefined)[] = [], work = h.session.seekPlayback(50000, value => settled.push(value))
+    assert.equal(h.allowed(), true); assert.deepEqual(settled, [])
+    ack.resolve({ positionMs: 10000 }); await work; await drainArtwork951()
+    assert.equal(h.allowed(), true); assert.equal(h.reads(), 1); assert.equal(h.imageReads(), 1)
+    assert.equal(h.artwork.currentTrack.value!.artworkUrl, originalImage); assert.deepEqual(settled, [])
+    h.progress(2, 11000); assert.deepEqual(settled, [])
+    h.progress(3, 50000); await drainArtwork951()
+    assert.deepEqual(settled, [50000]); assert.equal(h.allowed(), true); assert.equal(sends, 1)
+    assert.equal(h.reads(), 1); assert.equal(h.imageReads(), 1); assert.deepEqual(h.errors, [])
+    assert.ok(transitions.every(value => Array.isArray(value) && value[0] === 'ready' && value[1] === originalImage))
+  })
+}
+
+test('健康seek951：真实目标先到仍须等原ACK，连续新拖动不被旧ACK或旧目标结算', async t => {
+  const first = deferred<{ positionMs: number }>(), second = deferred<{ positionMs: number }>(); let sends = 0
+  const h = artworkSeekFixture951(t, { seek: () => ++sends === 1 ? first.promise : second.promise }); await h.start()
+  const a: (number | undefined)[] = [], b: (number | undefined)[] = []
+  const old = h.session.seekPlayback(50000, value => a.push(value)); h.progress(2, 50000)
+  assert.deepEqual(a, []); assert.equal(h.allowed(), true)
+  const current = h.session.seekPlayback(80000, value => b.push(value))
+  first.resolve({ positionMs: 50000 }); await old; assert.deepEqual(a, []); assert.deepEqual(b, [])
+  h.progress(3, 50000); second.resolve({ positionMs: 10000 }); await current
+  assert.deepEqual(b, []); assert.equal(h.allowed(), true)
+  h.progress(4, 80000); await drainArtwork951()
+  assert.deepEqual(a, []); assert.deepEqual(b, [80000]); assert.equal(sends, 2)
+  assert.equal(h.reads(), 1); assert.equal(h.imageReads(), 1); assert.ok(h.artwork.currentTrack.value?.artworkUrl)
+})
+
+test('健康seek951：ACK无真实目标仍原5秒未确认、回最新观测且不伪造成功或禁用下次拖动', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  let sends = 0; const h = artworkSeekFixture951(t, { seek: async () => { sends++; return { positionMs: 50000 } } }, 'PAUSED')
+  await h.start(); const clock = createPlaybackClock(), identity = h.session.playbackClockIdentity.value!
+  clock.observe({ id: identity, state: 'paused', position: 10000, duration: 180000 }, 0)
+  const token = clock.preview(50000, 0), settled: (number | undefined)[] = []
+  await h.session.seekPlayback(50000, value => { settled.push(value); clock.settle(token, value, 0) })
+  h.progress(2, 11000); clock.observe({ id: identity, state: 'paused', position: 11000, duration: 180000 }, 0)
+  assert.equal(clock.read(0), 50000); assert.deepEqual(settled, [])
+  t.mock.timers.tick(5001)
+  assert.deepEqual(settled, [undefined]); assert.equal(clock.read(0), 11000)
+  assert.equal(h.session.playbackState.value!.positionMs, 11000); assert.equal(h.allowed(), true)
+  assert.ok(h.messages.includes('尚未收到拖动位置确认，请重试。'))
+  await h.session.seekPlayback(60000); h.progress(3, 60000)
+  assert.equal(sends, 2); assert.equal(h.reads(), 1); assert.equal(h.imageReads(), 1)
+})
+
+test('seek失步951：真实协议缺口仍撤旧图、一次只读失败后保持error，显式retry才恢复且零mutation重放', async t => {
+  const recovery = deferred<PlaybackStreamSnapshot | null>(); let seeds = 0, sends = 0
+  const value = seekSnapshot951(), h = artworkSeekFixture951(t, {
+    getPlaybackStreamSnapshot: async () => ++seeds === 1 ? localSeekEnvelope950(value) : seeds === 2 ? recovery.promise : localSeekEnvelope950(seekSnapshot951('PLAYING', 50000), 200),
+    seek: async () => { sends++; return { positionMs: 10000 } },
+  })
+  await h.start(); const settled: (number | undefined)[] = []
+  await h.session.seekPlayback(50000, result => settled.push(result)); h.progress(3, 12000)
+  assert.equal(h.session.playbackSyncStatus.value, 'syncing'); assert.equal(h.artwork.currentTrack.value?.artworkUrl, undefined)
+  recovery.reject(new Error('合成真实只读恢复失败')); await drainArtwork951()
+  assert.equal(h.session.playbackSyncStatus.value, 'error'); assert.equal(h.allowed(), false); assert.deepEqual(settled, [])
+  for (let sequence = 4; sequence < 100; sequence++) h.progress(sequence, 50000)
+  await drainArtwork951(); assert.equal(h.reads(), 2); assert.equal(sends, 1)
+  assert.equal(h.artwork.currentTrack.value?.artworkUrl, undefined)
+  await h.session.retryPlaybackSync(); await drainArtwork951()
+  assert.equal(h.session.playbackSyncStatus.value, 'ready'); assert.equal(h.reads(), 3); assert.equal(sends, 1)
+  assert.deepEqual(settled, [50000]); assert.equal(h.imageReads(), 2); assert.ok(h.artwork.currentTrack.value?.artworkUrl)
+})
+
+test('seek拒绝951：mutation只派一次，原错误与只读恢复保留而不沿健康分支吞错', async t => {
+  let sends = 0; const reason = new Error('合成原seek拒绝')
+  const h = artworkSeekFixture951(t, { seek: async () => { sends++; throw reason } }); await h.start()
+  const settled: (number | undefined)[] = []
+  await h.session.seekPlayback(50000, value => settled.push(value)); await drainArtwork951()
+  assert.equal(sends, 1); assert.equal(h.reads(), 2); assert.deepEqual(settled, [undefined]); assert.deepEqual(h.errors, [reason])
+  assert.equal(h.session.playbackState.value!.positionMs, 10000); assert.equal(h.session.playbackSyncStatus.value, 'ready')
+})
+
+test('seek换代951：真实新Core撤图，旧ACK与旧实例full不得复活旧显示或结算旧草稿', async t => {
+  const ack = deferred<{ positionMs: number }>(); let sends = 0
+  const h = artworkSeekFixture951(t, { seek: () => { sends++; return ack.promise } }); await h.start()
+  const settled: (number | undefined)[] = [], pending = h.session.seekPlayback(50000, value => settled.push(value))
+  h.session.acceptPlaybackReady({ protocol: 'compact-v1', coreInstanceId: other })
+  assert.equal(h.session.playbackSyncStatus.value, 'syncing'); assert.equal(h.artwork.currentTrack.value?.artworkUrl, undefined)
+  const current = localSeekEnvelope950(seekSnapshot951('PLAYING', 15000))
+  current.stamp.coreInstanceId = other
+  h.session.acceptPlaybackStreamEvent({ event: 'playback.snapshot', payload: current }); await drainArtwork951()
+  const image = h.artwork.currentTrack.value?.artworkUrl, reads = h.imageReads()
+  ack.resolve({ positionMs: 50000 }); await pending
+  h.session.acceptPlaybackStreamEvent({ event: 'playback.snapshot', payload: localSeekEnvelope950(seekSnapshot951('PLAYING', 50000), 99) }); await drainArtwork951()
+  assert.equal(h.session.playbackState.value!.positionMs, 15000); assert.deepEqual(settled, [])
+  assert.equal(h.artwork.currentTrack.value?.artworkUrl, image); assert.equal(h.imageReads(), reads)
+  assert.equal(h.reads(), 1); assert.equal(sends, 1); assert.deepEqual(h.errors, [])
 })

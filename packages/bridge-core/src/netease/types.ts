@@ -81,6 +81,9 @@ export interface NeteasePort {
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
   searchArtists(query: string, page: PageRequest): Promise<Page<ArtistSummary>>;
   searchAlbums(query: string, page: PageRequest): Promise<Page<AlbumSummary>>;
+  searchSuggestions?(query: string): Promise<{ keywords: string[] }>;
+  getArtistProfile?(artistId: string): Promise<import('@music-bridge/contracts').NeteaseArtistProfile>;
+  getArtistAlbums?(artistId: string, page: PageRequest): Promise<Page<AlbumSummary>>;
   getArtist(artistId: string, page: PageRequest): Promise<import('@music-bridge/contracts').ArtistDetail>;
   getAlbum(albumId: string, page: PageRequest): Promise<import('@music-bridge/contracts').AlbumDetail>;
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
@@ -96,12 +99,16 @@ export interface NeteasePort {
 /** 仅可信移动适配器可用；调用者不能传 Cookie、URL、代理或任意 SDK 方法名。 */
 export type NeteaseMobileReadRequest =
   | { operation: 'song-detail'; ids: readonly string[] }
+  | { operation: 'directory-search'; kind: 'tracks' | 'albums' | 'artists'; query: string; offset: number; limit: number }
+  | { operation: 'artist-profile' | 'artist-songs'; id: string }
+  | { operation: 'artist-albums'; id: string; offset: number; limit: number }
   | { operation: 'album' | 'playlist-detail' | 'lyrics'; id: string }
   | { operation: 'user-playlists'; userId: string; offset: number; limit: number }
   | { operation: 'daily' | 'charts' | 'personal-fm' }
   | { operation: 'recommended-playlists'; limit: number }
   | { operation: 'new-albums'; offset: number; limit: number }
-  | { operation: 'stream'; id: string; quality: QualityLevel };
+  | { operation: 'stream'; id: string; quality: QualityLevel }
+  | { operation: 'streams'; ids: readonly string[]; quality: QualityLevel };
 export interface NeteaseMobileAccountSnapshot { readonly accountId: string; readonly providerEpoch: string }
 export interface NeteaseMobileRawSnapshot { readonly providerEpoch: string; readonly response: unknown }
 export interface NeteaseMobileAccountInvalidation { readonly previousProviderEpoch: string; readonly nextProviderEpoch: string }
@@ -112,5 +119,5 @@ export interface NeteaseMobileReadPort {
   mobileRead(request: NeteaseMobileReadRequest, options?: NeteaseRequestOptions): Promise<NeteaseMobileRawSnapshot>;
   onMobileAccountInvalidated(listener: (event: NeteaseMobileAccountInvalidation) => void): () => void;
   /** 等待本域原始 SDK Promise 落定；本地 abort/timeout 不代表底层 quiet。 */
-  awaitMobileQuiet(): Promise<void>;
+  awaitMobileQuiet(signal?: AbortSignal): Promise<void>;
 }

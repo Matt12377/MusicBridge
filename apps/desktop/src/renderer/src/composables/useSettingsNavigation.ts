@@ -1,6 +1,6 @@
-import { computed, isRef, ref, type Ref } from 'vue'
+import { computed, isRef, nextTick, ref, type Ref } from 'vue'
 
-export const SETTINGS_CATEGORIES = ['account', 'playback', 'roon', 'application', 'advanced'] as const
+export const SETTINGS_CATEGORIES = ['application', 'library', 'playback', 'roon', 'account', 'advanced'] as const
 export type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number]
 export type SettingsBuildMode = 'development' | 'production'
 type SettingsBuildModeInput = SettingsBuildMode | Ref<SettingsBuildMode>
@@ -33,16 +33,19 @@ export function nextSettingsCategory(
   const categories = visibleCategories(buildMode)
   if (key === 'Home') return categories[0]
   if (key === 'End') return categories[categories.length - 1]
-  if (key !== 'ArrowLeft' && key !== 'ArrowRight') return current
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) return current
   const currentIndex = categories.indexOf(current)
   if (currentIndex < 0) return categories[0]
-  const direction = key === 'ArrowRight' ? 1 : -1
+  const direction = key === 'ArrowRight' || key === 'ArrowDown' ? 1 : -1
   return categories[(currentIndex + direction + categories.length) % categories.length]
 }
 
 function readStoredCategory(buildMode: SettingsBuildMode, storage: SettingsStorage | undefined): SettingsCategory {
-  const stored = storage?.getItem(SETTINGS_CATEGORY_STORAGE_KEY)
-  return stored && isVisibleCategory(stored, buildMode) ? stored : 'account'
+  try {
+    const stored = storage?.getItem(SETTINGS_CATEGORY_STORAGE_KEY)
+    if (stored && isVisibleCategory(stored, buildMode)) return stored
+  } catch { /* 偏好读取不可用时仍可进入设置。 */ }
+  return 'application'
 }
 
 export function createSettingsNavigation(
@@ -58,7 +61,7 @@ export function createSettingsNavigation(
     try {
       storage?.setItem(SETTINGS_CATEGORY_STORAGE_KEY, category)
     } catch {
-      // UI-only preference is best effort and never blocks Settings.
+      // 本地偏好写入失败不阻断设置操作。
     }
   }
 
@@ -67,6 +70,10 @@ export function createSettingsNavigation(
     if (next === activeCategory.value) return
     event.preventDefault()
     selectCategory(next)
+    const tabs = event.currentTarget as HTMLElement | null
+    void nextTick(() => {
+      if (activeCategory.value === next) tabs?.querySelector<HTMLButtonElement>(`[role="tab"][data-settings-category="${next}"]`)?.focus()
+    })
   }
 
   return {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test, { after, type TestContext } from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import fs, { type BigIntStats } from 'node:fs';
 import fsPromises, { chmod, lstat, mkdir, mkdtemp, readFile, realpath, writeFile, type FileHandle } from 'node:fs/promises';
@@ -13,6 +13,12 @@ import type { AssetLease } from '../src/stream/local-file-source.js';
 const hash = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 const signature = (info: BigIntStats): string => [info.dev, info.ino, info.size, info.mtimeNs, info.ctimeNs].join(':');
 const sealedAudio = new URL('./fixtures/mbrs003/audio/', import.meta.url);
+
+// 每个 fixture 先关闭 Reader 和来源租约；文件结束时才收口同一 dist 的常驻 Rust 池。
+after(async () => {
+  const workers = await import(new URL('../dist/library/rust-media-worker.js', import.meta.url).href) as typeof import('../src/library/rust-media-worker.js');
+  await workers.closeRustMediaWorkerPool();
+});
 
 /** 同一 fresh dist 的真实 Reader、Scanner、票据和 FD 池共享一套保护表。 */
 async function modules() {
@@ -171,7 +177,8 @@ async function runReadChain(t: TestContext, identity: { dev: bigint; rootIno: bi
   assert.deepEqual(f.scanner.get(initial.jobId).progress, { visited: '1', accepted: '1', rejected: '0' });
   assert.equal(f.results.length, 1); const parsed = f.results[0]!;
   assert.equal(parsed.status, 'ok'); if (parsed.status !== 'ok') throw new Error('必须使用实际 Worker 成功结果。');
-  assert.deepEqual(parsed.fields, f.entry.expectedTags);
+  // 原封存夹具只含单个 IART，无专辑艺人；新增结构化字段也必须由真实解析给出。
+  assert.deepEqual(parsed.fields, { ...f.entry.expectedTags, artists: [f.entry.expectedTags!.artist], albumArtists: [] });
   assert.equal(parsed.technical.container, 'WAVE'); assert.equal(parsed.technical.sampleRateHz, 44100);
   assert.equal(parsed.technical.channels, 2); assert.equal(parsed.technical.bitsPerSample, 16); assert.equal(parsed.technical.lossless, true);
   assert.equal(parsed.readEvidence.bytesRead > 0, true); assert.equal(parsed.readEvidence.wholeAudioHash, false);
@@ -183,11 +190,25 @@ async function runReadChain(t: TestContext, identity: { dev: bigint; rootIno: bi
   const asset = f.repository.localCatalog.asset(saved.value.assetId), track = f.repository.localCatalog.track(saved.value.trackId);
   assert.equal(asset.sourceRootId, f.source.id); assert.equal(track.assetId, asset.id);
   assert.deepEqual(f.releasedCodes, ['EBADF']);
-  const start = f.events.findIndex(event => event.type === 'worker-start');
-  const exit = f.events.findIndex(event => event.type === 'worker-exit');
+  const phases = f.events.filter((event): event is Extract<MetadataReaderLifecycle, { type: 'metadata-phase' }> => event.type === 'metadata-phase');
+  assert.equal(phases.length, 4);
+  assert.ok(phases[0]!.readId);
+  assert.equal(new Set(phases.map(event => event.readId)).size, 1, '同一次实际解析的 readId 必须一致');
+  assert.deepEqual(phases.map(({ stage, state, backend, code }) => ({ stage, state, backend, code })), [
+    { stage: 'read', state: 'start', backend: 'rust-media-worker', code: undefined },
+    { stage: 'parse', state: 'start', backend: 'rust-media-worker', code: undefined },
+    { stage: 'read', state: 'complete', backend: 'rust-media-worker', code: undefined },
+    { stage: 'parse', state: 'complete', backend: 'rust-media-worker', code: undefined },
+  ]);
+  const acquired = f.events.findIndex(event => event.type === 'lease-acquired');
   const quiet = f.events.findIndex(event => event.type === 'lease-released');
   const done = f.events.findIndex(event => event.type === 'read-complete');
-  assert.equal(start >= 0 && exit > start && quiet > exit && done > quiet, true, '原 Worker exit 和真实 FD quiet 先于完成');
+  const lease = f.events[acquired], released = f.events[quiet];
+  assert.ok(lease?.type === 'lease-acquired'); assert.ok(released?.type === 'lease-released');
+  assert.equal(released.fd, lease.fd, '真实释放必须对应本次取得的媒体 FD');
+  assert.equal(acquired < f.events.indexOf(phases[0]!) && quiet > f.events.indexOf(phases[3]!) && done > quiet, true,
+    '常驻 Rust 解析完成后，真实 FD quiet 必须先于读取成功');
+  assert.deepEqual(f.events.filter(event => event.type === 'read-complete'), [{ type: 'read-complete', status: 'ok' }]);
   assert.deepEqual(f.admission.resourceCounts(), { permits: 0, revoked: 0, watches: 0, timers: 0, closed: false });
   assert.deepEqual(m.locks.physicalResourceLocks.combinedSnapshot(), f.beforeClaims);
 

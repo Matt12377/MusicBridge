@@ -1,21 +1,31 @@
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test, { after, type TestContext } from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { fstatSync, type Stats } from 'node:fs';
 import { chmod, lstat, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { MetadataReadBudget, MetadataReaderLifecycle, MetadataReadResult } from '../src/library/metadata-reader-types.js';
+import { DEFAULT_METADATA_READ_BUDGET, RUST_MEDIA_METADATA_PARSER_VERSION } from '../src/library/metadata-reader-types.js';
+import type { RustMediaWorkerPool, RustMetadataReadResult } from '../src/library/rust-media-worker.js';
 import { isFileAudioParameters } from '@music-bridge/contracts';
 import { mobileOwnerDirectPlaybackKind } from '../src/mobile/catalog-service.js';
 import { loadFreshMetadataReader } from './helpers/mbrs003-audio-fixtures.js';
 
-// 全部媒体都是自有合成字节；真正读取同一次 fresh dist 的固定 Worker，不借普通曲库或 Roon。
+// 原 Reader.close 只归还本 Reader；全部用例收尾后关闭同一 fresh dist 的常驻池。
+after(async () => {
+  const workers = await import(new URL('../dist/library/rust-media-worker.js', import.meta.url).href) as typeof import('../src/library/rust-media-worker.js');
+  await workers.closeRustMediaWorkerPool();
+});
+
+// 全部媒体都是自有合成字节；真正读取同一次 fresh dist 的常驻 Rust 池，不借普通曲库或 Roon。
 const readerModule = await loadFreshMetadataReader();
 const files = await import(new URL('../dist/recording/source-files.js', import.meta.url).href) as typeof import('../src/recording/source-files.js');
 const locks = await import(new URL('../dist/stream/physical-resource-locks.js', import.meta.url).href) as typeof import('../src/stream/physical-resource-locks.js');
-const parserVersion = 'music-metadata-11.15.0/mbrs003-v4';
+const workers = await import(new URL('../dist/library/rust-media-worker.js', import.meta.url).href) as typeof import('../src/library/rust-media-worker.js');
+const parserVersion = RUST_MEDIA_METADATA_PARSER_VERSION;
 const pcmGuid = '0100000000001000800000aa00389b71', floatGuid = '0300000000001000800000aa00389b71';
 const rate = 48000, frames = 4800, tags = { title: '合成扩展 WAVE', artist: '合成艺人', album: '合成专辑' };
+const expectedFields = { ...tags, artists: [tags.artist], albumArtists: [] };
 const digest = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 function chunk(id: string, payload: Buffer, declaredBytes = payload.length): Buffer {
@@ -68,23 +78,70 @@ function sourceIdentity(st: Stats): Record<string, string> {
 function closed(fd: number): boolean {
   try { fstatSync(fd); return false; } catch (error) { return (error as NodeJS.ErrnoException).code === 'EBADF'; }
 }
-function quiet(events: readonly MetadataReaderLifecycle[], result: MetadataReadResult): void {
-  const starts = events.filter((event): event is Extract<MetadataReaderLifecycle, { type: 'worker-start' | 'worker-online' }> => event.type === 'worker-start');
-  assert.equal(starts.length, 1, '每次读取都启动真实固定 Worker');
-  const start = starts[0]!, acquired = events.findIndex(event => event.type === 'lease-acquired' && event.fd === start.fd);
-  const exited = events.findIndex(event => event.type === 'worker-exit' && event.threadId === start.threadId);
-  const released = events.findIndex(event => event.type === 'lease-released' && event.fd === start.fd);
-  const completed = events.findIndex(event => event.type === 'read-complete');
-  assert.equal(acquired >= 0 && exited > acquired && released > exited && completed > released, true,
-    '成功与失败均等待 Worker exit，再释放原 FD 和完成');
-  assert.equal(closed(start.fd), true);
-  const exit = events[exited]!; assert.equal(exit.type === 'worker-exit' && exit.exitCode === 0, true);
-  const completion = events[completed]!; assert.equal(completion.type === 'read-complete' && completion.status === result.status, true);
-  assert.ok(result.readEvidence); assert.equal(result.readEvidence.wholeAudioHash, false); assert.equal(result.readEvidence.wholeAudioDecode, false);
-  assert.ok(result.readEvidence.bytesRead <= 32 * 1024 * 1024);
-  assert.ok(result.readEvidence.maxReadBytes <= 8 * 1024 * 1024);
-  assert.ok(result.readEvidence.allocationBytes <= 64 * 1024 * 1024);
+interface RustReadObservation {
+  startedAt: number; settledAt: number; readCalls: number; pendingReads: number;
+  bytesRead: number; requestedBytes: number; maxReadBytes: number; rangesValid: boolean;
+  budget: Readonly<MetadataReadBudget>; result?: RustMetadataReadResult;
 }
+function observeRustReads(t: TestContext, pool: RustMediaWorkerPool) {
+  const actual = pool.readMetadata.bind(pool), calls: RustReadObservation[] = [], order = new WeakMap<MetadataReaderLifecycle, number>();
+  let sequence = 0;
+  // 只观察真实常驻池；原解析与每次有界只读 RPC 都实际执行，不合成 worker-exit。
+  t.mock.method(pool, 'readMetadata', async (...[input, signal]: Parameters<RustMediaWorkerPool['readMetadata']>) => {
+    const call: RustReadObservation = { startedAt: ++sequence, settledAt: 0, readCalls: 0, pendingReads: 0,
+      bytesRead: 0, requestedBytes: 0, maxReadBytes: 0, rangesValid: true, budget: { ...input.budget } }; calls.push(call);
+    try {
+      call.result = await actual({ ...input, async read(offset, length) {
+        call.readCalls++; call.pendingReads++;
+        call.requestedBytes += length; call.maxReadBytes = Math.max(call.maxReadBytes, length);
+        call.rangesValid &&= Number.isSafeInteger(offset) && offset >= 0 && Number.isSafeInteger(length) && length > 0 && offset + length <= input.size;
+        try { const bytes = await input.read(offset, length); call.bytesRead += bytes.length; return bytes; } finally { call.pendingReads--; }
+      } }, signal);
+      return call.result;
+    } finally { call.settledAt = ++sequence; }
+  });
+  return { calls, mark(event: MetadataReaderLifecycle) { order.set(event, ++sequence); },
+    at(event: MetadataReaderLifecycle) { return order.get(event) ?? -1; },
+    assertQuiet() { assert.ok(calls.every(call => call.settledAt > call.startedAt && call.pendingReads === 0), 'Reader close 必须 join 真实 Rust 任务及在途只读 RPC'); } };
+}
+function quiet(events: readonly MetadataReaderLifecycle[], result: MetadataReadResult, rust: ReturnType<typeof observeRustReads>, firstCall: number,
+  expectedRpc: 'read' | 'allocation-rejected'): void {
+  const calls = rust.calls.slice(firstCall); assert.equal(calls.length, 1, '每次实际读取须恰好调用一次真实 Rust 解析');
+  const call = calls[0]!; assert.ok(call.result); assert.equal(call.pendingReads, 0);
+  if (expectedRpc === 'allocation-rejected') {
+    assert.deepEqual(result, { status: 'failure', code: 'BUDGET_EXCEEDED', readEvidence: null });
+    assert.equal(call.budget.singleAllocationBytes, 32); assert.equal(call.readCalls, 0);
+    assert.deepEqual([call.bytesRead, call.requestedBytes, call.maxReadBytes], [0, 0, 0], '32B 单分配预算在首个 RPC 前真实拒绝');
+  } else { assert.ok(call.readCalls > 0); assert.ok(call.bytesRead > 0); }
+  assert.equal(call.rangesValid, true); assert.ok(call.bytesRead <= call.requestedBytes);
+  assert.ok(call.requestedBytes <= call.budget.totalReadBytes); assert.ok(call.maxReadBytes <= call.budget.singleReadBytes);
+  assert.ok(call.maxReadBytes <= call.budget.singleAllocationBytes, 'Node 每次真实只读 RPC 的分配不能超过传入预算');
+  const { performance: _performance, ...actual } = call.result; assert.deepEqual(result, actual);
+  if (result.status === 'failure') assert.equal(result.readEvidence, null, '真实 Rust 失败合同不公开解析器的分配或读取统计');
+  const acquired = events.filter((event): event is Extract<MetadataReaderLifecycle, { type: 'lease-acquired' | 'lease-released' }> => event.type === 'lease-acquired');
+  const released = events.filter(event => event.type === 'lease-released'), completed = events.filter(event => event.type === 'read-complete');
+  const phases = events.filter(event => event.type === 'metadata-phase');
+  assert.equal(acquired.length, 1); assert.equal(released.length, 1); assert.equal(completed.length, 1);
+  assert.deepEqual(phases.map(event => [event.stage, event.state, event.backend]), [
+    ['read', 'start', 'rust-media-worker'], ['parse', 'start', 'rust-media-worker'],
+    ['read', result.status === 'ok' ? 'complete' : 'error', 'rust-media-worker'], ['parse', result.status === 'ok' ? 'complete' : 'error', 'rust-media-worker'],
+  ]);
+  assert.equal(new Set(phases.map(event => event.readId)).size, 1);
+  const timeline = [rust.at(acquired[0]!), rust.at(phases[0]!), rust.at(phases[1]!), call.startedAt, call.settledAt,
+    rust.at(phases[2]!), rust.at(phases[3]!), rust.at(released[0]!), rust.at(completed[0]!)];
+  assert.ok(timeline.every((at, index) => at > 0 && (index === 0 || at > timeline[index - 1]!)),
+    '真实 Rust 任务与只读 RPC 完成后才释放原 FD，最后返回本次读取；失败也不能提前放掉保护');
+  assert.equal(released[0]!.type === 'lease-released' && released[0]!.fd === acquired[0]!.fd, true);
+  assert.equal(closed(acquired[0]!.fd), true);
+  assert.equal(completed[0]!.type === 'read-complete' && completed[0]!.status === result.status, true);
+  if (result.status === 'ok') {
+    assert.ok(result.readEvidence); assert.equal(result.readEvidence.wholeAudioHash, false); assert.equal(result.readEvidence.wholeAudioDecode, false);
+    assert.ok(result.readEvidence.bytesRead <= 32 * 1024 * 1024);
+    assert.ok(result.readEvidence.maxReadBytes <= 8 * 1024 * 1024);
+    assert.ok(result.readEvidence.allocationBytes <= 64 * 1024 * 1024);
+  }
+}
+
 async function fixture(t: TestContext, entries: Readonly<Record<string, Buffer>>, trustedBudget?: Partial<MetadataReadBudget>) {
   const temporary = process.env.TMPDIR;
   assert.ok(temporary && path.isAbsolute(temporary), 'Root 提供批准外置 tmp');
@@ -92,7 +149,7 @@ async function fixture(t: TestContext, entries: Readonly<Record<string, Buffer>>
   const parent = await lstat(temporary); assert.equal(parent.isDirectory() && !parent.isSymbolicLink(), true);
   assert.equal(parent.mode & 0o777, 0o700); assert.equal(parent.uid, process.getuid!());
   const directory = await mkdtemp(path.join(temporary, 'local-library-wave-extensible-')); await chmod(directory, 0o700);
-  const beforeClaims = locks.physicalResourceLocks.combinedSnapshot();
+  const beforeClaims = locks.physicalResourceLocks.combinedSnapshot(), rust = observeRustReads(t, workers.getRustMediaWorkerPool());
   const originals = new Map<string, { bytes: Buffer; sha256: string; identity: Record<string, string>; signature: string }>();
   for (const [relative, bytes] of Object.entries(entries)) {
     assert.match(relative, /^[a-z0-9-]+\.wav$/u);
@@ -103,10 +160,10 @@ async function fixture(t: TestContext, entries: Readonly<Record<string, Buffer>>
   const root = { ...await files.authorizeSourceDirectory(directory), id: randomUUID() };
   for (const [relative, before] of originals) before.signature = (await files.readonlySourceCandidateMetadata(root, relative)).signature;
   const events: MetadataReaderLifecycle[] = [], reader = readerModule.createMetadataReader({
-    ...(trustedBudget ? { trustedBudget } : {}), onLifecycle: event => events.push(event),
+    ...(trustedBudget ? { trustedBudget } : {}), onLifecycle(event) { events.push(event); rust.mark(event); },
   });
   t.after(async () => {
-    await reader.close();
+    const closing = reader.close(); assert.equal(reader.close(), closing); await closing; rust.assertQuiet();
     for (const [relative, before] of originals) {
       const file = path.join(directory, relative), bytes = await readFile(file);
       assert.deepEqual(sourceIdentity(await lstat(file)), before.identity, '原源文件的身份和时间元数据保持');
@@ -115,15 +172,18 @@ async function fixture(t: TestContext, entries: Readonly<Record<string, Buffer>>
     }
     assert.deepEqual(locks.physicalResourceLocks.combinedSnapshot(), beforeClaims, '没有遗留物理读 claim');
   });
-  return { async read(relative: string) {
+  return { get lastRead() { const call = rust.calls.at(-1); assert.ok(call); return call; },
+    async read(relative: string, expectedRpc: 'read' | 'allocation-rejected' = 'read') {
     const before = originals.get(relative); assert.ok(before);
-    const first = events.length, result = await reader.read({ root, relative, expectedSignature: before.signature });
-    quiet(events.slice(first), result); return result;
+    const first = events.length, firstCall = rust.calls.length, result = await reader.read({ root, relative, expectedSignature: before.signature });
+    quiet(events.slice(first), result, rust, firstCall, expectedRpc);
+    assert.deepEqual(rust.calls[firstCall]!.budget, { ...DEFAULT_METADATA_READ_BUDGET, ...trustedBudget }); return result;
   } };
 }
 function success(result: MetadataReadResult): Extract<MetadataReadResult, { status: 'ok' }> {
-  assert.equal(result.status, 'ok'); if (result.status !== 'ok') assert.fail('固定 Worker 应完成有效 fmt 解析');
-  assert.equal(result.parserVersion, parserVersion); assert.deepEqual(result.fields, tags); assert.deepEqual(result.coverEvidence, []);
+  assert.equal(result.status, 'ok', result.status === 'failure' ? `真实 Rust 读取拒绝：${result.code}` : '真实 Rust 应完成有效 fmt 解析');
+  if (result.status !== 'ok') assert.fail('真实 Rust 应完成有效 fmt 解析');
+  assert.equal(result.parserVersion, parserVersion); assert.deepEqual(result.fields, expectedFields); assert.deepEqual(result.coverEvidence, []);
   return result;
 }
 
@@ -162,6 +222,7 @@ const unknownCases: readonly { label: string; options: WaveOptions }[] = [
 for (const entry of unknownCases) test(`本地 WAVE 未知格式：${entry.label}`, { timeout: 30_000 }, async t => {
   const f = await fixture(t, { 'unknown.wav': wave(entry.options) }), value = success(await f.read('unknown.wav'));
   assert.equal(value.technical.codec, 'WAVE_EXTENSIBLE_UNKNOWN'); assert.equal(value.technical.lossless, null);
+  assert.equal(value.technical.durationSeconds, entry.options.fact ? frames / rate : null, '未知编码只采用真实fact时长，不以数据长度推导PCM事实');
   const { durationSeconds, ...parameters } = value.technical;
   const quality={ ...parameters, durationMs: durationSeconds! * 1000 };assert.ok(isFileAudioParameters(quality),'实际未知WAVE参数仍保持原公开合同，不能获得direct资格');
   assert.equal(mobileOwnerDirectPlaybackKind(quality), null);
@@ -190,24 +251,39 @@ const malformedCases: readonly { label: string; bytes(): Buffer }[] = [
   { label: 'fmt 声明越过 RIFF', bytes: () => wave({ declaredFmtBytes: 1_000_000 }) },
   { label: '实际 FD 截断 RIFF', bytes: () => wave().subarray(0, -1) },
   { label: 'PCM data 不是完整 frame', bytes: () => wave({ dataBytes: 7 }) },
+  { label: 'fact 少于完整样本数字段', bytes: () => riff([chunk('fmt ', formatBytes()), chunk('data', Buffer.alloc(frames * 6)), chunk('fact', Buffer.alloc(3)), info()]) },
 ];
 for (const entry of malformedCases) test(`本地 WAVE 畸形格式拒绝：${entry.label}`, { timeout: 30_000 }, async t => {
   const f = await fixture(t, { 'invalid.wav': entry.bytes() }), result = await f.read('invalid.wav');
   assert.equal(result.status, 'failure'); if (result.status === 'failure') assert.equal(result.code, 'PARSE_FAILED');
 });
 
-const budgetCases: readonly { label: string; budget: Partial<MetadataReadBudget> }[] = [
-  { label: '总读额度计入额外 fmt 读取', budget: { totalReadBytes: 80 } },
-  { label: '单读上限不因 fmt 修复提高', budget: { singleReadBytes: 32 } },
-  { label: '单分配上限不因 fmt 修复提高', budget: { singleAllocationBytes: 32 } },
+const budgetCases: readonly { label: string; budget: Partial<MetadataReadBudget>; expected: 'budget-rejected' | 'chunked' | 'allocation-rejected' }[] = [
+  { label: '总读额度计入额外 fmt 读取', budget: { totalReadBytes: 80 }, expected: 'budget-rejected' },
+  { label: '32B 单读上限以合法分块读取保持完整事实', budget: { singleReadBytes: 32 }, expected: 'chunked' },
+  { label: '单分配上限不因 fmt 修复提高', budget: { singleAllocationBytes: 32 }, expected: 'allocation-rejected' },
 ];
 for (const entry of budgetCases) test(`本地 WAVE 原预算：${entry.label}`, { timeout: 30_000 }, async t => {
-  const f = await fixture(t, { 'budget.wav': wave() }, entry.budget), result = await f.read('budget.wav');
-  assert.equal(result.status, 'failure'); if (result.status === 'failure') assert.equal(result.code, 'BUDGET_EXCEEDED');
-  assert.ok(result.readEvidence);
-  if (entry.budget.totalReadBytes !== undefined) assert.ok(result.readEvidence.bytesRead <= entry.budget.totalReadBytes);
-  if (entry.budget.singleReadBytes !== undefined) assert.ok(result.readEvidence.maxReadBytes <= entry.budget.singleReadBytes);
-  if (entry.budget.singleAllocationBytes !== undefined) assert.ok(result.readEvidence.allocationBytes <= entry.budget.singleAllocationBytes);
+  const f = await fixture(t, { 'budget.wav': wave() }, entry.budget), result = await f.read('budget.wav', entry.expected === 'allocation-rejected' ? 'allocation-rejected' : 'read');
+  if (entry.expected === 'chunked') {
+    const value = success(result);
+    assert.deepEqual(value.technical, { container: 'WAVE', codec: 'PCM', lossless: true, sampleRateHz: rate, channels: 2,
+      bitsPerSample: 24, durationSeconds: frames / rate, evidence: 'bounded-parser-reported' });
+    assert.ok(value.readEvidence.readCalls > 1); assert.ok(value.readEvidence.maxReadBytes <= 32);
+  } else {
+    assert.equal(result.status, 'failure'); if (result.status === 'failure') assert.equal(result.code, 'BUDGET_EXCEEDED');
+    assert.equal(result.readEvidence, null);
+  }
+  const actual = f.lastRead;
+  if (entry.budget.totalReadBytes !== undefined) {
+    assert.ok(actual.requestedBytes <= entry.budget.totalReadBytes); assert.ok(actual.bytesRead <= entry.budget.totalReadBytes);
+  }
+  if (entry.budget.singleReadBytes !== undefined) assert.ok(actual.maxReadBytes <= entry.budget.singleReadBytes);
+  if (entry.budget.singleAllocationBytes !== undefined) {
+    assert.equal(actual.budget.singleAllocationBytes, entry.budget.singleAllocationBytes);
+    assert.ok(actual.maxReadBytes <= entry.budget.singleAllocationBytes);
+    // Rust 失败不公开 allocationBytes：此处只证明预算下发、Node RPC 分配上限及真实拒绝，不能当作 Rust 分配实测。
+  }
 });
 test('本地 WAVE 畸形读取后原池恢复，未知格式不污染下一完整 PCM', { timeout: 30_000 }, async t => {
   const f = await fixture(t, { 'invalid.wav': wave({ format: { cbSize: 21 } }),

@@ -78,6 +78,14 @@ async function loadModules() {
   assert.ok(compiler); assert.equal(compiler.compilerExit, 0)
   assert.ok(compiler.startedMs > 0 && compiler.finishedMs >= compiler.startedMs)
   const checked: BoundFile[] = []
+  const mainModule = process.env.MUSIC_BRIDGE_REAL_OWNER_MAIN_TEST_MODULE
+  assert.ok(typeof mainModule === 'string' && path.isAbsolute(mainModule)
+    && mainModule.startsWith('/Volumes/LifeWeave/Developer/CommandLine/') && mainModule.endsWith('.mjs'),
+  '必须提供本轮外置编译的真实Main工厂，不能从TS源码目录寻找未构建的Worker。')
+  const qualifiedMainModule: string = mainModule
+  const mainBytes = await wholeFile(qualifiedMainModule)
+  const workerModule = path.join(path.dirname(qualifiedMainModule), 'mobile-playback-state-worker-entry.js')
+  const workerBytes = await wholeFile(workerModule)
   const coreEntries = [
     'collection/dataset-domain', 'collection/repository', 'collection/local-source-tickets', 'collection/local-scan-coordinator',
     'collection/local-scan-store', 'recording/restore-dataset-runtime', 'recording/source-files', 'application/local-source-resolver',
@@ -114,16 +122,25 @@ async function loadModules() {
       const actual = await wholeFile(path.join(repositoryRoot, row.path))
       assert.equal(actual.bytes.length, row.bytes); assert.equal(actual.sha256, row.sha256)
     }
+    for (const [file, expected] of [[qualifiedMainModule, mainBytes], [workerModule, workerBytes]] as const) {
+      const actual = await wholeFile(file)
+      assert.equal(actual.bytes.length, expected.bytes.length); assert.equal(actual.sha256, expected.sha256)
+    }
   }
   await assertBoundBytes()
   const domain = await import(pathToFileURL(path.join(repositoryRoot, 'packages/bridge-core/dist/collection/dataset-domain.js')).href) as typeof import('../../../../packages/bridge-core/src/collection/dataset-domain.js')
   const admission = await import(pathToFileURL(path.join(repositoryRoot, 'packages/bridge-core/dist/library/scan-read-admission.js')).href) as typeof import('../../../../packages/bridge-core/src/library/scan-read-admission.js')
   const locks = await import(pathToFileURL(path.join(repositoryRoot, 'packages/bridge-core/dist/stream/physical-resource-locks.js')).href) as typeof import('../../../../packages/bridge-core/src/stream/physical-resource-locks.js')
   const protocol = await import(pathToFileURL(path.join(repositoryRoot, 'packages/bridge-core/dist/mobile/owner-protocol.js')).href) as typeof import('../../../../packages/bridge-core/src/mobile/owner-protocol.js')
-  // Main 生产工厂由当前 TS 实际执行；这层不冒充 Electron production bundle。
-  const main = await import(new URL('../../src/main/mobile-backend.ts', import.meta.url).href) as typeof import('../../src/main/mobile-backend.js')
-  const https = await import(new URL('../../src/main/mobile-https-server.ts', import.meta.url).href) as typeof import('../../src/main/mobile-https-server.js')
-  const tls = await import(new URL('../../src/main/mobile-tls-identity.ts', import.meta.url).href) as typeof import('../../src/main/mobile-tls-identity.js')
+  // 工厂与相邻Worker均为本轮真实生产源码编译产物；不冒充完整Electron安装运行证据。
+  const main = await import(pathToFileURL(qualifiedMainModule).href) as typeof import('../../src/main/mobile-backend.js') & {
+    qualifiedHttps: typeof import('../../src/main/mobile-https-server.js')
+    qualifiedTls: typeof import('../../src/main/mobile-tls-identity.js')
+  }
+  assert.equal(typeof main.createMobileBackend, 'function')
+  // HTTP错误映射与Main必须共用同一份错误类型，保持正式单bundle的类身份。
+  const https = main.qualifiedHttps, tls = main.qualifiedTls
+  assert.equal(typeof https.createMobileHttpsServer, 'function')
   await assertBoundBytes()
   return { reader, domain, admission, locks, protocol, main, https, tls, assertBoundBytes }
 }

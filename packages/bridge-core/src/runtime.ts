@@ -1,8 +1,9 @@
 import { createScanReadAdmission, type ScanReadAdmission } from './library/scan-read-admission.js';
+import { runLibraryShutdownStep } from './shared/library-shutdown-log.js';
 import { createTestDatasetDomain } from './collection/dataset-domain.js';
 import type { DatasetOwnerEndpoint } from './collection/dataset-owner-protocol.js';
 import { createMobileContentRuntime } from './mobile/content-runtime.js';
-import type { MobileContentCoreResponse } from './mobile/content-rpc.js';
+import type { MobileContentCoreResponse, MobileContentCoreSettlementObserver } from './mobile/content-rpc.js';
 import { MobileServiceError } from './mobile/types.js';
 import { assertLibraryReadCurrent, currentLibraryRead, type LibraryReadLifetime } from './shared/library-read-lifetime.js';
 import { createNodePerformanceTrace, currentPerformanceContext } from './diagnostics/performance-trace.js';
@@ -142,7 +143,7 @@ export type CoreRuntimeEvent = TypedIpcEvent;
 export interface CoreRuntime {
   readonly datasetOwnerEndpoint?: DatasetOwnerEndpoint;
   /** 仅可信Main私有消息；不增加Renderer或公开Control API。 */
-  mobileContentRpc?(request: unknown, signal: AbortSignal): Promise<MobileContentCoreResponse>;
+  mobileContentRpc?(request: unknown, signal: AbortSignal, onSettled?: MobileContentCoreSettlementObserver): Promise<MobileContentCoreResponse>;
   /** 仅可信所有者元数据桥接使用，不属于公开IPC对象。 */
   getDatasetRoonLibrary?(): RoonPublicLibrary;
   /** 只供唯一DatasetOwner私有投影使用，不进入普通IPC DTO。 */
@@ -193,6 +194,9 @@ export interface CoreRuntime {
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
   searchArtists(query: string, page: PageRequest): Promise<Page<ArtistSummary>>;
   searchAlbums(query: string, page: PageRequest): Promise<Page<AlbumSummary>>;
+  searchSuggestions(query: string): Promise<{ keywords: string[] }>;
+  getArtistProfile(artistId: string): Promise<import('@music-bridge/contracts').NeteaseArtistProfile>;
+  getArtistAlbums(artistId: string, page: PageRequest): Promise<Page<AlbumSummary>>;
   getArtist(artistId: string, page: PageRequest): Promise<ArtistDetail>;
   getAlbum(albumId: string, page: PageRequest): Promise<AlbumDetail>;
   aggregateSearch(query: string, page: PageRequest): Promise<PublicAggregatedSearchResult>;
@@ -258,6 +262,8 @@ export interface CoreRuntime {
 }
 
 export interface BridgeRuntimeOptions {
+  /** 仅可信 Owner 组合选择；不从 IPC、env 或用户设置取得容量。 */
+  localScanReadProfile?: 'bulk-v2';
   localMediaNetwork?: import('./config/config.js').TrustedLocalMediaNetwork;
   datasetOwnerEndpoint?: DatasetOwnerEndpoint;
   collectionDatasetIdentity?: DatasetIdentity;
@@ -636,7 +642,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     owner: options.datasetOwnerEndpoint, netease,
     assertCurrent: () => { if (runtime !== 'ready' || shutdownStarted) throw new MobileServiceError(503, 'BUSY'); },
   }) : undefined;
-  scanReadAdmission = createScanReadAdmission({ isBusy: () => {
+  scanReadAdmission = createScanReadAdmission({ concurrency: options.localScanReadProfile === 'bulk-v2' ? 8 : 2, isBusy: () => {
     sampleRoonReadBusy();
     return runtime !== 'ready' || shutdownStarted || controller.hasPlaybackOwnership()
       || observedRoonReadBusy || gateway.getActiveMediaReadCount() > 0;
@@ -955,6 +961,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
   });
   lyrics = new LyricsCoordinator({
+    localFile: { isCurrent: context => controller.isCurrentLocalLyrics(context), read: context => controller.readLocalLyrics(context) },
     localDisplay: displayLyrics,
     load: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
     localResolver: lyricsResolver,
@@ -1088,36 +1095,36 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     scanReadAdmission?.close();
     options.datasetOwnerEndpoint?.sealLocalSources?.();
     let localCloseError:unknown;
-    try{await controller.shutdown();}catch(error){localCloseError=error;}
-    await registry.closeLocal();
-    try { await mobileContent?.close(); } catch (error) { localCloseError ??= error; }
+    try{await runLibraryShutdownStep('runtime.controller', () => controller.shutdown());}catch(error){localCloseError=error;}
+    await runLibraryShutdownStep('runtime.registry', () => registry.closeLocal());
+    try { await runLibraryShutdownStep('runtime.mobile', () => mobileContent?.close()); } catch (error) { localCloseError ??= error; }
     let ownerCloseFailed = false;
     let ownerCloseError: unknown;
-    try { await options.datasetOwnerEndpoint?.close(); }
+    try { await runLibraryShutdownStep('runtime.owner', () => options.datasetOwnerEndpoint?.close()); }
     catch (error) { ownerCloseFailed = true; ownerCloseError = error; }
-    await recordingReplica?.close();
-    await recordingPrints?.close();
-    await recordingRecords?.close();
-    await recordingAttempts?.close();
-    recordingDeviceSelection?.close();
-    await recordingOutput.close();
-    await recordingPlans?.close();
-    await backups?.close();
-    await archive?.close();
-    await execution?.close();
-    await prepared?.close();
-    await preparationZips?.close();
-    await preparation?.close();
-    await masterVersions?.close();
-    await sourceCandidates?.close();
-    await sources?.close();
-    options.collectionRepository?.close();
-    await control.stop();
+    await runLibraryShutdownStep('runtime.replica', () => recordingReplica?.close());
+    await runLibraryShutdownStep('runtime.prints', () => recordingPrints?.close());
+    await runLibraryShutdownStep('runtime.records', () => recordingRecords?.close());
+    await runLibraryShutdownStep('runtime.attempts', () => recordingAttempts?.close());
+    await runLibraryShutdownStep('runtime.devices', () => recordingDeviceSelection?.close());
+    await runLibraryShutdownStep('runtime.output', () => recordingOutput.close());
+    await runLibraryShutdownStep('runtime.plans', () => recordingPlans?.close());
+    await runLibraryShutdownStep('runtime.backups', () => backups?.close());
+    await runLibraryShutdownStep('runtime.archive', () => archive?.close());
+    await runLibraryShutdownStep('runtime.execution', () => execution?.close());
+    await runLibraryShutdownStep('runtime.prepared', () => prepared?.close());
+    await runLibraryShutdownStep('runtime.zip', () => preparationZips?.close());
+    await runLibraryShutdownStep('runtime.preparation', () => preparation?.close());
+    await runLibraryShutdownStep('runtime.versions', () => masterVersions?.close());
+    await runLibraryShutdownStep('runtime.candidates', () => sourceCandidates?.close());
+    await runLibraryShutdownStep('runtime.sources', () => sources?.close());
+    await runLibraryShutdownStep('runtime.connections', () => options.collectionRepository?.close());
+    await runLibraryShutdownStep('runtime.control', () => control.stop());
     removeControllerListener();
-    await roon.shutdown();
-    lyrics.shutdown();
+    await runLibraryShutdownStep('runtime.roon', () => roon.shutdown());
+    await runLibraryShutdownStep('runtime.lyrics', () => lyrics.shutdown());
     registry.revokeAll();
-    await gateway.stop();
+    await runLibraryShutdownStep('runtime.gateway', () => gateway.stop());
     if (ownerCloseFailed) throw ownerCloseError;
     if(localCloseError)throw localCloseError;
   };
@@ -1192,7 +1199,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
     performance: performanceTrace,
     ...(options.datasetOwnerEndpoint ? { datasetOwnerEndpoint: options.datasetOwnerEndpoint } : {}),
-    ...(mobileContent ? { mobileContentRpc: (request: unknown, signal: AbortSignal) => mobileContent.request(request, signal) } : {}),
+    ...(mobileContent ? { mobileContentRpc: (request: unknown, signal: AbortSignal, onSettled?: MobileContentCoreSettlementObserver) => mobileContent.request(request, signal, onSettled) } : {}),
     getDatasetRoonLibrary: () => roonLibrary,
     getDatasetScanReadAdmission: () => scanReadAdmission!,
     async start(): Promise<void> {
@@ -1335,6 +1342,15 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     searchTracks: (query, page) => withProviderRecovery(() => netease.searchTracks(query, page)),
     searchArtists: (query, page) => withProviderRecovery(() => netease.searchArtists(query, page)),
     searchAlbums: (query, page) => withProviderRecovery(() => netease.searchAlbums(query, page)),
+    searchSuggestions: query => withProviderRecovery(() => netease.searchSuggestions?.(query) ?? Promise.resolve({ keywords: [] })),
+    getArtistProfile: artistId => withProviderRecovery(() => {
+      if (!netease.getArtistProfile) throw new BridgeError('NETEASE_REQUEST_FAILED', '人物资料暂不可用');
+      return netease.getArtistProfile(artistId);
+    }),
+    getArtistAlbums: (artistId, page) => withProviderRecovery(() => {
+      if (!netease.getArtistAlbums) throw new BridgeError('NETEASE_REQUEST_FAILED', '艺人专辑暂不可用');
+      return netease.getArtistAlbums(artistId, page);
+    }),
     getArtist: (artistId, page) => withProviderRecovery(() => netease.getArtist(artistId, page)),
     getAlbum: (albumId, page) => withProviderRecovery(() => netease.getAlbum(albumId, page)),
     aggregateSearch,
@@ -1579,6 +1595,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 const SYNTHETIC_QR_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiB2aWV3Qm94PSIwIDAgMzMgMzMiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyI+PHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgMGgzM3YzM0gweiIvPjxwYXRoIHN0cm9rZT0iIzAwMDAwMCIgZD0iTTIgMi41aDdtMSAwaDFtMSAwaDJtNCAwaDFtMSAwaDNtMSAwaDdNMiAzLjVoMW01IDBoMW0xIDBoMW0xIDBoMW0xIDBoMm04IDBoMW01IDBoMU0yIDQuNWgxbTEgMGgzbTEgMGgxbTMgMGgybTEgMGgzbTIgMGgybTIgMGgxbTEgMGgzbTEgMGgxTTIgNS41aDFtMSAwaDNtMSAwaDFtMSAwaDFtNCAwaDJtMiAwaDNtMiAwaDFtMSAwaDNtMSAwaDFNMiA2LjVoMW0xIDBoM20xIDBoMW0zIDBoMW0zIDBoM20yIDBoMW0yIDBoMW0xIDBoM20xIDBoMU0yIDcuNWgxbTUgMGgxbTIgMGgybTIgMGgybTIgMGgzbTIgMGgxbTUgMGgxTTIgOC41aDdtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDdNMTAgOS41aDFtMiAwaDJtMyAwaDNNMiAxMC41aDFtMSAwaDJtMSAwaDNtMSAwaDJtMiAwaDFtMiAwaDVtMSAwaDFtMiAwaDFtMSAwaDJNNCAxMS41aDFtMiAwaDFtMiAwaDNtMSAwaDJtMiAwaDFtMiAwaDRtMSAwaDFtMSAwaDNNMiAxMi41aDFtMiAwaDJtMSAwaDFtNSAwaDJtMyAwaDJtMiAwaDdNMiAxMy41aDFtMSAwaDFtMSAwaDFtMiAwaDFtMSAwaDNtNyAwaDNtMiAwaDFtMiAwaDFNMiAxNC41aDNtMiAwaDJtMiAwaDJtMSAwaDFtMSAwaDFtMiAwaDFtMyAwaDFtMSAwaDFtMiAwaDJNMiAxNS41aDFtMSAwaDFtMSAwaDJtMiAwaDVtMSAwaDRtMSAwaDFtMiAwaDJtMiAwaDNNNSAxNi41aDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMiAwaDNNNCAxNy41aDRtMSAwaDJtNSAwaDNtNSAwaDRNNCAxOC41aDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDJtMiAwaDJtMiAwaDRtMSAwaDJtMiAwaDFNMyAxOS41aDNtNCAwaDRtMiAwaDJtMiAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMSAwaDFNMiAyMC41aDFtMiAwaDFtMiAwaDFtMSAwaDNtMiAwaDZtMiAwaDFtMSAwaDFtMiAwaDFNMTEgMjEuNWgxbTMgMGgybTIgMGgybTIgMGgybTIgMGgzTTMgMjIuNWg2bTMgMGg1bTEgMGg5bTEgMGgyTTEwIDIzLjVoMW0xIDBoMW0xIDBoMW0zIDBoMW0yIDBoMm0zIDBoMW0yIDBoMk0yIDI0LjVoN20xIDBoMW0xIDBoMm0yIDBoMW0yIDBoNG0xIDBoMW0xIDBoMW0yIDBoMU0yIDI1LjVoMW01IDBoMW0xIDBoMW0yIDBoNG0xIDBoMW0zIDBoMW0zIDBoMU0yIDI2LjVoMW0xIDBoM20xIDBoMW0zIDBoMW02IDBoMm0xIDBoNW0xIDBoMU0yIDI3LjVoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW0zIDBoMm00IDBoMW0xIDBoMm0zIDBoMU0yIDI4LjVoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW0xIDBoMW00IDBoMW0xIDBoMm0xIDBoMW00IDBoMU0yIDI5LjVoMW01IDBoMW0yIDBoMW0xIDBoMm03IDBoM20xIDBoMm0xIDBoMU0yIDMwLjVoN20xIDBoMW0yIDBoMW0xIDBoMm0zIDBoNG01IDBoMSIvPjwvc3ZnPgo='
 
 export interface TestBridgeRuntimeOptions {
+  localScanReadProfile?: 'bulk-v2';
   datasetOwnerEndpoint?: DatasetOwnerEndpoint;
   collectionDatasetIdentity?: DatasetIdentity;
   recordingConverter?: FfmpegConverter;
@@ -1678,7 +1695,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     : { status: 'missing' };
   let playbackState = emptyPlaybackState();
   // 仅安全合成runtime的自身状态驱动；复用真实票据本体，不冒生产Controller或设备所有权。
-  const syntheticScanReadAdmission = createScanReadAdmission({ isBusy: () => state.runtime !== 'ready'
+  const syntheticScanReadAdmission = createScanReadAdmission({ concurrency: options.localScanReadProfile === 'bulk-v2' ? 8 : 2, isBusy: () => state.runtime !== 'ready'
     || playbackState.state !== 'idle' || playbackState.canStop || state.activePlaybackPresent || state.activeStreamCount > 0 });
   // 合成流程独立模拟 owner 代次，不能冒称真实设备所有权。
   let syntheticGeneration = 0;
@@ -1785,7 +1802,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     performance: performanceTrace,
     ...(options.datasetOwnerEndpoint ? { datasetOwnerEndpoint: options.datasetOwnerEndpoint } : {}),
-    ...(mobileContent ? { mobileContentRpc: (request: unknown, signal: AbortSignal) => mobileContent.request(request, signal) } : {}),
+    ...(mobileContent ? { mobileContentRpc: (request: unknown, signal: AbortSignal, onSettled?: MobileContentCoreSettlementObserver) => mobileContent.request(request, signal, onSettled) } : {}),
     getDatasetRoonLibrary: () => datasetRoonLibrary,
     getDatasetScanReadAdmission: () => syntheticScanReadAdmission,
     async start() {
@@ -1901,6 +1918,13 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     async searchAlbums(query, page) {
       return syntheticSearchPage(fixtureAlbums, query, page);
     },
+    async searchSuggestions(query) { return { keywords: fixtureArtists.filter(item => item.name.includes(query)).map(item => item.name).slice(0, 10) }; },
+    async getArtistProfile(artistId) {
+      const artist = fixtureArtists.find(item => item.id === artistId);
+      if (!artist) throw new BridgeError('NETEASE_REQUEST_FAILED', '合成人物不存在');
+      return { ...artist, albumCount: artist.albumCount ?? 0, trackCount: artist.trackCount ?? 0, biography: '' };
+    },
+    async getArtistAlbums(_artistId, page) { return pageOf(fixtureAlbums, page); },
     async getArtist(artistId, page) {
       const artist = fixtureArtists.find((item) => item.id === artistId) ?? fixtureArtists[0];
       if (!artist) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Synthetic artist detail unavailable', { httpStatus: 404 });

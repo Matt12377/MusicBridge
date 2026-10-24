@@ -14,13 +14,13 @@ test('006：实际Main factory进度广播不读取托盘，rollback只影响启
     let captured!: { playbackEventProtocol: string | null; onEvent: (event: TypedIpcEvent) => void }
     let trayReads = 0, sent = 0, diagnostics = 0
     const context = {
-      CoreSupervisor: class { constructor(options: typeof captured) { captured = options } },
+      CoreSupervisor: class { constructor(options: typeof captured) { captured = options } configurePrivatePersistentOwnerStartup() {} },
       path: { join: (...parts: string[]) => parts.join('/') }, currentDirectory: '/synthetic',
       process: { env: rollback ? { MUSIC_BRIDGE_COMPACT_PLAYBACK_EVENTS: '0' } : {} },
       coreDataDirectory: '', buildCoreEnvironment: () => ({}), shouldRefreshTrayForCoreEvent,
       mainDiagnostics: { performance: undefined, recordCoreEvent: () => diagnostics++ },
       performanceIpc: { context: () => undefined }, requestTrayRefresh: () => trayReads++,
-      libraryReadTrace: undefined,
+      libraryReadTrace: undefined, mobilePreparationProbe: undefined,
       mainWindow: { isDestroyed: () => false, webContents: { send: (channel: string) => { assert.equal(channel, 'core:event'); sent++ } } },
     }
     runInNewContext(ts.transpileModule(source.slice(start, end) + '\ncreateCoreSupervisor("/synthetic");', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context)

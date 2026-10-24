@@ -45,7 +45,7 @@ test('Renderer contains the public QR login surface without credential access', 
 
   for (const text of [
     'Music Bridge for Roon',
-    'Music Bridge Core',
+    'Mousa Core',
     '查看连接状态',
     '网易云',
     '扫码登录',
@@ -382,7 +382,7 @@ test('播放栏保留语义控制并展示实际音质、音量和进度', async
   assert.match(player, /VolumeControl/)
   assert.match(player, /name="previous"/)
   assert.match(player, /name="next"/)
-  assert.match(player, /name="list"/)
+  assert.match(player, /<button[^>]*aria-label="打开播放队列"[^>]*@click="emit\('open-queue'\)"[^>]*><PlayerReferenceIcon name="queue"/)
   assert.match(player, /visually-hidden/)
   assert.match(icon, /previous: 'skip-start-fill'/)
   assert.match(icon, /next: 'skip-end-fill'/)
@@ -432,17 +432,19 @@ test('V1 Settings在生产候选保留受控Remote Core入口和显式SSH目标'
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
   const main = await readFile(path.resolve('src/main/index.ts'), 'utf8')
 
-  for (const label of ['账户', '播放', 'Roon', '应用', '高级']) {
+  for (const label of ['通用', '音乐库', '播放', '设备与连接', '账户', '高级']) {
     assert.match(settings, new RegExp(label))
   }
   assert.match(settings, /settings-category-tabs/)
   assert.match(settings, /role="tablist"/)
+  assert.match(settings, /aria-orientation="vertical"/)
   assert.match(settings, /role="tab"/)
   assert.match(settings, /aria-selected/)
   assert.match(settings, /settings-pane-account/)
   assert.match(settings, /settings-pane-playback/)
   assert.match(settings, /settings-pane-roon/)
   assert.match(settings, /settings-pane-application/)
+  assert.match(settings, /settings-pane-library/)
   assert.match(settings, /settings-pane-advanced/)
   assert.doesNotMatch(settings, /Apple Liquid Glass/)
   assert.match(settings, /remote-ssh-target/)
@@ -458,14 +460,19 @@ test('V1 Search is an artist, track and album flow without playlist results', as
   const search = await readFile(path.resolve('src/renderer/src/composables/search.ts'), 'utf8')
   const aggregatedSearch = await applicationSource('useAggregatedSearch.ts')
   const contracts = await readFile(path.resolve('../../packages/contracts/src/library.ts'), 'utf8')
+  const workspace = await readFile(path.resolve('src/renderer/src/components/catalog/CatalogWorkspace.vue'), 'utf8')
+  const { catalogKinds, catalogKindLabel } = await import('../src/renderer/src/composables/catalog/catalog-presentation.js')
 
-  for (const label of ['艺人', '单曲', '专辑', 'openSearchDetail']) {
-    assert.match(app, new RegExp(label))
-  }
+  assert.deepEqual(catalogKinds, ['artists', 'albums', 'tracks'])
+  assert.deepEqual(catalogKindLabel, { artists: '艺术家', albums: '专辑', tracks: '歌曲' })
+  assert.match(app, /<CatalogWorkspace[^>]+:model="catalog" mode="search"/u)
+  assert.match(app, /@select="openCatalogItem"/u)
+  assert.match(workspace, /v-for="kind in shownKinds"/u)
+  assert.match(workspace, /kind === 'artists'[\s\S]*kind === 'albums'[\s\S]*<CatalogTrackList/u)
   assert.match(aggregatedSearch, /createSearchSnapshotLoader/)
   assert.match(aggregatedSearch, /searchSnapshotLoader\.load\(query(?:\)|,\s*\{)/)
   assert.match(aggregatedSearch, /onSection:\s*publication\s*=>/)
-  assert.match(app, /searchArtists|search-albums/)
+  assert.match(workspace, /model\.artistCards\.value[\s\S]*model\.albumItems\.value[\s\S]*model\.trackItems\.value/u)
   assert.match(search, /Promise\.all\(/)
   assert.match(search, /catch \(error\) \{\s*result = \{ state: 'error', message: errorMessage\(error\)/)
   assert.match(search, /publish\(\{ query, section: kind, result \}/)
@@ -476,19 +483,31 @@ test('V1 Search is an artist, track and album flow without playlist results', as
   assert.doesNotMatch(app, /搜索结果.*歌单|search-playlist|搜索歌单/)
 })
 
-test('V1 search shows album results before artwork-backed single rows', async () => {
+test('综合搜索按艺术家、专辑、歌曲排序，歌曲保留真实来源与封面', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const workspace = await readFile(path.resolve('src/renderer/src/components/catalog/CatalogWorkspace.vue'), 'utf8')
+  const tracks = await readFile(path.resolve('src/renderer/src/components/catalog/CatalogTrackList.vue'), 'utf8')
   const trackTable = await readFile(path.resolve('src/renderer/src/components/media/TrackTable.vue'), 'utf8')
+  const { catalogKinds } = await import('../src/renderer/src/composables/catalog/catalog-presentation.js')
+  const workspaceTemplate = parse(workspace).descriptor.template?.content ?? ''
 
-  assert.match(app, /class="search-track-results"/)
-  assert.match(app, /:show-artwork="true"/)
-  const entities = await readFile(path.resolve('src/renderer/src/components/SearchEntities.vue'), 'utf8')
-  assert.match(entities, /aria-labelledby="search-albums-heading"/)
-  const albumIndex = app.indexOf('<SearchEntities')
-  const trackIndex = app.indexOf('aria-labelledby="search-tracks-heading"')
+  assert.match(app, /<CatalogWorkspace[^>]+mode="search"/u)
+  assert.deepEqual(catalogKinds, ['artists', 'albums', 'tracks'])
+  assert.match(workspace, /model\.category\.value === 'all' \? catalogKinds/u)
+  assert.match(workspaceTemplate, /v-for="kind in shownKinds"/u)
+  const albumIndex = workspaceTemplate.indexOf('<CatalogAlbumGrid')
+  const trackIndex = workspaceTemplate.lastIndexOf('<CatalogTrackList')
   assert.ok(albumIndex >= 0 && albumIndex < trackIndex)
-  assert.match(trackTable, /showArtwork/)
-  assert.match(trackTable, /v-if="props\.showArtwork"/)
+  const trackMount = (parse(tracks).descriptor.template?.content ?? '').match(/<TrackTable\b[^>]*>/u)?.[0] ?? ''
+  assert.match(trackMount, /:tracks="tracks"/u)
+  // 当前挂载沿用真实默认值；显式关闭或无法核对的整体绑定都不能绕过封面合同。
+  assert.doesNotMatch(trackMount, /\sv-bind=/u)
+  const explicitArtwork = trackMount.match(/\s(?:(?:v-bind:|:)show-artwork|show-artwork)="([^"]*)"/u)?.[1]
+  assert.ok(explicitArtwork === undefined || explicitArtwork === 'true')
+  assert.match(tracks, /artworkUrl: item\.artworkUrl/u)
+  assert.match(tracks, /album: catalogSourceLabel\[item\.source\]/u)
+  assert.match(trackTable, /showArtwork: true/u)
+  assert.match(trackTable, /v-if="props\.showArtwork"/u)
 })
 
 test('V1 Now Playing centers a real-quality disclosure without a quality switcher', async () => {
@@ -602,7 +621,8 @@ test('search playback gives immediate preparation feedback and rejects duplicate
   assert.match(playTrack, /api\.play\(track\.id, getSelectedQuality\(\), rendererClickAtMs\)/)
   assert.match(playTrack, /finally \{\s*api\.performanceDiagnostics\?\.end\(trace, traceOutcome\)\s*playbackStartPending\.value = false\s*\}/)
   assert.match(app, /onToast: showToast/)
-  assert.match(app, /:busy="playbackStartPending"/)
+  assert.match(app, /<CatalogWorkspace[^>]+:busy="playbackStartPending \|\| catalogActionPending \|\| !!catalogLocalUnconfirmed"/u)
+  assert.match(app, /async function playCatalogItem\([^]*?if \(catalogActionPending\.value \|\| playbackStartPending\.value\) return/u)
 })
 
 test('本地 Roon 点播先投影请求曲目再等待 Core 精确确认，并防止旧请求覆盖新请求', async () => {

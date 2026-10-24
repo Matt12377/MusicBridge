@@ -1,13 +1,14 @@
+import { mobileResourceCapacityFailure } from './resource-capacity-trace.js';
 import { createHash, hkdfSync } from 'node:crypto';
-import { mobileCanonicalJson, mobileRecord, mobileTrackSelectionEquals } from '@music-bridge/contracts';
-import type { MobileContentReadContext, MobileJsonValue, MobileRequestMap, MobileResponseBody, MobileTrack, MobileTrackSelection } from '@music-bridge/contracts';
+import { mapMobileAlbum, mobileCanonicalJson, mobileCatalogRequestSnapshot, mobileInteger, mobileRecord, mobileTrackSelectionEquals } from '@music-bridge/contracts';
+import type { MobileAlbum, MobileContentReadContext, MobileJsonValue, MobileRequestMap, MobileResponseBody, MobileSearchQuery, MobileTrack, MobileTrackPage, MobileTrackSelection } from '@music-bridge/contracts';
 import type { DatasetOwnerEndpoint } from '../collection/dataset-owner-protocol.js';
 import { createActualMobileNeteasePorts } from '../netease/mobile-actual-ports.js';
-import { captureMobileNeteaseScope } from './netease-source-types.js';
+import { assertMobileNeteaseAccount, captureMobileNeteaseScope } from './netease-source-types.js';
 import type { NeteaseMobileReadPort } from '../netease/types.js';
 import type { GatewayFetch } from '../stream/upstream-policy.js';
 import { createMobileContentRpcPort } from './content-rpc-port.js';
-import type { MobileContentCoreResponse, MobileContentMainPrincipal } from './content-rpc.js';
+import { MOBILE_CONTENT_RPC_BOUNDS, type MobileContentCoreResponse, type MobileContentMainPrincipal, type MobileContentCoreSettlementObserver } from './content-rpc.js';
 import { createMobileContentService, sameMobileContentScope } from './content-service.js';
 import { createMobileContentProviderService } from './content-provider-service.js';
 import { createMobileContentLyricsPort } from './content-lyrics.js';
@@ -16,7 +17,8 @@ import { captureMobileContentScope, isMobileContentMutation, type MobileContentP
   type MobileContentServiceInput, type MobileContentSnapshot } from './content-types.js';
 import { createMobileNeteaseCatalogService } from './netease-catalog-service.js';
 import { createMobileNeteaseSourceService } from './netease-source-service.js';
-import type { MobileNeteaseSourceService } from './netease-source-types.js';
+import type { MobileNeteaseCatalogResolver, MobileNeteaseSourceService } from './netease-source-types.js';
+import { createMobileCatalogCursorCodec, type MobileCatalogCursorQueryScope } from './cursor.js';
 import { captureMobileContentOwnerRequest, isMobileContentOwnerResult,
   type MobileContentOwnerRequest, type MobileContentOwnerResult, type MobileContentOwnerOperation } from './owner-content-protocol.js';
 import type { MobileContentMutationFacts } from './content-types.js';
@@ -41,7 +43,7 @@ export interface MobileContentRuntimeOptions {
   assertCurrent(): void;
 }
 export interface MobileContentRuntime {
-  request(input: unknown, signal: AbortSignal): Promise<MobileContentCoreResponse>;
+  request(input: unknown, signal: AbortSignal, onSettled?: MobileContentCoreSettlementObserver): Promise<MobileContentCoreResponse>;
   /** 凭据切换完成前等待原Owner围栏及旧网络工作收口。 */
   providerChanged(): Promise<void>;
   close(): Promise<void>;
@@ -57,6 +59,8 @@ const selectionOf = (track: MobileTrack): MobileTrackSelection => ({ trackId: tr
 export function createMobileContentRuntime(options: MobileContentRuntimeOptions): MobileContentRuntime {
   let identity: { serverId: string; datasetId: string; ownerEpoch: string } | null = null;
   let actual: ActualPorts | null = null, networkSources: MobileNeteaseSourceService | null = null;
+  let albumCatalog: MobileNeteaseCatalogResolver | null = null;
+  let albumCursor: ReturnType<typeof createMobileCatalogCursorCodec> | null = null;
   let content: ReturnType<typeof createMobileContentService> | null = null;
   let provider: ReturnType<typeof createMobileContentProviderService> | null = null;
   let lyrics: ReturnType<typeof createMobileContentLyricsPort> | null = null;
@@ -64,7 +68,12 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
   let unregisterAccount: (() => void) | null = null;
   const keys: Uint8Array[] = [], scopes = new Map<string, Scope>();
   const revoked = new Map<string, number>(), registeredDevices = new Set<string>(), resources = new Map<string, SourceBinding>();
-  let scopeTail: Promise<void> = Promise.resolve(), providerTail: Promise<void> = Promise.resolve();
+  const scopeQueue: { start(): void }[] = [];
+  let scopeRunning = false, providerTail: Promise<void> = Promise.resolve();
+  type ProviderWaitResult = { ok: true } | { ok: false; error: unknown };
+  const providerWaits = new WeakMap<Promise<void>, {
+    result: ProviderWaitResult | null; waiters: Set<(result: ProviderWaitResult) => void>;
+  }>();
   let providerFatal: unknown;
   function current(signal?: AbortSignal): void {
     if (closed || signal?.aborted || providerFatal !== undefined) throw busy();
@@ -74,9 +83,58 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
     current(signal); if (!identity || !actual || !content || !networkSources) throw busy();
     return { identity, actual, content, networkSources };
   }
-  async function serialScope<T>(task: () => Promise<T>): Promise<T> {
-    const flight = scopeTail.then(task);
-    scopeTail = flight.then(() => undefined, () => undefined); return flight;
+  function drainScope(): void {
+    if (scopeRunning) return;
+    const next = scopeQueue.shift(); if (!next) return;
+    scopeRunning = true; next.start();
+  }
+  function serialScope<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted || scopeQueue.length >= MOBILE_CONTENT_RPC_BOUNDS.inflight) return Promise.reject(busy());
+    return new Promise<T>((resolve, reject) => {
+      let queued = true;
+      const unlink = () => signal?.removeEventListener('abort', cancel);
+      const cancel = () => {
+        if (!queued) return;
+        queued = false; const index = scopeQueue.indexOf(entry);
+        if (index >= 0) scopeQueue.splice(index, 1);
+        unlink(); reject(busy());
+      };
+      const entry = { start() {
+        queued = false; unlink();
+        // 进入执行后仍等待真实工作落定；abort只撤回尚未开始的队列项。
+        const work = Promise.resolve().then(() => { current(signal); return task(); });
+        void work.then(resolve, reject).then(() => { scopeRunning = false; drainScope(); });
+      } };
+      scopeQueue.push(entry); signal?.addEventListener('abort', cancel, { once: true });
+      if (signal?.aborted) cancel();
+      drainScope();
+    });
+  }
+  function waitProviderTail(signal: AbortSignal): Promise<void> {
+    current(signal);
+    const tail = providerTail;
+    let group = providerWaits.get(tail);
+    if (!group) {
+      group = { result: null, waiters: new Set() }; providerWaits.set(tail, group);
+      const captured = group;
+      const settle = (result: ProviderWaitResult) => {
+        captured.result = result;
+        for (const finish of captured.waiters) finish(result);
+      };
+      // 每个原屏障只订阅一次；取消请求移除本订阅，不积累等待旧屏障的Promise链。
+      void tail.then(() => settle({ ok: true }), error => settle({ ok: false, error }));
+    }
+    if (group.waiters.size >= MOBILE_CONTENT_RPC_BOUNDS.inflight) return Promise.reject(busy());
+    const captured = group;
+    return new Promise<void>((resolve, reject) => {
+      const finish = (result: ProviderWaitResult) => {
+        captured.waiters.delete(finish); signal.removeEventListener('abort', cancel);
+        if (result.ok) resolve(); else reject(result.error);
+      };
+      const cancel = () => finish({ ok: false, error: busy() });
+      captured.waiters.add(finish); signal.addEventListener('abort', cancel, { once: true });
+      if (signal.aborted) cancel(); else if (captured.result) finish(captured.result);
+    });
   }
   async function owner(request: MobileContentOwnerRequest, signal?: AbortSignal): Promise<MobileContentOwnerResult> {
     current(signal);
@@ -120,7 +178,7 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
     await assertScope(scope, stage, new AbortController().signal);
   };
   async function resolveScope(principal: Readonly<MobileContentMainPrincipal>, signal: AbortSignal): Promise<Scope> {
-    await mobileCapabilityAsync('core.scope.provider-tail', () => providerTail); current(signal);
+    await mobileCapabilityAsync('core.scope.provider-tail', () => waitProviderTail(signal)); current(signal);
     const state = ready(signal);
     if (principal.serverId !== state.identity.serverId || principal.datasetId !== state.identity.datasetId) throw changed();
     const account = await mobileCapabilityAsync('core.scope.account.first', () => state.actual.account.current(signal)); current(signal);
@@ -139,7 +197,7 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
         || (latest?.providerEpoch ?? null) !== scope.providerEpoch) throw changed();
       await mobileCapabilityAsync('core.scope.owner.update', () => result({ action: 'updateScope', scope }, 'content-scope-updated', signal));
       current(signal); scopes.set(scope.deviceId, scope); registeredDevices.add(scope.deviceId);
-    }));
+    }, signal));
     await mobileCapabilityAsync('core.scope.assert', () => assertScope(scope, 'acquire', signal)); return scope;
   }
   async function localSource(scope: Scope, request: MobileOwnerSourceRequest, signal: AbortSignal): Promise<MobileOwnerSourceResult> {
@@ -174,7 +232,8 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
       await assertScope(scope, 'acquire', signal);
       if (binding?.releasing) throw new MobileServiceError(410, 'RESOURCE_RELEASED');
       if (!binding) {
-        if (resources.size >= 2048 || [...resources.values()].filter(value => !value.releasing).length >= 8) throw new MobileServiceError(429, 'RESOURCE_BUSY');
+        if (resources.size >= 2048) return mobileResourceCapacityFailure('capacity.core.stored-bindings-full', () => { throw new MobileServiceError(429, 'RESOURCE_BUSY'); });
+        if ([...resources.values()].filter(value => !value.releasing).length >= 8) return mobileResourceCapacityFailure('capacity.core.active-bindings-full', () => { throw new MobileServiceError(429, 'RESOURCE_BUSY'); });
         // 源前缀只决定候选作者；该作者仍核验完整原始selection及实际文件/账号。
         const selectedSource = request.selection.trackId.startsWith('lt:')
           || parseMobileTrackId(request.selection.trackId, state.identity.datasetId)?.kind === 'canonical' ? 'local' : 'netease';
@@ -201,7 +260,7 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
     }
     if (!binding) {
       if (request.operation !== 'release') throw new MobileServiceError(404, 'INVALID_REQUEST');
-      if (resources.size >= 2048) throw new MobileServiceError(429, 'RESOURCE_BUSY');
+      if (resources.size >= 2048) return mobileResourceCapacityFailure('capacity.core.stored-bindings-full', () => { throw new MobileServiceError(429, 'RESOURCE_BUSY'); });
       // Main取消可先于Core收到prepare；只建立封闭墓碑，不打开任何源。
       binding = { scope, source: 'local', port: null, prepared: null, releasing: true, quiet: Promise.resolve() };
       resources.set(handle, binding);
@@ -239,7 +298,7 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
       if (scope && scope.deviceEpoch > input.deviceEpoch) return;
       scopes.delete(input.deviceId);
       if (registeredDevices.has(input.deviceId)) await result({ action: 'invalidateScope', kind: 'device', deviceId: input.deviceId }, 'content-scope-invalidated', signal);
-    });
+    }, signal);
     await Promise.all([...resources].filter(([, value]) => value.scope.deviceId === input.deviceId && value.scope.deviceEpoch <= input.deviceEpoch)
       .map(([handle, value]) => release(value, handle)));
     current(signal);
@@ -261,6 +320,45 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
   }
   async function netTrack(scope: Scope, selection: MobileTrackSelection, signal: AbortSignal): Promise<MobileTrack> {
     return (await ready(signal).actual.catalog.track(scope, selection, signal)).track;
+  }
+  async function readAlbum(scope: Scope, albumId: string, signal: AbortSignal): Promise<MobileAlbum> {
+    ready(signal); if (!albumCatalog) throw busy();
+    const result = mapMobileAlbum(await albumCatalog.resolveAlbum(captureMobileNeteaseScope(scope), albumId, signal));
+    if (!result.ok) throw busy(); return result.value;
+  }
+  async function readAlbumTracks(rawScope: Scope, albumId: string, rawQuery: Readonly<MobileSearchQuery>, expectedRevision: string | null, signal: AbortSignal): Promise<MobileTrackPage> {
+    const scope = captureMobileNeteaseScope(rawScope), state = ready(signal);
+    if (!albumCursor) throw busy();
+    const captured = mobileCatalogRequestSnapshot('search', rawQuery);
+    if (!captured.ok || captured.value.source !== 'netease' || captured.value.albumId !== albumId) throw new MobileServiceError(400, 'INVALID_REQUEST');
+    const query = captured.value, q = (query.q ?? '').trim(), limit = query.limit ?? 50;
+    // 独立key及operation域；全部当前权限和查询语义入摘要，cursor本身只选择已签offset。
+    const queryScope: MobileCatalogCursorQueryScope = { operation: 'listTracks', serverId: scope.serverId,
+      deviceId: scope.deviceId, datasetId: scope.datasetId, accountDomain: scope.accountDomain,
+      deviceEpoch: scope.deviceEpoch, generation: scope.accessGeneration, source: 'netease',
+      sort: 'NETEASE_ALBUM_ORDER_V1', filter: hash(['NETEASE_ALBUM_QUERY_V1', scope, { q, source: 'netease', albumId, limit }]), albumId, limit };
+    const previous = query.cursor === undefined ? null : albumCursor.open(query.cursor, queryScope);
+    if (previous && previous.ownerEpoch !== scope.ownerEpoch) throw changed();
+    if (q !== '') throw busy(); // 本次只接专辑原顺序分页，不扩展Provider全库或搜索。
+    if (previous && expectedRevision !== null && previous.libraryRevision !== expectedRevision) throw changed();
+    const requiredRevision = expectedRevision ?? previous?.libraryRevision ?? null, offset = previous?.offset ?? 0;
+    if (requiredRevision !== null) await state.actual.assertAlbumRevision(scope, albumId, requiredRevision, signal);
+    let raw: Awaited<ReturnType<ActualPorts['resolveAlbumTracks']>>;
+    try { raw = await state.actual.resolveAlbumTracks(scope, albumId, { offset, limit }, signal); }
+    catch (error) {
+      // 旧页前检后发生缩短时，仍先裁决原revision；不能把真实源变化误报为offset参数错误。
+      if (requiredRevision !== null && error instanceof MobileServiceError && error.status === 400 && error.code === 'INVALID_REQUEST')
+        await state.actual.assertAlbumRevision(scope, albumId, requiredRevision, signal);
+      throw error;
+    }
+    assertMobileNeteaseAccount(scope, raw.account);
+    if (raw.source !== 'netease' || raw.album.id !== albumId || raw.album.source !== 'netease'
+      || raw.album.trackCount !== raw.total || raw.offset !== offset || raw.limit !== limit
+      || !mobileInteger(raw.total, 0, 300000) || raw.items.length !== Math.max(0, Math.min(limit, raw.total - offset))
+      || requiredRevision !== null && raw.revision !== requiredRevision) throw changed();
+    const next = offset + raw.items.length;
+    return { items: [...raw.items], nextCursor: next < raw.total ? albumCursor.issue({ ...queryScope,
+      ownerEpoch: scope.ownerEpoch, libraryRevision: raw.revision, offset: next }) : null, libraryRevision: raw.revision };
   }
   async function exactPage(scope: Scope, selections: readonly MobileTrackSelection[], signal: AbortSignal): Promise<MobileTrack[]> {
     const items: MobileTrack[] = [];
@@ -430,6 +528,8 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
           privateProviderDiagnostics: input.privateProviderDiagnostics === true });
         const catalog = createMobileNeteaseCatalogService({ port: actual.catalog,
           assertCurrent: scope => fence(scope, 'lease'), playbackQualified: () => actual?.qualified === true });
+        albumCatalog = catalog;
+        albumCursor = createMobileCatalogCursorCodec({ key: child('NETEASE_ALBUM_CATALOG_CURSOR'), version: 2 });
         networkSources = createMobileNeteaseSourceService({ catalog, account: actual.account, streams: actual.streams,
           assertCurrent: fence, isQualified: () => actual?.qualified === true });
         provider = createMobileContentProviderService({ provider: actual.provider, cursorKey: child('PROVIDER_CURSOR'),
@@ -441,8 +541,11 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
       });
     },
     invalidateDevice, resolveScope, assertScope, source,
+    readDirectory: (scope, query, signal) => ready(signal).actual.readDirectory(captureMobileNeteaseScope(scope), query, signal),
     readArtwork: (scope, id, signal) => ready(signal).actual.readArtwork(captureMobileNeteaseScope(scope), id, signal),
     assertArtwork: (scope, id, signal) => ready(signal).actual.assertArtwork(captureMobileNeteaseScope(scope), id, signal),
+    readTrack: (scope, id, expected, signal) => ready(signal).actual.readObservedTrack(captureMobileNeteaseScope(scope), id, expected, signal),
+    readAlbum, readAlbumTracks,
     content: { dispatch: input => ready(input.signal).content.dispatch(input) },
     neteasePlaybackQualified: async (scope, signal) => {
       await assertScope(scope, 'acquire', signal); const state = ready(signal);
@@ -450,7 +553,7 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
     },
   });
   return {
-    request: (input, signal) => rpc.request(input, signal), providerChanged,
+    request: (input, signal, onSettled) => rpc.request(input, signal, onSettled), providerChanged,
     close() {
       if (closing) return closing;
       // 先封RPC输出与新工作，再排空实际网络和Owner资源，最后销毁私有派生key。
@@ -459,7 +562,7 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
         const results = await Promise.allSettled([rpc.close(), content?.close(), lyrics?.close(), providerTail,
           networkSources?.close(), ...[...resources].map(([handle, value]) => release(value, handle))]);
         if (results.some(value => value.status === 'rejected')) throw busy();
-        await actual?.close(); provider?.close(); closed = true;
+        await actual?.close(); provider?.close(); albumCursor?.close(); closed = true;
         for (const key of keys) key.fill(0); scopes.clear();
       })(); return closing;
     },

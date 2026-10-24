@@ -1,4 +1,5 @@
 import * as dto from '@music-bridge/contracts';
+import { logLibraryOperation } from '../../../../packages/bridge-core/src/shared/library-operation-log.js';
 import type { DatasetScope } from './command-outbox-client.js';
 import { LOCAL_ALBUM_TRACE_PREFIX, localAlbumSafeMarker, readLocalAlbumPrivateFailure, copyLocalAlbumSafeTrace, emptyLocalAlbumTraceMatches, localAlbumTraceIdSha256, type LocalAlbumSafeTrace, type LocalAlbumTraceStage } from '../shared/library-read-trace.js';
 
@@ -68,8 +69,11 @@ export function createLocalAlbumClient(invoke: (channel: string, value: unknown)
     trace.stage = 'preload.scope'; const datasetId = await scope();
     if (!dto.isCommandOutboxDatasetId(datasetId)) return invalid();
     const copied = structuredClone(payload);
+    const invokeStartedAtMs = performance.now();
     trace.stage = 'preload.invoke'; const raw = await invoke('localAlbum:request', trace.id !== null && trace.sha256 !== null
       ? { datasetId, command, payload: copied, correlationId: trace.id } : { datasetId, command, payload: copied });
+    const receivedAtMs = performance.now();
+    if (command === 'localAlbum.artwork') logLibraryOperation('ui', 'artwork.preload-invoke', 'complete', { elapsedMs: Math.max(0, receivedAtMs - invokeStartedAtMs) });
     // 私有失败只在本次原correlationId及其实际SHA闭匹配后消费；不解析原IPC Error.message。
     if (raw && typeof raw === 'object' && Object.getOwnPropertyDescriptor(raw, 'type')?.value === 'local-album-private-failure') {
       if (trace.id === null || trace.sha256 === null) return invalid();
@@ -87,6 +91,7 @@ export function createLocalAlbumClient(invoke: (channel: string, value: unknown)
       const pageValid = dto.isLocalAlbumTrackPage(page, copied as dto.LocalAlbumTrackQuery, page.album); trace.matches.dto = pageValid; if (!pageValid) return invalid();
     }
     if (command === 'localAlbum.artwork') { const replyValid = dto.isLocalAlbumArtworkReply(result, copied as dto.LocalAlbumArtworkRequest); trace.matches.dto = replyValid; if (!replyValid) return invalid(); }
+    if (command === 'localAlbum.artwork') logLibraryOperation('ui', 'artwork.preload-validate', 'complete', { elapsedMs: Math.max(0, performance.now() - receivedAtMs) });
     return result as dto.LocalAlbumCommandResults[C];
   }
   const api: dto.LocalAlbumLibraryPublicApi = {

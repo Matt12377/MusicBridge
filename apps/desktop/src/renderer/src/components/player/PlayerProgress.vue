@@ -7,6 +7,7 @@ const props = defineProps<{ snapshot: PlaybackSnapshot | null; allowed: boolean;
 const emit = defineEmits<{ seek: [positionMs: number, settle: (positionMs?:number)=>void] }>()
 const position = ref(0)
 const duration = computed(() => props.snapshot?.currentTrack?.durationMs ?? 0)
+const remaining = computed(() => Math.max(0, duration.value - position.value))
 const clock=createPlaybackClock()
 let frame=0, seekToken=0, disposed=false
 function tick(){position.value=clock.read(performance.now());if(props.snapshot?.state==='playing')frame=requestAnimationFrame(tick)}
@@ -30,6 +31,6 @@ function cancel(){clock.cancel(performance.now());position.value=clock.read(perf
  <div class="player-timeline">
   <time>{{ formatPlaybackTime(position) }}</time>
   <input type="range" aria-label="播放栏进度" :aria-valuetext="`${formatPlaybackTime(position)} / ${formatPlaybackTime(duration)}`" :min="0" :max="Math.max(1,duration)" :step="1" :value="position" :disabled="!allowed || duration <= 0" :style="{'--progress': `${duration > 0 ? position/duration*100 : 0}%`}" @input="preview" @change="commit" @pointercancel="cancel" />
-  <time>{{ formatPlaybackTime(duration) }}</time>
+  <time>−{{ formatPlaybackTime(remaining) }}</time>
  </div>
 </template>

@@ -74,7 +74,7 @@ test('012设置真实七API读取OFF并CAS开启，未知不能乐观翻转或�
   const toggle = named(ui, '允许具体源文件写入')!; assert.equal(toggle.props.checked, false)
   toggle.checked = true; await toggle.props.onChange(ui.event(toggle)); await ui.settle(); assert.equal(f.policies.length, 1); assert.equal(toggle.props.checked, true); assert.equal(f.confirms.length, 0)
   f.api.setLocalSourceWritesPolicy = async request => { f.policies.push(request); throw new Error('合成未知') }; toggle.checked = false; await toggle.props.onChange(ui.event(toggle)); await ui.settle()
-  assert.equal(toggle.props.checked, true); assert.equal(toggle.props.disabled, true); assert.match(ui.text(), /结果未知/u); await ui.click(button(ui, '重新读取源写设置')); assert.equal(f.policies.length, 2)
+  assert.equal(toggle.props.checked, true); assert.equal(toggle.props.disabled, true); assert.match(ui.text(), /结果未知/u); await clickSourceAction(ui, '核对操作状态'); assert.equal(f.policies.length, 2)
 })
 test('012预览撤销按钮后仍需最终confirm；关闭/Tab边界有实际焦点', async t => {
   const f = fixture(); f.policy.enabled = true; const session = markRaw(useLocalSourceWrites({ api: f.api })); t.after(() => session.dispose()); await session.open(target); session.setAction('title', 'set'); session.setValue('title', '新值'); await session.preview(); f.complete(session.plan.value!.planId); await session.reconcile()

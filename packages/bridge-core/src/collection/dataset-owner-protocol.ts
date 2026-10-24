@@ -1,4 +1,6 @@
+import { LOCAL_ARTIST_COMMANDS } from '@music-bridge/contracts';
 import path from 'node:path';
+import { LIBRARY_REMOVAL_REQUEST_MS } from '../shared/library-removal-budget.js';
 import type { LocalWorkbenchReadService, LocalWorkbenchResolvedReadCapture, LocalWorkbenchNamePreparation } from './local-library-workbench/read-service.js';
 import type { LocalWorkbenchPlanDraft, LocalWorkbenchPlanCapture, LocalWorkbenchArtworkCapture, LocalNameProposalResult, LocalWorkbenchFrozenArtwork } from './local-library-workbench/types.js';
 import { isLocalWorkbenchAlbumCapture } from './local-library-workbench/name-proposal.js';
@@ -28,6 +30,7 @@ import { IPC_VERSION, isCollectionId, isCollectionModel, isCommandOutboxDatasetI
 export const DATASET_OWNER_PROTOCOL_VERSION = 1 as const;
 // 原领域作者命令及本地库只读入口组成固定闭集；新命令必须显式加入，不能按前缀自动授权。
 export const DATASET_COMMANDS = [
+  ...LOCAL_ARTIST_COMMANDS,
   ...LOCAL_LEGACY_LINKS_COMMANDS,
   ...LOCAL_RELOCATION_PLAN_COMMANDS,
   ...LOCAL_ARTWORK_COMMANDS,
@@ -255,6 +258,8 @@ export const isDatasetCommand = (value: unknown): value is DatasetCommand => typ
 export interface DatasetOwnerIdentity { epoch: string; datasetId: string }
 export interface DatasetOwnerEndpoint {
   workbenchContext?(read?:{signal?:AbortSignal;deadlineAtMs?:number}):Promise<DatasetWorkbenchContext>;
+  /** 可信Main只核当前Owner身份；不读取目录可用性或扩充公开命令。 */
+  workbenchReadIdentity?(read?:{signal?:AbortSignal;deadlineAtMs?:number}):Promise<DatasetWorkbenchContext>;
   joinWorkbench?():Promise<void>;
   dispatchWorkbench?(request:DatasetWorkbenchRequest, context:{identity:DatasetOwnerIdentity;signal?:AbortSignal;deadlineAtMs?:number}):Promise<DatasetWorkbenchResult>;
   dispatchWorkbenchOwner?(request:DatasetWorkbenchOwnerRequest, context:{identity:DatasetOwnerIdentity;signal?:AbortSignal;deadlineAtMs?:number}):Promise<DatasetWorkbenchOwnerResult>;
@@ -266,6 +271,8 @@ export interface DatasetOwnerEndpoint {
   loadMBQueue?(): Promise<MBQueueLoadResult>;
   saveMBQueue?(request: MBQueueSaveRequest): Promise<MBQueueRecord>;
   captureLocalSource?(selection: LocalPlayRequest): Promise<LocalSourceCaptureResult>;
+  /** 只读取原播放ticket的精确旁置歌词；无路径、Provider ID或新授权输入。 */
+  readLocalSourceLyrics?(ticketId: string): Promise<import('@music-bridge/contracts').LyricsSnapshot>;
   revalidateLocalSource?(ticketId: string): Promise<boolean>;
   releaseLocalSource?(ticketId: string): Promise<void>;
   isLocalSourceCurrent?(): boolean;
@@ -303,6 +310,7 @@ export interface DatasetProjectionCommandPayloads {
   lyricsProviderCancel:{operationId:string};
   lyricsProviderJoin:{operationId:string};
   normalizeLocalAlbumArtwork: { copies: LocalArtworkSourceCopies };
+  scanReadStatus: Record<string, never>;
   scanReadAcquire: Record<string, never> | { purpose: 'local-album-display' };
   scanReadWatchRevocation: {permitId:string};
   scanReadRelease: {permitId:string};
@@ -323,7 +331,8 @@ export interface DatasetProjectionCommandResults {
   lyricsProviderRead:DatasetLyricsProviderRead;
   lyricsProviderCancel:{operationId:string;cancelRequested:true};
   lyricsProviderJoin:{operationId:string;physicalClosed:true};
-  normalizeLocalAlbumArtwork: { image: LocalArtworkImage | null; status: 'ready' | 'source-unavailable' };
+  normalizeLocalAlbumArtwork: { image: LocalArtworkImage | null; status: 'ready' | 'source-unavailable'; grid?: dto.LocalAlbumArtworkGrid };
+  scanReadStatus: {status:'ready'|'deferred'};
   scanReadAcquire: {status:'granted';permitId:string}|{status:'deferred'};
   scanReadWatchRevocation: {reason:'media-busy'|'admission-closed'|'permit-released'|'renew'};
   scanReadRelease: {released:true};
@@ -451,8 +460,9 @@ export interface DatasetProjectionPort {
 export type DatasetOwnerProjectionHandler = <K extends DatasetProjectionCommand>(command: K, payload: DatasetProjectionCommandPayloads[K], context: { epoch: string; datasetId?: string; signal?:AbortSignal;deadlineAtMs?:number;expiresAtMs?:number }) => Promise<DatasetProjectionCommandResults[K]>;
 export interface OwnedDatasetDomain {
   workbenchContext?():Promise<DatasetWorkbenchContext>;
+  workbenchReadIdentity?():Promise<DatasetWorkbenchContext>;
   dispatchWorkbench?(request:DatasetWorkbenchRequest, context:DatasetWorkbenchExecutionContext):Promise<DatasetWorkbenchResult>;
-  /** 固定18项私有Owner端点；实现须回核原作者捕获/实际target许可，DTO本身不授予源写权限。 */
+  /** 私有Owner闭集；实现须回核原作者捕获/实际target许可，Main就绪确认不授予源写权限。 */
   dispatchWorkbenchOwner?(request:DatasetWorkbenchOwnerRequest, context:DatasetWorkbenchExecutionContext):Promise<DatasetWorkbenchOwnerResult>;
   closeWorkbench?():Promise<void>;
   readLocalAlbum?(request: LocalAlbumOwnerReadRequest): Promise<LocalAlbumOwnerReadResult>;
@@ -465,6 +475,7 @@ export interface OwnedDatasetDomain {
   loadMBQueue?(): MBQueueLoadResult;
   saveMBQueue?(request: MBQueueSaveRequest): MBQueueRecord;
   captureLocalSource?(selection: LocalPlayRequest): LocalSourceCaptureResult;
+  readLocalSourceLyrics?(ticketId: string): Promise<import('@music-bridge/contracts').LyricsSnapshot>;
   revalidateLocalSource?(ticketId: string): boolean;
   releaseLocalSource?(ticketId: string): void;
   sealLocalSources?(): void;
@@ -480,10 +491,10 @@ export interface OwnedDatasetDomain {
   failureForError(id: string, error: unknown, command?: IpcCommand): IpcFailure;
 }
 
-export type DatasetOwnerOperation = 'localAlbumRead' | 'mobileMain' | 'materializeMBEdition' | 'loadMBQueue' | 'saveMBQueue' | 'captureLocalSource' | 'revalidateLocalSource' | 'releaseLocalSource' | 'prepare' | 'dispatch' | 'dispatchInternal' | 'commitBoot' | 'exportCollectionSnapshot' | 'getCollectionSnapshotVersion' | 'exportVersionedCollectionSnapshot' | 'exportLargeVersionedCollectionSnapshot' | 'close';
+export type DatasetOwnerOperation = 'localAlbumRead' | 'mobileMain' | 'materializeMBEdition' | 'loadMBQueue' | 'saveMBQueue' | 'captureLocalSource' | 'readLocalSourceLyrics' | 'revalidateLocalSource' | 'releaseLocalSource' | 'prepare' | 'dispatch' | 'dispatchInternal' | 'commitBoot' | 'exportCollectionSnapshot' | 'getCollectionSnapshotVersion' | 'exportVersionedCollectionSnapshot' | 'exportLargeVersionedCollectionSnapshot' | 'close';
 export type DatasetOwnerFatalReason = 'worker-error' | 'worker-exit' | 'protocol-failure' | 'close-failed' | 'post-failed';
 interface OwnerEnvelope { version: typeof DATASET_OWNER_PROTOCOL_VERSION; epoch: string }
-export interface DatasetOwnerRequest extends OwnerEnvelope { type: 'request'; requestId: string; sequence: number; operation: DatasetOwnerOperation; album?: LocalAlbumOwnerReadRequest; mobile?: MobileOwnerPrivateRequest; request?: IpcRequest; queue?: MBQueueSaveRequest; edition?: MBEditionQueueRequest; local?: LocalSourcePrivatePayload; expectedDatasetId?: string }
+export interface DatasetOwnerRequest extends OwnerEnvelope { type: 'request'; requestId: string; sequence: number; operation: DatasetOwnerOperation; album?: LocalAlbumOwnerReadRequest; mobile?: MobileOwnerPrivateRequest; ownerLoadTrace?: number; catalogTrace?: unknown; request?: IpcRequest; queue?: MBQueueSaveRequest; edition?: MBEditionQueueRequest; local?: LocalSourcePrivatePayload; expectedDatasetId?: string }
 export type DatasetOwnerResponse = OwnerEnvelope & { type: 'response'; requestId: string; operation: DatasetOwnerOperation } & ({ ok: true; result: unknown } | { ok: false; failure: IpcFailure });
 export type DatasetOwnerProjectionRequest = OwnerEnvelope & { type: 'projection'; projectionRequestId: string; command: DatasetProjectionCommand; payload: DatasetProjectionCommandPayloads[DatasetProjectionCommand]; read?: {expiresAtMs:number} };
 export type DatasetOwnerProjectionCancel = OwnerEnvelope & {type:'projection-cancel';projectionRequestId:string;command:'normalizeLocalAlbumArtwork';expiresAtMs:number};
@@ -537,8 +548,13 @@ export function isDatasetRequestEnvelope(value: unknown, internal = false): valu
     && isDatasetCommand(value.command) && (internal || !(isLocalArtworkInternalCommand(value.command) || isLocalCatalogInternalCommand(value.command) || isLocalScanInternalCommand(value.command) || isLocalRelocationInternalCommand(value.command))) && ownerRecord(value.payload) && (value.expectedDatasetId === undefined || isCommandOutboxDatasetId(value.expectedDatasetId));
 }
 export function isDatasetOwnerRequest(value: unknown): value is DatasetOwnerRequest {
-  if (!ownerRecord(value) || !keys(value, ['version','epoch','type','requestId','sequence','operation','album','mobile','request','queue','edition','local','expectedDatasetId']) || value.version !== DATASET_OWNER_PROTOCOL_VERSION || value.type !== 'request' || !isCollectionId(value.epoch) || !isCollectionId(value.requestId)
-    || !Number.isSafeInteger(value.sequence) || Number(value.sequence) < 1 || !['localAlbumRead','mobileMain','materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
+  if (!ownerRecord(value) || !keys(value, ['version','epoch','type','requestId','sequence','operation','album','mobile','ownerLoadTrace','catalogTrace','request','queue','edition','local','expectedDatasetId']) || value.version !== DATASET_OWNER_PROTOCOL_VERSION || value.type !== 'request' || !isCollectionId(value.epoch) || !isCollectionId(value.requestId)
+    || !Number.isSafeInteger(value.sequence) || Number(value.sequence) < 1 || !['localAlbumRead','mobileMain','materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','readLocalSourceLyrics','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
+  if (Object.hasOwn(value, 'catalogTrace') && (value.operation !== 'mobileMain' || !ownerRecord(value.mobile)
+    || value.mobile.kind !== 'catalog' || !ownerRecord(value.mobile.request) || value.mobile.request.operation !== 'listTracks')) return false;
+  // 临时诊断序号只沿既有认证load，不授予任何业务资格。
+  if (Object.hasOwn(value, 'ownerLoadTrace') && (value.operation !== 'mobileMain' || !ownerRecord(value.mobile)
+    || value.mobile.kind !== 'load' || !Number.isSafeInteger(value.ownerLoadTrace) || Number(value.ownerLoadTrace) < 1 || Number(value.ownerLoadTrace) > 8)) return false;
   if (value.operation === 'localAlbumRead') return value.request === undefined && value.mobile === undefined && value.local === undefined
     && value.queue === undefined && value.edition === undefined && isCommandOutboxDatasetId(value.expectedDatasetId) && isLocalAlbumOwnerReadRequest(value.album);
   if (Object.hasOwn(value, 'album')) return false;
@@ -550,7 +566,7 @@ export function isDatasetOwnerRequest(value: unknown): value is DatasetOwnerRequ
   if (value.operation === 'loadMBQueue' || value.operation === 'saveMBQueue') return value.request === undefined && value.local === undefined && isCommandOutboxDatasetId(value.expectedDatasetId)
     && (value.operation === 'loadMBQueue' ? value.queue === undefined : isMBQueueSaveRequest(value.queue) && value.queue.queue.datasetId === value.expectedDatasetId);
   if (Object.hasOwn(value,'queue')) return false;
-  if (['captureLocalSource','revalidateLocalSource','releaseLocalSource'].includes(String(value.operation))) return value.request === undefined && isCommandOutboxDatasetId(value.expectedDatasetId) && isLocalSourcePrivatePayload(String(value.operation),value.local);
+  if (['captureLocalSource','readLocalSourceLyrics','revalidateLocalSource','releaseLocalSource'].includes(String(value.operation))) return value.request === undefined && isCommandOutboxDatasetId(value.expectedDatasetId) && isLocalSourcePrivatePayload(String(value.operation),value.local);
   if (Object.hasOwn(value,'local')) return false;
   if (['exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot'].includes(String(value.operation))) return value.request === undefined && isCommandOutboxDatasetId(value.expectedDatasetId);
   if (Object.hasOwn(value, 'expectedDatasetId')) return false;
@@ -563,16 +579,17 @@ export function isDatasetOwnerFailure(value: unknown): value is IpcFailure {
 }
 export function isDatasetOwnerResponse(value: unknown): value is DatasetOwnerResponse {
   if (!ownerRecord(value) || !keys(value,['version','epoch','type','requestId','operation','ok','result','failure']) || value.version !== DATASET_OWNER_PROTOCOL_VERSION || value.type !== 'response' || !isCollectionId(value.epoch) || !isCollectionId(value.requestId)
-    || !['localAlbumRead','mobileMain','materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
+    || !['localAlbumRead','mobileMain','materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','readLocalSourceLyrics','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
   return value.ok === true ? value.failure === undefined && Object.hasOwn(value,'result') : value.ok === false && value.result === undefined && isDatasetOwnerFailure(value.failure);
 }
-export const DATASET_PROJECTION_COMMANDS = ['normalizeLocalAlbumArtwork','browseAlbumCandidates','captureAlbumMetadata','captureTrackMetadataBatch','acquirePermit','releasePermit','scanReadAcquire','scanReadWatchRevocation','scanReadRelease','lyricsProviderStart','lyricsProviderRead','lyricsProviderCancel','lyricsProviderJoin','nameProviderStart','nameProviderRead','nameProviderCancel','nameProviderJoin'] as const;
+export const DATASET_PROJECTION_COMMANDS = ['normalizeLocalAlbumArtwork','browseAlbumCandidates','captureAlbumMetadata','captureTrackMetadataBatch','acquirePermit','releasePermit','scanReadStatus','scanReadAcquire','scanReadWatchRevocation','scanReadRelease','lyricsProviderStart','lyricsProviderRead','lyricsProviderCancel','lyricsProviderJoin','nameProviderStart','nameProviderRead','nameProviderCancel','nameProviderJoin'] as const;
 export function isDatasetProjectionPayload(command: unknown, payload: unknown): payload is DatasetProjectionCommandPayloads[DatasetProjectionCommand] {
   if(isDatasetNameProviderCommand(command))return isDatasetNameProviderPayload(command,payload);
   if(isDatasetLyricsProviderCommand(command))return isDatasetLyricsProviderPayload(command,payload);
-  if (command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+  if (command === 'scanReadStatus' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
     if (wbNodeTypes.isProxy(payload) || !ownerRecord(payload) || ![Object.prototype,null].includes(Object.getPrototypeOf(payload))) return false;
     const fields = Reflect.ownKeys(payload);
+    if (command === 'scanReadStatus') return fields.length === 0;
     if (command === 'scanReadAcquire' && fields.length === 0) return true;
     const key = command === 'scanReadAcquire' ? 'purpose' : 'permitId', descriptor = Object.getOwnPropertyDescriptor(payload, key);
     return fields.length === 1 && fields[0] === key && descriptor?.enumerable === true && Object.hasOwn(descriptor, 'value')
@@ -593,13 +610,15 @@ export function isDatasetProjectionResult(command: DatasetProjectionCommand, val
   if(isDatasetNameProviderCommand(command))return isDatasetNameProviderResult(command,value);
   if(isDatasetLyricsProviderCommand(command))return isDatasetLyricsProviderResult(command,value);
   if (command === 'normalizeLocalAlbumArtwork') return ownerRecord(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value))
-    && Reflect.ownKeys(value).length === 2 && ['image', 'status'].every(key => Object.getOwnPropertyDescriptor(value, key)?.enumerable === true
+    && Reflect.ownKeys(value).length === (Object.hasOwn(value, 'grid') ? 3 : 2) && ['image', 'status', ...(Object.hasOwn(value, 'grid') ? ['grid'] : [])].every(key => Object.getOwnPropertyDescriptor(value, key)?.enumerable === true
       && Object.hasOwn(Object.getOwnPropertyDescriptor(value, key)!, 'value'))
     && (value.status === 'ready' || value.status === 'source-unavailable') && (value.image === null || isLocalArtworkImage(value.image))
+    && (!Object.hasOwn(value, 'grid') || value.image !== null && dto.isLocalAlbumArtworkGrid(value.grid))
     && (value.status !== 'source-unavailable' || value.image === null);
-  if (command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+  if (command === 'scanReadStatus' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
     if (!ownerRecord(value) || ![Object.prototype,null].includes(Object.getPrototypeOf(value))) return false;
     const closedScan=(names:readonly string[])=>Reflect.ownKeys(value).length === names.length && names.every(k=>Object.prototype.propertyIsEnumerable.call(value,k));
+    if(command === 'scanReadStatus') { const status=Object.getOwnPropertyDescriptor(value,'status');return closedScan(['status'])&&status!==undefined&&Object.hasOwn(status,'value')&&(status.value==='ready'||status.value==='deferred'); }
     if(command === 'scanReadAcquire') return value.status === 'deferred' ? closedScan(['status']) : value.status === 'granted' && closedScan(['status','permitId']) && isCollectionId(value.permitId);
     return command === 'scanReadRelease' ? closedScan(['released']) && value.released === true : closedScan(['reason']) && ['media-busy','admission-closed','permit-released','renew'].includes(String(value.reason));
   }
@@ -757,7 +776,7 @@ export type DatasetWorkbenchRequest =
 export type DatasetWorkbenchResult = dto.LocalLibraryManagementResults[dto.LocalLibraryManagementCommand] | dto.LocalNameSettingsResults[dto.LocalNameSettingsCommand] | dto.LocalLyricsCommandResults[dto.LocalLyricsCommand]
 export interface DatasetWorkbenchContext extends DatasetOwnerIdentity {ready:true}
 export interface DatasetWorkbenchExecutionContext {identity:Readonly<DatasetOwnerIdentity>;signal:AbortSignal;deadlineAtMs:number}
-export const DATASET_WORKBENCH_BOUNDS = Object.freeze({requestMs:2000,chunkBytes:64*1024,requestBytes:128*1024,resultBytes:8*1024*1024,pending:24})
+export const DATASET_WORKBENCH_BOUNDS = Object.freeze({requestMs:2000,drainMs:10000,libraryRemoveMs:LIBRARY_REMOVAL_REQUEST_MS,chunkBytes:64*1024,requestBytes:128*1024,resultBytes:8*1024*1024,pending:24})
 export function isDatasetWorkbenchContext(value:unknown):value is DatasetWorkbenchContext {
   return ownResult(value,['epoch','datasetId','ready']) && dto.isCollectionId(value.epoch) && dto.isCommandOutboxDatasetId(value.datasetId) && value.ready===true
 }
@@ -776,6 +795,34 @@ export function isDatasetWorkbenchRequest(value:unknown):value is DatasetWorkben
     return family==='lyrics'&&(DATASET_WORKBENCH_COMMANDS.lyrics as readonly unknown[]).includes(command)&&dto.isLocalLyricsCommandPayload(command as dto.LocalLyricsCommand,value.payload)&&datasetWorkbenchJson(value).byteLength<=DATASET_WORKBENCH_BOUNDS.requestBytes
   }catch{return false}
 }
+/** 只有完整闭集remove正文取得关闭链预算；普通命令、context与未组装帧仍是原2秒。 */
+export function datasetWorkbenchRequestMs(request:unknown):number {
+  return isDatasetWorkbenchRequest(request)&&request.family==='management'&&request.command==='library.remove'
+    ?DATASET_WORKBENCH_BOUNDS.libraryRemoveMs:DATASET_WORKBENCH_BOUNDS.requestMs
+}
+/** 私有身份读取与drain只在合法空正文取得各自有界预算；普通命令仍沿原期限。 */
+export function datasetWorkbenchOperationMs(kind:DatasetWorkbenchMeta['kind'],body:unknown):number {
+  if(kind==='context.identity'){
+    if(!ownResult(body,[]))throw new DatasetWorkbenchWireError('INVALID_IPC_REQUEST')
+    return 20_000
+  }
+  if(kind==='drain'){
+    if(!ownResult(body,[]))throw new DatasetWorkbenchWireError('INVALID_IPC_REQUEST')
+    return DATASET_WORKBENCH_BOUNDS.drainMs
+  }
+  return kind==='execute'?datasetWorkbenchRequestMs(body):DATASET_WORKBENCH_BOUNDS.requestMs
+}
+/** 收完正文后仍使用原expiry与首次接收时钟；不从组装完成时另给一轮期限。 */
+export function datasetWorkbenchExecutionDeadline(meta:DatasetWorkbenchMeta,body:unknown,receivedAtMs:number,startedAtMs:number):number {
+  const monotonic=performance.now(),wall=Date.now()
+  if(wall-receivedAtMs>=DATASET_WORKBENCH_BOUNDS.requestMs||monotonic-startedAtMs>=DATASET_WORKBENCH_BOUNDS.requestMs)throw new DatasetWorkbenchWireError('TIMEOUT')
+  const budget=datasetWorkbenchOperationMs(meta.kind,body)
+  if(meta.expiresAtMs>receivedAtMs+budget)throw new DatasetWorkbenchWireError('INVALID_IPC_REQUEST')
+  const originalRemaining=Math.min(budget,meta.expiresAtMs-receivedAtMs)
+  const deadline=Math.min(monotonic+meta.expiresAtMs-wall,startedAtMs+originalRemaining)
+  if(deadline<=monotonic)throw new DatasetWorkbenchWireError('TIMEOUT')
+  return deadline
+}
 export function isDatasetWorkbenchResult(request:DatasetWorkbenchRequest,value:unknown,datasetId:string):value is DatasetWorkbenchResult {
   if(!isDatasetWorkbenchRequest(request)||!publicDataResult(value))return false
   if(request.family==='management')return dto.isLocalLibraryManagementResult(request.command,value,request.payload)&&(value===null||typeof value!=='object'||!('datasetId'in value)||value.datasetId===datasetId)
@@ -789,8 +836,9 @@ export class DatasetWorkbenchWireError extends Error {
   constructor(readonly code:DatasetWorkbenchWireCode,outcome:'not-sent'|'unknown'='unknown'){super('原整理请求未确认，请核对原command/body回执。');this.name='DatasetWorkbenchWireError';this.outcome=outcome}
 }
 export interface DatasetWorkbenchMeta {
-  id:string;epoch:string|null;datasetId:string;sequence:number;kind:'context'|'execute'|'owner'|'drain';requestSha256:string;expiresAtMs:number
+  id:string;epoch:string|null;datasetId:string;sequence:number;kind:'context'|'context.identity'|'execute'|'owner'|'drain';requestSha256:string;expiresAtMs:number
 }
+export const isDatasetWorkbenchContextKind = (value: unknown): value is 'context' | 'context.identity' => value === 'context' || value === 'context.identity'
 interface WorkbenchFrameBase extends DatasetWorkbenchMeta {version:1;type:'musicbridge.workbench.frame';lane:'request'|'response'|'control'}
 export type DatasetWorkbenchFrame = WorkbenchFrameBase & (
   | {part:'begin';totalBytes:number;sha256:string;chunks:number}
@@ -803,7 +851,7 @@ const wbMetaKeys=['id','epoch','datasetId','sequence','kind','requestSha256','ex
 const wbSha=(v:unknown):v is string=>typeof v==='string'&&/^[0-9a-f]{64}$/u.test(v)
 export function isDatasetWorkbenchMeta(value:unknown):value is DatasetWorkbenchMeta {
   return ownResult(value,wbMetaKeys)&&dto.isCollectionId(value.id)&&(value.epoch===null||dto.isCollectionId(value.epoch))&&dto.isCommandOutboxDatasetId(value.datasetId)
-    &&Number.isSafeInteger(value.sequence)&&Number(value.sequence)>0&&['context','execute','owner','drain'].includes(String(value.kind))&&wbSha(value.requestSha256)&&Number.isSafeInteger(value.expiresAtMs)&&Number(value.expiresAtMs)>0
+    &&Number.isSafeInteger(value.sequence)&&Number(value.sequence)>0&&['context','context.identity','execute','owner','drain'].includes(String(value.kind))&&wbSha(value.requestSha256)&&Number.isSafeInteger(value.expiresAtMs)&&Number(value.expiresAtMs)>0
 }
 export function datasetWorkbenchMeta(frame:DatasetWorkbenchFrame):DatasetWorkbenchMeta {
   return {id:frame.id,epoch:frame.epoch,datasetId:frame.datasetId,sequence:frame.sequence,kind:frame.kind,requestSha256:frame.requestSha256,expiresAtMs:frame.expiresAtMs}
@@ -862,16 +910,18 @@ export function createDatasetWorkbenchAssembler(meta:DatasetWorkbenchMeta,lane:'
 }
 
 
-/** 18个原工作台私有端点，不加入IpcCommand或公开39命令。 */
+/** 原工作台私有端点与Main就绪确认，不加入IpcCommand或公开39命令。 */
 export const DATASET_WORKBENCH_OWNER_COMMANDS = [
   'read.albums','read.resolveCapture','read.prepareNameSuggestion','read.completeNameSuggestion',
   'read.prepareNamePreview','read.prepareArtworkPreview','read.cancelNamePreparation',
   'registry.issuePlan','registry.apply','registry.readOriginalReceipt','registry.cancel',
   'registry.getPlan','registry.readArtworkCapture','registry.operations',
-  'capabilities.read','artwork.readLocal','cue.preparePreview','existing.open',
+  'capabilities.read','artwork.readLocal','cue.preparePreview','existing.open','lifecycle.mainReady',
 ] as const
 export type DatasetWorkbenchOwnerCommand = typeof DATASET_WORKBENCH_OWNER_COMMANDS[number]
 export interface DatasetWorkbenchOwnerPayloads {
+  /** 仅真实Main装配完成后确认；Owner只开启原后台调度，不取得Source许可。 */
+  'lifecycle.mainReady': Record<string,never>
   'read.albums': dto.LocalWorkbenchReadRequest
   'read.resolveCapture': dto.LocalWorkbenchArtworkRequest
   'read.prepareNameSuggestion': dto.LocalWorkbenchAiRequest
@@ -894,6 +944,7 @@ export interface DatasetWorkbenchOwnerPayloads {
   'existing.open': dto.LocalWorkbenchExistingRequest
 }
 export interface DatasetWorkbenchOwnerResults {
+  'lifecycle.mainReady': true
   'read.albums': dto.LocalWorkbenchReadback
   'read.resolveCapture': Readonly<LocalWorkbenchResolvedReadCapture>
   'read.prepareNameSuggestion': Readonly<LocalWorkbenchNamePreparation>
@@ -989,7 +1040,7 @@ export function isDatasetWorkbenchOwnerRequest(value:unknown):value is DatasetWo
     case 'registry.cancel':return dto.isLocalWorkbenchCommandPayload('localWorkbench.plan.cancel',p)
     case 'registry.getPlan':return ownResult(p,['planId'])&&dto.isLocalWorkbenchIdentity(p.planId)
     case 'registry.readArtworkCapture':return ownResult(p,['datasetId','planId','candidateId'])&&[p.datasetId,p.planId,p.candidateId].every(dto.isLocalWorkbenchIdentity)
-    case 'registry.operations':case 'capabilities.read':return ownResult(p,[])
+    case 'registry.operations':case 'capabilities.read':case 'lifecycle.mainReady':return ownResult(p,[])
     case 'cue.preparePreview':return ownResult(p,['request','target'])&&dto.isLocalCueSplitInput(p.request)&&ownResult(p.target,['target','revision'])
       &&dto.isLocalCueOutputTarget(p.target.target)&&dto.isLocalWorkbenchIdentity(p.target.revision)
       &&p.request.target.choiceId===p.target.target.choiceId&&p.request.target.label===p.target.target.label
@@ -1029,6 +1080,7 @@ export function isDatasetWorkbenchOwnerResult<C extends DatasetWorkbenchOwnerCom
       &&value.datasetId===datasetId&&ownResult(p,['datasetId','planId','candidateId'])&&p.datasetId===datasetId&&value.planId===p.planId
       &&dto.isLocalWorkbenchIdentity(value.datasetRevision)&&wbSha(value.planHash)&&wbSha(value.contextFingerprint)&&isLocalWorkbenchAlbumCapture(value.capture)
       &&isLocalWorkbenchArtworkCapture(value.artwork)&&value.artwork.candidateId===p.candidateId&&value.artwork.albumId===value.capture.albumId
+    case 'lifecycle.mainReady':return value===true
     case 'registry.operations':return arrayResult(value,512)&&value.every(operation=>dto.isLocalWorkbenchOperation(operation,datasetId))
     case 'capabilities.read':return dto.isLocalWorkbenchCapabilitiesReply(value)
     case 'artwork.readLocal':return dto.isLocalArtworkCommandResult('localArtwork.readCandidates',value)

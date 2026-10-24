@@ -1,15 +1,18 @@
+import { createMobileArtistSearchBackend } from './mobile-artist-search-backend.js';
+import type { ArtistSearchCatalogPublicApi } from '@music-bridge/contracts';
+import { observeMobileOwnerLoadTrace } from '../../../../packages/bridge-core/src/mobile/owner-load-trace.js';
 import { createHmac, hkdfSync } from 'node:crypto';
-import { mobileCapabilityAsync, mobileCapabilitySync, mobileContentDiagnosticAsync } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
+import { mobileCapabilityAsync, mobileCapabilitySync, mobileContentDiagnosticAsync, noteMobileUIFeature, withMobileCapabilityContext, observeMobileCapabilityTrace, type MobileCapabilityStage } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
 import { encodeMobileJsonReply, mobileCanonicalJson, type MobileJsonValue, type MobileCapabilities, type MobileDecodedRequest, type MobilePairingClaim, type MobileRefreshRequest, type MobileReplyMap, type MobileSearchQuery, type MobileUIContentCapabilities } from '@music-bridge/contracts';
 import { createMobileAuthCrypto } from '../../../../packages/bridge-core/src/mobile/auth-crypto.js';
 import { createMobileAuthService } from '../../../../packages/bridge-core/src/mobile/auth-service.js';
 import { createMobileCatalogService } from '../../../../packages/bridge-core/src/mobile/catalog-service.js';
 import { isMobileOwnerPrivateResult } from '../../../../packages/bridge-core/src/mobile/owner-protocol.js';
-import { MobileAuthPersistenceError, MobileServiceError, type Mobile001Backend, type Mobile001BackendReply, type MobileAuthPersistence, type MobileCatalogReadPort, type MobileOwnerArtworkSnapshot, type MobileOwnerCatalogSnapshot, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult, type MobilePrincipal } from '../../../../packages/bridge-core/src/mobile/types.js';
+import { MobileAuthPersistenceError, MobileServiceError, type Mobile001Backend, type Mobile001BackendReply, type MobileAuthPersistence, type MobileCatalogReadPort, type MobileOwnerArtworkSnapshot, type MobileOwnerCatalogSnapshot, type MobileOwnerCatalogSelectedSnapshot, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult, type MobilePrincipal } from '../../../../packages/bridge-core/src/mobile/types.js';
 import { createMobilePlaybackBackend } from './mobile-playback-backend.js';
 import type { MobileAuthService } from '../../../../packages/bridge-core/src/mobile/types.js';
 import type { MobileContentCoreRequest, MobileContentCoreResponse } from '../../../../packages/bridge-core/src/mobile/content-rpc.js';
-import { createMainMobileContentPort } from './mobile-content-port.js';
+import { createMainMobileContentPort, type MobileContentCancelRecheck } from './mobile-content-port.js';
 import { createMobileContentBackend } from './mobile-content-backend.js';
 
 export type Mobile003Operation = 'getUIContentCapabilities';
@@ -24,11 +27,13 @@ export function createMobileBackend(options: {
   requestOwner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
   assertCurrent(): void;
   resizeArtwork(bytes: Uint8Array, size: 96 | 256 | 512, providerInput?: true): Uint8Array;
+  artists?: ArtistSearchCatalogPublicApi;
   enablePlayback?: boolean;
   enableDsd?: boolean;
   enableContent?: boolean;
   privateProviderDiagnostics?: boolean;
-  requestContentRpc?(request: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse>;
+  privateCloseDiagnostics?: boolean;
+  requestContentRpc?(request: MobileContentCoreRequest, signal: AbortSignal, recheck?: MobileContentCancelRecheck): Promise<MobileContentCoreResponse>;
 }) {
   if (options.enableDsd === true && options.enablePlayback !== true) throw new MobileServiceError(400, 'INVALID_REQUEST');
   if (options.enableContent === true && typeof options.requestContentRpc !== 'function') throw new MobileServiceError(400, 'INVALID_REQUEST');
@@ -44,7 +49,7 @@ export function createMobileBackend(options: {
     const derived = new Uint8Array(hkdfSync('sha256', options.authKey, new Uint8Array(), 'MusicBridge:MBM004:CONTENT_ROOT:1', 32));
     try { return createMainMobileContentPort({ serverId: options.serverId, datasetId: options.datasetId,
       key: derived, requestRpc: options.requestContentRpc, assertCurrent: current,
-      privateProviderDiagnostics: options.privateProviderDiagnostics === true }); }
+      privateProviderDiagnostics: options.privateProviderDiagnostics === true, privateCloseDiagnostics: options.privateCloseDiagnostics === true }); }
     finally { derived.fill(0); }
   })();
   async function owner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
@@ -85,24 +90,43 @@ export function createMobileBackend(options: {
     // 只在正式播放端已激活后申请目录资格；是否可播仍由原 Owner 核当前源事实。
     read: async request => await owner({ kind: 'catalog', datasetId: options.datasetId,
       request: { ...request, ...(playback?.enabled === true ? { catalogPlaybackEnabled: true } : {}) } }) as MobileOwnerCatalogSnapshot,
+    selected: async request => await owner({ kind: 'catalog-selected', datasetId: options.datasetId,
+      request: { ...request, ...(playback?.enabled === true ? { catalogPlaybackEnabled: true } : {}) } }) as MobileOwnerCatalogSelectedSnapshot,
     artwork: async request => await owner({ kind: 'artwork', datasetId: options.datasetId, request }) as MobileOwnerArtworkSnapshot,
   };
   const catalog = createMobileCatalogService({ port, auth, serverId: options.serverId, datasetId: options.datasetId,
     privateDiagnostics: options.privateProviderDiagnostics === true,
     cursorKey: new Uint8Array(createHmac('sha256', options.authKey).update('musicbridge-mobile-cursor-v1').digest()) });
+  const artistSearchBackend = options.artists ? createMobileArtistSearchBackend({ auth, catalog, artists: options.artists,
+    cursorKey: new Uint8Array(createHmac('sha256', options.authKey).update('musicbridge-mobile-artist-search-v1').digest()),
+    assertCurrent: current,
+    assertCatalogCurrent: async (principal, signal) => {
+      current(); signal.throwIfAborted();
+      if (principal.datasetId !== options.datasetId || principal.serverId !== options.serverId) throw new MobileServiceError(409, 'SOURCE_CHANGED');
+      await auth.assertCurrent(principal); await owner({ kind: 'load', datasetId: options.datasetId });
+      current(); signal.throwIfAborted();
+    },
+    providerDirectory: async (principal, query, signal) => {
+      if (!contentPort) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
+      return contentPort.directory(principal, query, signal);
+    } }) : undefined;
   const capabilities: MobileCapabilities = { contractVersion: '0.1.0', localPlayback: false, neteasePlayback: false, transcoding: false,
     hls: false, preparedVariants: false, qualityProfiles: [], maxConcurrentSessions: 2 };
-  const alive = async (): Promise<void> => { await owner({ kind: 'load', datasetId: options.datasetId }); };
+  const alive = async (): Promise<void> => { await observeMobileOwnerLoadTrace('main', 'http.before-send.alive', () => owner({ kind: 'load', datasetId: options.datasetId })); };
   const backend: Mobile001Backend = {
     async dispatch(input): Promise<Mobile001BackendReply> {
+      let releaseTrackActivity: (() => void) | undefined;
+      try {
       mobileCapabilitySync('main.current', () => { current(); if (input.signal.aborted) throw new MobileServiceError(503, 'BUSY'); });
       const { operation, request } = input;
       let principal: MobilePrincipal | null = null, body: unknown = null, status = 200, neteasePlayback = false;
+      let providerTrackBeforeSend: (()=>Promise<void>) | undefined;
+      let providerAlbumBeforeSend: (()=>Promise<void>) | undefined;
       if (!['getServer', 'claimPairing', 'refreshToken'].includes(operation)) {
-        principal = await mobileCapabilityAsync('main.auth', () => {
+        principal = await observeMobileOwnerLoadTrace('main', 'main.auth', () => mobileCapabilityAsync('main.auth', () => {
           if (!input.accessToken) throw new MobileServiceError(401, 'UNAUTHORIZED');
           return auth.authenticate(input.accessToken);
-        });
+        }));
       }
       switch (operation) {
         case 'getServer': body = await auth.serverInfo(); break;
@@ -110,14 +134,43 @@ export function createMobileBackend(options: {
         case 'refreshToken': body = await auth.refresh(request.body as MobileRefreshRequest, request.idempotencyKey!); break;
         case 'logout': await auth.logout(principal!); status = 204; break;
         case 'getCapabilities':
-          neteasePlayback = playback?.enabled && contentPort ? await mobileCapabilityAsync('main.initial-qualification', () => contentPort.neteasePlaybackQualified(principal!, input.signal)) : false;
+          neteasePlayback = playback?.enabled && contentPort ? await observeMobileOwnerLoadTrace('main', 'main.initial-qualification', () => mobileCapabilityAsync('main.initial-qualification', () => contentPort.neteasePlaybackQualified(principal!, input.signal))) : false;
           body = playback?.enabled ? { ...capabilities, localPlayback: true, neteasePlayback, qualityProfiles: ['auto', 'lossless'] } : capabilities; break;
         case 'listAlbums': body = await catalog.listAlbums(request.query as MobileSearchQuery, principal!); break;
-        case 'getAlbum': body = await catalog.getAlbum(request.pathParameters.albumId!, principal!); break;
-        case 'listTracks': body = await (options.privateProviderDiagnostics === true
+        case 'getAlbum': {
+          const albumId = request.pathParameters.albumId!;
+          if (albumId.startsWith('na:')) {
+            if (!contentPort) throw new MobileServiceError(404, 'RESOURCE_REVOKED');
+            const selected = await contentPort.album(principal!, albumId, input.signal);
+            body = selected.album; providerAlbumBeforeSend = selected.beforeSend;
+          } else body = await catalog.getAlbum(albumId, principal!);
+          break;
+        }
+        case 'listTracks': {
+          const query = request.query as MobileSearchQuery;
+          if (query.source === 'netease' && query.albumId?.startsWith('na:')) {
+            if (!contentPort) throw new MobileServiceError(404, 'RESOURCE_REVOKED');
+            const selected = await contentPort.albumTracks(principal!, query, input.signal);
+            body = playback?.enabled === true ? selected.page : { ...selected.page,
+              items: selected.page.items.map(track => track.availability === 'available' ? { ...track, availability: 'unavailable' as const } : track) };
+            providerAlbumBeforeSend = selected.beforeSend;
+          } else body = await (options.privateProviderDiagnostics === true
           ? mobileContentDiagnosticAsync('main.catalog.tracks.read', () => catalog.listTracks(request.query as MobileSearchQuery, principal!))
-          : catalog.listTracks(request.query as MobileSearchQuery, principal!)); break;
-        case 'getTrack': body = await catalog.getTrack(request.pathParameters.trackId!, principal!); break;
+          : catalog.listTracks(request.query as MobileSearchQuery, principal!));
+          break;
+        }
+        case 'getTrack': {
+          const trackId=request.pathParameters.trackId!;
+          if(trackId.startsWith('nt:')){
+            if(!contentPort)throw new MobileServiceError(404,'RESOURCE_REVOKED');
+            // 精确音频参数属于播放前台；提示覆盖同一次GET的读取和发送前原复验。
+            if(playback?.enabled)releaseTrackActivity=await playback.acquireControlActivity(input.signal);
+            const selected=await contentPort.track(principal!,trackId,input.signal);providerTrackBeforeSend=selected.beforeSend;
+            // 详情可显示真实音频；正式播放后端未激活时仍不授予可播资格。
+            body=selected.track.availability==='available'&&playback?.enabled!==true?{...selected.track,availability:'unavailable'}:selected.track;
+          }else body=await catalog.getTrack(trackId,principal!);
+          break;
+        }
         case 'getArtwork': {
           if (request.pathParameters.artworkId!.startsWith('naw:')) {
             if (!contentPort) throw new MobileServiceError(404, 'RESOURCE_REVOKED');
@@ -143,23 +196,24 @@ export function createMobileBackend(options: {
         }
       }
       mobileCapabilitySync('main.current', () => { current(); if (input.signal.aborted) throw new MobileServiceError(503, 'BUSY'); });
-      const reply = mobileCapabilitySync('main.encode', () => {
+      const reply = observeMobileOwnerLoadTrace('main', 'main.encode', () => mobileCapabilitySync('main.encode', () => {
         const encoded = encodeMobileJsonReply(operation, { status, category: status === 204 ? 'empty' : 'success', body } as MobileReplyMap[typeof operation],
-          { responseOrigin, requestPath: request.path });
+          { responseOrigin, requestPath: request.path, ...(request.catalogFeatures === 'unknown-duration-v1' ? { catalogFeatures: request.catalogFeatures } : {}) });
         if (!encoded.ok) throw new MobileServiceError(503, encoded.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'BUSY');
         return encoded;
-      });
+      }));
       return { ...reply.value, headers: [...reply.value.headers, ['Cache-Control', 'private, no-store']], beforeSend: async () => {
+        try {
         await mobileCapabilityAsync('main.beforeSend.alive', alive);
-        if (operation === 'getCapabilities' && contentPort && playback?.enabled) await mobileCapabilityAsync('main.beforeSend.qualification', async () => {
+        if (operation === 'getCapabilities' && contentPort && playback?.enabled) await observeMobileOwnerLoadTrace('main', 'main.before-send.qualification', () => mobileCapabilityAsync('main.beforeSend.qualification', async () => {
           if (await contentPort.neteasePlaybackQualified(principal!, input.signal) !== neteasePlayback) throw new MobileServiceError(409, 'SOURCE_CHANGED');
-        });
+        }));
         if (operation === 'listAlbums' && body && typeof body === 'object' && 'libraryRevision' in body) {
           await owner({ kind: 'catalog', datasetId: options.datasetId, request: { operation: 'listAlbums', serverId: options.serverId,
             offset: 0, limit: 1, q: '', albumId: null, itemId: null, expectedRevision: String(body.libraryRevision),
             ...(playback?.enabled === true ? { catalogPlaybackEnabled: true } : {}) } });
         }
-        if (operation === 'listTracks') {
+        if (operation === 'listTracks' && !providerAlbumBeforeSend) {
           // 外部文件变化可能不改数据库修订，重核原查询同一页的实际可用性。
           const latest = await (options.privateProviderDiagnostics === true
             ? mobileContentDiagnosticAsync('main.catalog.tracks.beforeSend', () => catalog.listTracks(request.query as MobileSearchQuery, principal!))
@@ -168,7 +222,9 @@ export function createMobileBackend(options: {
           if (!same({ items: latest.items, libraryRevision: latest.libraryRevision, hasNext: latest.nextCursor !== null },
             { items: previous.items, libraryRevision: previous.libraryRevision, hasNext: previous.nextCursor !== null })) throw new MobileServiceError(409, 'SOURCE_CHANGED');
         }
-        if (operation === 'getAlbum' || operation === 'getTrack') {
+        if(providerTrackBeforeSend)await providerTrackBeforeSend();
+        if(providerAlbumBeforeSend)await providerAlbumBeforeSend();
+        if (operation === 'getAlbum'&&!providerAlbumBeforeSend || operation === 'getTrack'&&!providerTrackBeforeSend) {
           const latest = operation === 'getAlbum' ? await catalog.getAlbum(request.pathParameters.albumId!, principal!) : await catalog.getTrack(request.pathParameters.trackId!, principal!);
           if (!same(latest, body)) throw new MobileServiceError(409, 'SOURCE_CHANGED');
         }
@@ -177,12 +233,14 @@ export function createMobileBackend(options: {
           const original = operation === 'claimPairing' ? await auth.claim(request.body as MobilePairingClaim, request.idempotencyKey!) : await auth.refresh(request.body as MobileRefreshRequest, request.idempotencyKey!);
           if (!same(original, body)) throw new MobileServiceError(401, 'UNAUTHORIZED');
         }
-        if (principal && operation !== 'logout') await mobileCapabilityAsync('main.beforeSend.auth', () => auth.assertCurrent(principal!));
+        if (principal && operation !== 'logout') await observeMobileOwnerLoadTrace('main', 'main.before-send.auth', () => mobileCapabilityAsync('main.beforeSend.auth', () => auth.assertCurrent(principal!)));
         mobileCapabilitySync('main.current', () => { if (input.signal.aborted) throw new MobileServiceError(503, 'BUSY'); current(); });
+        } finally { releaseTrackActivity?.(); releaseTrackActivity = undefined; }
       } };
+      } catch (error) { releaseTrackActivity?.(); throw error; }
     },
   };
-  const dsdBackend: Mobile003Backend | undefined = options.enableDsd === true || contentPort ? {
+  const dsdBackend: Mobile003Backend | undefined = options.enableDsd === true || contentPort || artistSearchBackend ? {
     async dispatch(input) {
       current(); input.signal.throwIfAborted();
       if (input.operation !== 'getUIContentCapabilities' || input.request.path !== '/mobile/v1/ui/capabilities') throw new MobileServiceError(400, 'INVALID_REQUEST');
@@ -204,10 +262,17 @@ export function createMobileBackend(options: {
       }
       const contentState = contentPort ? contentScope ? 'ready' as const : 'unavailable' as const : 'unsupported' as const;
       const body: MobileUIContentCapabilities = { version: '1.0.0', addedAlbums: contentState,
+        ...(artistSearchBackend ? { sourceSearch: 'ready', localArtists: 'ready', artistIdentityLink: contentPort ? providerState : 'unsupported' } as const : {}),
         neteaseDailyRecommendations: contentPort ? providerState : 'unsupported', lyrics: contentState,
         resourceFormatBitDepth: activePlayback?.enabled === true, resourceDsdToPcm: qualified.resourceDsdToPcm,
+        ...(contentScope && contentScope.providerEpoch !== null && providerState === 'ready'
+          ? { neteaseAccountDomain: contentScope.accountDomain } : {}),
         ...(contentPort ? { neteaseLikedPlaylist: providerState, personalFavorites: contentState, personalPlaylists: contentState,
           neteaseRecommendedPlaylists: providerState, neteaseNewAlbums: providerState, neteaseCharts: providerState, neteasePersonalFM: providerState } as const : {}) };
+      for (const feature of ['addedAlbums', 'neteaseDailyRecommendations', 'lyrics', 'neteaseLikedPlaylist', 'personalFavorites',
+        'personalPlaylists', 'neteaseRecommendedPlaylists', 'neteaseNewAlbums', 'neteaseCharts', 'neteasePersonalFM'] as const) {
+        noteMobileUIFeature(feature, body[feature] ?? 'unsupported');
+      }
       const reply = mobileCapabilitySync('main.encode', () => {
         const encoded = encodeMobileJsonReply('getUIContentCapabilities', { status: 200, category: 'success', body },
           { responseOrigin: input.origin, requestPath: input.request.path });
@@ -223,17 +288,25 @@ export function createMobileBackend(options: {
       } };
     },
   } : undefined;
-  return { backend, auth, playbackBackend: playback?.backend, dsdBackend, contentBackend,
+  return { backend, auth, playbackBackend: playback?.backend, dsdBackend, contentBackend, artistSearchBackend,
     activatePlayback(origin: string): void { if (!playback) throw new MobileServiceError(400, 'INVALID_REQUEST'); playback.activate(origin); responseOrigin = origin; },
     playbackSnapshot: () => playback?.snapshot(),
+    getCloseDiagnosticContext: () => contentPort?.getCloseDiagnosticContext(),
     close(): Promise<void> {
       if (!closeFlight) {
         closed = true;
         closeFlight = (async () => {
           const failures: unknown[] = [];
-          for (const close of [() => contentBackend?.close(), () => playback?.close(),
-            () => Promise.all([...revocations.values()].flatMap(set => [...set])), () => contentPort?.close(), () => rawAuth.close()]) {
-            try { await close(); } catch (error) { failures.push(error); }
+          try { await artistSearchBackend?.close(); } catch (error) { failures.push(error); }
+          const stages: ReadonlyArray<readonly [MobileCapabilityStage, () => unknown]> = [
+            ['main.close.content-backend', () => contentBackend?.close()], ['main.close.playback', () => playback?.close()],
+            ['main.close.revocations', () => Promise.all([...revocations.values()].flatMap(set => [...set]))],
+            ['main.close.content-port', () => contentPort?.close()], ['main.close.auth', () => rawAuth.close()],
+          ];
+          for (const [stage, close] of stages) {
+            try {
+              await withMobileCapabilityContext(contentPort?.getCloseDiagnosticContext(), () => observeMobileCapabilityTrace(stage, close, 'cleanup'));
+            } catch (error) { failures.push(error); }
           }
           if (failures.length) throw new AggregateError(failures, '移动服务收尾尚未确认。');
         })();

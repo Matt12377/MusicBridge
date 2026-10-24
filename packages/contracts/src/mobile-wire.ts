@@ -57,13 +57,17 @@ export type MobileHeaderPairs = readonly (readonly [string,string])[];
 export interface MobileHttpRequestInput { method:string; path:string; headers:MobileHeaderPairs; query:MobileHeaderPairs; body:Uint8Array }
 export interface MobileHttpResponseInput { status:number; headers:MobileHeaderPairs; body:Uint8Array; finalUrl:string }
 export interface MobileMediaHeadContext { totalBytes:number; resourceId:string; asset:string }
+export const MOBILE_CATALOG_FEATURE_HEADER = 'X-MusicBridge-Catalog-Features';
+export const MOBILE_UNKNOWN_DURATION_FEATURE = 'unknown-duration-v1';
+export type MobileCatalogFeatures = typeof MOBILE_UNKNOWN_DURATION_FEATURE;
 export interface MobileWireCodecContext {
   responseOrigin:string; requestPath:string; limits?:MobileCodecLimits;
   resourceCapabilities?:MobileResourceCodecContext; resource?:MobileResourceSemanticContext; session?:MobileSessionScope;
   catalog?:MobileCatalogReadContext; content?:Content.MobileContentReadContext; contentMutation?:Content.MobileContentMutationContext; media?:MobileMediaHeadContext;
+  catalogFeatures?:MobileCatalogFeatures;
 }
 export type MobileRequestBody<O extends MobileOperationId> = O extends 'claimPairing' ? MobilePairingClaim : O extends 'refreshToken' ? MobileRefreshRequest : O extends 'createSession' ? MobileSessionRequest : O extends 'reportObservation' ? MobileObservation : O extends 'createResource' ? MobileResourceRequest : O extends 'setAlbumFavorite' ? Content.MobileSetAlbumFavoriteRequest : O extends 'setTrackFavorite' ? Content.MobileSetTrackFavoriteRequest : O extends 'createPersonalPlaylist' ? Content.MobileCreatePersonalPlaylistRequest : O extends 'addPersonalPlaylistTrack' ? Content.MobileAddPersonalPlaylistTrackRequest : O extends 'logout' | 'renewResource' ? Record<string,never> : null;
-export interface MobileDecodedRequest<B> { path:string; pathParameters:Record<string,string>; query:MobileRecord; body:B; idempotencyKey?:string }
+export interface MobileDecodedRequest<B> { path:string; pathParameters:Record<string,string>; query:MobileRecord; body:B; idempotencyKey?:string; catalogFeatures?:MobileCatalogFeatures }
 export type MobileRequestMap = { [O in MobileOperationId]:MobileDecodedRequest<MobileRequestBody<O>> };
 export interface MobileBinaryMetadata { contentLength:number; contentType:string | null; contentRange:string | null }
 export type MobileResponseBody<O extends MobileOperationId> =
@@ -80,6 +84,8 @@ export type MobileReplyMap = { [O in MobileOperationId]:{ status:number; categor
 export interface MobileEncodedJsonRequest { method:string; path:string; query:MobileHeaderPairs; headers:MobileHeaderPairs; body:Uint8Array }
 export interface MobileEncodedJsonReply { status:number; headers:MobileHeaderPairs; body:Uint8Array }
 const schemas:MobileSchemaRegistry = {...MOBILE_COMMON_SCHEMAS,...MOBILE_CATALOG_SCHEMAS,...MOBILE_RESOURCE_SCHEMAS,...MOBILE_CONTENT_SCHEMAS};
+// HTTP缺省保持旧整数合同，包括内容页中通过$ref嵌套的Track；内部表示不授予出站许可。
+const legacySchemas:MobileSchemaRegistry = {...schemas,Track:{...schemas.Track!,properties:{...schemas.Track!.properties,durationMs:{type:'integer',minimum:0}}}};
 function envelope(raw:unknown,names:readonly string[]):boolean {
   try { if (!mobileRecord(raw) || ![Object.prototype,null].includes(Object.getPrototypeOf(raw))) return false; const keys = Reflect.ownKeys(raw); return keys.length === names.length && names.every(name => { const d = Object.getOwnPropertyDescriptor(raw,name); return d?.enumerable === true && Object.hasOwn(d,'value'); }); } catch { return false; }
 }
@@ -121,6 +127,8 @@ export function decodeMobileRequest<O extends MobileOperationId>(operation:O,inp
   if (!Object.hasOwn(MOBILE_OPERATION_TABLE,operation) || !envelope(input,['method','path','headers','query','body'])) return mobileFailure('INVALID_REQUEST','request');
   const entry = MOBILE_OPERATION_TABLE[operation], pathParameters = typeof input.path === 'string' ? matchPath(operation,input.path) : null, bytes = bodyBytes(input.body), h = headers(input.headers), q = pairs(input.query);
   if (input.method !== entry.method || !pathParameters || bytes === null || !h.ok || !q.ok || input.path !== context.requestPath) return mobileFailure('INVALID_REQUEST','request');
+  const catalogFeatures = h.value.get(MOBILE_CATALOG_FEATURE_HEADER.toLowerCase());
+  if (catalogFeatures !== undefined && (entry.method !== 'GET' || catalogFeatures !== MOBILE_UNKNOWN_DURATION_FEATURE)) return mobileFailure('INVALID_REQUEST','catalog-features');
   const limits = context.limits ?? MOBILE_CODEC_LIMITS; if (bytes.byteLength > limits.requestBytes) return mobileFailure('LIMIT_EXCEEDED','body');
   const query:MobileRecord = Object.create(null) as MobileRecord;
   const querySchema = entry.querySchema as MobileSchema;
@@ -148,7 +156,7 @@ export function decodeMobileRequest<O extends MobileOperationId>(operation:O,inp
     }
   } else if (bytes.byteLength !== 0) return mobileFailure('INVALID_REQUEST','body');
   const key = h.value.get('idempotency-key'); if (entry.idempotency && (key === undefined || [...key].length < 1 || [...key].length > 128)) return mobileFailure('INVALID_REQUEST','idempotency-key');
-  return mobileOk({path:input.path,pathParameters,query:queryResult.value,body,...(key === undefined ? {} : {idempotencyKey:key})} as MobileRequestMap[O]);
+  return mobileOk({path:input.path,pathParameters,query:queryResult.value,body,...(key === undefined ? {} : {idempotencyKey:key}),...(catalogFeatures === undefined ? {} : {catalogFeatures})} as MobileRequestMap[O]);
 }
 function mediaMetadata(operation:'getMediaAsset' | 'headMediaAsset',status:number,body:Uint8Array,h:Map<string,string>,context:MobileWireCodecContext):MobileDecodeResult<MobileBinaryMetadata> {
   const rawLength = h.get('content-length'); if (rawLength === undefined || !/^(0|[1-9]\d*)$/u.test(rawLength) || !mobileInteger(Number(rawLength))) return mobileFailure('INVALID_RESPONSE','content-length');
@@ -182,9 +190,11 @@ export function decodeMobileResponse<O extends MobileOperationId>(operation:O,in
   let body:unknown;
   if (operation === 'createResource' || operation === 'getResource' || operation === 'renewResource') { if (!context.resource) return mobileFailure('CONTEXT_MISMATCH','resource'); const result = operation === 'createResource' ? validateMobileCreateResourceReply(input.status,parsed.value,context.resource,limits) : validateMobileGetResourceReply(input.status,parsed.value,context.resource,limits); if (!result.ok) return result; body = result.value.body; }
   else {
-    if (!entry.responseSchema || !schemas[entry.responseSchema]) return mobileFailure('INVALID_RESPONSE','schema');
+    const responseSchemas = context.catalogFeatures === MOBILE_UNKNOWN_DURATION_FEATURE ? schemas : legacySchemas;
+    if (!entry.responseSchema || !responseSchemas[entry.responseSchema]) return mobileFailure('INVALID_RESPONSE','schema');
     const contentKind = (Object.keys(MOBILE_CONTENT_RESPONSE_NAMES) as (keyof Content.MobileContentResponseMap)[]).find(key => MOBILE_CONTENT_RESPONSE_NAMES[key] === entry.responseSchema);
-    const result = contentKind ? mobileContentResponseSnapshot(contentKind,parsed.value,limits) : mobileSchemaSnapshot(schemas[entry.responseSchema]!,parsed.value,schemas,limits); if (!result.ok) return result; body = result.value;
+    const captured = mobileSchemaSnapshot(responseSchemas[entry.responseSchema]!,parsed.value,responseSchemas,limits); if (!captured.ok) return captured;
+    const result = contentKind ? mobileContentResponseSnapshot(contentKind,captured.value,limits) : captured; if (!result.ok) return result; body = result.value;
     if (operation === 'listNeteaseRecommendedPlaylists' || operation === 'listNeteaseCharts') {
       const expectedKind = operation === 'listNeteaseCharts' ? 'chart' : 'playlist';
       if (!mobileRecord(body) || !Array.isArray(body.items) || body.items.some(item => !mobileRecord(item) || item.kind !== expectedKind))
@@ -198,13 +208,15 @@ export function decodeMobileResponse<O extends MobileOperationId>(operation:O,in
 }
 
 export function encodeMobileRequest<O extends MobileOperationId>(operation:O,value:MobileRequestMap[O],context:MobileWireCodecContext):MobileDecodeResult<MobileEncodedJsonRequest> {
-  if (!Object.hasOwn(MOBILE_OPERATION_TABLE,operation) || !mobileRecord(value) || !envelope(value,Object.hasOwn(value,'idempotencyKey') ? ['path','pathParameters','query','body','idempotencyKey'] : ['path','pathParameters','query','body'])) return mobileFailure('INVALID_REQUEST','request');
+  if (!Object.hasOwn(MOBILE_OPERATION_TABLE,operation) || !mobileRecord(value) || !envelope(value,['path','pathParameters','query','body',...(Object.hasOwn(value,'idempotencyKey') ? ['idempotencyKey'] : []),...(Object.hasOwn(value,'catalogFeatures') ? ['catalogFeatures'] : [])])) return mobileFailure('INVALID_REQUEST','request');
+  if (Object.hasOwn(value,'catalogFeatures') && value.catalogFeatures !== MOBILE_UNKNOWN_DURATION_FEATURE) return mobileFailure('INVALID_REQUEST','catalog-features');
   const entry = MOBILE_OPERATION_TABLE[operation], limits = context.limits ?? MOBILE_CODEC_LIMITS;
   const captured = mobileDataSnapshot(value.body,limits,'request'), querySnapshot = mobileDataSnapshot(value.query,limits,'request'), pathSnapshot = mobileDataSnapshot(value.pathParameters,limits,'request');
   if (!captured.ok) return captured;
   if (!querySnapshot.ok || !mobileRecord(querySnapshot.value) || !pathSnapshot.ok || !mobileRecord(pathSnapshot.value) || typeof value.path !== 'string' || value.idempotencyKey !== undefined && typeof value.idempotencyKey !== 'string') return mobileFailure('INVALID_REQUEST','request');
   const raw = value, body = raw.body === null ? new Uint8Array() : new TextEncoder().encode(mobileCanonicalJson(captured.value));
   const h:[string,string][] = raw.body === null ? [] : [['Content-Type','application/json']]; if (raw.idempotencyKey !== undefined) h.push(['Idempotency-Key',raw.idempotencyKey]);
+  if (raw.catalogFeatures !== undefined) h.push([MOBILE_CATALOG_FEATURE_HEADER,raw.catalogFeatures]);
   const query = Object.entries(querySnapshot.value).map(([k,v]) => [k,String(v)] as [string,string]);
   const input:MobileHttpRequestInput = {method:entry.method,path:raw.path,headers:h,query,body}; const checked = decodeMobileRequest(operation,input,context);
   if (checked.ok && mobileCanonicalJson(checked.value.pathParameters) !== mobileCanonicalJson(pathSnapshot.value)) return mobileFailure('INVALID_REQUEST','pathParameters');

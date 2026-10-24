@@ -11,15 +11,39 @@ export interface LocalAlbumQueueSnapshot {
   edition: dto.AlbumEdition | null
   startIndex: number
 }
-export type LocalAlbumOwnerReadResult = dto.LocalAlbumCommandResults[dto.LocalAlbumCommand] | LocalAlbumQueueSnapshot
+export interface LocalArtistSearchQueueSnapshot {
+  context: dto.LocalSearchPlayContext
+  sources: readonly Extract<dto.MBQueueLogicalSource, { kind: 'local_file' }>[]
+  edition: null
+  startIndex: number
+}
+export type LocalSelectionQueueSnapshot = LocalAlbumQueueSnapshot | LocalArtistSearchQueueSnapshot
+export type LocalAlbumOwnerReadResult = dto.LocalAlbumCommandResults[dto.LocalAlbumCommand] | LocalSelectionQueueSnapshot
 
 function closed(value: unknown, names: readonly string[]): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(value))
     && Reflect.ownKeys(value).length === names.length && names.every(key => Object.getOwnPropertyDescriptor(value,key)?.enumerable === true
       && Object.hasOwn(Object.getOwnPropertyDescriptor(value,key)!, 'value'))
 }
-export function isLocalAlbumQueueSnapshot(value: unknown, selection: dto.LocalPlayRequest): value is LocalAlbumQueueSnapshot {
+export function isLocalArtistSearchQueueSnapshot(value: unknown, selection: dto.LocalPlayRequest): value is LocalArtistSearchQueueSnapshot {
+  if (!dto.isLocalPlayRequest(selection) || !selection.context || !closed(value,['context','sources','edition','startIndex'])
+    || !dto.isLocalSearchPlayContext(value.context) || JSON.stringify(value.context) !== JSON.stringify(selection.context) || value.edition !== null
+    || !Array.isArray(value.sources) || value.sources.length < 1 || value.sources.length > dto.MAX_MB_QUEUE_ENTRIES
+    || Object.getPrototypeOf(value.sources) !== Array.prototype || Reflect.ownKeys(value.sources).length !== value.sources.length + 1
+    || !Number.isSafeInteger(value.startIndex) || Number(value.startIndex) < 0 || Number(value.startIndex) >= value.sources.length) return false
+  for (let index=0;index<value.sources.length;index++) {
+    const property=Object.getOwnPropertyDescriptor(value.sources,index)
+    if(!property?.enumerable||!Object.hasOwn(property,'value')||!dto.isMBQueueLogicalSource(property.value)
+      ||property.value.kind!=='local_file'||property.value.edition!==null)return false
+  }
+  const sources=value.sources as LocalArtistSearchQueueSnapshot['sources'],start=sources[Number(value.startIndex)]!.snapshot
+  return start.trackId===selection.local_track_id&&start.assetId===selection.asset_id&&start.fileRevision===selection.expected_asset_revision
+    &&new Set(sources.map(source=>source.snapshot.trackId)).size===sources.length
+    &&dto.mbQueueSerializedBytes(value)<=dto.MAX_MB_QUEUE_JSON_BYTES
+}
+export function isLocalAlbumQueueSnapshot(value: unknown, selection: dto.LocalPlayRequest): value is LocalSelectionQueueSnapshot {
   if (!dto.isLocalPlayRequest(selection)) return false
+  if(selection.context)return isLocalArtistSearchQueueSnapshot(value,selection)
   const album = selection.album
   if (!album || !closed(value,['album','sources','edition','startIndex']) || !dto.isLocalPlayAlbum(value.album)
     || !Array.isArray(value.sources) || value.sources.length !== album.trackCount || value.sources.length > dto.MAX_MB_QUEUE_ENTRIES
@@ -51,7 +75,8 @@ export function isLocalAlbumOwnerReadRequest(value: unknown): value is LocalAlbu
       && Object.hasOwn(Object.getOwnPropertyDescriptor(value, key)!, 'value'))) return false
   const request = value as Record<string, unknown>
   if (request.command === 'localAlbum.materializeQueue') return closed(request.payload,['selection','expiresAtMs'])
-    && dto.isLocalPlayRequest(request.payload.selection) && request.payload.selection.action === 'PLAY_NOW' && request.payload.selection.album !== undefined
+    && dto.isLocalPlayRequest(request.payload.selection) && request.payload.selection.action === 'PLAY_NOW'
+    && (request.payload.selection.album !== undefined || request.payload.selection.context !== undefined)
     && typeof request.payload.expiresAtMs === 'number' && Number.isSafeInteger(request.payload.expiresAtMs) && request.payload.expiresAtMs > 0
   return dto.LOCAL_ALBUM_COMMANDS.some(command => command === request.command)
     && dto.isLocalAlbumCommandPayload(request.command as dto.LocalAlbumCommand, request.payload)

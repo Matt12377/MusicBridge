@@ -6,7 +6,11 @@ import { CoreSupervisor, CoreIpcError, type CoreMessagePort, type CoreChildProce
 import { captureDatasetLyricsProviderRequest, captureDatasetLyricsProviderReply, assertDatasetLyricsProviderReplyForRequest, datasetWorkbenchMeta, datasetWorkbenchFrames, type DatasetLyricsProviderRequest, type DatasetLyricsProviderReply } from '../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
 import { parseLocalLyricsSearch } from '../../../packages/bridge-core/src/collection/local-library-lyrics/providers.js'
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { after } from 'node:test'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { closeRustMediaWorkerPool } from '../../../packages/bridge-core/src/library/rust-media-worker.js'
+import { localAlbumPhase, localAlbumMatch, localAlbumLink, localAlbumRejectCode } from '../../../packages/bridge-core/src/shared/local-album-read-trace-node.js'
+import { logLibraryOperation } from '../../../packages/bridge-core/src/shared/library-operation-log.js'
 import { createContext, runInContext } from 'node:vm'
 import ts from 'typescript'
 import { readFileSync } from 'node:fs'
@@ -14,7 +18,7 @@ import { createHash } from 'node:crypto'
 import * as dto from '@music-bridge/contracts'
 import type { PhotoDecoderImage } from '../src/main/collection-photos.js'
 import type { CommonsTransportResponse, PinnedArtworkTransport } from '../src/main/commons-artwork-provider.js'
-import { normalizeLocalArtwork } from '../src/main/local-artwork-image.js'
+import { normalizeLocalArtwork, normalizeLocalArtworkInWorker } from '../src/main/local-artwork-image.js'
 import { registerLocalArtworkNavigationPhysical } from '../src/main/local-library-workbench/providers/artwork-web-navigation.js'
 import { createLocalArtworkProviders, createLocalArtworkWebNavigation, createLocalNameTransport } from '../src/main/local-library-workbench/providers/index.js'
 import { createLocalWorkbenchService, type LocalWorkbenchOwnerPorts, type LocalWorkbenchServiceOptions } from '../src/main/local-library-workbench/service.js'
@@ -28,6 +32,9 @@ import {
   LocalWorkbenchPlanError, type LocalWorkbenchAlbumCapture, type LocalWorkbenchCatalogMemberCapture, type LocalNameProposal, type LocalWorkbenchRegistrySnapshot, type LocalWorkbenchRegistryPersistence,
   type LocalCueAudioProbe, type LocalCueFormatQualification,
 } from '../../../packages/bridge-core/src/collection/local-library-workbench/types.js'
+
+// join本文件实际src规范化器使用的共享Rust池，不能以退出测试进程代替真实关闭。
+after(async () => { await closeRustMediaWorkerPool() })
 
 const datasetId = '11111111-1111-4111-8111-111111111111', otherDataset = '22222222-2222-4222-8222-222222222222'
 const trackId = '33333333-3333-4333-8333-333333333333', assetId = '44444444-4444-4444-8444-444444444444'
@@ -138,7 +145,8 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
     return response(jpeg(), 'image/jpeg')
   })
   const serviceOptions: LocalWorkbenchServiceOptions = {
-    owner, names: nameTransport, artwork: createLocalArtworkProviders({ transport, readTransportAvailability:signal=>fixtureResourcesAlive&&!signal.aborted, normalize: bytes => normalizeLocalArtwork(bytes, options.decode ?? (() => decoder())), now: () => clock }),
+    owner, names: nameTransport, artwork: createLocalArtworkProviders({ transport, readTransportAvailability:signal=>fixtureResourcesAlive&&!signal.aborted,
+      normalize: async (bytes, signal) => (await normalizeLocalArtworkInWorker(bytes, signal)).image, now: () => clock }),
     navigation: options.navigation??createLocalArtworkWebNavigation({ readPortAvailability:(_mode,signal)=>fixtureResourcesAlive&&!signal.aborted, navigate: (url,context) => { navigated.push(url); registerLocalArtworkNavigationPhysical(context.signal,{closed:Promise.resolve(),abort(){}}) }, openExternal: url => { external.push(url) } }),
     nativeChooser: {
       chooseArtwork: async () => ({ label: '合成原生图片', read: async () => { events.push('许可读图'); return new Uint8Array(jpeg()) }, close: async () => { events.push('关闭文件许可') } }),
@@ -299,9 +307,9 @@ test('冻结image与原回执条目必须一致，陌生原命令及错回包不
 })
 
 test('原图随原计划持久化，新Main会话只读恢复较大owned副本，不拿小display或重新下载替代', async t => {
-  // owned 图像像素来自仓库自有32px样本；附加合成说明段放大原输入，decoder仍明确为注入边界。
+  // 自有32px像素经过真实Rust编码；合成说明段保证原副本显著大于display，不假定编码器输出几字节JPEG。
   const owned = readFileSync(new URL('../../../packages/bridge-core/test/fixtures/mbrs012-source/owned-cover-32.jpg', import.meta.url))
-  const input = Buffer.concat([owned.subarray(0, 2), segment(254, Buffer.alloc(60_000, 65)), owned.subarray(2)])
+  const input = Buffer.concat([owned.subarray(0, 2), ...Array.from({ length: 4 }, () => segment(254, Buffer.alloc(60_000, 65))), owned.subarray(2)])
   const f = await fixture(t, { decode: () => decoder(32, 32) })
   const item = await f.ask('localWorkbench.artwork.import', { ...fileRequest, bytes: new Uint8Array(input), mime: 'image/jpeg', label: '仓库自有图像副本' })
   const plan = await f.ask('localWorkbench.artwork.preview', { ...fileRequest, candidateId: item.candidateId })
@@ -480,6 +488,45 @@ function main407Author():LocalWorkbenchRootMainAuthor {
   return {binding:Object.freeze({datasetId:main407Dataset,ownerEpoch:main407Epoch,childGeneration:1,authorityRef:{}}),assertCurrent:async()=>{},request:async()=>{throw Error('此测试不允许以Owner替代Main本地设置')},requestOwner:async()=>{throw Error('此测试未安装Owner18端点')}}
 }
 const main407Settings: dto.LocalNameSettings={revision:'name-407',backend:'ollama',ollama:{endpoint:'http://localhost:11434',model:'qwen3:8b'},vllm:{endpoint:'http://localhost:8000',model:''},cloud:{endpoint:'https://example.org/v1',model:'',keyConfigured:false}}
+
+test('Main专辑显示捕获仅用实时只读核验，原工作台捕获不降级且关闭撤销旧读函数', async t => {
+  const f = await fixture(t)
+  let full = 0, reads = 0
+  const author: LocalWorkbenchRootMainAuthor = { ...main407Author(), async assertCurrent() { full++ }, async assertReadCurrent() { reads++ } }
+  const assembly = createLocalWorkbenchMainAssembly({ currentAuthor: () => author, createResources: () => ({ service: f.service,
+    names: { read: async () => main407Settings, save: async () => main407Settings, securityPrompt: async () => ({ configured: false, cancelled: true }) }, close: () => f.service.close() }) })
+  try {
+    await assembly.activate(author)
+    const originalFull = full, read = await assembly.captureReadAuthor(main407Dataset)
+    await read(); await read()
+    assert.equal(reads, 3); assert.equal(full, originalFull)
+    const write = await assembly.captureAuthor(main407Dataset); await write()
+    assert.equal(full, originalFull + 2); assert.equal(reads, 3)
+    await assert.rejects(assembly.captureReadAuthor(main407Epoch), /不属于/u)
+    await assembly.closeReadResources()
+    await assert.rejects(read(), /换代/u)
+    assert.equal(reads, 3)
+  } finally { await assembly.close() }
+})
+
+test('Main只读捕获不缓存身份许可，await期间作者换代拒绝，旧实现保守回到原实时核验', async t => {
+  const f = await fixture(t), started = deferred<void>(), release = deferred<void>()
+  let full = 0
+  const first: LocalWorkbenchRootMainAuthor = { ...main407Author(), async assertCurrent() { full++ } }
+  let author = first
+  const assembly = createLocalWorkbenchMainAssembly({ currentAuthor: () => author, createResources: () => ({ service: f.service,
+    names: { read: async () => main407Settings, save: async () => main407Settings, securityPrompt: async () => ({ configured: false, cancelled: true }) }, close: async () => {} }) })
+  try {
+    await assembly.activate(first)
+    const baseline = full, original = await assembly.captureReadAuthor(main407Dataset)
+    await original(); assert.equal(full, baseline + 2)
+    first.assertReadCurrent = async () => { started.resolve(); await release.promise }
+    const pending = original(), rejected = assert.rejects(pending, /换代/u)
+    await started.promise
+    author = { ...first, binding: { ...first.binding, childGeneration: 2, authorityRef: {} } }
+    release.resolve(); await rejected
+  } finally { release.resolve(); await assembly.close() }
+})
 
 test('Main三名称设置命令只消费本地设置端口，实际配置回执不替换为opened或Owner请求',async()=>{
   const author=main407Author(),calls:string[]=[]
@@ -719,7 +766,7 @@ import { createSourceWritesMainActor, captureSourceWorkbenchDirectoryBinding, ca
   type SourceWorkbenchDirectoryRequest, type SourceWorkbenchDirectoryReply, type SourceWorkbenchDirectoryOwnerDomain, type SourceWorkbenchDirectoryRegistrationReply } from '../../../packages/bridge-core/src/collection/source-writes-authority.js'
 import type { OwnedDatasetDomain, DatasetOwnerResponse } from '../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
 import { authorizeSourceDirectory } from '../../../packages/bridge-core/src/recording/source-files.js'
-import { registerLocalAlbumIpc } from '../src/main/local-library-workbench/album-ipc.js'
+import { registerLocalAlbumIpc, runLocalAlbumMainRead } from '../src/main/local-library-workbench/album-ipc.js'
 import { isLocalAlbumMainResponse, type LocalAlbumMainRequest } from '../../../packages/bridge-core/src/collection/local-album-browser/main-protocol.js'
 
 class Directory418Port implements SourceWritesUtilityPort {
@@ -775,8 +822,8 @@ async function directory418Fixture(t:test.TestContext,includeDomain=true){
   assert.equal((await ownerCall('prepare')).ok,true);assert.equal((await ownerCall('commitBoot')).ok,true)
   class Primary implements CoreMessagePort{listener:((event:{data:unknown})=>void)|undefined;closed=false;on(_event:'message',cb:(event:{data:unknown})=>void){this.listener=cb}start(){}close(){this.closed=true}receive(data:unknown){this.listener?.({data})}postMessage(value:unknown){onMainPost(value)}}
   class Child implements CoreChildProcess{listeners:Array<(code:number)=>void>=[];postMessage(){}once(_event:'exit',cb:(code:number)=>void){this.listeners.push(cb)}kill(){this.exit();return true}exit(){for(const fn of this.listeners.splice(0))fn(0)}}
-  const primary=new Primary(),child=new Child();let current:LocalWorkbenchRootMainAuthor|undefined,bridge:ReturnType<typeof createLocalWorkbenchDirectoryMainBridge>,prompt:string=library,promptGate:Promise<void>|undefined,albumReply:((call:LocalAlbumMainRequest)=>Promise<unknown>)|undefined
-  function onMainPost(input:unknown){const raw=input as Record<string,unknown>;if(raw.command==='commandOutbox.context')queueMicrotask(()=>primary.receive({version:1,id:raw.id,ok:true,result:{datasetId:main407Dataset}}));else if(raw.command==='core.shutdown')queueMicrotask(()=>{primary.receive({version:1,id:raw.id,ok:true,result:{stopped:true}});child.exit()});else if(raw.type==='musicbridge.workbench.frame'&&raw.lane==='request'&&raw.part==='end'){const meta=datasetWorkbenchMeta(input as import('../../../packages/bridge-core/src/collection/dataset-owner-protocol.js').DatasetWorkbenchFrame);for(const frame of datasetWorkbenchFrames(meta,'response',{epoch:main407Epoch,datasetId:main407Dataset,ready:true}))queueMicrotask(()=>primary.receive(frame))}else if(raw.type==='local-album-main-request'&&albumReply)void albumReply(input as LocalAlbumMainRequest).then(result=>primary.receive({version:1,type:'local-album-main-response',id:raw.id,datasetId:raw.datasetId,command:(input as LocalAlbumMainRequest).request.command,ok:true,result}))}
+  const primary=new Primary(),child=new Child();let current:LocalWorkbenchRootMainAuthor|undefined,bridge:ReturnType<typeof createLocalWorkbenchDirectoryMainBridge>,prompt:string=library,promptGate:Promise<void>|undefined,albumReply:((call:LocalAlbumMainRequest)=>Promise<unknown>)|undefined,identityReadRequests=0
+  function onMainPost(input:unknown){const raw=input as Record<string,unknown>;if(raw.command==='commandOutbox.context')queueMicrotask(()=>primary.receive({version:1,id:raw.id,ok:true,result:{datasetId:main407Dataset}}));else if(raw.command==='core.shutdown')queueMicrotask(()=>{primary.receive({version:1,id:raw.id,ok:true,result:{stopped:true}});child.exit()});else if(raw.type==='musicbridge.workbench.frame'&&raw.lane==='request'&&raw.part==='end'){const meta=datasetWorkbenchMeta(input as import('../../../packages/bridge-core/src/collection/dataset-owner-protocol.js').DatasetWorkbenchFrame);if(meta.kind==='context.identity')identityReadRequests++;for(const frame of datasetWorkbenchFrames(meta,'response',{epoch:main407Epoch,datasetId:main407Dataset,ready:true}))queueMicrotask(()=>primary.receive(frame))}else if(raw.type==='local-album-main-request'&&albumReply)void albumReply(input as LocalAlbumMainRequest).then(result=>primary.receive({version:1,type:'local-album-main-response',id:raw.id,datasetId:raw.datasetId,command:(input as LocalAlbumMainRequest).request.command,ok:true,result}))}
   const supervisor=new CoreSupervisor({entryPath:'controlled-directory418',cwd:directory,playbackEventProtocol:null,sourceWritesPort:true,dependencies:{createChannel:()=>({port1:new Primary(),port2:primary}),createSourceWritesChannel:()=>({port1:sourceUtility,port2:sourceMain}),fork:()=>{queueMicrotask(()=>primary.receive({version:1,event:'core.ready',payload:{state:{runtime:'ready',roon:'disconnected',provider:'missing',activeStreamCount:0,activePlaybackPresent:false}}}));return child}}})
   supervisor.configurePrivateWorkbenchDirectoryProducer((request,context)=>{requests.push(request);return bridge.produce(request,context)})
   const chooser=createLocalWorkbenchNativeChooser({assertCurrent:async context=>{if(!current||context.datasetId!==current.binding.datasetId)throw Error('实际Main作者已撤销');await current.assertCurrent(current.binding)},promptHost:{async request(_mode,signal){await promptGate;if(signal.aborted)return{cancelled:true,value:null};return{cancelled:false,value:prompt}},async join(){await promptGate},async close(){await promptGate}},registerLibraryDirectory:(object,context)=>{const actual=bridge.registerLibraryDirectory(object,context);void actual.then(choice=>{approvedLibraries525.set(choice.choiceId,object)},()=>{});return actual},registerCueTarget:(object,context)=>bridge.registerCueTarget(object,context),revokeDirectory:object=>bridge.revokeDirectory(object)})
@@ -785,7 +832,7 @@ async function directory418Fixture(t:test.TestContext,includeDomain=true){
   const boundary=createLocalWorkbenchManagementBoundary({assertTrusted(){},isAccepting:()=>supervisor.status==='ready',currentAuthor:()=>current,cancelLibraryImport:(request,context)=>bridge.cancelLibraryChoice(request.choiceId,context),acceptDirectoryRequest:(request,context)=>bridge.enter(request,context),prepareLibraryImport:context=>chooser.chooseLibrary({datasetId:context.binding.datasetId,signal:context.signal,assertCurrent:context.assertCurrent,...(context.directoryUiToken?{directoryUiToken:context.directoryUiToken}:{})})})
   async function close(){await boundary.close();if(ownerEnded)await supervisor.shutdown();await bridge.close();await chooser.closeReadResources();if(!ownerEnded){const r=await ownerCall('close');assert.equal(r.ok,true);}await ownerClosed;await sourceClosed;utility.close();ownerChannels.port1.close();await supervisor.shutdown();await supervisor.joinPrivateWorkbenchDirectoryProducer();assert.equal(roots.size,0);assert.equal(ownerWait.size,0);assert.equal(sourceWritesCalls,0)}
   t.after(async()=>{closeGate=undefined;promptGate=undefined;if(!current)current=await supervisor.createWorkbenchRootMainAuthor();try{await close()}catch{for(const item of roots.values())await item.handle.close().catch(()=>{});roots.clear();utility.close();ownerChannels.port1.close();ownerChannels.port2.close();await supervisor.shutdown();throw Error('418隔离资源关闭未通过')}})
-  return{directory,library,target,chooser,bridge,boundary,supervisor,roots,requests,events,approvedLibraries525,directoryRegistrations525,get domainDispatchCalls525(){return domainDispatchCalls525},get sourceWritesCalls525(){return sourceWritesCalls},get author(){return current!},setAuthor(value:LocalWorkbenchRootMainAuthor|undefined){current=value},setPrompt(value:string){prompt=value},setPromptGate(value:Promise<void>|undefined){promptGate=value},setCloseGate(value:Promise<void>|undefined){closeGate=value},setAlbumReply(value:(call:LocalAlbumMainRequest)=>Promise<unknown>){albumReply=value},get actor(){return sourceActor!},ownerClosed,closeSource(){sourceMain.close()},async chooseLibrary(){return boundary.management({}, {datasetId:main407Dataset,command:'library.import.prepare',payload:{}}) as Promise<dto.LocalLibraryImportChoice>},async chooseCue(){const ctx:LocalWorkbenchDirectoryUiContext={datasetId:main407Dataset,signal:new AbortController().signal,assertCurrent:()=>current!.assertCurrent(current!.binding)};ctx.directoryUiToken=await bridge.enter({command:'localWorkbench.cue.target',payload:{}},ctx);return chooser.chooseCueTarget(ctx)}}
+  return{directory,library,target,chooser,bridge,boundary,supervisor,roots,requests,events,approvedLibraries525,directoryRegistrations525,get identityReadRequests(){return identityReadRequests},get domainDispatchCalls525(){return domainDispatchCalls525},get sourceWritesCalls525(){return sourceWritesCalls},get author(){return current!},setAuthor(value:LocalWorkbenchRootMainAuthor|undefined){current=value},setPrompt(value:string){prompt=value},setPromptGate(value:Promise<void>|undefined){promptGate=value},setCloseGate(value:Promise<void>|undefined){closeGate=value},setAlbumReply(value:(call:LocalAlbumMainRequest)=>Promise<unknown>){albumReply=value},get actor(){return sourceActor!},ownerClosed,closeSource(){sourceMain.close()},async chooseLibrary(){return boundary.management({}, {datasetId:main407Dataset,command:'library.import.prepare',payload:{}}) as Promise<dto.LocalLibraryImportChoice>},async chooseCue(){const ctx:LocalWorkbenchDirectoryUiContext={datasetId:main407Dataset,signal:new AbortController().signal,assertCurrent:()=>current!.assertCurrent(current!.binding)};ctx.directoryUiToken=await bridge.enter({command:'localWorkbench.cue.target',payload:{}},ctx);return chooser.chooseCueTarget(ctx)}}
 }
 
 test('418：实际Source端口品牌只认原actor与原body，JSON、额外字段、跨用途和撤销不能自签',async()=>{
@@ -857,12 +904,13 @@ test('418：实际Main装配三个本地专辑handler，完整Supervisor读取�
   const frame={},event={senderFrame:frame},handlers=new Map<string,(event:{senderFrame:object},value:unknown)=>Promise<unknown>>();let trusted=true,current=f.author
   const serviceFixture=await fixture(t);const assembly=createLocalWorkbenchMainAssembly({currentAuthor:()=>current,createResources:()=>({service:serviceFixture.service,names:{read:async()=>main407Settings,save:async()=>main407Settings,securityPrompt:async()=>({configured:false,cancelled:true})},close:async()=>{}})})
   await assembly.activate(current)
-  const install=directory418MainAlbumInstaller()(registerLocalAlbumIpc,isLocalAlbumMainResponse,CoreIpcError,randomUUID,(channel:string,handler:(event:{senderFrame:object},value:unknown)=>Promise<unknown>)=>{assert.equal(channel,'localAlbum:request');handlers.set(channel,handler)},()=>{if(!trusted)throw Error('页面失效');return{webContents:{mainFrame:frame}}},()=>{throw Error('不可信frame')},{get quitAfterCoreShutdown(){return false},get coreSupervisor(){return f.supervisor},get localWorkbenchRootMainAuthor(){return current}})
+  const install=directory418MainAlbumInstaller()(registerLocalAlbumIpc,isLocalAlbumMainResponse,CoreIpcError,randomUUID,(channel:string,handler:(event:{senderFrame:object},value:unknown)=>Promise<unknown>)=>{assert.equal(channel,'localAlbum:request');handlers.set(channel,handler)},()=>{if(!trusted)throw Error('页面失效');return{webContents:{mainFrame:frame}}},()=>{throw Error('不可信frame')},{AsyncLocalStorage,runLocalAlbumMainRead,localAlbumPhase,localAlbumMatch,localAlbumLink,localAlbumRejectCode,logLibraryOperation,get quitAfterCoreShutdown(){return false},get coreSupervisor(){return f.supervisor},get localWorkbenchRootMainAuthor(){return current},get localWorkbenchMainAssembly(){return assembly}})
   install(f.supervisor,assembly);const handler=handlers.get('localAlbum:request');assert.ok(handler)
   f.setAlbumReply(async call=>{calls.push(call);return call.request.command==='localAlbum.query'?page:call.request.command==='localAlbum.tracks'?{...track,total:0,hasMore:false,items:[],album}:{...art,image:null}})
-  assert.deepEqual(await handler(event,{datasetId:main407Dataset,command:'localAlbum.query',payload:query}),page)
-  assert.equal((await handler(event,{datasetId:main407Dataset,command:'localAlbum.tracks',payload:track}) as dto.LocalAlbumTrackPage).items.length,0)
-  assert.deepEqual(await handler(event,{datasetId:main407Dataset,command:'localAlbum.artwork',payload:art}),{...art,image:null})
+  const identityBefore=f.identityReadRequests
+  assert.deepEqual(await handler(event,{datasetId:main407Dataset,command:'localAlbum.query',payload:query}),page);assert.equal(f.identityReadRequests,identityBefore+2,'Main每个query只发送首末两件真实context.identity RPC')
+  assert.equal((await handler(event,{datasetId:main407Dataset,command:'localAlbum.tracks',payload:track}) as dto.LocalAlbumTrackPage).items.length,0);assert.equal(f.identityReadRequests,identityBefore+4)
+  assert.deepEqual(await handler(event,{datasetId:main407Dataset,command:'localAlbum.artwork',payload:art}),{...art,image:null});assert.equal(f.identityReadRequests,identityBefore+6)
   await assert.rejects(handler({senderFrame:{}},{datasetId:main407Dataset,command:'localAlbum.query',payload:query}),/frame/u);await assert.rejects(handler(event,{datasetId:main407Dataset,command:'localAlbum.apply',payload:query}),/无效/u);assert.equal(calls.length,3)
   const late=deferred<void>(),started=deferred<void>();f.setAlbumReply(async call=>{calls.push(call);started.resolve();await late.promise;return page})
   const pending=handler(event,{datasetId:main407Dataset,command:'localAlbum.query',payload:query}),rejected=assert.rejects(pending,/撤销|改变|换代/u);await started.promise;current={...main407Author(),binding:{...current.binding,ownerEpoch:randomUUID(),childGeneration:2,authorityRef:{}}};await assembly.activate(current);late.resolve();await rejected;trusted=false;await assert.rejects(handler(event,{datasetId:main407Dataset,command:'localAlbum.query',payload:query}),/页面/u);await assembly.close()
@@ -1641,4 +1689,56 @@ test('Main-only取消525：确认首目录校验await前占原choice，竞赛和
   await assert.rejects(f.chooser.inspectHeldDirectory(pendingApproved525,{datasetId:main407Dataset,signal:context.signal,assertCurrent:context.assertCurrent}))
   assert.deepEqual(f.directoryRegistrations525.slice(registrationsBeforeForeign525),[{command:'release',choiceId:pendingChoice525.choiceId}]);assert.equal(f.requests.slice(requestsBeforeForeign525).filter(row=>row.command==='revoke').length,1)
   assert.equal(f.sourceWritesCalls525,0);assert.equal(f.domainDispatchCalls525,0);assert.deepEqual(observation.sqlCalls,[])
+})
+
+test('移除闭环：Main原身份initial与intent完整检查共用30秒，资源join超过2秒仍可成功',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']})
+  const started=deferred<void>(),release=deferred<void>(),author=main407Author(),libraryId=randomUUID()
+  let fullChecks=0,remaining=0,signal:AbortSignal|undefined
+  author.assertCurrent=async()=>{fullChecks++}
+  author.request=async(request,context)=>{
+    assert.equal(request.family,'management');assert.equal(request.command,'library.remove')
+    remaining=context.deadlineAtMs-performance.now();signal=context.signal;started.resolve();await release.promise
+    return {commandId:main407Command,kind:'library.remove',state:'succeeded',libraryIds:[libraryId],message:null}
+  }
+  const boundary=createLocalWorkbenchManagementBoundary({assertTrusted(){},isAccepting:()=>true,currentAuthor:()=>author,
+    async acceptNameRequest(request,context){if(request.family==='management'&&request.command==='library.remove'){await context.assertCurrent();await context.assertCurrent()}return undefined}})
+  t.after(async()=>{release.resolve();await boundary.close()})
+  const pending=boundary.management({}, {datasetId:main407Dataset,command:'library.remove',payload:{commandId:main407Command,libraryIds:[libraryId]}})
+  const observed=pending.then(value=>({value}),error=>({error}))
+  await started.promise
+  assert.ok(remaining>29000&&remaining<=30000,'只有完整remove取得原30秒剩余期限')
+  assert.equal(fullChecks,3,'没有以identityOnly替代原三次完整检查')
+  t.mock.timers.tick(2100);await tick();assert.equal(signal?.aborted,false)
+  release.resolve();const result=await observed;assert.ok('value'in result);assert.equal(fullChecks,4)
+})
+
+test('移除闭环：普通Main管理命令仍2秒，超时只撤回响应并保留实际flight到settle',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']})
+  const started=deferred<void>(),release=deferred<void>(),author=main407Author(),libraryId=randomUUID()
+  let remaining=0,signal:AbortSignal|undefined
+  author.request=async(_request,context)=>{remaining=context.deadlineAtMs-performance.now();signal=context.signal;started.resolve();await release.promise
+    return {commandId:main407Command,kind:'library.rename',state:'succeeded',libraryIds:[libraryId],message:null}}
+  const boundary=createLocalWorkbenchManagementBoundary({assertTrusted(){},isAccepting:()=>true,currentAuthor:()=>author})
+  t.after(async()=>{release.resolve();await boundary.close()})
+  const pending=boundary.management({}, {datasetId:main407Dataset,command:'library.rename',payload:{commandId:main407Command,libraryId,name:'原合成名称'}})
+  const rejected=assert.rejects(pending,error=>error instanceof Error&&'code'in error&&error.code==='TIMEOUT')
+  await started.promise;assert.ok(remaining>1000&&remaining<=2000)
+  t.mock.timers.tick(2001);await rejected;assert.equal(signal?.aborted,true);assert.equal(boundary.pending(),1)
+  release.resolve();await tick();assert.equal(boundary.pending(),0)
+})
+
+test('移除闭环：Main移除30秒到期拒绝迟到成功，实际join结束前不清flight',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']})
+  const started=deferred<void>(),release=deferred<void>(),author=main407Author(),libraryId=randomUUID()
+  let signal:AbortSignal|undefined
+  author.request=async(_request,context)=>{signal=context.signal;started.resolve();await release.promise
+    return {commandId:main407Command,kind:'library.remove',state:'succeeded',libraryIds:[libraryId],message:null}}
+  const boundary=createLocalWorkbenchManagementBoundary({assertTrusted(){},isAccepting:()=>true,currentAuthor:()=>author})
+  t.after(async()=>{release.resolve();await boundary.close()})
+  const pending=boundary.management({}, {datasetId:main407Dataset,command:'library.remove',payload:{commandId:main407Command,libraryIds:[libraryId]}})
+  const rejected=assert.rejects(pending,error=>error instanceof Error&&'code'in error&&error.code==='TIMEOUT')
+  await started.promise;t.mock.timers.tick(29000);await tick();assert.equal(signal?.aborted,false)
+  t.mock.timers.tick(1001);await rejected;assert.equal(signal?.aborted,true);assert.equal(boundary.pending(),1)
+  release.resolve();await tick();assert.equal(boundary.pending(),0)
 })

@@ -46,56 +46,113 @@ test('MBP005 mounted：刷新失败提示保留legacy声明且明确重试，pen
   h.props.message = null; await h.flush(); assert.doesNotMatch(h.text(), /后台刷新失败/); assert.match(h.text(), /无法确认分页来自同一份歌单/)
 })
 
-import { useAggregatedSearch } from '../src/renderer/src/composables/application/useAggregatedSearch.js'
-import { createLibraryPageCache } from '../src/renderer/src/composables/libraryPageCache.js'
 import type { MusicBridgePublicApi } from '../src/preload/api.js'
+import type { PageRequest } from '@music-bridge/contracts'
+import { createCatalogDataAdapter } from '../src/renderer/src/composables/catalog/catalog-data-adapter.js'
+import { useCatalogExperience } from '../src/renderer/src/composables/catalog/useCatalogExperience.js'
+import { neteaseAlbumItem } from '../src/renderer/src/composables/catalog/catalog-presentation.js'
+import { mountVueSfc } from './support/mbf-vue-host.js'
 const turn = () => new Promise<void>(resolve => setImmediate(resolve))
-async function mountedSearchDetail(t: test.TestContext, search: ReturnType<typeof useAggregatedSearch>) {
-  const { parse, compileScript, compileTemplate } = await import('@vue/compiler-sfc'), ts = (await import('typescript')).default
-  const require = createRequire(import.meta.url), vue = require('vue') as typeof import('vue')
+const album = neteaseAlbumItem({ id: 'album-a', name: '合成专辑', artistName: '合成艺人', trackCount: 2 })
+type AlbumReply = Awaited<ReturnType<MusicBridgePublicApi['getAlbum']>>
+function albumReply(title: string, page: PageRequest, hasMore = false): AlbumReply {
+  return { id: 'album-a', name: '合成专辑', artistName: '合成艺人', trackCount: hasMore || page.offset ? 2 : 1,
+    tracks: { ...page, total: hasMore || page.offset ? 2 : 1, hasMore, items: [{ id: `track-${page.offset}`, title, artists: ['合成艺人'], album: '合成专辑' }] } }
+}
+function catalogDetail(t: test.TestContext, getAlbum: MusicBridgePublicApi['getAlbum']) {
+  const data = createCatalogDataAdapter({ getAlbum } as unknown as MusicBridgePublicApi, () => undefined)
+  const model = useCatalogExperience(data.port)
+  t.after(() => { model.dispose(); data.dispose() })
+  return model
+}
+async function mountedSearchDetail(t: test.TestContext, model: ReturnType<typeof useCatalogExperience>) {
+  const { parse } = await import('@vue/compiler-sfc')
   const { descriptor } = parse(await readFile(new URL('../src/renderer/src/App.vue', import.meta.url), 'utf8'))
-  let subtree = ''
-  function visit(node: { type: number; tag?: string; props?: Array<{ type: number; name?: string; exp?: { content?: string } }>; loc: { source: string }; children?: unknown[] }): void {
-    if (node.type === 1 && node.tag === 'template' && node.props?.some(prop => prop.type === 7 && prop.name === 'if' && prop.exp?.content === 'searchDetail')) subtree = node.loc.source
-    for (const child of node.children ?? []) visit(child as Parameters<typeof visit>[0])
-  }
-  visit(descriptor.template!.ast as unknown as Parameters<typeof visit>[0]); assert.ok(subtree)
-  const compiled = compileTemplate({ source: subtree, filename: 'ActualAppDetail.vue', id: 'mbp005-detail' }); assert.deepEqual(compiled.errors, [])
-  const mod = { exports: {} as { render: import('vue').ComponentOptions['render'] } }
-  new Function('require', 'module', 'exports', ts.transpileModule(compiled.code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText)(
-    (path: string) => path === 'vue' ? vue : require(path), mod, mod.exports)
-  const notice = parse(await readFile(new URL('../src/renderer/src/components/LibraryRefreshNotice.vue', import.meta.url), 'utf8')).descriptor
-  const noticeScript = compileScript(notice, { id: 'mbp005-detail-notice', inlineTemplate: true }), noticeModule = { exports: {} as { default: import('vue').Component } }
-  new Function('require', 'module', 'exports', ts.transpileModule(noticeScript.content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText)(
-    (path: string) => path === 'vue' ? vue : require(path), noticeModule, noticeModule.exports)
-  const node = (tag = ''): Host => ({ tag, text: '', children: [], parent: null, props: {}, closest: () => null })
-  const renderer = vue.createRenderer<Host, Host>({ createElement: node, createText(value) { const n = node('#text'); n.text = value; return n }, createComment: () => node('#comment'),
-    setText(n, v) { n.text = v }, setElementText(n, v) { n.text = v; n.children = [] }, patchProp(n, k, _o, v) { n.props[k] = v },
-    insert(c, p, a) { if (c.parent) c.parent.children.splice(c.parent.children.indexOf(c), 1); c.parent = p; const i = a ? p.children.indexOf(a) : -1; if (i < 0) p.children.push(c); else p.children.splice(i, 0, c) },
-    remove(c) { c.parent?.children.splice(c.parent.children.indexOf(c), 1); c.parent = null }, parentNode: n => n.parent, nextSibling: n => n.parent?.children[n.parent.children.indexOf(n) + 1] ?? null })
-  const component = { setup: () => ({ search, searchDetail: search.searchDetail, searchDetailLoadingMore: search.searchDetailLoadingMore, searchDetailMoreError: search.searchDetailMoreError,
-    closeSearchDetail: search.closeSearchDetail, loadMoreSearchDetail: search.loadMoreSearchDetail, playbackStartPending: false, matchStates: {}, playTrack() {}, appendTrack() {}, insertTrackNext() {} }),
-    components: { TrackTable: vue.defineComponent({ props: { tracks: { type: Array as import('vue').PropType<Array<{ title: string }>>, required: true } }, setup(props) { return () => vue.h('div', { 'data-test': 'table' }, props.tracks.map(track => track.title).join(' ')) } }), LibraryRefreshNotice: noticeModule.exports.default }, render: mod.exports.render }
-  const root = node('root'), app = renderer.createApp(component); app.mount(root); t.after(() => app.unmount())
-  const flatten = (n: Host): Host[] => [n, ...n.children.flatMap(flatten)]
-  return { text: () => flatten(root).map(n => n.text).join(' '), nodes: () => flatten(root), flush: async () => { await vue.nextTick(); await vue.nextTick() } }
+  // 跟随实际App当前的搜索详情入口；模型、目录组件及歌曲表格均使用产品实现。
+  const workspace = descriptor.template!.content.match(/<CatalogWorkspace\b[^>]*\bmode="search"[^>]*\/>/u)?.[0]
+  assert.ok(workspace, '实际App须以目录工作区承载搜索详情'); assert.match(workspace, /:model="catalog"/u)
+  return mountVueSfc(t, new URL('../src/renderer/src/components/catalog/CatalogWorkspace.vue', import.meta.url).pathname, { model, mode: 'search' })
+}
+function trackTitles(ui: Awaited<ReturnType<typeof mountedSearchDetail>>): string[] {
+  return ui.all().filter(node => String(node.props.class).split(' ').includes('track-row')).map(row => row.querySelector('strong')?.text ?? '')
 }
 for (const phase of ['pending', 'failed'] as const) test(`MBP005 R1 mounted：实际App搜索详情${phase}刷新保留已有歌曲与有效重试`, async t => {
-  let now = 100_000, calls = 0, reject!: (error: Error) => void
+  const requests: PageRequest[] = []; let reject!: (error: Error) => void
   const pending = new Promise<never>((_done, fail) => { reject = fail })
-  const search = useAggregatedSearch({ cache: createLibraryPageCache({ now: () => now }), api: { getAlbum: async () => {
-    calls++; if (calls === 2) return pending
-    return { id: 'album-a', name: '合成专辑', artistName: '合成艺人', trackCount: 1, tracks: { items: [{ id: 'track-a', title: calls > 2 ? '重试新歌曲' : '已加载歌曲', artists: ['合成艺人'], album: '合成专辑' }], offset: 0, limit: 20, total: 1, hasMore: false } }
-  } } as unknown as MusicBridgePublicApi, getZoneId: () => undefined, getScrollTop: () => 0, scrollTo: () => {}, classifyError: () => 'generic', onResetSearchOrigin: () => {}, onInvalidateRoonDetails: () => {} })
-  t.after(() => search.dispose()); await search.openSearchDetail('album', 'album-a', '合成专辑', '合成艺人'); now = 130_000
-  const refresh = search.openSearchDetail('album', 'album-a', '合成专辑', '合成艺人'), ui = await mountedSearchDetail(t, search); await ui.flush()
+  const model = catalogDetail(t, async (id, page) => {
+    assert.equal(id, 'album-a'); assert.ok(page); requests.push({ ...page })
+    if (requests.length === 2) return pending
+    return albumReply(requests.length > 2 ? '重试新歌曲' : '已加载歌曲', page)
+  })
+  await model.openDetail(album)
+  const refresh = model.readDetailSection('tracks'), ui = await mountedSearchDetail(t, model)
+  assert.equal(model.detail.value?.tracks.hasMore, false, '完整已加载页也必须显示刷新状态与失败重试')
   if (phase === 'pending') {
-    try { assert.equal(ui.nodes().find(n => n.props['data-test'] === 'table')?.text, '已加载歌曲'); assert.equal(search.searchDetail.value?.loading, true); await search.loadMoreSearchDetail(); assert.equal(calls, 2, '刷新首页在途时保持可见歌曲，但不能并发拼接旧尾页') }
-    finally { reject(new Error('合成失败')); await refresh }
+    try {
+      assert.deepEqual(trackTitles(ui), ['已加载歌曲']); assert.equal(model.detail.value?.tracks.loading, true); assert.match(ui.text(), /正在刷新.*保留已加载歌曲/u)
+      await model.readDetailSection('tracks', true); assert.equal(requests.length, 2, '刷新首页在途时保持可见歌曲，但不能并发拼接旧尾页')
+    } finally { reject(new Error('合成失败')); await refresh }
   } else {
-    reject(new Error('合成失败')); await refresh; await ui.flush()
-    assert.equal(ui.nodes().find(n => n.props['data-test'] === 'table')?.text, '已加载歌曲'); assert.match(ui.text(), /保留已加载歌曲/)
-    const retry = ui.nodes().find(n => n.tag === 'button' && n.text === '重新读取')!; assert.ok(retry); (retry.props.onClick as () => void)()
-    await turn(); await ui.flush(); assert.equal(calls, 3); assert.match(ui.text(), /重试新歌曲/); assert.doesNotMatch(ui.text(), /刷新详情失败/)
+    reject(new Error('合成失败')); await refresh; await ui.settle()
+    assert.deepEqual(trackTitles(ui), ['已加载歌曲']); assert.match(ui.text(), /保留已加载歌曲/u)
+    const retry = ui.all().find(node => node.type === 'button' && ui.text(node) === '重新读取'); assert.ok(retry)
+    await ui.dispatch(retry, 'onClick')
+    assert.equal(requests.length, 3); assert.deepEqual(requests.map(page => page.offset), [0, 0, 0]); assert.deepEqual(trackTitles(ui), ['重试新歌曲']); assert.doesNotMatch(ui.text(), /刷新失败/u)
   }
+  assert.ok(requests.every(page => page.limit === 24), '保持实际目录页大小，不以缩页改变刷新合同')
+})
+
+test('MBP005 mounted：详情首页刷新失败不变成旧尾页追加，实际重试重新读取首页', async t => {
+  const requests: PageRequest[] = []
+  const model = catalogDetail(t, async (_id, page) => {
+    assert.ok(page); requests.push({ ...page })
+    if (requests.length === 2) throw new Error('合成首页刷新失败')
+    return albumReply(requests.length > 2 ? '重试后的首页' : '原首页歌曲', page, true)
+  })
+  await model.openDetail(album); const ui = await mountedSearchDetail(t, model)
+  await model.readDetailSection('tracks'); await ui.settle()
+  assert.deepEqual(trackTitles(ui), ['原首页歌曲']); assert.match(ui.text(), /刷新失败.*保留已加载歌曲/u)
+  assert.equal(ui.all().some(node => node.type === 'button' && ui.text(node) === '加载更多歌曲'), false)
+  await model.readDetailSection('tracks', true); assert.equal(requests.length, 2, '失败首页尚未恢复时不能把旧游标用于追加')
+  await ui.dispatch(ui.all().find(node => node.type === 'button' && ui.text(node) === '重新读取'), 'onClick')
+  assert.deepEqual(requests.map(page => page.offset), [0, 0, 0]); assert.deepEqual(trackTitles(ui), ['重试后的首页'])
+  assert.ok(ui.all().some(node => node.type === 'button' && ui.text(node) === '加载更多歌曲'), '首页恢复成功后才恢复当前续页入口')
+})
+
+test('MBP005 mounted：详情尾页失败保留首页，实际重试沿原续页游标追加而不刷新首页', async t => {
+  const requests: PageRequest[] = []; let reject!: (error: Error) => void
+  const pending = new Promise<never>((_done, fail) => { reject = fail })
+  const model = catalogDetail(t, async (_id, page) => {
+    assert.ok(page); requests.push({ ...page })
+    if (requests.length === 2) return pending
+    return albumReply(page.offset ? '续页歌曲' : '已加载歌曲', page, page.offset === 0)
+  })
+  await model.openDetail(album); const ui = await mountedSearchDetail(t, model)
+  const more = model.readDetailSection('tracks', true); await ui.settle()
+  try {
+    assert.deepEqual(trackTitles(ui), ['已加载歌曲']); assert.match(ui.text(), /正在加载更多/u)
+    await model.readDetailSection('tracks', true); assert.equal(requests.length, 2, '追加在途也不能并发请求同一尾页')
+  } finally { reject(new Error('合成尾页失败')); await more }
+  await ui.settle()
+  assert.deepEqual(trackTitles(ui), ['已加载歌曲']); assert.match(ui.text(), /这个来源暂时不可用/u); assert.doesNotMatch(ui.text(), /刷新失败/u)
+  await ui.dispatch(ui.all().find(node => node.type === 'button' && ui.text(node) === '重试'), 'onClick')
+  assert.deepEqual(requests.map(page => page.offset), [0, 1, 1]); assert.deepEqual(trackTitles(ui), ['已加载歌曲', '续页歌曲']); assert.doesNotMatch(ui.text(), /这个来源暂时不可用/u)
+})
+
+for (const append of [false, true]) test(`MBP005：详情${append ? '追加' : '刷新'}在途返回后恢复同一请求，迟到旧页不覆盖`, async t => {
+  const requests: PageRequest[] = []; let resolve!: (value: AlbumReply) => void
+  const pending = new Promise<AlbumReply>(done => { resolve = done })
+  const model = catalogDetail(t, async (_id, page) => {
+    assert.ok(page); requests.push({ ...page })
+    if (requests.length === 2) return pending
+    return albumReply(requests.length === 1 ? '原首页歌曲' : '恢复后的歌曲', page, page.offset === 0)
+  })
+  await model.openDetail(album)
+  const ui = await mountedSearchDetail(t, model), read = model.readDetailSection('tracks', append)
+  await turn(); assert.equal(requests.length, 2)
+  const location = model.captureReturnLocation('search'); model.closeDetail(); assert.equal(location.restore(), true)
+  await ui.settle(); await read
+  resolve(albumReply('不得覆盖的迟到歌曲', requests[1]!, append ? false : true)); await ui.settle()
+  assert.deepEqual(requests.map(page => page.offset), [0, append ? 1 : 0, append ? 1 : 0])
+  assert.deepEqual(trackTitles(ui), append ? ['原首页歌曲', '恢复后的歌曲'] : ['恢复后的歌曲']); assert.doesNotMatch(ui.text(), /不得覆盖/u)
 })

@@ -18,7 +18,20 @@ export interface AlbumEditionTrack {
   id: string; editionId: string; trackId: string; disc: number; trackNumber: number; sequence: number;
   revision: LocalCatalogRevision; active: boolean;
 }
-export interface LocalMetadata { title?: string; artist?: string; album?: string; year?: string; disc?: string; track?: string }
+export const LOCAL_METADATA_TEXT_FIELDS = ['title', 'artist', 'album', 'year', 'disc', 'track', 'albumArtist'] as const;
+export const LOCAL_METADATA_ARTIST_FIELDS = ['artists', 'albumArtists'] as const;
+/** 单值字段保留旧展示合同；数组只保存标签明确提供的多个值，不按斜线、逗号猜拆姓名。 */
+export interface LocalMetadata {
+  title?: string; artist?: string; album?: string; year?: string; disc?: string; track?: string;
+  albumArtist?: string; artists?: string[]; albumArtists?: string[];
+}
+/** 旧单值人工编辑替代同一字段的旧多人值；未编辑的字段继续沿用原观察。 */
+export function mergeLocalMetadata(raw: LocalMetadata, override: LocalMetadata = {}): LocalMetadata {
+  const effective = { ...raw, ...override };
+  if (Object.hasOwn(override, 'artist') && !Object.hasOwn(override, 'artists')) delete effective.artists;
+  if (Object.hasOwn(override, 'albumArtist') && !Object.hasOwn(override, 'albumArtists')) delete effective.albumArtists;
+  return effective;
+}
 export interface LocalMetadataObservation {
   id: string; trackId: string; revision: LocalCatalogRevision; source: 'tag' | 'synthetic'; parserVersion: string; fields: LocalMetadata;
 }
@@ -82,7 +95,13 @@ export function isAlbumEditionTrack(v: unknown): v is AlbumEditionTrack {
     && ordinal(v.trackNumber) && ordinal(v.sequence) && isLocalCatalogRevision(v.revision) && typeof v.active === 'boolean';
 }
 export function isLocalMetadata(v: unknown): v is LocalMetadata {
-  return record(v) && keys(v, [], ['title', 'artist', 'album', 'year', 'disc', 'track']) && Object.values(v).every(value => isLocalCatalogText(value, true));
+  return record(v) && keys(v, [], [...LOCAL_METADATA_TEXT_FIELDS, ...LOCAL_METADATA_ARTIST_FIELDS])
+    && Reflect.ownKeys(v).every(key => typeof key === 'string' && Object.getOwnPropertyDescriptor(v, key)?.enumerable === true
+      && Object.hasOwn(Object.getOwnPropertyDescriptor(v, key)!, 'value'))
+    && LOCAL_METADATA_TEXT_FIELDS.every(key => !Object.hasOwn(v, key) || isLocalCatalogText(v[key], true))
+    && LOCAL_METADATA_ARTIST_FIELDS.every(key => !Object.hasOwn(v, key) || libraryArray(v[key], 64)
+      && (v[key] as unknown[]).every(value => isLocalCatalogText(value))
+      && new Set(v[key] as string[]).size === (v[key] as string[]).length);
 }
 export function isLocalMetadataObservation(v: unknown): v is LocalMetadataObservation {
   return record(v) && keys(v, ['id', 'trackId', 'revision', 'source', 'parserVersion', 'fields']) && isCollectionId(v.id)
@@ -153,7 +172,7 @@ const libraryArray = (v: unknown, max: number): v is unknown[] => Array.isArray(
     || typeof k === 'string' && /^(0|[1-9][0-9]*)$/u.test(k) && Number(k) < v.length
       && Object.prototype.propertyIsEnumerable.call(v, k) && Object.hasOwn(Object.getOwnPropertyDescriptor(v, k)!, 'value'));
 const libraryMetadata = (v: unknown): v is LocalMetadata => record(v) && Reflect.ownKeys(v).every(k => typeof k === 'string'
-  && ['title', 'artist', 'album', 'year', 'disc', 'track'].includes(k) && Object.prototype.propertyIsEnumerable.call(v, k) && Object.hasOwn(Object.getOwnPropertyDescriptor(v, k)!, 'value')) && isLocalMetadata(v);
+  && [...LOCAL_METADATA_TEXT_FIELDS, ...LOCAL_METADATA_ARTIST_FIELDS].includes(k as typeof LOCAL_METADATA_TEXT_FIELDS[number]) && Object.prototype.propertyIsEnumerable.call(v, k) && Object.hasOwn(Object.getOwnPropertyDescriptor(v, k)!, 'value')) && isLocalMetadata(v);
 const libraryIdentity = (v: Record<string, unknown>): boolean => record(v.track) && libraryClosed(v.track, ['id', 'assetId', 'selectionRevision', 'segment'])
   && (v.track.segment === null || record(v.track.segment) && libraryClosed(v.track.segment, ['id', 'startFrame', 'endFrameExclusive', 'timebaseHz']))
   && isLocalTrack(v.track) && record(v.asset) && libraryClosed(v.asset, ['id', 'libraryRootId', 'sourceRootId', 'rootRevision', 'fileRevision', 'locationRevision', 'sampleFrames', 'timebaseHz']) && isAudioAsset(v.asset) && v.track.assetId === v.asset.id;
@@ -311,6 +330,7 @@ export function isLocalCatalogCommandResult<C extends LocalCatalogCommand>(comma
 
 function isLocalMetadataView(v: unknown): v is LocalMetadataView {
   if (!record(v) || !keys(v, ['raw','override','effective']) || !isLocalMetadata(v.raw) || !(v.override === null || isLocalMetadataOverride(v.override)) || !isLocalMetadata(v.effective)) return false;
-  const expected = {...v.raw, ...(v.override?.fields ?? {})}, actual = v.effective;
-  return Object.keys(expected).length === Object.keys(actual).length && (Object.keys(expected) as (keyof LocalMetadata)[]).every(key => expected[key] === actual[key]);
+  const expected = mergeLocalMetadata(v.raw, v.override?.fields), actual = v.effective;
+  return Object.keys(expected).length === Object.keys(actual).length && (Object.keys(expected) as (keyof LocalMetadata)[]).every(key =>
+    Array.isArray(expected[key]) ? JSON.stringify(expected[key]) === JSON.stringify(actual[key]) : expected[key] === actual[key]);
 }

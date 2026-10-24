@@ -10,10 +10,12 @@ import {
 } from '@music-bridge/contracts';
 import { createMobileCatalogCursorCodec, type MobileCatalogCursorQueryScope } from './cursor.js';
 import { mobileContentDiagnosticAsync, mobileContentDiagnosticSync } from './capability-trace.js';
+import { isMobileOwnerCatalogSelectedRequest, isMobileOwnerPrivateResult } from './owner-protocol.js';
 import {
   MobileServiceError, type MobileAuthService, type MobileCatalogReadPort,
   type MobileOwnerArtworkSnapshot,
   type MobileOwnerCatalogRequest, type MobileOwnerCatalogSnapshot,
+  type MobileCatalogSelectedQuery, type MobileOwnerCatalogSelectedSnapshot,
   type MobileOwnerLocalTrackFacts, type MobilePrincipal,
 } from './types.js';
 
@@ -81,7 +83,8 @@ export function createMobileCatalogService(options: {
 }) {
   if (!isMobileId(options.serverId) || !isMobileId(options.datasetId)) return fail(400, 'INVALID_REQUEST');
   const now = options.now ?? Date.now;
-  const cursor = createMobileCatalogCursorCodec({ key: options.cursorKey, now });
+  const legacyCursor = createMobileCatalogCursorCodec({ key: options.cursorKey, now });
+  const cursor = createMobileCatalogCursorCodec({ key: options.cursorKey, now, version: 2 });
   let ownerEpoch: string | null = null;
   function principal(raw: MobilePrincipal): MobilePrincipal {
     const captured = mobileDataSnapshot(raw, limits, 'request');
@@ -140,7 +143,8 @@ export function createMobileCatalogService(options: {
     const assertCurrent = () => privateTracks ? mobileContentDiagnosticAsync('main.catalog.tracks.auth', () => current(rawPrincipal)) : current(rawPrincipal);
     const p = principal(rawPrincipal); await assertCurrent();
     const selection = search(query, operation), scope = queryScope(selection, operation, p);
-    const previous = selection.cursor === undefined ? null : cursor.open(selection.cursor, scope);
+    const previous = selection.cursor === undefined ? null
+      : (selection.cursor.startsWith('mc1.') ? legacyCursor : cursor).open(selection.cursor, scope);
     const request: MobileOwnerCatalogRequest = { operation, serverId: options.serverId, offset: previous?.offset ?? 0, limit: scope.limit,
       q: (selection.q ?? '').trim(), albumId: scope.albumId, itemId: null, expectedRevision: previous?.libraryRevision ?? null };
     const raw = await (privateTracks ? mobileContentDiagnosticAsync('main.catalog.tracks.owner', () => options.port.read(request)) : options.port.read(request));
@@ -164,7 +168,28 @@ export function createMobileCatalogService(options: {
     if (value.total !== 1 || value.items.length !== 1) return fail(409, 'SOURCE_CHANGED');
     const item = value.items[0]!; await current(rawPrincipal); return item;
   }
+  async function selected(query: MobileCatalogSelectedQuery, rawPrincipal: MobilePrincipal, signal?: AbortSignal): Promise<Array<MobileAlbum | MobileTrack>> {
+    const check = (): void => { if (signal?.aborted) return fail(503, 'BUSY'); };
+    principal(rawPrincipal); check();
+    const captured = mobileDataSnapshot(query, limits, 'request');
+    if (!captured.ok || !mobileRecord(captured.value) || !closed(captured.value, ['kind', 'ids', 'sourceRevision'])) return fail(400, 'INVALID_REQUEST');
+    const request = { ...captured.value as unknown as MobileCatalogSelectedQuery, serverId: options.serverId };
+    if (!isMobileOwnerCatalogSelectedRequest(request)) return fail(400, 'INVALID_REQUEST');
+    if (!options.port.selected) return fail(503, 'BUSY');
+    await current(rawPrincipal); check();
+    const raw = await options.port.selected(request); check();
+    const capturedReply = mobileDataSnapshot(raw, limits);
+    if (!capturedReply.ok) return fail(503, capturedReply.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'BUSY');
+    if (!isMobileOwnerPrivateResult(capturedReply.value, { kind: 'catalog-selected', datasetId: options.datasetId, request })) return fail(409, 'SOURCE_CHANGED');
+    const value = capturedReply.value as unknown as MobileOwnerCatalogSelectedSnapshot;
+    header(value.datasetId, value.ownerEpoch, value.libraryRevision);
+    const items = value.items.map(item => mobileProjectSchema(MOBILE_CATALOG_SCHEMAS[request.kind === 'albums' ? 'Album' : 'Track']!,
+      item as unknown as Parameters<typeof mobileProjectSchema>[1], MOBILE_CATALOG_SCHEMAS) as unknown as MobileAlbum | MobileTrack);
+    await current(rawPrincipal); check();
+    return items;
+  }
   return {
+    selected,
     listAlbums: (query: MobileSearchQuery, p: MobilePrincipal) => page('listAlbums', query, p) as Promise<MobileAlbumPage>,
     getAlbum: (id: string, p: MobilePrincipal) => detail('getAlbum', id, p) as Promise<MobileAlbum>,
     listTracks: (query: MobileSearchQuery, p: MobilePrincipal) => page('listTracks', query, p) as Promise<MobileTrackPage>,

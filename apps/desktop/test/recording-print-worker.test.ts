@@ -95,13 +95,24 @@ test('Main在Core就绪时启动打印worker，失效与退出时停止，公开
   const asynchronousAt = hook.statements.findIndex(statement => ts.isExpressionStatement(statement) && ts.isVoidExpression(statement.expression))
   assert.ok(quitAt >= 0 && stopAt > quitAt && coordinatorAt > stopAt
     && asynchronousAt > hook.statements.indexOf(initialization), '原退出hook先封新输入和停止打印worker，再登记并发起原协调器关闭')
-  for (const statement of statements.slice(quitAt + 1, stopAt)) assert.ok(ts.isExpressionStatement(statement), '停止打印worker前不能提前return或引入分支绕过')
+  for (const statement of statements.slice(quitAt + 1, stopAt)) {
+    if (ts.isVariableStatement(statement)) {
+      // SSH冷启动的同原关闭Promise须在打印停止前取得，不能因此允许绕过停止的控制流。
+      assert.equal(statement.declarationList.flags & ts.NodeFlags.Const, ts.NodeFlags.Const)
+      assert.equal(statement.declarationList.declarations.length, 1)
+      const declaration = statement.declarationList.declarations[0]!
+      assert.equal(declaration.name.getText(source), 'initialCoreShutdown')
+      assert.ok(declaration.initializer && ts.isConditionalExpression(declaration.initializer))
+      assert.equal(declaration.initializer.whenTrue.getText(source), 'original.supervisor.shutdown()')
+      assert.equal(declaration.initializer.whenFalse.getText(source), 'undefined')
+    } else assert.ok(ts.isExpressionStatement(statement), '停止打印worker前不能提前return或引入分支绕过')
+  }
   assert.match(preload, /createRecordingPrintClient\(\(channel, value\) => invokePerformance\(channel, value\)\)/u)
 })
 
 
 const quitShutdownPhases = [
-  'prepare_name', 'prepare_lyrics', 'prepare_reads', 'prepare_normalizer', 'owner_shutdown',
+  'close_artist_catalog', 'prepare_name', 'prepare_lyrics', 'prepare_reads', 'prepare_normalizer', 'prepare_media_worker', 'owner_shutdown',
   'join_name', 'join_lyrics_grant', 'join_lyrics_provider', 'join_directory', 'join_readers',
   'close_management', 'close_legacy', 'close_assembly', 'close_lyrics_main', 'close_lyrics_provider', 'close_name',
 ] as const
@@ -170,6 +181,10 @@ async function originalBeforeQuitFixture(name: string, controls: Partial<Record<
       joinPrivateLyricsGrantProducer: () => stage('join_lyrics_grant'), joinPrivateLyricsProviderBridge: () => stage('join_lyrics_provider'),
       joinPrivateWorkbenchDirectoryProducer: () => stage('join_directory'), joinPrivateWorkbenchReadersProducer: () => stage('join_readers') },
     localWorkbenchRootMainAuthor: { binding: Object.freeze({ original: true }) },
+    artistCatalogService: { close: () => stage('close_artist_catalog') },
+    localWorkbenchMainRecovery: undefined, remoteCoreStartup: undefined, remoteCoreModeIntent: 0,
+    remoteCoreModeController: { reset: () => record('remote-mode.reset') },
+    closeRustMediaWorkerPool: () => stage('prepare_media_worker'),
     localWorkbenchManagementBoundary: { seal: () => record('management.seal'), close: () => stage('close_management') },
     localWorkbenchLegacyIpc: { sealReads: () => stage('prepare_reads'), close: () => stage('close_legacy') },
     localArtworkImportNormalizer: { close: () => stage('prepare_normalizer') },
@@ -178,6 +193,7 @@ async function originalBeforeQuitFixture(name: string, controls: Partial<Record<
     localLyricsProviderBridge: { revokeOwner: () => stage('prepare_lyrics'), close: () => stage('close_lyrics_provider') },
     localNameMainBridge: { sealOwner: () => stage('prepare_name'), close: () => stage('close_name') },
     remoteCoreTunnelManager: { stop: () => Promise.resolve({ mode: 'local-core', status: 'idle' }) }, mobileConnectionSettings: { close: () => Promise.resolve() },
+    mobilePairingPrompts: undefined,
     commandOutbox: { close: () => { record('outbox.close'); return Promise.resolve() } },
     roonDisplayConnection: { stop: () => record('roon.stop') }, closeLocalArtwork: () => record('artwork.seal'),
     closeLocalSourceWrites: () => record('source.seal'), closeLocalRelocation: () => record('relocation.seal'),
@@ -190,7 +206,7 @@ async function originalBeforeQuitFixture(name: string, controls: Partial<Record<
   }
   const bindingNames = Object.keys(environment)
   const instantiate = new Function('environment', `
-    const { ${bindingNames.join(', ')} } = environment;
+    let { ${bindingNames.join(', ')} } = environment;
     let quitAfterCoreShutdown = false, localWorkbenchShutdownConfirmed = false;
     let localWorkbenchQuitCoordinator;
     ${transpiled.outputText}
@@ -274,7 +290,7 @@ test('Main原before-quit准备Owner和joins首拒保闭集原码，同组其余�
       late.reject(laterError); await fixture.settled(scenario.later); await tick()
       assert.equal(fixture.has('settled', scenario.held), false)
       held.resolve(); await fixture.settled('join_readers'); await tick()
-      for (const phase of quitShutdownPhases.slice(0, 10)) assert.ok(fixture.has('settled', phase), `原阶段未settled：${phase}`)
+      for (const phase of quitShutdownPhases.slice(0, quitShutdownPhases.indexOf('close_management'))) assert.ok(fixture.has('settled', phase), `原阶段未settled：${phase}`)
       assert.equal(fixture.errors[0]!.reason, firstError)
       assertQuitFailure(fixture, scenario.first, scenario.code)
       assert.equal(fixture.counts().revoked, 0)

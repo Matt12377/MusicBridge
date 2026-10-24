@@ -7,6 +7,7 @@ import { usePlaybackSession } from '../src/renderer/src/composables/application/
 import type { MusicBridgePublicApi } from '../src/preload/api.js'
 import { audioQualityDetails, localLibraryPlaybackStatus, mbQueueOwnershipStatus } from '../src/renderer/src/components/player/details.js'
 import { snapshot } from '../../../packages/contracts/test/mbrs006/fixture.js'
+import { readLibraryOperationLine } from '../../../packages/bridge-core/src/shared/library-operation-log.js'
 
 export const id = (value: number) => `11111111-1111-4111-8111-${String(value).padStart(12, '0')}`
 export const root: LocalRootView = { root: { id: id(1), sourceRootId: id(2), role: 'library', revision: '1' }, label: '合成只读目录', availability: 'ONLINE' }
@@ -27,6 +28,104 @@ export function libraryApi(overrides: Partial<LocalLibraryPublicApi & Pick<Comma
 function session(api = libraryApi(), sends: LocalPlayRequest[] = []) {
   return useLocalLibrary({ api, getSelectedZone: () => ({ zoneId: '受控Zone', displayName: '合成播放目标', selected: true }), play: async request => { sends.push(request); return { status: 'accepted', request_id: request.request_id, action: request.action } } })
 }
+
+test('现代专辑会话延后旧曲目页，目录、目标、待确认操作和具体详情仍真实读取', async t => {
+  const reads = { tracks: 0, roots: 0, target: 0, outbox: 0, detail: 0 }
+  const model = session(libraryApi({
+    queryLocalLibraryTracks: async query => { reads.tracks++; return page(query) },
+    listLocalLibraryRoots: async () => { reads.roots++; return [root] },
+    getLocalLibraryPlaybackTarget: async () => { reads.target++; return { core_id: '受控Core', zone_id: '受控Zone' } },
+    getCommandOutbox: async () => { reads.outbox++; return { datasetId: id(90), entries: [] } },
+    getLocalLibraryTrackDetail: async () => { reads.detail++; return detail(102) },
+  })); t.after(() => model.dispose())
+  await model.activate({ deferTrackReads: true })
+  assert.deepEqual(reads, { tracks: 0, roots: 1, target: 1, outbox: 1, detail: 0 })
+  assert.equal(model.loaded.value, false); assert.equal(model.loading.value, false)
+  assert.deepEqual(model.roots.value, [root]); assert.equal(model.target.value?.zone_id, '受控Zone')
+  await model.refresh()
+  assert.deepEqual(reads, { tracks: 0, roots: 2, target: 2, outbox: 2, detail: 0 })
+  await model.selectTrack(item(102).track.id)
+  assert.equal(reads.tracks, 0); assert.equal(reads.detail, 1); assert.equal(model.detail.value?.track.id, item(102).track.id)
+})
+
+test('延后曲目页由真实可见范围或显式搜索启用，随后首屏和分页沿原合同读取', async t => {
+  for (const trigger of ['range', 'search'] as const) await t.test(trigger, async sub => {
+    const reads: LocalLibraryQuery[] = [], model = session(libraryApi({ queryLocalLibraryTracks: async query => { reads.push(query); return page(query) } }))
+    sub.after(() => model.dispose()); await model.activate({ deferTrackReads: true })
+    assert.equal(reads.length, 0)
+    if (trigger === 'range') await model.ensureRange(0, 24)
+    else await model.search('明确搜索')
+    assert.equal(reads.length, 1); assert.equal(reads[0]!.query, trigger === 'search' ? '明确搜索' : '')
+    assert.equal(reads[0]!.limit, 100); assert.equal(model.rangeWindow.value.entries.length, 100)
+    await model.ensureRange(102, 124)
+    assert.equal(reads.length, 2); assert.equal(reads[1]!.offset, 100)
+  })
+})
+
+test('现代会话刷新仅标脏已缓存曲目，重新消费时更新；默认旧页面仍立即读取', async t => {
+  let reads = 0, total = 245
+  const model = session(libraryApi({ queryLocalLibraryTracks: async query => { reads++; return page(query, total) } })); t.after(() => model.dispose())
+  await model.activate(); assert.equal(reads, 1); assert.equal(model.loaded.value, true)
+  const original = model.rangeWindow.value.entries; model.scrollTop.value = 420; model.suspend()
+  await model.activate({ deferTrackReads: true }); total = 246; await model.refresh()
+  assert.equal(reads, 1); assert.equal(model.stale.value, true); assert.equal(model.total.value, 245)
+  assert.deepEqual(model.rangeWindow.value.entries, original); assert.equal(model.scrollTop.value, 420)
+  await model.ensureRange(0, 24)
+  assert.equal(reads, 2); assert.equal(model.total.value, 246); assert.equal(model.stale.value, false)
+  model.suspend(); await model.activate(); assert.equal(reads, 2, '默认旧页面继续复用有效缓存')
+})
+
+test('延后隐藏列表不清除真实读取错误，显式重试成功后才清除', async t => {
+  let unavailable = true, reads = 0
+  const model = session(libraryApi({ queryLocalLibraryTracks: async query => { reads++; if (unavailable) throw new Error('合成曲目读取失败'); return page(query) } }))
+  t.after(() => model.dispose()); await model.activate(); assert.equal(reads, 1)
+  const previousError = model.error.value; assert.match(previousError, /这一页暂时无法读取/u)
+  model.suspend(); await model.activate({ deferTrackReads: true }); await model.refresh()
+  assert.equal(reads, 1); assert.equal(model.error.value, previousError); assert.equal(model.loaded.value, false)
+  unavailable = false; await model.ensureRange(0, 24)
+  assert.equal(reads, 2); assert.equal(model.error.value, ''); assert.equal(model.loaded.value, true)
+})
+
+test('切入现代页使原曲目读取失效，迟到页不发布也不继续隐藏分页', async t => {
+  const held = deferred<LocalLibraryQueryPage>(), reads: LocalLibraryQuery[] = []
+  const model = session(libraryApi({ queryLocalLibraryTracks: query => { reads.push(query); return reads.length === 1 ? held.promise : Promise.resolve(page(query)) } }))
+  t.after(() => model.dispose()); const original = model.activate(); assert.equal(reads.length, 1)
+  await model.activate({ deferTrackReads: true }); held.resolve(page(reads[0]!)); await original
+  assert.equal(reads.length, 1); assert.equal(model.loaded.value, false); assert.equal(model.cachePageCount.value, 0)
+  await model.ensureRange(0, 24)
+  assert.equal(reads.length, 2); assert.equal(model.loaded.value, true)
+})
+
+test('旧曲目页耗时日志只报告真实请求及闭集指标，不记录搜索词、目录或曲目内容', async t => {
+  const lines: string[] = []; t.mock.method(console, 'info', (line: string) => { lines.push(line) })
+  let failed = false
+  const model = session(libraryApi({ queryLocalLibraryTracks: async query => { if (failed) throw new Error('私有错误路径不得入日志'); return page(query) } }))
+  t.after(() => model.dispose()); await model.activate({ deferTrackReads: true }); await model.refresh()
+  assert.equal(lines.length, 0)
+  await model.search('私有搜索内容', root.root.id); failed = true; await model.refresh()
+  const events = lines.map(line => readLibraryOperationLine(line)); assert.ok(events.every(event => event !== null))
+  assert.deepEqual(events.map(event => [event!.action, event!.state]), [['tracks.page', 'start'], ['tracks.page', 'complete'], ['tracks.page', 'start'], ['tracks.page', 'error']])
+  assert.ok(events.filter(event => event!.state !== 'start').every(event => Number.isFinite(event!.elapsedMs) && event!.elapsedMs! >= 0))
+  assert.ok(events.every(event => event!.offset === 0)); assert.equal(events[1]!.count, 100)
+  const encoded = lines.join('\n')
+  for (const value of ['私有搜索内容', root.root.id, '合成作者', '私有错误路径']) assert.equal(encoded.includes(value), false)
+})
+
+test('共享库目录读取失败不冒充首次空库，后续失败保留最后成功的根与可重试状态', async t => {
+  let unavailable = true
+  const model = session(libraryApi({ listLocalLibraryRoots: async () => { if (unavailable) throw new Error('合成目录状态不可读'); return [root] } })); t.after(() => model.dispose())
+  await model.activate()
+  assert.equal(model.rootsLoaded.value, false)
+  assert.match(model.rootsError.value, /暂时无法读取/u)
+  unavailable = false; await model.refreshContext()
+  assert.equal(model.rootsLoaded.value, true)
+  assert.deepEqual(model.roots.value, [root])
+  assert.equal(model.rootsError.value, '')
+  unavailable = true; await model.refreshContext()
+  assert.equal(model.rootsLoaded.value, true)
+  assert.deepEqual(model.roots.value, [root])
+  assert.match(model.rootsError.value, /已保存的音乐保留/u)
+})
 
 test('009抽象总数窗口只读取100条页，滚动缓存至多6页；此项不执行规模扫描', async t => {
   const reads: LocalLibraryQuery[] = [], model = session(libraryApi({ queryLocalLibraryTracks: async query => { reads.push(query); return page(query, 100_000) } })); t.after(() => model.dispose())
@@ -99,12 +198,12 @@ test('009受理、字节发送与Roon确认分开，外部接管不冒充下一�
   state.source = 'roon'; state.local!.phase = 'OWNERSHIP_LOST'; state.local!.ownership = 'EXTERNAL'; state.local!.queue_owner = 'ROON_NATIVE_EXTERNAL'; assert.match(mbQueueOwnershipStatus(state)!, /MB 已保存队列.*暂停/u); assert.match(localLibraryPlaybackStatus(state, receipt).state, /所有权已改变/u); assert.equal(audioQualityDetails(state).file, '文件参数未知')
 })
 test('009正式播放会话沿原协调器，local UUID零云歌词、收藏、数字重播', async t => {
-  let cloud = 0; const sent: LocalPlayRequest[] = [], state = snapshot()
+  let cloud = 0; const sent: LocalPlayRequest[] = [], localLyrics: string[] = [], state = snapshot()
   const fail = async () => { cloud++; throw new Error('本地不可调用Provider') }
-  const api = { playLocalLibraryTrack: async (request: LocalPlayRequest) => { sent.push(request); return { status: 'accepted', request_id: request.request_id, action: request.action } }, getPlaybackState: async () => state, getLyrics: fail, getTrackLikeStatus: fail, setTrackLiked: fail, play: fail } as unknown as MusicBridgePublicApi
+  const api = { playLocalLibraryTrack: async (request: LocalPlayRequest) => { sent.push(request); return { status: 'accepted', request_id: request.request_id, action: request.action } }, getPlaybackState: async () => state, getLyrics: async (trackId: string) => { assert.equal(trackId, state.local!.local_track_id); localLyrics.push(trackId); return { status: 'unavailable', lines: [], activeLineIndex: -1, timingSource: 'static' } }, getTrackLikeStatus: fail, setTrackLiked: fail, play: fail } as unknown as MusicBridgePublicApi
   const playback = usePlaybackSession({ api, getSelectedZone: () => ({ zoneId: 'zone-safe', displayName: '受控目标', selected: true }), getZoneLifecycleStatus: () => 'selected', getSelectedQuality: () => 'auto', getMatchResult: () => undefined, getPendingMatch: () => undefined, onMatchTracks() {}, getRoonPlaybackContext: () => undefined, resolveFavoriteDescriptor: () => { throw new Error('local无旧Provider身份') }, onEnterNowPlaying() {}, clearActionError() {}, onActionMessage() {}, onError: error => { throw error }, onToast() {} }); t.after(() => playback.dispose())
   const request: LocalPlayRequest = { schema_version: '1.2', request_id: state.local!.request_id, route: 'roon_audio_input', source_kind: 'local_file', local_track_id: state.local!.local_track_id, asset_id: state.local!.asset_id, expected_asset_revision: '1', target: state.local!.target, action: 'PLAY_NOW' }
-  assert.equal((await playback.playLocalLibrarySelection(request)).status, 'accepted'); await playback.toggleTrackLike(); assert.equal(sent.length, 1); assert.equal(cloud, 0); assert.equal(playback.playbackSource.value, 'local_file'); assert.equal(playback.recentTracks.value.length, 0)
+  assert.equal((await playback.playLocalLibrarySelection(request)).status, 'accepted'); await playback.toggleTrackLike(); assert.equal(sent.length, 1); assert.equal(cloud, 0); assert.equal(playback.playbackSource.value, 'local_file'); assert.equal(playback.recentTracks.value.length, 0); assert.deepEqual(localLyrics, [state.local!.local_track_id]); assert.equal(playback.lyricsSnapshot.value.status, 'unavailable')
 })
 
 function outboxEntry(commandId: string, command: CommandOutboxView['command'], state: CommandOutboxState, datasetId = id(90)): CommandOutboxView {

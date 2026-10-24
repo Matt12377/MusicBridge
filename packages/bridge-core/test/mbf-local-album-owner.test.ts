@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { after } from 'node:test'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, writeFile, rm, rename } from 'node:fs/promises'
 import path from 'node:path'
@@ -9,10 +9,14 @@ import { createCollectionRepository } from '../src/collection/repository.js'
 import { createLocalAlbumOwnerService } from '../src/collection/local-album-browser/owner-port.js'
 import { createLocalAlbumArtworkReader } from '../src/collection/local-album-browser/artwork-read-port.js'
 import { createScanReadAdmission } from '../src/library/scan-read-admission.js'
+import { closeRustMediaWorkerPool } from '../src/library/rust-media-worker.js'
 import { authorizeSourceDirectory, sourceRootAvailability } from '../src/recording/source-files.js'
 import type { DatasetProjectionPort } from '../src/collection/dataset-owner-protocol.js'
 import { captureLocalAlbumContext, runLocalAlbumContext, localAlbumReject, localAlbumTerminal, localAlbumTraceSha, collectLocalAlbumSafeTrace, snapshotLocalAlbumReadTrace, type LocalAlbumNodeContext } from '../src/shared/local-album-read-trace-node.js'
 import { LOCAL_ALBUM_TRACE_PREFIX, copyLocalAlbumSafeTrace, readLocalAlbumSafeTraceLine, createLocalAlbumSafeTraceReader, copyLocalAlbumReadTraceSnapshot, type LocalAlbumSafeTrace } from '../src/shared/library-read-trace.js'
+import { readLibraryOperationLine } from '../src/shared/library-operation-log.js'
+
+after(() => closeRustMediaWorkerPool())
 
 const query: dto.LocalAlbumQuery = { query: '', rootId: null, filter: 'all', offset: 0, limit: 60 }
 async function fixture(t: test.TestContext, expectedArtworkCloseFailure?: RegExp, isBusy: () => boolean = () => false) {
@@ -41,7 +45,7 @@ async function fixture(t: test.TestContext, expectedArtworkCloseFailure?: RegExp
     if (command === 'scanReadRelease') return admission.release(scope, (payload as { permitId: string }).permitId) as never
     throw new Error('本用例不调用Main图像解码')
   } }
-  const artwork = createLocalAlbumArtworkReader({ repository, projection, assertCurrent() {} })
+  const artwork = createLocalAlbumArtworkReader({ repository, projection, datasetId: scope.datasetId, assertCurrent() {} })
   const albums = createLocalAlbumOwnerService({ repository, assertCurrent() {},
     async readRootViews() { return [{ root: repository.localCatalog.root(root.id), label: '合成来源', availability: await sourceRootAvailability(repository.sources.root(root.sourceRootId)) }] },
     async readArtwork() { return { image: null, status: 'source-unavailable' } },
@@ -319,14 +323,14 @@ async function holdActualCoverReads(f: Awaited<ReturnType<typeof fixture>>, want
     } }
 }
 function observeActualAdmission(f: Awaited<ReturnType<typeof fixture>>) {
-  const original = f.projection.call.bind(f.projection), deferred = releaseGate(), events: Array<{ command: string; status?: string; atMs: number }> = []
+  const original = f.projection.call.bind(f.projection), events: Array<{ command: string; status?: string; atMs: number }> = []
   f.projection.call = async (command, payload) => {
     const value = await original(command, payload), atMs = performance.now()
-    if (command === 'scanReadAcquire') { const status = (value as DatasetProjectionCommandResults['scanReadAcquire']).status; events.push({ command, status, atMs }); if (status === 'deferred') deferred.resolve() }
+    if (command === 'scanReadAcquire') { const status = (value as DatasetProjectionCommandResults['scanReadAcquire']).status; events.push({ command, status, atMs }) }
     else if (command === 'scanReadRelease') events.push({ command, atMs })
     return value
   }
-  return { events, deferred: deferred.promise, acquires: () => events.filter(row => row.command === 'scanReadAcquire').map(row => row.status), restore() { f.projection.call = original } }
+  return { events, acquires: () => events.filter(row => row.command === 'scanReadAcquire').map(row => row.status), restore() { f.projection.call = original } }
 }
 function assertActualCoverFdsClosed(held: Awaited<ReturnType<typeof holdActualCoverReads>>, wanted = 2): void {
   assert.equal(held.held.length, wanted)
@@ -379,9 +383,10 @@ test('专辑许可旁注：原ALS与许可返回值关联，正常无许可及�
     }
     return value as never
   }
-  const emitted: Array<{ args: unknown[]; context: LocalAlbumNodeContext | undefined; stage: string | undefined }> = []
+  const emitted: Array<{ args: unknown[]; context: LocalAlbumNodeContext | undefined; stage: string | undefined }> = [], operations: string[] = []
   const sinkError = new Error('合成诊断输出失败，不得进入业务结果')
   console.info = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && readLibraryOperationLine(args[0])) { operations.push(args[0]); return }
     const context = captureLocalAlbumContext(); emitted.push({ args, context, stage: context?.stage })
     if (failSink && typeof args[0] === 'string' && args[0].includes('"stage":"localAlbum.artwork.')) { sinkFailures++; throw sinkError }
   }
@@ -394,14 +399,15 @@ test('专辑许可旁注：原ALS与许可返回值关联，正常无许可及�
     assert.equal(localAlbumTerminal('ok')?.stage, 'owner.artwork')
     return result
   }, true)
-  assert.equal(granted.copies.status, 'ready'); assert.equal(granted.image, null)
+  assert.equal(granted.copies.status, 'ready'); assert.ok(dto.isLocalArtworkImage(granted.image)); assert.ok(dto.isLocalAlbumArtworkGrid(granted.grid))
+  assert.equal(granted.image.original.sha256, createHash('sha256').update(f.png).digest('hex'))
   const png = granted.copies.items.find(item => item.origin === 'local-independent'); assert.ok(png)
   assert.deepEqual(Buffer.from(png.base64, 'base64'), f.png)
   busy = true; failSink = true
   const businessError = Object.assign(new Error('合成后续业务拒绝，不应出现在旁注'), { name: 'LocalAlbumReadError', code: 'SNAPSHOT_CHANGED' })
   await assert.rejects(runLocalAlbumContext(deferredId, parentSha, 'owner.artwork', async () => {
     deferredContext = captureLocalAlbumContext(); assert.ok(deferredContext)
-    const result = await f.artwork.readSources(target, deferredId, undefined, undefined, 'display')
+    const result = await f.artwork.readSources({ ...target, request: { ...target.request, refresh: true } }, deferredId, undefined, undefined, 'display')
     assert.deepEqual(result, { image: null, copies: { status: 'source-unavailable', items: [] } })
     assert.equal(captureLocalAlbumContext(), deferredContext); assert.equal(deferredContext.stage, 'owner.artwork'); assert.equal(deferredContext.first, null)
     // 原正常读取完成后的调用方拒绝；不注入新的Source/Native故障。
@@ -437,10 +443,11 @@ test('专辑许可旁注：原ALS与许可返回值关联，正常无许可及�
   assert.equal(rejected[0]!.traceSha256, localAlbumTraceSha(deferredId)); assert.equal(rejected[0]!.firstStage, 'owner.artwork')
   const raw = emitted.map(row => row.args[0]).join('\n')
   for (const privateText of [grantedId, deferredId, f.media, businessError.message, sinkError.message]) assert.equal(raw.includes(privateText), false)
+  for (const privateText of [f.media, businessError.message, sinkError.message]) assert.equal(operations.join('\n').includes(privateText), false)
   assert.deepEqual(f.admission.resourceCounts(), { permits: 0, revoked: 0, watches: 0, timers: 0, closed: false }); assert.deepEqual(rows(f.file), before)
 })
 
-test('专辑临时许可：真实两票FD未退出时第三请求deferred，原释放后一次再准入并保源与SQL', async t => {
+test('专辑临时许可：真实两票FD未退出时第三请求排队，原释放后一次准入并保源与SQL', async t => {
   let held: Awaited<ReturnType<typeof holdActualCoverReads>> | undefined
   t.after(() => { held?.releaseAll(); held?.restore() })
   const f = await fixture(t), observed = observeActualAdmission(f); t.after(observed.restore)
@@ -449,11 +456,14 @@ test('专辑临时许可：真实两票FD未退出时第三请求deferred，原�
   const firstId = randomUUID(), first = f.artwork.readSources(left, firstId), second = f.artwork.readSources(right, randomUUID())
   await Promise.race([held.reached, Promise.all([first, second]).then(() => { throw new Error('未形成两个真实读取FD活动窗口。') })])
   assert.equal(f.admission.resourceCounts().permits, 2); assert.ok(held.held.every(row => row.fd >= 0 && row.handle.fd === row.fd))
-  assert.throws(() => f.artwork.readSources(left, firstId), /请求已满或身份无效/u)
+  await assert.rejects(f.artwork.readSources(left, firstId), /身份无效/u)
   const beganAtMs = performance.now(), third = f.artwork.readSources(left, randomUUID(), new AbortController().signal, beganAtMs + 2000)
-  await observed.deferred; assert.deepEqual(observed.acquires(), ['granted', 'granted', 'deferred']); assert.equal(held.sourceReads(), 2)
+  let thirdFinished = false; void third.then(() => { thirdFinished = true }, () => { thirdFinished = true })
+  await new Promise<void>(resolve => setImmediate(resolve))
+  assert.equal(thirdFinished, false); assert.deepEqual(observed.acquires(), ['granted', 'granted']); assert.equal(held.sourceReads(), 2)
+  assert.equal(f.admission.resourceCounts().permits, 2); assert.ok(held.held.every(row => row.handle.fd === row.fd))
   held.releaseAll(); const results = await Promise.all([first, second, third])
-  assert.ok(performance.now() < beganAtMs + 2000); assert.deepEqual(observed.acquires(), ['granted', 'granted', 'deferred', 'granted'])
+  assert.ok(performance.now() < beganAtMs + 2000); assert.deepEqual(observed.acquires(), ['granted', 'granted', 'granted'])
   const granted = observed.events.filter(row => row.command === 'scanReadAcquire' && row.status === 'granted').at(-1)!
   assert.ok(observed.events.some(row => row.command === 'scanReadRelease' && row.atMs <= granted.atMs))
   for (const result of results) { assert.equal(result.copies.status, 'ready'); assert.deepEqual(Buffer.from(result.copies.items.find(row => row.origin === 'local-independent')!.base64, 'base64'), f.png) }
@@ -469,8 +479,10 @@ test('专辑临时许可：等待取消不续准入，过期与外部持票仍�
   const first = f.artwork.readSources(left, randomUUID()), second = f.artwork.readSources(right, randomUUID())
   await Promise.race([held.reached, Promise.all([first, second]).then(() => { throw new Error('未形成两个真实读取FD活动窗口。') })])
   const stop = new AbortController(), waiting = f.artwork.readSources(left, randomUUID(), stop.signal, performance.now() + 2000)
-  await observed.deferred; stop.abort(); assert.equal((await waiting).copies.status, 'source-unavailable')
-  assert.deepEqual(observed.acquires(), ['granted', 'granted', 'deferred']); assert.equal(held.sourceReads(), 2); assert.equal(f.admission.resourceCounts().permits, 2)
+  let waitingFinished = false; void waiting.then(() => { waitingFinished = true }, () => { waitingFinished = true })
+  await new Promise<void>(resolve => setImmediate(resolve)); assert.equal(waitingFinished, false)
+  stop.abort(); assert.equal((await waiting).copies.status, 'source-unavailable')
+  assert.deepEqual(observed.acquires(), ['granted', 'granted']); assert.equal(held.sourceReads(), 2); assert.equal(f.admission.resourceCounts().permits, 2)
   held.releaseAll(); await Promise.all([first, second]); assertActualCoverFdsClosed(held); assert.equal(f.admission.resourceCounts().permits, 0)
   const acquiredBefore = observed.acquires().length, readBefore = held.sourceReads()
   assert.equal((await f.artwork.readSources(left, randomUUID(), undefined, performance.now() - 1)).copies.status, 'source-unavailable')
@@ -491,9 +503,13 @@ test('专辑临时许可：原库撤销取消等待与活动读取，真实FD闭
   const first = f.artwork.readSources(left, randomUUID()), second = f.artwork.readSources(right, randomUUID())
   await Promise.race([held.reached, Promise.all([first, second]).then(() => { throw new Error('未形成两个真实读取FD活动窗口。') })])
   const third = f.artwork.readSources(left, randomUUID(), new AbortController().signal, performance.now() + 2000), joined = Promise.allSettled([first, second, third])
-  await observed.deferred; const removing = f.artwork.removeLibrary(f.root.id)
-  await assert.rejects(third, /已撤销/u); assert.equal(held.sourceReads(), 2); assert.deepEqual(observed.acquires(), ['granted', 'granted', 'deferred'])
-  held.releaseAll(); await removing; const settled = await joined; assert.ok(settled.every(row => row.status === 'rejected'))
+  let thirdFinished = false; void third.then(() => { thirdFinished = true }, () => { thirdFinished = true })
+  await new Promise<void>(resolve => setImmediate(resolve)); assert.equal(thirdFinished, false)
+  const removing = f.artwork.removeLibrary(f.root.id)
+  assert.deepEqual(await third, { image: null, copies: { status: 'source-unavailable', items: [] } })
+  assert.equal(held.sourceReads(), 2); assert.deepEqual(observed.acquires(), ['granted', 'granted'])
+  held.releaseAll(); await removing; const settled = await joined
+  assert.equal(settled[0]!.status, 'rejected'); assert.equal(settled[1]!.status, 'rejected'); assert.equal(settled[2]!.status, 'fulfilled')
   assertActualCoverFdsClosed(held); assert.equal(f.admission.resourceCounts().permits, 0); assert.equal(f.admission.resourceCounts().watches, 0)
   await assert.rejects(f.artwork.readSources(left, randomUUID()), /已撤销/u); assert.deepEqual(rows(f.file), before)
 })
@@ -514,11 +530,14 @@ test('专辑临时许可：真实FD关闭但release回声失败仍fatal，等待
   const first = f.artwork.readSources(left, randomUUID()), second = f.artwork.readSources(right, randomUUID())
   await Promise.race([held.reached, Promise.all([first, second]).then(() => { throw new Error('未形成两个真实读取FD活动窗口。') })])
   const third = f.artwork.readSources(left, randomUUID(), new AbortController().signal, performance.now() + 2000), joined = Promise.allSettled([first, second, third])
-  await observed.deferred; held.releaseAll(); await assert.rejects(third, /读取已停止/u)
+  let thirdFinished = false; void third.then(() => { thirdFinished = true }, () => { thirdFinished = true })
+  await new Promise<void>(resolve => setImmediate(resolve)); assert.equal(thirdFinished, false)
+  assert.deepEqual(observed.acquires(), ['granted', 'granted']); assert.equal(held.sourceReads(), 2)
+  held.releaseAll(); await assert.rejects(third, /读取已停止/u)
   const settled = await joined; assert.equal(settled[0]!.status, 'rejected'); assert.equal(settled[2]!.status, 'rejected')
-  assert.deepEqual(observed.acquires(), ['granted', 'granted', 'deferred']); assertActualCoverFdsClosed(held)
+  assert.deepEqual(observed.acquires(), ['granted', 'granted']); assertActualCoverFdsClosed(held)
   assert.equal(f.admission.resourceCounts().permits, 0); assert.equal(f.admission.resourceCounts().watches, 0)
-  await assert.rejects(f.artwork.close(), /资源关闭未确认/u); assert.throws(() => f.artwork.readSources(left, randomUUID()), /读取已停止/u)
+  await assert.rejects(f.artwork.close(), /资源关闭未确认/u); await assert.rejects(f.artwork.readSources(left, randomUUID()), /读取已停止/u)
   assert.deepEqual(rows(f.file), before)
 })
 
@@ -634,7 +653,9 @@ async function readDisplaySource(f: Awaited<ReturnType<typeof displaySourceFixtu
   let result: Awaited<ReturnType<typeof f.artwork.readSources>>
   try { result = await f.artwork.readSources(target, randomUUID(), new AbortController().signal, beganAtMs + 2000, mode) }
   finally { observed.assertClosedSinceLast() }
-  assert.ok(performance.now() < beganAtMs + 2000); assert.equal(result.image, null); assert.equal(result.copies.status, 'ready'); assert.equal(result.copies.items.length, 1)
+  assert.ok(performance.now() < beganAtMs + 2000); assert.equal(result.copies.status, 'ready'); assert.equal(result.copies.items.length, 1)
+  if (mode === 'candidate') assert.equal(result.image, null)
+  else { assert.ok(dto.isLocalArtworkImage(result.image)); assert.ok(dto.isLocalAlbumArtworkGrid(result.grid)); assert.equal(result.image.original.sha256, f.image.original.sha256) }
   const copy = result.copies.items[0]!; assert.equal(copy.origin, 'local-independent'); assert.equal(copy.sourceLabel, 'cover.jpg')
   assert.deepEqual(Buffer.from(copy.base64, 'base64'), f.picture); return copy
 }
@@ -712,7 +733,7 @@ test('专辑显示瞬时：满64候选时display活动FD取消与close都真闭�
     observed.releaseAll(); await rejected; await closing; observed.assertClosedSinceLast()
     assert.ok(performance.now() < beganAtMs + 2000)
     if (boundary === 'cancel') for (const copy of retained) await f.artwork.revalidate(copy.sourceIdentity)
-    else { await assert.rejects(f.artwork.revalidate(retained[0]!.sourceIdentity), /读取已停止/u); assert.throws(() => f.artwork.readSources(f.targets[0]!, randomUUID()), /读取已停止/u) }
+    else { await assert.rejects(f.artwork.revalidate(retained[0]!.sourceIdentity), /读取已停止/u); await assert.rejects(f.artwork.readSources(f.targets[0]!, randomUUID()), /读取已停止/u) }
     observed.restore(); assert.deepEqual(rows(f.file), before)
   }
   await assertDisplaySourcesUnchanged(f)
@@ -808,7 +829,7 @@ test('LP950：真实目录close拒绝保原permit和fatal，不发布ready或emp
     assert.equal(f.admission.resourceCounts().permits, 1, '实际close未确认前原读许可不得释放')
     assert.equal(f.admission.resourceCounts().watches, 1)
     assert.deepEqual(rows(f.file), before)
-    assert.throws(() => f.artwork.readSources(target, randomUUID()), /读取已停止/u)
+    await assert.rejects(f.artwork.readSources(target, randomUUID()), /读取已停止/u)
   } finally {
     armed = false; mocked.mock.restore()
     if (held) {

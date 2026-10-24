@@ -3,6 +3,7 @@ import type { IpcCommandPayloads, IpcCommandResults, LibraryReadContext } from '
 /** 取消协议只允许纯读取；写操作与未知写入回执保持原合同。 */
 export const LIBRARY_READ_COMMANDS = [
   'library.search', 'library.searchArtists', 'library.searchAlbums', 'library.artist',
+  'library.searchSuggestions', 'library.artistProfile', 'library.artistAlbums',
   'library.album', 'library.liked', 'library.likeStatus', 'library.match',
   'library.aggregateSearch', 'library.playlists', 'library.playlist', 'library.dailyRecommendations',
   'roon.library.albums', 'roon.library.artists', 'roon.library.genres', 'roon.library.playlists',

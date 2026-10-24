@@ -38,17 +38,18 @@ test('实际Main在原ready后仅绑定一次第二父port，保留正常恢复�
   }
   let captured!: { dependencies: { fork(entry: string, args: string[], options: { cwd: string; env: object; stdio: string; serviceName: string }): Child }; onReady(client: unknown): Promise<void>; onLifecycle(event: { event: string }): void }
   const context = {
-    coreDataDirectory: undefined, CoreSupervisor: class { constructor(options: typeof captured) { captured = options } },
+    coreDataDirectory: undefined, CoreSupervisor: class { constructor(options: typeof captured) { captured = options } configurePrivatePersistentOwnerStartup() {} },
     path: { join: (...parts: string[]) => parts.join('/') }, currentDirectory: '/fixed/main', buildCoreEnvironment: () => ({}), process: { env: {} },
     MessageChannelMain: Channel, packagedRouteProbe: undefined, packagedRendererProbe: undefined, collectionReadonlyProbe: undefined, collectionScaleProbe: undefined,
     utilityProcess: { fork: (entry: string, args: string[]) => { assert.equal(entry, '/fixed/main/core.js'); assert.deepEqual([...args], []); return makeChild() } },
-    mainDiagnostics: { performance: {} }, performanceIpc: { context() {} }, libraryReadTrace: undefined,
+    mainDiagnostics: { performance: {} }, performanceIpc: { context() {} }, libraryReadTrace: undefined, mobilePreparationProbe: undefined,
     collectionReadonlySettings: { attach: (client: unknown) => attached.push(client), detach: () => { detaches++ } },
     createCollectionReadonlyControlClient: (await import('../src/main/collection-readonly-control-client.js')).createCollectionReadonlyControlClient,
     require: () => {}, module: { exports: {} }, exports: {},
   }
   const code = ts.transpileModule(source.slice(start, end) + '\ncreateCoreSupervisor("/profile/data", {onReady: async () => originalReady()});', { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   runInNewContext(code, { ...context, originalReady: () => { readyCalls++ } })
+  assert.equal(Object.hasOwn(captured, 'onMobileCapabilityTrace'), false)
   captured.dependencies.fork('/fixed/main/core.js', [], { cwd: '/profile/data', env: {}, stdio: 'ignore', serviceName: 'Core' }); assert.equal(posts.length, 0)
   await captured.onReady({}); await captured.onReady({}); assert.equal(posts.length, 1); assert.equal(readyCalls, 2)
   captured.dependencies.fork('/fixed/main/core.js', [], { cwd: '/profile/data', env: {}, stdio: 'ignore', serviceName: 'Core' }); await captured.onReady({})

@@ -133,7 +133,7 @@ async function fixture(t: TestContext) {
 }
 
 interface MarkerStatement {
-  id: number; method: 'get' | 'all' | 'iterate'; kind: 'gallery' | 'find' | 'members' | 'other'; sqlSha256: string; rows: number
+  id: number; method: 'get' | 'all' | 'iterate'; kind: 'compact' | 'gallery' | 'find' | 'members' | 'other'; sqlSha256: string; rows: number
   nativeByTuple: Record<string, number>; reply: unknown
 }
 interface MarkerObservation { registrations: { originalArity: number; wrappedArity: number }[]; statements: MarkerStatement[]; events: { statementId: number | null; input: string }[] }
@@ -194,8 +194,8 @@ function installMarkerObserver(t: TestContext): void {
       const registration = registrations.get(database)
       if (registration && observation.registrations.length === 0) observation.registrations.push({ ...registration })
       const sql = this.sourceSQL
-      if (!sql.includes('source_rows AS')) return Reflect.apply(original, this, bindings)
-      const ticket: MarkerStatement = { id: observation.statements.length + 1, method, kind: sql.includes('envelope FROM counts') ? 'gallery' : sql.includes('SELECT * FROM groups WHERE album_key') ? 'find' : sql.includes('page_members AS') ? 'members' : 'other', sqlSha256: bytesHash(Buffer.from(sql)), rows: 0, nativeByTuple: {}, reply: null }
+      if (!sql.includes('source_rows AS') && !sql.includes('envelope FROM counts')) return Reflect.apply(original, this, bindings)
+      const ticket: MarkerStatement = { id: observation.statements.length + 1, method, kind: sql.includes('/* mb_album_compact_groups */') ? 'compact' : sql.includes('envelope FROM counts') ? 'gallery' : sql.includes('SELECT * FROM groups WHERE album_key') ? 'find' : sql.includes('page_members AS') ? 'members' : 'other', sqlSha256: bytesHash(Buffer.from(sql)), rows: 0, nativeByTuple: {}, reply: null }
       observation.statements.push(ticket)
       const execution = { statement: this, database, ticket }
       const withinStatement = <V>(action: () => V): V => { const previous = state.active; state.active = execution; try { return action() } finally { state.active = previous } }
@@ -285,7 +285,12 @@ interface ClosedEvidenceSeal {
 }
 async function saveEvidence(f: Awaited<ReturnType<typeof fixture>>, reads: ReadCommand[]): Promise<void> {
   if (!process.env.MBF_GROUP_MARKERS_EVIDENCE_DIR) return
-  const catalogRevision = f.catalog.privateAlbumBrowserRevision(), scanRevision = f.repository.localScan.privateAlbumBrowserRevision(), captured = await captureReads(f.owner, reads)
+  const catalogRevision = f.catalog.privateAlbumBrowserRevision(), scanRevision = f.repository.localScan.privateAlbumBrowserRevision()
+  // 工件与冷复读均从新Owner开始，完整SQL回包含私有ordered_keys也必须处于相同缓存阶段。
+  const evidenceOwner = ownerFor(f.repository, f.labels, f.names)
+  let captured: Awaited<ReturnType<typeof captureReads>>
+  try { captured = await captureReads(evidenceOwner, reads) }
+  finally { evidenceOwner.close() }
   assert.equal(f.catalog.privateAlbumBrowserRevision(), catalogRevision); assert.equal(f.repository.localScan.privateAlbumBrowserRevision(), scanRevision)
   const manifest: EvidenceManifest = { schema: 'mbf-group-markers.same-owned-library.v1', owned: true, datasetId: f.datasetId, databasePath: f.filePath, labels: f.labels, names: f.names, catalogRevision, scanRevision, resultsSha256: bytesHash(captured.bytes), reads }
   await writeFile(path.join(f.directory, 'expected-replies.json'), captured.bytes, { flag: 'wx', mode: 0o600 })
@@ -363,7 +368,14 @@ if (replayPath) {
     // 在RED次数断言前保留完整真实回复和合法库，GREEN独立进程可以复读同一事实。
     await saveEvidence(f, reads)
     for (const [label, observed] of [['初始65目录gallery', initial], ['null成员find/page', noRelation], ['null完整inspect', noRelationCapture], ['64成员发行gallery', afterA], ['发行尾页find/page', tail], ['发行完整inspect', capturedA], ['同轨多links gallery', afterB]] as const) report(label, observed.observation)
-    assert.deepEqual(initial.observation.statements.map(value => value.kind), ['gallery']); assert.equal(initial.observation.statements[0]!.rows, 1)
+    assert.deepEqual(initial.observation.statements.map(value => value.kind), ['compact', 'gallery'])
+    assert.equal(initial.observation.statements[0]!.method, 'iterate'); assert.equal(initial.observation.statements[0]!.rows, 65)
+    assert.equal(initial.observation.statements[1]!.method, 'get'); assert.equal(initial.observation.statements[1]!.rows, 1)
+    const galleryReply = initial.observation.statements[1]!.reply as { envelope?: unknown }
+    // 原SQLite信封只含counts/total/items；Owner再补齐原请求字段与hasMore，分别核完整形状。
+    assert.equal(typeof galleryReply.envelope, 'string')
+    assert.deepEqual(JSON.parse(String(galleryReply.envelope)), { counts: initial.value.counts, total: initial.value.total, items: initial.value.items })
+    assert.deepEqual(initial.value, { ...query({ limit: 2 }), total: 65, counts, hasMore: true, items: full.items.slice(0, 2) })
     const expectedInputs = records.map(value => tuple(value.rootId, null, parent(value.relative), value.raw.album!, JSON.stringify(albumVersions(value.raw))))
     assert.deepEqual(Object.keys(initial.observation.statements[0]!.nativeByTuple).sort(), [...expectedInputs].sort(), 'limit=2仍必须涵盖完整65基础身份，不能早LIMIT或只测memo头部')
     for (const input of expectedInputs) assert.equal(initial.observation.statements[0]!.nativeByTuple[input], 1, '每条实际gallery SQL的唯一成员key只求值一次；旧window partition与输出展开应形成有效RED')

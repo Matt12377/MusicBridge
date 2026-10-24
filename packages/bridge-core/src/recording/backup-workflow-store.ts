@@ -6,7 +6,7 @@ import { BACKUP_INDEX_MISSING_FACTS, isAuthorizeBackupRoot, isBackupRootView, is
 import type { RootCapability } from './source-files.js';
 import type { ArchiveBackupZipFile } from './backup-zip.js';
 import { createRestoreActivationStore, restoreActivationSchema, restoreActivationSchemaObjects, RestoreActivationError, type RestoreActivationStore } from './restore-activation-store.js';
-import { createDatasetIdentityStore, datasetIdentitySchemaObjects } from './dataset-identity.js';
+import { createDatasetIdentityStore, datasetIdentitySchemaObjects, datasetVolumeIdentitySchemaObjects } from './dataset-identity.js';
 
 export class BackupWorkflowError extends Error {
   constructor(readonly code: 'BACKUP_CONFLICT' | 'BACKUP_UNAVAILABLE') {
@@ -31,10 +31,10 @@ PRAGMA user_version=1;
 `;
 const ownedPaths = new Set<string>();
 
-function verifySchema(db: DatabaseSync): 1 | 2 | 3 {
+function verifySchema(db: DatabaseSync): 1 | 2 | 3 | 4 {
   const version = db.prepare('PRAGMA user_version').get()?.user_version;
-  if ((version !== 1 && version !== 2 && version !== 3) || db.prepare('PRAGMA application_id').get()?.application_id !== 1296192087) return unavailable();
-  const expected = [...schemaObjects, ...(version >= 2 ? restoreActivationSchemaObjects : []), ...(version >= 3 ? datasetIdentitySchemaObjects : [])];
+  if ((version !== 1 && version !== 2 && version !== 3 && version !== 4) || db.prepare('PRAGMA application_id').get()?.application_id !== 1296192087) return unavailable();
+  const expected = [...schemaObjects, ...(version >= 2 ? restoreActivationSchemaObjects : []), ...(version >= 3 ? datasetIdentitySchemaObjects : []), ...(version >= 4 ? datasetVolumeIdentitySchemaObjects : [])];
   const objects = db.prepare("SELECT sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*'").all();
   if (objects.length !== expected.length || objects.some(row => !expected.includes(String(row.sql)))) return unavailable();
   return version;
@@ -113,6 +113,7 @@ export function createBackupWorkflowStore(options: { filePath: string }) {
         db.exec('PRAGMA user_version=2');
       }
       if (verifySchema(db) === 2) db.exec(`${datasetIdentitySchemaObjects.join(';')}; PRAGMA user_version=3;`);
+      if (verifySchema(db) === 3) db.exec(`${datasetVolumeIdentitySchemaObjects.join(';')}; PRAGMA user_version=4;`);
       db.exec('COMMIT');
       db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
       database = db; return db;

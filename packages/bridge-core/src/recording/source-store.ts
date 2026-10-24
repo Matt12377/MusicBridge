@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { SourceSelection, SourceJob, SourceFailure, SourceAction, SourceConfirmation } from '@music-bridge/contracts';
 import type { RootCapability, FileEvidence } from './source-files.js';
+import { createSourceRemountProof } from './source-remount-proof.js';
 
 const rootStatements = new WeakMap<DatabaseSync, ReturnType<DatabaseSync['prepare']>>();
 /** 仅在原 Owner 的同步 guarded read 内读取同连接 Source 事实；不缓存授权或路径。 */
@@ -27,9 +28,10 @@ export interface StoredBinding { id: string; rootId: string; relative: string; a
 /** 只由 Core 扫描器提供，不接受 Renderer 自报的文件/根身份。 */
 export interface CandidateFileConstraint { fileSignature: string; directoryIds: readonly string[]; rootDev: string; rootIno: string }
 export interface StoredJob { public: SourceJob; selection: SourceSelection; relative: string; previousBindingId: string | null; recheck: boolean; candidateConstraint?: CandidateFileConstraint }
-interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void; beforeLocalFactsCommit?: () => void; onLocalFactsFatal?: () => void }
+export interface SourceRemountReauthorization { commandId: string; captured: RootCapability; current: RootCapability; evidenceSha256: string }
+interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void; beforeLocalFactsCommit?: () => void; beforeRemountMutation?: () => void; onLocalFactsFatal?: () => void }
 export const sourceFingerprint = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex');
-export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFactsCommit, onLocalFactsFatal }: Access) {
+export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFactsCommit, beforeRemountMutation, onLocalFactsFatal }: Access) {
   const get = <T>(db: DatabaseSync, table: string, id: string): T | undefined => { const row = db.prepare(`SELECT data FROM ${table} WHERE id=?`).get(id); return row ? JSON.parse(String(row.data)) as T : undefined; };
   const all = <T>(db: DatabaseSync, table: string): T[] => db.prepare(`SELECT data FROM ${table} ORDER BY rowid`).all().map(r => JSON.parse(String(r.data)) as T);
   const put = (db: DatabaseSync, table: string, id: string, data: unknown): void => { db.prepare(`INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data`).run(id, JSON.stringify(data)); };
@@ -41,7 +43,7 @@ export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFac
     if (!draft?.tracks.some(t => t.id === trackId)) conflict('草稿曲目已改变，请刷新。');
   }
   function transaction<T>(action: string, fn: (db: DatabaseSync) => T): T {
-    return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); if (action === 'revoke-source-root') beforeLocalFactsCommit?.(); commitLocalFacts(db,onLocalFactsFatal); return result; } catch (error) { rollbackLocalFacts(db,error,onLocalFactsFatal); } });
+    return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); if (action === 'revoke-source-root' || action === 'reauthorize-source-remount') beforeLocalFactsCommit?.(); commitLocalFacts(db,onLocalFactsFatal); return result; } catch (error) { rollbackLocalFacts(db,error,onLocalFactsFatal); } });
   }
   function cached(db: DatabaseSync, commandId: string, fingerprint: string): string | undefined {
     const row = db.prepare('SELECT fingerprint,result FROM source_ledger WHERE command_id=?').get(commandId);
@@ -50,6 +52,26 @@ export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFac
     return String(row.result);
   }
   function receipt(db: DatabaseSync, id: string, fingerprint: string, result: string): void { db.prepare('INSERT INTO source_ledger VALUES (?,?,?,?)').run(id, fingerprint, result, new Date().toISOString()); }
+  function reauthorizeRemounts(entries: readonly SourceRemountReauthorization[]): RootCapability[] {
+    if (!Array.isArray(entries) || entries.length < 1 || entries.length > 100
+      || new Set(entries.map(item => item.commandId)).size !== entries.length || new Set(entries.map(item => item.captured.id)).size !== entries.length) return conflict('共享盘恢复批次必须是有界且不重复的原根集合。');
+    const prepared = entries.map(({ commandId, captured, current, evidenceSha256 }) => {
+      const next = { ...current, readonlyRemountProof: createSourceRemountProof(captured, current, evidenceSha256) };
+      return { commandId, captured, next, fingerprint: sourceFingerprint(['reauthorize-remount', captured, next]) };
+    });
+    return transaction('reauthorize-source-remount', db => { beforeRemountMutation?.(); return prepared.map(({ commandId, captured, next, fingerprint }) => {
+      const prior = cached(db, commandId, fingerprint), stored = root(db, captured.id);
+      if (prior !== undefined) {
+        if (prior !== captured.id || sourceFingerprint(stored) !== sourceFingerprint(next)) return conflict('共享盘重新授权后的目录事实已改变。');
+        return stored;
+      }
+      if (sourceFingerprint(stored) !== sourceFingerprint(captured) || !stored.authorized) return conflict('共享盘原授权已改变，请重新核对。');
+      put(db, 'source_roots', next.id, next);
+      // 原账本的 result 仍是根 ID；完整前后事实和证据摘要进入不可变 fingerprint。
+      receipt(db, commandId, fingerprint, captured.id);
+      return next;
+    }); });
+  }
   return {
     roots: (): RootCapability[] => read(db => all(db, 'source_roots')),
     root: (id: string): RootCapability => read(db => root(db, id)),
@@ -61,6 +83,11 @@ export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFac
         const result = { ...capability, id: randomUUID() }; put(db, 'source_roots', result.id, result); receipt(db, commandId, fingerprint, result.id); return result;
       });
     },
+    /** 仅供原 Owner 的显式重新授权；调用方先捕获真实共享盘身份并留存证据，不接受 Renderer 自报。 */
+    privateReauthorizeRemount(commandId: string, captured: RootCapability, current: RootCapability, evidenceSha256: string): RootCapability {
+      return reauthorizeRemounts([{ commandId, captured, current, evidenceSha256 }])[0]!;
+    },
+    privateReauthorizeRemounts: reauthorizeRemounts,
     revoke(request: SourceAction): RootCapability {
       return transaction('revoke-source-root', db => {
         const fingerprint = sourceFingerprint(['revoke', request.id]), prior = cached(db, request.commandId, fingerprint); if (prior) return root(db, prior);

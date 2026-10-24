@@ -1,9 +1,11 @@
-import { Worker } from 'node:worker_threads';
+import { randomUUID } from 'node:crypto';
+import type { FileHandle } from 'node:fs/promises';
+import { getRustMediaWorkerPool } from './rust-media-worker.js';
+import { logLibraryOperation } from '../shared/library-operation-log.js';
 import { SourceFileError, MetadataLeaseReleaseError, withCheckedReadonlyMetadataSource } from '../recording/source-files.js';
 import { withRelocationMetadataRead, type RelocationReadAccess } from '../collection/source-relocation-verify.js';
-import { DEFAULT_METADATA_READ_BUDGET, METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION, type MetadataReaderPort, type MetadataReaderOptions, type MetadataReaderLifecycle,
-  type MetadataReadInput, type MetadataReadResult, type MetadataReadFailure, type MetadataReadBudget, type MetadataWorkerInput,
-  type MetadataWorkerResultMessage, type MetadataWorkerPhase, type MetadataReaderTimeoutLifecycle } from './metadata-reader-types.js';
+import { DEFAULT_METADATA_READ_BUDGET, RUST_MEDIA_METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION, type MetadataReaderPort, type MetadataReaderOptions, type MetadataReaderLifecycle,
+  type MetadataReadInput, type MetadataReadResult, type MetadataReadFailure, type MetadataReadBudget, type MetadataWorkerInput } from './metadata-reader-types.js';
 
 const failure = (code: MetadataReadFailure): MetadataReadResult => ({ status: 'failure', code, readEvidence: null });
 type RelocationReader = (input: MetadataReadInput, access: RelocationReadAccess, signal?: AbortSignal) => Promise<MetadataReadResult>;
@@ -26,31 +28,50 @@ function classify(error: unknown): MetadataReadFailure {
   return 'IO_ERROR';
 }
 interface PendingRead { controller: AbortController; started: boolean; run(): Promise<void>; cancelQueued(): void; promise: Promise<MetadataReadResult> }
-const workerPhases = new Set(['dependency-load', 'container-check', 'parser-load', 'parse', 'output-check', 'complete']);
-const workerFailureCodes = new Set<MetadataReadFailure>(['REVOKED','SOURCE_ROOT_OFFLINE','OUTSIDE_ROOT','MISSING','CONTENT_CHANGED','IO_ERROR',
-  'BUDGET_EXCEEDED','PARSE_FAILED','UNSUPPORTED','TIMEOUT','WORKER_START_TIMEOUT','CANCELLED','CLOSED','QUEUE_FULL','WORKER_FAILED','LEASE_RELEASE_FAILED','ADMISSION_FAILED']);
-function isWorkerMessage(value: unknown, cueInputMetadataEnabled: boolean): value is MetadataWorkerResultMessage {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const message = value as Record<string, unknown>;
-  if (Object.keys(message).length !== 3 || message.kind !== 'metadata-result' || typeof message.phase !== 'string' || !workerPhases.has(message.phase)) return false;
-  if (typeof message.result !== 'object' || message.result === null || Array.isArray(message.result)) return false;
-  const result = message.result as Record<string, unknown>;
-  if (result.status === 'failure') return typeof result.code === 'string' && workerFailureCodes.has(result.code as MetadataReadFailure)
-    && (result.readEvidence === null || typeof result.readEvidence === 'object' && !Array.isArray(result.readEvidence));
-  if (result.status !== 'ok' || message.phase !== 'complete' || typeof result.fields !== 'object' || result.fields === null || Array.isArray(result.fields)
-    || typeof result.technical !== 'object' || result.technical === null || Array.isArray(result.technical)
-    || !Array.isArray(result.coverEvidence) || typeof result.readEvidence !== 'object' || result.readEvidence === null) return false;
-  const technical = result.technical as Record<string, unknown>, container = technical.container;
-  if (typeof container !== 'string') return false;
-  if (result.parserVersion === METADATA_PARSER_VERSION) return ['FLAC','MPEG','MP4','WAVE','AIFF','DSF','DFF'].includes(container)
-    || cueInputMetadataEnabled && ['OGG','WAVPACK','APE','MPC'].includes(container);
-  return cueInputMetadataEnabled && result.parserVersion === CUE_HEADER_METADATA_PARSER_VERSION && ['TTA','TAK'].includes(container)
-    && Object.keys(result.fields).length === 0 && result.coverEvidence.length === 0;
+const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+  && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+const keys = (value: Record<string, unknown>, names: readonly string[]): boolean => Reflect.ownKeys(value).length === names.length
+  && Reflect.ownKeys(value).every(key => typeof key === 'string' && names.includes(key) && Object.prototype.propertyIsEnumerable.call(value, key));
+const nonnegative = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+function checkedRustResult(value: MetadataReadResult, input: MetadataWorkerInput): boolean {
+  if (value.status === 'failure') return true;
+  if (!object(value) || !keys(value,['status','parserVersion','fields','technical','coverEvidence','readEvidence'])
+    || !object(value.fields) || Reflect.ownKeys(value.fields).some(key => typeof key !== 'string' || !['title','artist','album','year','disc','track','albumArtist','artists','albumArtists'].includes(key))) return false;
+  let textBytes=0;
+  for(const [key,field] of Object.entries(value.fields)) {
+    const values=key==='artists'||key==='albumArtists' ? field : [field];
+    if(!Array.isArray(values)||values.length>64||values.some(v=>typeof v!=='string'||Buffer.byteLength(v)>input.budget.textFieldBytes))return false;
+    if((key==='artists'||key==='albumArtists')&&new Set(values).size!==values.length)return false;
+    for(const v of values)textBytes+=Buffer.byteLength(v);
+  }
+  if(textBytes>input.budget.totalTextBytes)return false;
+  const technical=value.technical,evidence=value.readEvidence;
+  if(!object(technical) || !keys(technical,['container','codec','lossless','sampleRateHz','channels','bitsPerSample','durationSeconds','evidence'])
+    || typeof technical.codec !== 'string' || technical.codec.length<1 || Buffer.byteLength(technical.codec)>512
+    || !(technical.lossless===null || typeof technical.lossless==='boolean') || !nonnegative(technical.sampleRateHz) || technical.sampleRateHz===0
+    || !Number.isSafeInteger(technical.channels) || technical.channels<1 || technical.channels>64
+    || !(technical.bitsPerSample===null || nonnegative(technical.bitsPerSample)) || !(technical.durationSeconds===null || nonnegative(technical.durationSeconds))
+    || technical.evidence!=='bounded-parser-reported' || !object(evidence)
+    || !keys(evidence,['bytesRead','readCalls','maxReadBytes','allocationBytes','elapsedMs','wholeAudioHash','wholeAudioDecode']))return false;
+  for(const field of ['bytesRead','readCalls','maxReadBytes','allocationBytes'] as const)if(!Number.isSafeInteger(evidence[field]) || evidence[field]<0)return false;
+  if(evidence.bytesRead>input.budget.totalReadBytes || evidence.maxReadBytes>input.budget.singleReadBytes
+    || evidence.allocationBytes>input.budget.totalAllocationBytes || !nonnegative(evidence.elapsedMs) || evidence.wholeAudioHash!==false || evidence.wholeAudioDecode!==false
+    || !Array.isArray(value.coverEvidence) || value.coverEvidence.length>8)return false;
+  for(const cover of value.coverEvidence)if(!object(cover) || !keys(cover,['mime','bytes','sha256','evidence']) || !['image/png','image/jpeg'].includes(cover.mime)
+    || !Number.isSafeInteger(cover.bytes) || cover.bytes<1 || cover.bytes>input.budget.coverBytes || !/^[a-f0-9]{64}$/u.test(cover.sha256)
+    || cover.evidence!=='encoded-bytes-magic-and-digest')return false;
+  if(['DSF','DFF'].includes(technical.container) && (!input.dsdMetadataEnabled || technical.codec!=='DSD' || technical.lossless!==true
+    || technical.bitsPerSample!==1 || ![2822400,3072000,5644800,6144000,11289600,12288000,22579200,24576000].includes(technical.sampleRateHz)
+    || technical.channels>6 || !nonnegative(technical.durationSeconds) || technical.durationSeconds===0))return false;
+  if(value.parserVersion===CUE_HEADER_METADATA_PARSER_VERSION)return input.cueInputMetadataEnabled===true
+    && ['TTA','TAK'].includes(technical.container) && Object.keys(value.fields).length===0 && value.coverEvidence.length===0;
+  return value.parserVersion===RUST_MEDIA_METADATA_PARSER_VERSION && (['FLAC','MPEG','MP4','WAVE','AIFF','DSF','DFF'].includes(technical.container)
+    || input.cueInputMetadataEnabled===true && ['OGG','WAVPACK','APE','MPC'].includes(technical.container));
 }
-/** 只支持当前Node编译产物URL；测试也通过真实编译worker，不接受用户worker入口。 */
+/** 所有读取仍经原 Source/relocation 门禁，解析使用同 Owner 的有界常驻 Rust 池。 */
 export function createMetadataReader(options: MetadataReaderOptions = {}): MetadataReaderPort {
   const concurrency = options.concurrency ?? 1, maxPending = options.maxPending ?? 16, cueInputMetadataEnabled = options.cueInputMetadataEnabled === true;
-  if (![1,2].includes(concurrency) || !Number.isSafeInteger(maxPending) || maxPending < 0 || maxPending > 64) throw new Error('元数据reader池预算无效。');
+  if (![1,2,8].includes(concurrency) || !Number.isSafeInteger(maxPending) || maxPending < 0 || maxPending > 64) throw new Error('元数据reader池预算无效。');
   const budget: MetadataReadBudget = { ...DEFAULT_METADATA_READ_BUDGET, ...options.trustedBudget };
   for (const key of Object.keys(DEFAULT_METADATA_READ_BUDGET) as (keyof MetadataReadBudget)[]) {
     if (!Number.isSafeInteger(budget[key]) || budget[key] < 1 || budget[key] > DEFAULT_METADATA_READ_BUDGET[key]) throw new Error('元数据reader仅允许可信低预算。');
@@ -70,75 +91,39 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
       void job.run().finally(() => { --active; pump(); });
     }
   };
-  const runWorker = (input: MetadataWorkerInput, signal: AbortSignal): Promise<MetadataReadResult> => new Promise(resolve => {
-    const startupStarted = performance.now(), startupDeadline = startupStarted + 3000;
-    let worker: Worker;
-    try { worker = new Worker(new URL('./metadata-reader-worker.bundle.mjs', import.meta.url), { workerData: input, execArgv: [], env: {}, resourceLimits: { maxOldGenerationSizeMb: 64, maxYoungGenerationSizeMb: 16, stackSizeMb: 4 } }); }
-    catch { resolve(failure('WORKER_FAILED')); return; }
-    const threadId = worker.threadId, fd = input.fd; let result: MetadataReadResult | undefined, forced: MetadataReadFailure | undefined;
-    let startTimer: ReturnType<typeof setTimeout> | undefined, readTimer: ReturnType<typeof setTimeout> | undefined;
-    let readStarted: number | undefined, readDeadline: number | undefined;
-    let onlineObserved = false, resultMessageObserved = false, workerReportedTimeout = false, exited = false;
-    let resultPhase: MetadataWorkerPhase | undefined;
-    let timeoutInfo: Pick<MetadataReaderTimeoutLifecycle, 'origin' | 'phase' | 'elapsedMs' | 'lateByMs'> | undefined;
-    const stop = (code: MetadataReadFailure, now = performance.now()): void => {
-      if (forced !== undefined) return;
-      forced = code;
-      if (code === 'WORKER_START_TIMEOUT' || code === 'TIMEOUT') {
-        const startup = code === 'WORKER_START_TIMEOUT', started = startup ? startupStarted : readStarted!, deadline = startup ? startupDeadline : readDeadline!;
-        timeoutInfo = { origin: startup ? 'parent-start' : 'parent-read', phase: startup ? 'startup' : result ? 'exit-wait' : 'awaiting-result',
-          elapsedMs: Math.max(0, now - started), lateByMs: Math.max(0, now - deadline) };
-      }
-      // terminate的请求本身不是关闭；只有下面exit事件可完成这次读取。
-      if (!exited) void worker.terminate().catch(() => { forced ??= 'WORKER_FAILED'; });
+  const runWorker = async (handle: FileHandle, input: MetadataWorkerInput, signal: AbortSignal, readId: string): Promise<MetadataReadResult> => {
+    const started = performance.now();
+    let bytesRead = 0;
+    const phase = (stage: 'read' | 'parse', state: 'start' | 'complete' | 'cancel' | 'error', values: { queueWaitMs: number; readMs: number; parseMs: number }, code?: MetadataReadFailure): void => {
+      const elapsedMs = Math.max(0, performance.now() - started);
+      emit({ type: 'metadata-phase', readId, stage, state, backend: 'rust-media-worker', ...values, elapsedMs, slow: elapsedMs >= 250, ...(code ? { code } : {}) });
+      logLibraryOperation('metadata', `metadata.${stage}`, state === 'cancel' ? 'cancelled' : state, { id: readId, ...values, elapsedMs, ...(code ? { code } : {}) });
     };
-    const enforceStartupDeadline = (now = performance.now()): void => { if (now >= startupDeadline) stop('WORKER_START_TIMEOUT', now); };
-    const enforceReadDeadline = (now = performance.now()): void => { if (readDeadline !== undefined && now >= readDeadline) stop('TIMEOUT', now); };
-    const startupTimer = (): void => {
-      if (forced !== undefined || exited || onlineObserved) return;
-      enforceStartupDeadline();
-      if (forced === undefined) startTimer = setTimeout(startupTimer, Math.max(1, Math.ceil(startupDeadline - performance.now())));
-    };
-    const readingTimer = (): void => {
-      if (forced !== undefined || exited || readDeadline === undefined) return;
-      enforceReadDeadline();
-      if (forced === undefined) readTimer = setTimeout(readingTimer, Math.max(1, Math.ceil(readDeadline - performance.now())));
-    };
-    const abort = (): void => stop('CANCELLED'); signal.addEventListener('abort',abort,{ once: true });
-    worker.once('online', () => {
-      const now = performance.now(); onlineObserved = true; clearTimeout(startTimer); enforceStartupDeadline(now);
-      if (forced === undefined) { readStarted = now; readDeadline = now + budget.timeoutMs; readingTimer(); }
-      emit({ type: 'worker-online', fd, threadId });
-      if (signal.aborted) abort();
-      // 同步观察者无法被timer抢占；返回后仍核同一个期限，不重新起预算。
-      enforceReadDeadline();
-    });
-    worker.on('message', (value: unknown) => {
-      resultMessageObserved = true;
-      if (result !== undefined || !isWorkerMessage(value, input.cueInputMetadataEnabled === true)) { stop('WORKER_FAILED'); return; }
-      enforceReadDeadline();
-      result = value.result; resultPhase = value.phase;
-      workerReportedTimeout = result.status === 'failure' && result.code === 'TIMEOUT';
-    });
-    worker.once('error', () => { forced ??= 'WORKER_FAILED'; });
-    worker.once('exit', exitCode => {
-      const now = performance.now(); exited = true;
-      clearTimeout(startTimer); clearTimeout(readTimer); signal.removeEventListener('abort',abort);
-      if (onlineObserved) enforceReadDeadline(now); else enforceStartupDeadline(now);
-      if (forced === undefined && workerReportedTimeout) {
-        const elapsed = result?.readEvidence?.elapsedMs;
-        const elapsedMs = typeof elapsed === 'number' && Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : null;
-        timeoutInfo = { origin: 'worker-check', phase: resultPhase!, elapsedMs, lateByMs: elapsedMs === null ? null : Math.max(0, elapsedMs - budget.timeoutMs) };
-      }
-      // 只在真实exit时发布一次有限诊断；没有结果时不猜Worker内部阶段。
-      if (timeoutInfo) emit({ type: 'worker-timeout', fd, threadId, ...timeoutInfo, onlineObserved, resultMessageObserved, workerReportedTimeout });
-      emit({ type: 'worker-exit', fd, threadId, exitCode });
-      resolve(forced ? failure(forced) : exitCode === 0 && result ? result : failure('WORKER_FAILED'));
-    });
-    startupTimer();
-    emit({ type: 'worker-start', fd, threadId }); if (signal.aborted) abort(); enforceStartupDeadline();
-  });
-  const execute = async (input: MetadataReadInput, signal: AbortSignal, relocation?: RelocationRead): Promise<MetadataReadResult> => {
+    const zero = { queueWaitMs: 0, readMs: 0, parseMs: 0 };
+    phase('read', 'start', zero); phase('parse', 'start', zero);
+    // Node 保留已核验只读 FD 的所有权。Rust 只能请求有界位置读取，不能取得源路径或自行打开源文件。
+    const result = await getRustMediaWorkerPool().readMetadata({ size: input.size, budget: input.budget,
+      dsdMetadataEnabled: input.dsdMetadataEnabled === true, cueInputMetadataEnabled: input.cueInputMetadataEnabled === true, includeEmbeddedArtwork: input.includeEmbeddedArtwork !== false,
+      async read(offset, length) {
+        signal.throwIfAborted();
+        if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(length) || length < 1
+          || length > budget.singleReadBytes || length > budget.singleAllocationBytes || offset > input.size || length > input.size - offset
+          || bytesRead + length > budget.totalReadBytes) throw new SourceFileError('LIMIT_EXCEEDED');
+        const buffer = Buffer.alloc(length), read = await handle.read(buffer, 0, length, offset);
+        bytesRead += read.bytesRead;
+        return buffer.subarray(0, read.bytesRead);
+      },
+    }, signal);
+    // performance 是当前读取的诊断，不改变持久 readEvidence 的闭集合同。
+    const { performance: _performance, ...metadata } = result;
+    const checked=checkedRustResult(metadata,input) ? metadata:failure('WORKER_FAILED');
+    const values = result.performance ?? { queueWaitMs: 0, readMs: 0, parseMs: result.readEvidence?.elapsedMs ?? 0 };
+    const state = checked.status === 'ok' ? 'complete' : checked.code === 'CANCELLED' ? 'cancel' : 'error';
+    phase('read', state, values, checked.status === 'failure' ? checked.code : undefined);
+    phase('parse', state, values, checked.status === 'failure' ? checked.code : undefined);
+    return checked;
+  };
+  const execute = async (input: MetadataReadInput, signal: AbortSignal, relocation: RelocationRead | undefined, readId: string): Promise<MetadataReadResult> => {
     let release: (() => void | Promise<void>) | undefined;
     try {
       if (signal.aborted) return failure('CANCELLED');
@@ -148,9 +133,9 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
       }
       if (signal.aborted) return failure('CANCELLED');
       if (relocation) return await withRelocationMetadataRead(relocation.access, input, signal,
-        (handle, size) => runWorker({ fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true, cueInputMetadataEnabled }, signal), event => emit(event));
+        (handle, size) => runWorker(handle, { fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true, cueInputMetadataEnabled, includeEmbeddedArtwork: input.includeEmbeddedArtwork !== false }, signal, readId), event => emit(event));
       return await withCheckedReadonlyMetadataSource(input.root, input.relative, input.expectedSignature, signal,
-        (handle, size) => runWorker({ fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true, cueInputMetadataEnabled },signal), input.assertCurrent,
+        (handle, size) => runWorker(handle, { fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true, cueInputMetadataEnabled, includeEmbeddedArtwork: input.includeEmbeddedArtwork !== false },signal,readId), input.assertCurrent,
         event => emit(event));
     } catch (error) {
       if (error instanceof MetadataLeaseReleaseError) { fatalLeaseFailure = true; return failure('LEASE_RELEASE_FAILED'); }
@@ -163,13 +148,21 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
       if (closed) return Promise.resolve(failure('CLOSED'));
       if (signal?.aborted) return Promise.resolve(failure('CANCELLED'));
       if (active >= concurrency && queue.length >= maxPending) return Promise.resolve(failure('QUEUE_FULL'));
+      const readId = randomUUID(), queuedAt = performance.now();
+      logLibraryOperation('metadata', 'metadata.request', 'start', { id: readId });
+      logLibraryOperation('metadata', 'metadata.queue', 'start', { id: readId, active, pending: queue.length });
       const controller = new AbortController(); let settle!: (value: MetadataReadResult) => void;
       const promise = new Promise<MetadataReadResult>(resolve => { settle = resolve; });
-      const complete = (value: MetadataReadResult): void => { signal?.removeEventListener('abort', forward); jobs.delete(job); emit({ type: 'read-complete', status: value.status }); settle(value); };
+      const complete = (value: MetadataReadResult): void => {
+        signal?.removeEventListener('abort', forward); jobs.delete(job); emit({ type: 'read-complete', status: value.status });
+        logLibraryOperation('metadata','metadata.request',value.status==='ok' ? 'complete':value.code==='CANCELLED' ? 'cancelled':'error',
+          {id:readId,elapsedMs:Math.max(0,performance.now()-queuedAt),...(value.status==='failure' ? {code:value.code}:{})});
+        settle(value);
+      };
       const forward = (): void => { controller.abort(); if (!job.started) job.cancelQueued(); };
       const job: PendingRead = { controller, started: false, promise,
-        async run() { let value: MetadataReadResult; try { value = await execute(input,controller.signal,relocation); } catch { value = failure(fatalLeaseFailure ? 'LEASE_RELEASE_FAILED' : 'IO_ERROR'); } complete(value); },
-        cancelQueued() { const index = queue.indexOf(job); if (index >= 0) queue.splice(index,1); if (jobs.has(job)) complete(failure(fatalLeaseFailure ? 'LEASE_RELEASE_FAILED' : 'CANCELLED')); },
+        async run() { logLibraryOperation('metadata', 'metadata.queue', 'complete', { id: readId, queueWaitMs: Math.max(0, performance.now() - queuedAt), elapsedMs: Math.max(0, performance.now() - queuedAt), active, pending: queue.length }); let value: MetadataReadResult; try { value = await execute(input,controller.signal,relocation,readId); } catch { value = failure(fatalLeaseFailure ? 'LEASE_RELEASE_FAILED' : 'IO_ERROR'); } complete(value); },
+        cancelQueued() { const index = queue.indexOf(job); if (index >= 0) queue.splice(index,1); if (jobs.has(job)) { logLibraryOperation('metadata', 'metadata.queue', 'cancelled', { id: readId, queueWaitMs: Math.max(0, performance.now() - queuedAt), elapsedMs: Math.max(0, performance.now() - queuedAt) }); complete(failure(fatalLeaseFailure ? 'LEASE_RELEASE_FAILED' : 'CANCELLED')); } },
       };
       signal?.addEventListener('abort',forward,{ once: true }); jobs.add(job); queue.push(job); pump(); return promise;
   };

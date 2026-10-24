@@ -261,5 +261,12 @@ test('PRIVATE_PLAY_GUARD_CARRIER：实际Supervisor只转已验证owned guard并
   await supervisor.shutdown();assert.equal(supervisor.status,'stopped');assert.ok(children.every(child=>child.listener===undefined))
   const count=supervisor.getLocalPlaybackEvidenceSnapshot().length;stdout[1]!(line)
   assert.equal(written.length,3);assert.equal(supervisor.getLocalPlaybackEvidenceSnapshot().length,count)
-  assert.ok(ports.flatMap(port=>port.sent).every(request=>request.command==='core.shutdown'))
+  // 每个原端口只允许关闭RPC及其精确收讫帧，不接受额外命令、字段或错配requestId。
+  for(const port of ports){
+    assert.equal(port.sent.length,2)
+    const shutdown=port.sent[0]!,received=port.sent[1]!
+    assert.equal(typeof shutdown.id,'string');assert.notEqual(shutdown.id,'')
+    assert.deepEqual(shutdown,{version:1,id:shutdown.id,command:'core.shutdown',payload:{}})
+    assert.deepEqual(received,{version:1,type:'musicbridge.core-shutdown-received',requestId:shutdown.id})
+  }
 })

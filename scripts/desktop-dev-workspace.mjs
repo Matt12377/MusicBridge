@@ -33,6 +33,8 @@ export function prepareDesktopWorkspace(paths) {
     .split('\0').filter(Boolean).filter(name => !name.split('/').some(part => ['.git', 'node_modules', 'dist', 'release'].includes(part))));
   // 原生分发资源是既有本机构建输入；不把其他被忽略的用户资料或凭据复制进来。
   const collectNative = directory => {
+    // 媒体Worker由编译副本自身构建并带工作树归属；不能复制另一checkout的输出标记。
+    if (directory === path.join(sourceRoot, 'apps/desktop/native/media-worker')) return;
     const info = fs.lstatSync(directory);
     if (info.isSymbolicLink()) throw new Error('原生编译输入不能是符号链接。');
     if (info.isDirectory()) for (const name of fs.readdirSync(directory)) collectNative(path.join(directory, name));
@@ -89,5 +91,5 @@ export function prepareDesktopWorkspace(paths) {
     fs.renameSync(temp, stateFile);
   };
   save();
-  return { ...paths, state, save, copied, removed };
+  return { ...paths, state, save, copied, removed, inputRows: buildInputs };
 }

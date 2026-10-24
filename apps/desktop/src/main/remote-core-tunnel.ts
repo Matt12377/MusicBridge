@@ -71,14 +71,15 @@ export interface RemoteCoreTunnelManagerOptions {
   spawn?: RemoteCoreTunnelSpawn
   healthProbe?: (input: RemoteCoreTunnelHealthProbeInput) => Promise<boolean>
   onTunnelBound?: (state: RemoteCoreTunnelState) => Promise<void> | void
+  onTunnelUnavailable?: (state: Readonly<RemoteCoreTunnelState>) => Promise<void> | void
   onDisconnected?: (state: RemoteCoreTunnelState) => Promise<void> | void
   onStateChanged?: (state: RemoteCoreTunnelState) => void
-  boundGraceMs?: number
+  boundTimeoutMs?: number
   healthTimeoutMs?: number
   stopGraceMs?: number
 }
 
-const DEFAULT_BOUND_GRACE_MS = 150
+const DEFAULT_BOUND_TIMEOUT_MS = 6_000
 const DEFAULT_HEALTH_TIMEOUT_MS = 5_000
 const REMOTE_TARGET_PATTERN = /^(?:[A-Za-z0-9][A-Za-z0-9._-]*@)?[A-Za-z0-9][A-Za-z0-9._-]*$/
 
@@ -132,6 +133,12 @@ export function buildTunnelSshArgs(
     'ControlMaster=no',
     '-o',
     'ControlPath=none',
+    '-o',
+    'ConnectTimeout=5',
+    '-o',
+    'ConnectionAttempts=1',
+    '-o',
+    'LogLevel=DEBUG1',
     '-o',
     'ServerAliveInterval=15',
     '-o',
@@ -187,7 +194,7 @@ function defaultSpawn(
 function classifySshFailure(stderr: string): RemoteCoreTunnelErrorCode {
   const normalized = stderr.toLowerCase()
   if (
-    /permission denied|publickey|authentication failed|no supported authentication/.test(
+    /permission denied|authentication failed|no supported authentication|host key verification failed|remote host identification has changed|no .*host key is known|forwarding disabled due to host key check failure/.test(
       normalized,
     )
   ) {
@@ -200,11 +207,11 @@ function classifySshFailure(stderr: string): RemoteCoreTunnelErrorCode {
   ) {
     return 'SSH_CONNECTION_FAILED'
   }
-  if (/remote forward failure|address already in use|cannot listen|listen port/.test(normalized)) {
+  if (/remote forward failure|remote port forwarding failed|address already in use|cannot listen|port forwarding failed|cannot assign requested address/.test(normalized)) {
     return 'REMOTE_PORTS_UNAVAILABLE'
   }
   if (/enoent|spawn .*ssh|not found/.test(normalized)) return 'SSH_BINARY_UNAVAILABLE'
-  return 'REMOTE_PORTS_UNAVAILABLE'
+  return 'SSH_CONNECTION_FAILED'
 }
 
 function failurePhase(errorCode: RemoteCoreTunnelErrorCode): RemoteCoreTunnelFailurePhase {
@@ -302,7 +309,7 @@ export class RemoteCoreTunnelManager {
   private readonly healthProbe: (
     input: RemoteCoreTunnelHealthProbeInput,
   ) => Promise<boolean>
-  private readonly boundGraceMs: number
+  private readonly boundTimeoutMs: number
   private readonly healthTimeoutMs: number
   private readonly stopGraceMs: number
   private readonly options: RemoteCoreTunnelManagerOptions
@@ -320,15 +327,17 @@ export class RemoteCoreTunnelManager {
   private operationTail: Promise<void> = Promise.resolve()
   private readonly owned = new Map<RemoteSshProcess, OwnedSshProcess>()
   private probeController: AbortController | undefined
+  private bindController: AbortController | undefined
   private intentGeneration = 0
 
   constructor(options: RemoteCoreTunnelManagerOptions = {}) {
     this.options = options
     this.spawn = options.spawn ?? defaultSpawn
-    this.boundGraceMs = options.boundGraceMs ?? DEFAULT_BOUND_GRACE_MS
+    this.boundTimeoutMs = options.boundTimeoutMs ?? DEFAULT_BOUND_TIMEOUT_MS
     this.healthTimeoutMs = options.healthTimeoutMs ?? DEFAULT_HEALTH_TIMEOUT_MS
     this.stopGraceMs = options.stopGraceMs ?? 500
-    if (!Number.isSafeInteger(this.stopGraceMs) || this.stopGraceMs < 1 || this.stopGraceMs > 1_000
+    if (!Number.isSafeInteger(this.boundTimeoutMs) || this.boundTimeoutMs < 1 || this.boundTimeoutMs > 10_000
+      || !Number.isSafeInteger(this.stopGraceMs) || this.stopGraceMs < 1 || this.stopGraceMs > 1_000
       || !Number.isSafeInteger(this.healthTimeoutMs) || this.healthTimeoutMs < 1 || this.healthTimeoutMs > 5_000)
       throw new Error('SSH生命周期截止期限无效')
     this.healthProbe = options.healthProbe ?? ((input) => this.probeHealth(input))
@@ -341,6 +350,7 @@ export class RemoteCoreTunnelManager {
   start(config: RemoteCoreTunnelConfig): Promise<RemoteCoreTunnelState> {
     const generation = ++this.intentGeneration
     this.probeController?.abort()
+    this.bindController?.abort()
     return this.enqueue(async () => {
       if (generation !== this.intentGeneration) return this.getState()
       this.stopping = false
@@ -353,6 +363,7 @@ export class RemoteCoreTunnelManager {
     ++this.intentGeneration
     this.stopping = true
     this.probeController?.abort()
+    this.bindController?.abort()
     return this.enqueue(async () => {
       this.stopping = true
       this.setState({
@@ -380,6 +391,7 @@ export class RemoteCoreTunnelManager {
   reconnect(): Promise<RemoteCoreTunnelState> {
     const generation = ++this.intentGeneration
     this.probeController?.abort()
+    this.bindController?.abort()
     return this.enqueue(async () => {
       if (generation !== this.intentGeneration) return this.getState()
       this.stopping = false
@@ -428,16 +440,14 @@ export class RemoteCoreTunnelManager {
         return this.failState(config, 'SSH_BINARY_UNAVAILABLE')
       }
 
-      const bound = await this.waitForBound(child)
+      const bound = await this.waitForBound(child, remoteStreamPort, config.localStreamPort)
       if (generation !== this.intentGeneration || this.stopping) { await this.stopOwned(child); return this.getState() }
-      if (!bound.bound) {
+      if (!bound.bound || !this.owned.has(child)) {
         if (!await this.stopOwned(child)) return this.failState(config, 'TUNNEL_DISCONNECTED', remoteStreamPort)
         if (
-          bound.errorCode === 'SSH_AUTH_REQUIRED' ||
-          bound.errorCode === 'SSH_CONNECTION_FAILED' ||
-          bound.errorCode === 'SSH_BINARY_UNAVAILABLE'
+          bound.errorCode !== 'REMOTE_PORTS_UNAVAILABLE'
         ) {
-          return this.failState(config, bound.errorCode)
+          return this.failState(config, bound.errorCode ?? 'SSH_CONNECTION_FAILED')
         }
         continue
       }
@@ -463,7 +473,7 @@ export class RemoteCoreTunnelManager {
         })
         if (!healthy || this.child !== child || generation !== this.intentGeneration || this.stopping) {
           if (!await this.stopAllOwned()) return this.failState(config, 'TUNNEL_DISCONNECTED', remoteStreamPort)
-          return this.failState(config, 'REMOTE_HEALTH_UNAVAILABLE', remoteStreamPort)
+          return this.failBoundTunnel(config, remoteStreamPort, generation)
         }
         this.setState({
           ...boundState,
@@ -473,7 +483,7 @@ export class RemoteCoreTunnelManager {
         return this.getState()
       } catch {
         if (!await this.stopAllOwned()) return this.failState(config, 'TUNNEL_DISCONNECTED', remoteStreamPort)
-        return this.failState(config, 'REMOTE_HEALTH_UNAVAILABLE', remoteStreamPort)
+        return this.failBoundTunnel(config, remoteStreamPort, generation)
       }
     }
 
@@ -508,15 +518,28 @@ export class RemoteCoreTunnelManager {
     return this.getState()
   }
 
-  private async waitForBound(child: RemoteSshProcess): Promise<BoundResult> {
-    let stderr = ''
-    const onData = (chunk: Buffer | string) => {
-      if (stderr.length < 4_096) stderr += chunk.toString().slice(0, 4_096 - stderr.length)
+  private async failBoundTunnel(config: RemoteCoreTunnelConfig, remoteStreamPort: number, generation: number): Promise<RemoteCoreTunnelState> {
+    const current = () => generation === this.intentGeneration && !this.stopping
+      && this.lastConfig?.sshTarget === config.sshTarget && this.lastConfig.localStreamPort === config.localStreamPort
+      && this.state.sshTarget === config.sshTarget && this.state.remoteStreamPort === remoteStreamPort
+      && this.state.localStreamPort === config.localStreamPort
+    if (!current()) return this.getState()
+    const failure = baseRemoteState(config, 'failed', 'REMOTE_HEALTH_UNAVAILABLE', remoteStreamPort)
+    try { await this.options.onTunnelUnavailable?.(Object.freeze(copyState(failure))) }
+    catch {
+      if (!current()) return this.getState()
+      return this.failState(config, 'CORE_RESTART_FAILED', remoteStreamPort)
     }
-    child.stderr?.on('data', onData)
+    if (!current()) return this.getState()
+    return this.failState(config, 'REMOTE_HEALTH_UNAVAILABLE', remoteStreamPort)
+  }
 
+  private async waitForBound(child: RemoteSshProcess, remoteStreamPort: number, localStreamPort: number): Promise<BoundResult> {
+    const controller = new AbortController()
+    this.bindController = controller
     return new Promise<BoundResult>((resolve) => {
       let settled = false
+      let stderr = '', partial = '', localBound = false, remoteBound = false
       let timer: ReturnType<typeof setTimeout> | undefined
       const finish = (result: BoundResult): void => {
         if (settled) return
@@ -525,22 +548,39 @@ export class RemoteCoreTunnelManager {
         child.removeListener('exit', onExit)
         child.removeListener('error', onError)
         child.stderr?.removeListener?.('data', onData)
+        controller.signal.removeEventListener('abort', onAbort)
+        if (this.bindController === controller) this.bindController = undefined
         resolve(result)
       }
-      const onExit: SshExitListener = (code) => {
+      const onData = (chunk: Buffer | string) => {
+        // 原SSH诊断只在有界私有缓冲中判定阶段，不把主机、用户名或路径回传公开状态。
+        const value = chunk.toString()
+        stderr = (stderr + value).slice(-4_096)
+        partial += value
+        let newline: number
+        while ((newline = partial.indexOf('\n')) !== -1) {
+          const line = partial.slice(0, newline).replace(/\r$/u, '')
+          partial = partial.slice(newline + 1)
+          if (line === `debug1: Local forwarding listening on 127.0.0.1 port ${LOCAL_ROON_CORE_PORT}.`) localBound = true
+          if (line === `debug1: remote forward success for: listen 127.0.0.1:${remoteStreamPort}, connect 127.0.0.1:${localStreamPort}`) remoteBound = true
+          if (localBound && remoteBound) { finish({ bound: true }); return }
+        }
+        if (partial.length > 4_096) partial = partial.slice(-4_096)
+      }
+      const onExit: SshExitListener = () => {
         finish({
           bound: false,
-          errorCode: code === 255 ? classifySshFailure(stderr) : 'REMOTE_PORTS_UNAVAILABLE',
+          errorCode: classifySshFailure(stderr),
         })
       }
       const onError: SshErrorListener = () => finish({ bound: false, errorCode: 'SSH_BINARY_UNAVAILABLE' })
+      const onAbort = () => finish({ bound: false, errorCode: 'TUNNEL_DISCONNECTED' })
+      child.stderr?.on('data', onData)
       child.once('exit', onExit)
       child.once('error', onError)
-      if (this.boundGraceMs <= 0) {
-        queueMicrotask(() => finish({ bound: true }))
-      } else {
-        timer = setTimeout(() => finish({ bound: true }), this.boundGraceMs)
-      }
+      controller.signal.addEventListener('abort', onAbort, { once: true })
+      timer = setTimeout(() => finish({ bound: false, errorCode: classifySshFailure(stderr) }), this.boundTimeoutMs)
+      if (controller.signal.aborted) onAbort()
     })
   }
 

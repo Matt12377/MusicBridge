@@ -1,0 +1,277 @@
+{
+  "schema": "musicbridge.v4-unified-integration.v1",
+  "state": "INTEGRATED_ENGINEERING_VALIDATION_PASS_OWNER_TRIAL_READY",
+  "at": "2026-10-19T17:01:44.730763+00:00",
+  "sourceRoot": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/v4",
+  "branch": "codex/v4",
+  "baseSha": "f459c46525855e87e1d8ee68388e8ea21ab04653",
+  "implementationCommit": "未新增提交，保留Owner及其它任务WIP",
+  "reportCommit": "未新增提交",
+  "integrationFiles": [
+    {
+      "path": "apps/desktop/src/main/core-supervisor.ts",
+      "sha256": "23571f67c3817058614679a43130dec8cc90f0e63fa212e31f099b7a49b65a5a"
+    },
+    {
+      "path": "apps/desktop/src/main/diagnostics.ts",
+      "sha256": "7be6df1d0d04da016affa9b1216d52a5530c303c375de3852d1ffcc0a4319150"
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "sha256": "0c0f9df5917dd5c2a34a03839c3190786c63f3675b350945c1c3daeee835374f"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-backend.ts",
+      "sha256": "bd005f31fea7ac56d83f9a215afdccb35ed349e819d5cfd5026d0c1f0df147c4"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-content-port.ts",
+      "sha256": "e295497b4d7c190db739b0f25c7bdfa4ee5f26ef20656bc5354bb0486d3e2e7c"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-https-server.ts",
+      "sha256": "55fbfedbdee51b2e902f379f7fe65565d144e0aad44d2cc849b02600a0cbccc2"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-settings.ts",
+      "sha256": "3c466e861279d60ccb849aed03a91d4e9d3ca73d9ae5ef61129a2eaec1ac5d82"
+    },
+    {
+      "path": "apps/desktop/src/main/remote-core-startup.ts",
+      "sha256": "27d5c3389f9ce1de1cc136be170e7ed6680a5c2e46cc761dd69149d528e56a55"
+    },
+    {
+      "path": "apps/desktop/src/preload/index.ts",
+      "sha256": "44677bf8ad1a7f7daad9d4d0ed8a959fd3b8242dcbbf4daca4a1b29a9ebdc118"
+    },
+    {
+      "path": "apps/desktop/src/renderer/index.html",
+      "sha256": "be4ac962479991f14aba1ff5f48ef07744e351bff98b83c10558084c5fa2130f"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/App.vue",
+      "sha256": "2f1d8cd2826a0a74d7e2a8a9d5c3b8933ca97728cb52204e9cb99377686aa416"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumArtwork.vue",
+      "sha256": "97cf54cce0a9ae4b19b190eff13ffac6437c09ce44dfcef62f06d3bf51e38f59"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumGrid.vue",
+      "sha256": "ce070f8a67f848dd48c1700695bc07d2808f3135198b5285ca38d221f1f81143"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/main.ts",
+      "sha256": "472b7a00174e1d67bffac6013e936f48deb217e8308e602a031d2f3c37a56efd"
+    },
+    {
+      "path": "apps/desktop/test/diagnostics.test.ts",
+      "sha256": "15323ff2fb628b52a1943d9a20c5ed1c9990863f2f3163865ca4ad8a8e0e9858"
+    },
+    {
+      "path": "apps/desktop/test/local-workbench-quit-retry.test.ts",
+      "sha256": "ef46bbb7c29183c64a66edcbdd7bec80de0d262638bbb8abf041dcd12d86f5e5"
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-album-components.test.ts",
+      "sha256": "b78a782c4b03456af1dd21c39e90dff4ba854132e8390c16ccaf60329c2eb814"
+    },
+    {
+      "path": "apps/desktop/test/mobile-capability-diagnostics.test.ts",
+      "sha256": "59de56f23e5f9a65693124cc4835ab189241d06e68e0e9357047315b2b48b11f"
+    },
+    {
+      "path": "apps/desktop/test/mobile-close-diagnostics.test.ts",
+      "sha256": "324e076a44d0897a947f38803ce1b963294a6b7c35b06fb679cd5f75bd46646c"
+    },
+    {
+      "path": "apps/desktop/test/mobile-close-quiet-recheck.test.ts",
+      "sha256": "340446e115fa2aefadcc7561310bb190da70048dfe4efb4b5ec8c544d24287f5"
+    },
+    {
+      "path": "apps/desktop/test/mobile-content-rpc-main.test.ts",
+      "sha256": "677dfb65a7acf691a6212c5e82f0e046e0bbe51b01bc8eb96b06c8d14fcd47ff"
+    },
+    {
+      "path": "apps/desktop/test/remote-core-startup.test.ts",
+      "sha256": "50d9bd14e2d68e6a22b0cba934538bb1e043173b164c310ded7f7d30977adda1"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-store.ts",
+      "sha256": "a6d58093f5b05136202152192a6479090f65584073250d7acffd21347ee816f8"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/repository.ts",
+      "sha256": "b482702b821b922dd1426a407c07c118d00bacce95a3c860f81e8f2cf4aa9bd7"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/capability-trace.ts",
+      "sha256": "63cc6047367ba2509b15efbde38cfc36a1147c8179dedac95f7c8a8a304ca6ae"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-runtime.ts",
+      "sha256": "8322eb6ce1fc67af8b2a9da385ff15457350d9cfd7e92000148a67cbf3d7425f"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/owner-load-trace.ts",
+      "sha256": "35d971d1459a24ee26a8b8e205f9bdd10672345b46c5665c780e7f7cea46a97d"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/scope-cancel-lifecycle.test.ts",
+      "sha256": "30731db9320d3da3cf90c0e5069983d82e7d486090022287ac04d47d6cd072bc"
+    },
+    {
+      "path": "packages/bridge-core/test/mobile-owner-load-capability-detail.test.ts",
+      "sha256": "8f8d205182c54849e5770eac33a2f59296f9f68ddc517f10f85094b309efdde4"
+    },
+    {
+      "path": "packages/bridge-core/test/mobile-owner-load-flow.test.ts",
+      "sha256": "e38936e114f8aeb96ca47b05702f2ef0fcde6f23386624bbc15fc7cf47e49055"
+    },
+    {
+      "path": "packages/bridge-core/test/scope503-trace-selection.test.ts",
+      "sha256": "c376432ced710b6fc19713e766daf152708b3ef7f2d4bfd55d610888d4b73853"
+    },
+    {
+      "path": "packages/bridge-core/test/v4/local-scan-one-call-codec.test.ts",
+      "sha256": "259d4b0c9fb8a6b1ac95c5f3d882261672ee7bdd4107117983f9201921a02e15"
+    }
+  ],
+  "mobileR3ProtectedLeavesExact": 8,
+  "indexUnchanged": true,
+  "existingWipPreserved": true,
+  "unexpectedExistingSourceChanges": [],
+  "sourceBackup": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/backup/source-before.tar",
+  "formalDatabaseOperations": 0,
+  "sourceMusicOperations": 0,
+  "wholeLibraryRescans": 0,
+  "activeMobileServiceOperations": 0,
+  "engineeringChecks": [
+    {
+      "phase": "dev-verified-build",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 24257,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/dev-verified-build-result.json",
+      "sha256": "bc63bd6c0e6d01e68db37d6a3ef5953dc4ad86c624b1da426bed1c807d30b7bb"
+    },
+    {
+      "phase": "core-types",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 15585,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/core-types-result.json",
+      "sha256": "d4ba7d0cb49f42bb9b54a9f113c9f53f47edc5c8c14bdf5fc83f5a4450c962fd"
+    },
+    {
+      "phase": "desktop-vue-types",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 20319,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/desktop-vue-types-result.json",
+      "sha256": "a3ff57fb5441f3eba29612d0e85539eee5eb6ef64006bd51cab911e4efb77b9d"
+    },
+    {
+      "phase": "desktop-e2e-types",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 5282,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/desktop-e2e-types-result.json",
+      "sha256": "726bb3c3ee71e9566a0bb75f2ee24721d50f231585ca5cce9a2595a8b1ac8927"
+    },
+    {
+      "phase": "desktop-diagnostics-corrected",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 648,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/desktop-diagnostics-corrected-result.json",
+      "sha256": "5708d7b23783a7899da855d3312a8ff06e24e87e6c1df871ae7700197e429071"
+    },
+    {
+      "phase": "desktop-codec-prepared",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 1139,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/desktop-codec-prepared-result.json",
+      "sha256": "e494476862ff080a897063455b68ffaed3ee641357f04e5d99a96ef0ee5e6671"
+    },
+    {
+      "phase": "core-runtime-tests-closed",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 66006,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/core-runtime-tests-closed-result.json",
+      "sha256": "cfdba013aa6e41bc6a77af2a913c98571ccb0c48c9f948dac5bf83b5007d7475"
+    },
+    {
+      "phase": "native-startup",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 5898,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/native-startup-result.json",
+      "sha256": "b961f435c3f4743febdfc7bda2e37a6a6a4eec29588426d2588c9374ee0d8e32"
+    },
+    {
+      "phase": "artifact-verification",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 1137,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence/artifact-verification-result.json",
+      "sha256": "371aa928b678513cb710034aba8ea75e059cb92114b8bb2ed85e9f2f2d42507d"
+    }
+  ],
+  "finalBuildInputHash": "c5b3d4eb7ee73889e5a35a07e9438c1b65e2da4c5f97ccba60962887ea7112e5",
+  "finalOutputHash": "1e2a313216cb678a3f88e50a478f995ef8958ead4081e3143b972a3f01634108",
+  "nativeStartup": {
+    "state": "FINAL_INTEGRATED_NATIVE_SYNTHETIC_STARTUP_AND_NATURAL_QUIT_PASS",
+    "result": {
+      "code": 0,
+      "signal": null,
+      "closed": true,
+      "ready": true,
+      "markerSeen": true,
+      "failure": null
+    },
+    "readyMarkers": 1,
+    "completedShutdownPhases": 27,
+    "pending": [],
+    "failed": [],
+    "ordinaryProfileUsed": false,
+    "realLibraryUsed": false,
+    "phoneUsed": false,
+    "preferenceEvents": [
+      {
+        "version": 1,
+        "part": "library",
+        "action": "startup.preference",
+        "state": "complete",
+        "atMs": 1792429227186,
+        "code": "PREFERENCE_ACCEPTED",
+        "elapsedMs": 229.244709,
+        "slow": false,
+        "message": "音乐库：完成"
+      }
+    ]
+  },
+  "failedPreparationOrStaleAssertionRunsPreserved": [
+    "desktop-combination-tests-result.json",
+    "core-combination-tests-result.json",
+    "core-runtime-tests-corrected-tmp-result.json",
+    "core-runtime-tests-prepared-result.json"
+  ],
+  "failedRunDisposition": "旧cancel断言补强后4/4；源码测试Worker闭包前置补齐后3/3；原fresh Reader准备及原池after收口补齐后8/8自然exit0。未修改业务超时或生产fallback。",
+  "reusedUnchangedCandidateEvidence": {
+    "artworkComponents": "cold候选36/36；对应3叶字节精确保留，未声称本轮重新全跑",
+    "scanCodec": "cold候选32/32；对应2叶字节精确保留，未声称首次整库≤5min"
+  },
+  "mobileRealDeviceEvidence": "移动线程R3/iOS13交付5张专辑67首、5张封面解码及短时音频/进度与普通恢复；本次整合后未重启其当前服务或重跑手机验收。",
+  "notClaimed": [
+    "整库首次扫描≤5分钟",
+    "真实大库无感延迟",
+    "统一开发版手机锁屏或长时播放",
+    "本轮Owner接受或发布签名"
+  ],
+  "startCommand": "cd \"/Volumes/LifeWeave/VSCode/MusicBridge/worktree/v4\" && nvm use && corepack pnpm@10.17.1 start:desktop",
+  "trialPrecondition": "先正常退出当前旧版，避免同时使用同一资料域；不清库、不改授权、不重新配对。",
+  "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-v4-unified-pNWzLb/evidence"
+}

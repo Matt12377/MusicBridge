@@ -1,4 +1,6 @@
 import { createLocalAlbumDisplayCache } from './local-album-browser/display-cache.js';
+import { createLocalAlbumArtworkResourceStore } from './local-album-browser/artwork-resource-store.js';
+import { createLocalAlbumArtworkQueue } from './local-album-browser/artwork-background-queue.js';
 import { createLocalAlbumArtworkObservationStore } from './local-album-browser/artwork-observation-store.js';
 import { MobileServiceError } from '../mobile/types.js';
 import { localArtworkMigration, verifyLocalArtworkDatabase, createLocalArtworkStore, type LocalArtworkStore } from './local-artwork-store.js';
@@ -8,6 +10,7 @@ import { LegacyLinksError } from './local-legacy-links-journal.js';
 import { SourceWritesError } from './local-source-writes-journal.js';
 import { LocalRelocationError } from './local-relocation-journal.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
+import { logLibraryOperation } from '../shared/library-operation-log.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
@@ -37,7 +40,7 @@ import type { MediaStockCandidate } from '../recording/media-planner.js';
 import type { MediaReservation, ReserveMediaRequest, ReleaseMediaRequest } from '@music-bridge/contracts';
 import { sourceEvidenceMigration, createSourceStore, type SourceStore } from '../recording/source-store.js';
 import { localScanMigration, verifyLocalScanDatabase, recoverLocalScanJobs, createLocalScanStore, type LocalScanStore } from './local-scan-store.js';
-import { localCatalogMigration, verifyLocalCatalogDatabase, createLocalCatalogStore, type LocalCatalogStore } from './local-catalog-store.js';
+import { localCatalogMigration, verifyLocalCatalogDatabase, commitLocalCatalogStartupAudit, createLocalCatalogStore, type LocalCatalogStore } from './local-catalog-store.js';
 import { masterDraftsMigration, createMasterDraftsRepository, type MasterDraftsRepository } from '../recording/drafts.js';
 import { recordingWorkspaceMigration, createRecordingWorkspaceStore, verifyRecordingWorkspaceDatabase, type RecordingWorkspaceStore } from '../recording/workspace-context-store.js';
 import { physicalLinksMigration, createPhysicalLinksRepository, type PhysicalLinksRepository } from './physical-links.js';
@@ -75,6 +78,10 @@ export interface CollectionRepository {
   privateInstallLocalFactsFence(check: () => void, seal: () => void): void;
   /** 派生副库仅保存自动浏览缩略图，不参与主库schema或Source授权。 */
   privateLocalAlbumDisplayCache?: ReturnType<typeof createLocalAlbumDisplayCache>;
+  /** 已验证封面资源与稳定专辑绑定；本地读取不取得源文件许可。 */
+  privateLocalAlbumArtworkResources?: ReturnType<typeof createLocalAlbumArtworkResourceStore>;
+  /** 重开后恢复的后台封面任务，独立于Renderer请求生命周期。 */
+  privateLocalAlbumArtworkQueue?: ReturnType<typeof createLocalAlbumArtworkQueue>;
   /** 成功封面观察独立持久化，不随显示LRU淘汰，不参与主库水位。 */
   privateLocalAlbumArtworkObservations?: ReturnType<typeof createLocalAlbumArtworkObservationStore>;
   localCatalog: LocalCatalogStore;
@@ -221,7 +228,7 @@ function paged<T>(items: T[], page: PageRequest, total: number): Page<T> {
   return { items, ...page, total, hasMore: page.offset + items.length < total };
 }
 
-export function createCollectionRepository(options: { filePath: string; stagingRoot?: string; referenceArchiveRoot?: string; beforeCommit?: (action: string) => void }): CollectionRepository {
+export function createCollectionRepository(options: { filePath: string; stagingRoot?: string; referenceArchiveRoot?: string; requireCurrentSchema?: true; beforeCommit?: (action: string) => void }): CollectionRepository {
   let privateFactsFence: (() => void) | undefined;
   let privateSealLocalFacts:(() => void)|undefined, localFactsFatal=false;
   const checkLocalFacts = () => privateFactsFence?.();
@@ -231,6 +238,20 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   let activeSnapshots = 0;
   const attemptAudit = createRecordingAttemptAudit();
   const objectCertificates = createObjectAuditCertificateManager(options.beforeCommit !== undefined);
+
+  function startupStage<T>(stage: string, work: () => T): T {
+    const started = performance.now();
+    logLibraryOperation('library', 'startup.repository.' + stage, 'start');
+    try {
+      const value = work();
+      logLibraryOperation('library', 'startup.repository.' + stage, 'complete', { elapsedMs: performance.now() - started, slowAfterMs: 100 });
+      return value;
+    } catch (error) {
+      // 只标记固定阶段及耗时；保留原异常，不输出路径、SQL或用户资料。
+      logLibraryOperation('library', 'startup.repository.' + stage, 'error', { code: 'VALIDATION_FAILED', elapsedMs: performance.now() - started, slowAfterMs: 100 });
+      throw error;
+    }
+  }
 
   function open(): DatabaseSync {
     if (closed) return unavailable();
@@ -255,6 +276,8 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
+      // 当前版启动路径只拒迁移；仍在本连接原事务完整核验，不能沿用只读连接的证书。
+      if (options.requireCurrentSchema && version !== 34) return unavailable();
       if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
@@ -307,10 +330,26 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       }
       db.exec('BEGIN IMMEDIATE');
       try {
-        verifyVersionDistributionDatabase(db); verifyRecordingRecordDatabase(db); verifyRecordingWorkspaceDatabase(db); verifyCommercialProvenanceDatabase(db); verifyOutputRunBarrierDatabase(db); verifyPreparationZipDatabase(db); verifyRecordingRecordPageIndex(db); verifyReferenceCatalogZipDatabase(db); verifyRecordingRecordPageSearch(db); verifyPreparationZipSessionDatabase(db); recoverRecordingPrints(db);
-        verifyLocalCatalogDatabase(db); verifyLocalScanDatabase(db); verifyMBQueueDatabase(db,false); const publishScanAudit = recoverLocalScanJobs(db, 'cold-open');
-        const attemptCandidate = recoverRecordingAttempts(db, new Date().toISOString(), options.beforeCommit ? undefined : attemptAudit);
-        options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT'); publishScanAudit();
+        if (options.requireCurrentSchema && Number(db.prepare('PRAGMA user_version').get()?.user_version) !== 34) return unavailable();
+        startupStage('versions', () => verifyVersionDistributionDatabase(db));
+        startupStage('recording-records', () => verifyRecordingRecordDatabase(db));
+        startupStage('recording-workspace', () => verifyRecordingWorkspaceDatabase(db));
+        startupStage('provenance', () => verifyCommercialProvenanceDatabase(db));
+        startupStage('output-barriers', () => verifyOutputRunBarrierDatabase(db));
+        startupStage('preparation-zips', () => verifyPreparationZipDatabase(db));
+        startupStage('recording-page-index', () => verifyRecordingRecordPageIndex(db));
+        startupStage('reference-zips', () => verifyReferenceCatalogZipDatabase(db));
+        startupStage('recording-page-search', () => verifyRecordingRecordPageSearch(db));
+        startupStage('preparation-sessions', () => verifyPreparationZipSessionDatabase(db));
+        startupStage('recording-prints', () => recoverRecordingPrints(db));
+        startupStage('catalog', () => verifyLocalCatalogDatabase(db));
+        startupStage('scan', () => verifyLocalScanDatabase(db));
+        startupStage('queue', () => verifyMBQueueDatabase(db, false));
+        const publishScanAudit = startupStage('scan-recovery', () => recoverLocalScanJobs(db, 'cold-open'));
+        const attemptCandidate = startupStage('attempt-recovery', () => recoverRecordingAttempts(db, new Date().toISOString(), options.beforeCommit ? undefined : attemptAudit));
+        options.beforeCommit?.('recover-recording-attempts');
+        if(options.beforeCommit)db.exec('COMMIT');else commitLocalCatalogStartupAudit(db);
+        publishScanAudit();
         if (!options.beforeCommit) attemptAudit.publish(db, attemptCandidate);
       }
       catch (error) { attemptAudit.clear(db); db.exec('ROLLBACK'); throw error; }
@@ -577,9 +616,13 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const localCatalog = createLocalCatalogStore({ read: guarded, sources, conflict, beforeLocalFactsCommit: checkLocalFacts, onLocalFactsFatal:failLocalFacts, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const albumDisplayCache = createLocalAlbumDisplayCache({ filePath: options.filePath === ':memory:' ? ':memory:' : options.filePath + '.album-display-cache.sqlite' });
+  const albumArtworkResources = createLocalAlbumArtworkResourceStore({ filePath: options.filePath === ':memory:' ? ':memory:' : options.filePath + '.album-artwork-resources.sqlite' });
+  const albumArtworkQueue = createLocalAlbumArtworkQueue({ filePath: options.filePath === ':memory:' ? ':memory:' : options.filePath + '.album-artwork-queue.sqlite' });
   const albumArtworkObservations = createLocalAlbumArtworkObservationStore({ filePath: options.filePath === ':memory:' ? ':memory:' : options.filePath + '.album-artwork-observations.sqlite' });
   return {
     privateLocalAlbumDisplayCache: albumDisplayCache,
+    privateLocalAlbumArtworkResources: albumArtworkResources,
+    privateLocalAlbumArtworkQueue: albumArtworkQueue,
     privateLocalAlbumArtworkObservations: albumArtworkObservations,
     privateInstallLocalFactsFence(check,seal) { if (privateFactsFence) throw new Error('本地来源提交接点不能重复安装。'); privateFactsFence = check; privateSealLocalFacts=seal; },
     localCatalog,
@@ -759,9 +802,13 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     },
     close() {
       closed = true;
-      try { albumArtworkObservations.close(); } finally {
-        try { albumDisplayCache.close(); } finally {
-          if (activeSnapshots === 0) { database?.close(); database = undefined; }
+      try { albumArtworkQueue.close(); } finally {
+        try { albumArtworkResources.close(); } finally {
+          try { albumArtworkObservations.close(); } finally {
+            try { albumDisplayCache.close(); } finally {
+              if (activeSnapshots === 0) { database?.close(); database = undefined; }
+            }
+          }
         }
       }
     },

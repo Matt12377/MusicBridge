@@ -7,6 +7,7 @@ import { datasetOwnerEnvironment } from './dataset-owner-bootstrap.js'
 import type { OptionalRustReadonlyManager } from '../../../../packages/bridge-core/src/rust-core/optional-readonly-manager.js'
 import { installCollectionReadonlyCoreBridge, type CollectionReadonlyCoreParent } from './collection-readonly-core-bridge.js'
 import { physicalResourceLocks } from '../../../../packages/bridge-core/src/stream/physical-resource-locks.js'
+import { createDatasetOwnerReadRevocation } from '../../../../packages/bridge-core/src/collection/dataset-owner-read-revocation.js'
 
 /** Rust 能力只由同进程可信源码显式传入，不从环境、父启动数据或公开 IPC 选择。 */
 export interface DesktopCoreHostOptions {
@@ -33,6 +34,7 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
     if (parent) installCollectionReadonlyCoreBridge(options.optionalReadonlyManager, parent)
   }
   const createDatasetOwner: DatasetOwnerFactory = ({ projection, onFatal, privateSourceWritesPort, privateRelocationMainPort, localWorkbenchNative }) => {
+    const albumReadRevocation = createDatasetOwnerReadRevocation()
     const worker = createWorker(new URL('./dataset-owner.js', import.meta.url), {
       name: 'MusicBridge Dataset Owner',
       env: datasetEnvironment,
@@ -40,6 +42,7 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
         dataDirectory: env.MUSIC_BRIDGE_DATA_DIRECTORY,
         resourcesDirectory: process.resourcesPath,
         physicalResourceBuffer: physicalResourceLocks.buffer,
+        albumReadRevocationBuffer: albumReadRevocation.buffer,
         ...(localWorkbenchNative ? { localWorkbenchNative: captureDatasetWorkbenchNativeConfiguration(localWorkbenchNative) } : {}),
         ...(privateSourceWritesPort ? { sourceWritesPort: privateSourceWritesPort } : {}),
         ...(privateRelocationMainPort ? { relocationMainPort: privateRelocationMainPort } : {}),
@@ -47,7 +50,7 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
       ...(privateSourceWritesPort || privateRelocationMainPort ? { transferList: [...(privateSourceWritesPort ? [privateSourceWritesPort] : []), ...(privateRelocationMainPort ? [privateRelocationMainPort] : [])] } : {}),
     })
     let owner: ReturnType<typeof createDatasetOwnerClient>
-    owner = createDatasetOwnerClient({ worker, projection,
+    owner = createDatasetOwnerClient({ worker, projection, albumReadRevocationBuffer: albumReadRevocation.buffer,
       onFatal: reason => onFatal(reason, () => owner.fatalDrain()),
     })
     try {

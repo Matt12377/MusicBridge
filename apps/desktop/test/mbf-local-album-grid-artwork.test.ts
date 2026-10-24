@@ -58,3 +58,20 @@ test('网格小图：失败同窗不循环重试，显式重试只重建小图',
   cache.setWindow([a]); await settle(); assert.equal(attempts, 1)
   cache.retry('a'); cache.setWindow([a]); await settle(); assert.equal(attempts, 2); assert.equal(cache.get('a').status, 'ready')
 })
+
+test('网格小图只使用持久小图余下的解码预算，其他图完成不撤销既有URL', async t => {
+  let sequence = 0
+  const revoked: string[] = [], cache = createGridArtworkCache({ make: async (_source, size) => thumbnail(size),
+    createUrl: () => `blob:remaining-budget-${++sequence}`, revokeUrl: url => { revoked.push(url) } })
+  t.after(cache.dispose)
+  const remaining = 1024 * 1024, a = source('a'), b = source('b'), c = source('c')
+  cache.setWindow([a, b], 384, 3, remaining); await settle()
+  const first = cache.get('a').dataUrl
+  assert.ok(first); assert.equal(cache.get('b').status, 'ready')
+  assert.ok(cache.usage().decodedReferenceBytes <= remaining)
+  cache.setWindow([a, b, c], 384, 3, remaining); await settle()
+  assert.equal(cache.get('a').dataUrl, first, '剩余预算和槽位不变时另一张图完成不能重建旧URL')
+  assert.equal(cache.get('c').status, 'ready'); assert.ok(cache.usage().decodedReferenceBytes <= remaining)
+  cache.setWindow([a, b, c], 384, 3, 0); await settle()
+  assert.equal(cache.usage().decodedReferenceBytes, 0); assert.ok(revoked.includes(first))
+})

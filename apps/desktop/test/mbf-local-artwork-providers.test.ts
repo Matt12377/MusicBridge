@@ -48,6 +48,24 @@ function syntheticTransport(urls: URL[], overrides?: (url: URL) => CommonsTransp
   }
 }
 function deferred<T>() { let resolve!: (value: T | PromiseLike<T>) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
+
+test('异步封面规范化取消后，原操作join和close仍等待真实处理收口', async () => {
+  const entered = deferred<void>(), released = deferred<void>(), parent = new AbortController()
+  let processingSignal: AbortSignal | undefined
+  const providers = createLocalArtworkProviders({ transport: async () => response(image(), 'image/png'),
+    async normalize(bytes, signal) { processingSignal = signal; entered.resolve(); await released.promise; return normalize(bytes) } })
+  const operation = providers.importRemoteSource({ url: 'https://images.example.com/source.png' }, parent.signal)
+  const rejected = assert.rejects(operation, safe('cancelled'))
+  await entered.promise
+  let joined = false, closed = false
+  const join = providers.cancelOriginal(operation).then(() => { joined = true })
+  const close = providers.close().then(() => { closed = true })
+  await rejected; await flush()
+  assert.equal(processingSignal?.aborted, true)
+  assert.equal(joined, false); assert.equal(closed, false)
+  released.resolve(); await Promise.all([join, close])
+  assert.equal(joined, true); assert.equal(closed, true)
+})
 const flush = () => new Promise<void>(resolve => setImmediate(resolve))
 function safe(code?: string) {
   return (error: unknown) => {

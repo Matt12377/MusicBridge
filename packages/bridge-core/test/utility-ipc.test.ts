@@ -53,6 +53,47 @@ class FakePort implements UtilityPort {
   }
 }
 
+test('Utility只读身份只调实时私有端点，不读完整context且await后核对原endpoint', async () => {
+  const protocol = await import('../src/collection/dataset-owner-protocol.js')
+  const identity = { datasetId: randomUUID(), epoch: randomUUID() }
+  const port = new FakePort()
+  let full = 0, reads = 0, joins = 0, sequence = 0
+  let release: (() => void) | undefined, held: Promise<void> | undefined
+  const endpoint: import('../src/collection/dataset-owner-protocol.js').DatasetOwnerEndpoint = {
+    async prepare() { return identity }, async commitBoot() {}, async dispatch() { throw new Error('不应进入公开命令。') }, async close() {},
+    async workbenchContext() { full++; return { ...identity, ready: true } },
+    async workbenchReadIdentity() { reads++; await held; return { ...identity, ready: true } },
+    async dispatchWorkbench() { throw new Error('不应读取根目录。') }, async dispatchWorkbenchOwner() { throw new Error('不应派发写命令。') },
+    async closeWorkbench() {}, async joinWorkbench() { joins++ },
+  }
+  const runtime = Object.assign(makeRuntime(), { datasetOwnerEndpoint: endpoint })
+  await attachCoreRuntimePort(port, runtime)
+  async function send() {
+    const meta: import('../src/collection/dataset-owner-protocol.js').DatasetWorkbenchMeta = { id: randomUUID(), ...identity,
+      sequence: ++sequence, kind: 'context.identity', requestSha256: protocol.datasetWorkbenchSha(protocol.datasetWorkbenchJson({})), expiresAtMs: Date.now() + 2000 }
+    for (const frame of protocol.datasetWorkbenchFrames(meta, 'request', {})) port.send(frame)
+    return meta
+  }
+  async function until(predicate: () => boolean) { for (let n = 0; n < 30 && !predicate(); n++) await new Promise<void>(resolve => setImmediate(resolve)); assert.ok(predicate()) }
+  for (let n = 0; n < 2; n++) {
+    const meta = await send()
+    await until(() => port.messages.some(value => protocol.isDatasetWorkbenchFrame(value) && value.id === meta.id && value.part === 'end'))
+    const assembly = protocol.createDatasetWorkbenchAssembler(meta, 'response')
+    let result: unknown
+    for (const frame of port.messages.filter(value => protocol.isDatasetWorkbenchFrame(value) && value.id === meta.id)) result = assembly.accept(frame) ?? result
+    assert.deepEqual(result, { ...identity, ready: true })
+  }
+  assert.equal(reads, 2); assert.equal(full, 0); assert.equal(joins, 0)
+  held = new Promise<void>(resolve => { release = resolve })
+  const stale = await send(); await until(() => reads === 3)
+  runtime.datasetOwnerEndpoint = { ...endpoint }
+  release!()
+  await until(() => port.messages.some(value => protocol.isDatasetWorkbenchFrame(value) && value.id === stale.id && value.part === 'failure'))
+  const failure = port.messages.find(value => protocol.isDatasetWorkbenchFrame(value) && value.id === stale.id && value.part === 'failure')
+  assert.ok(protocol.isDatasetWorkbenchFrame(failure) && failure.part === 'failure'); assert.equal(failure.code, 'OUTBOX_SCOPE_MISMATCH')
+  assert.equal(port.messages.some(value => protocol.isDatasetWorkbenchFrame(value) && value.id === stale.id && value.part === 'end'), false)
+})
+
 test('R08 候选四 IPC 在 Core 末端校验工作库身份，跨库请求零派发', async () => {
   const datasetId = randomUUID(), rootId = randomUUID(), draftId = randomUUID(), trackId = randomUUID();
   const scanId = randomUUID(), candidateId = randomUUID(), sourceJobId = randomUUID();
@@ -559,6 +600,11 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async searchAlbums() {
       return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
     },
+    async searchSuggestions() { return { keywords: [] } },
+    async getArtistProfile(artistId) {
+      return { id: artistId, name: '合成艺人', albumCount: 0, trackCount: 0, biography: '' }
+    },
+    async getArtistAlbums() { return { items: [], offset: 0, limit: 20, total: 0, hasMore: false } },
     async getArtist() {
       return { id: '2000', name: 'Synthetic Artist', tracks: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } }
     },
@@ -1769,3 +1815,121 @@ test('Source3公共Runtime端口拒绝arm消息且不派发，独立私有probe�
   assert.equal(port.messages.filter(message => (message as { id?: string }).id !== undefined).length, 0);
   probe.receive(crashArmMessage); t.mock.timers.tick(25); assert.deepEqual(exits, [71]);
 });
+
+import { libraryRemovalClock as removalClockUtility } from './helpers/library-removal-clock.js';
+
+for(const mode of ['组装超时','remove成功','remove到期','普通rename','普通context'] as const)test(`移除期限：实际Utility验证完整原包后延续期限且原组装仍2秒（${mode}）`,{timeout:5000},async t=>{
+  const protocol=await import('../src/collection/dataset-owner-protocol.js'),identity={datasetId:randomUUID(),epoch:randomUUID()},port=new FakePort();
+  let release!:()=>void,entered!:()=>void,calls=0,signal:AbortSignal|undefined,remaining=0;
+  const held=new Promise<void>(resolve=>{release=resolve}),started=new Promise<void>(resolve=>{entered=resolve});
+  const endpoint:import('../src/collection/dataset-owner-protocol.js').DatasetOwnerEndpoint={
+    async prepare(){return identity},async commitBoot(){},async dispatch(){throw new Error('不应进入公开命令')},async close(){},
+    async workbenchContext(){if(mode==='普通context'){entered();await held;}return {...identity,ready:true}},
+    async dispatchWorkbench(request,context){calls++;signal=context.signal;assert.ok(context.deadlineAtMs!==undefined);remaining=context.deadlineAtMs-performance.now();entered();await held;
+      assert.ok(request.family==='management'&&(request.command==='library.remove'||request.command==='library.rename'));
+      return {commandId:request.payload.commandId,kind:request.command,state:'succeeded',libraryIds:request.command==='library.remove'?request.payload.libraryIds:[request.payload.libraryId],message:null};},
+    async dispatchWorkbenchOwner(){throw new Error('不应进入私有写命令')},async closeWorkbench(){release()},async joinWorkbench(){},
+  };
+  await attachCoreRuntimePort(port,Object.assign(makeRuntime(),{datasetOwnerEndpoint:endpoint}));
+  const clock=removalClockUtility(t),contextOnly=mode==='普通context',duration=mode==='普通rename'||contextOnly?2000:8000;
+  const body=mode==='普通rename'?{family:'management',command:'library.rename',payload:{commandId:randomUUID(),libraryId:randomUUID(),name:'合成名称'}}:{family:'management',command:'library.remove',payload:{commandId:randomUUID(),libraryIds:[randomUUID()]}};
+  const meta:import('../src/collection/dataset-owner-protocol.js').DatasetWorkbenchMeta={id:randomUUID(),...identity,sequence:1,kind:contextOnly?'context':'execute',requestSha256:protocol.datasetWorkbenchSha(protocol.datasetWorkbenchJson(contextOnly?{}:body)),expiresAtMs:Date.now()+duration};
+  const frames=protocol.datasetWorkbenchFrames(meta,'request',contextOnly?{}:body);
+  const matching=()=>port.messages.filter((value):value is import('../src/collection/dataset-owner-protocol.js').DatasetWorkbenchFrame=>protocol.isDatasetWorkbenchFrame(value)&&value.id===meta.id);
+  async function until(predicate:()=>boolean){for(let n=0;n<30&&!predicate();n++)await new Promise<void>(resolve=>setImmediate(resolve));assert.ok(predicate());}
+  try{
+    port.send(frames[0]!);clock.advance(mode==='组装超时'?2001:1100);for(const frame of frames.slice(1))port.send(frame);
+    if(mode==='组装超时'){await until(()=>matching().some(frame=>frame.part==='failure'));assert.equal(calls,0);}
+    else{
+      await started;if(!contextOnly)assert.ok(remaining<=duration-1100&&remaining>duration-1200);
+      clock.advance(1001);await new Promise<void>(resolve=>setImmediate(resolve));
+      if(mode==='remove成功'){assert.equal(signal?.aborted,false);assert.equal(matching().some(frame=>frame.part==='failure'),false);release();await until(()=>matching().some(frame=>frame.part==='end'));}
+      else{if(mode==='remove到期'){assert.equal(signal?.aborted,false);clock.advance(5900);}await until(()=>matching().some(frame=>frame.part==='failure'));if(!contextOnly)assert.equal(signal?.aborted,true);release();await until(()=>matching().some(frame=>frame.part==='settled'));}
+    }
+    const failure=matching().find(frame=>frame.part==='failure');if(failure?.part==='failure')assert.equal(failure.code,'TIMEOUT');
+    if(mode!=='remove成功')assert.equal(matching().some(frame=>frame.part==='end'),false);
+  }finally{release();clock.reset();}
+});
+
+for(const mode of ['组装逻辑过期','时钟回拨'] as const)test(`移除期限：实际Utility不能依赖timer回调或wall回拨延长原包（${mode}）`,{timeout:5000},async t=>{
+  const protocol=await import('../src/collection/dataset-owner-protocol.js'),identity={datasetId:randomUUID(),epoch:randomUUID()},port=new FakePort();let calls=0,remaining=0;
+  const body={family:'management' as const,command:'library.remove' as const,payload:{commandId:randomUUID(),libraryIds:[randomUUID()]}};
+  const endpoint:import('../src/collection/dataset-owner-protocol.js').DatasetOwnerEndpoint={async prepare(){return identity},async commitBoot(){},async dispatch(){throw new Error('不应进入公开命令')},async close(){},
+    async workbenchContext(){return {...identity,ready:true}},async dispatchWorkbench(_request,context){calls++;assert.ok(context.deadlineAtMs!==undefined);remaining=context.deadlineAtMs-performance.now();return {commandId:body.payload.commandId,kind:'library.remove',state:'succeeded',libraryIds:body.payload.libraryIds,message:null}},
+    async dispatchWorkbenchOwner(){throw new Error('不应进入私有写命令')},async closeWorkbench(){},async joinWorkbench(){}};
+  await attachCoreRuntimePort(port,Object.assign(makeRuntime(),{datasetOwnerEndpoint:endpoint}));const clock=removalClockUtility(t);
+  const meta:import('../src/collection/dataset-owner-protocol.js').DatasetWorkbenchMeta={id:randomUUID(),...identity,sequence:1,kind:'execute',requestSha256:protocol.datasetWorkbenchSha(protocol.datasetWorkbenchJson(body)),expiresAtMs:Date.now()+5000},frames=protocol.datasetWorkbenchFrames(meta,'request',body);
+  const matching=()=>port.messages.filter((value):value is import('../src/collection/dataset-owner-protocol.js').DatasetWorkbenchFrame=>protocol.isDatasetWorkbenchFrame(value)&&value.id===meta.id);
+  try{port.send(frames[0]!);clock.elapse(mode==='组装逻辑过期'?2001:1000);if(mode==='时钟回拨')clock.rewind(10000);
+    assert.equal(matching().some(frame=>frame.part==='failure'),false,'到期timer尚未执行');for(const frame of frames.slice(1))port.send(frame);
+    for(let n=0;n<30&&!matching().some(frame=>frame.part==='failure'||frame.part==='end');n++)await new Promise<void>(resolve=>setImmediate(resolve));
+    if(mode==='组装逻辑过期'){const failure=matching().find(frame=>frame.part==='failure');assert.ok(failure?.part==='failure');assert.equal(failure.code,'TIMEOUT');assert.equal(calls,0);}
+    else{assert.equal(matching().some(frame=>frame.part==='end'),true);assert.equal(calls,1);assert.ok(remaining>3900&&remaining<=4000);}
+  }finally{clock.reset();}
+});
+
+async function identityWaitUtilityFixture(t: test.TestContext) {
+  const protocol = await import('../src/collection/dataset-owner-protocol.js'), identity = { datasetId: randomUUID(), epoch: randomUUID() }, port = new FakePort()
+  let readRelease!: () => void, joinRelease!: () => void, calls = 0, joins = 0, signal: AbortSignal | undefined, deadline = 0
+  const readGate = new Promise<void>(resolve => { readRelease = resolve }), joinGate = new Promise<void>(resolve => { joinRelease = resolve })
+  const endpoint: import('../src/collection/dataset-owner-protocol.js').DatasetOwnerEndpoint = {
+    async prepare() { return identity }, async commitBoot() {}, async dispatch() { throw new Error('不应派发普通命令') }, async close() {},
+    async workbenchContext() { return { ...identity, ready: true } },
+    async workbenchReadIdentity(read) { calls++; signal = read?.signal; deadline = read?.deadlineAtMs ?? 0; await readGate; return { ...identity, ready: true } },
+    async dispatchWorkbench() { throw new Error('identity不能取得写命令许可') }, async dispatchWorkbenchOwner() { throw new Error('identity不能取得Owner写许可') },
+    async closeWorkbench() { readRelease(); joinRelease() }, async joinWorkbench() { joins++; await joinGate },
+  }
+  const runtime = Object.assign(makeRuntime(), { datasetOwnerEndpoint: endpoint })
+  await attachCoreRuntimePort(port, runtime)
+  const clock = removalClockUtility(t)
+  t.after(() => { readRelease(); joinRelease(); clock.reset() })
+  const meta = (body: unknown = {}, duration = 20_000): import('../src/collection/dataset-owner-protocol.js').DatasetWorkbenchMeta => ({
+    id: randomUUID(), ...identity, sequence: 1, kind: 'context.identity', requestSha256: protocol.datasetWorkbenchSha(protocol.datasetWorkbenchJson(body)), expiresAtMs: Date.now() + duration,
+  })
+  async function until(predicate: () => boolean) { for (let n = 0; n < 40 && !predicate(); n++) await new Promise<void>(resolve => setImmediate(resolve)); assert.ok(predicate()) }
+  return { protocol, identity, port, runtime, endpoint, clock, meta, until, readRelease, joinRelease,
+    calls: () => calls, joins: () => joins, signal: () => signal, deadline: () => deadline,
+    frames(request: ReturnType<typeof meta>) { return port.messages.filter((value): value is import('../src/collection/dataset-owner-protocol.js').DatasetWorkbenchFrame => protocol.isDatasetWorkbenchFrame(value) && value.id === request.id) },
+  }
+}
+
+test('身份等待20秒：实际Utility扣除1.1秒组装耗时，2.5秒仍成功且identity不跑完整context或join', async t => {
+  const f = await identityWaitUtilityFixture(t), meta = f.meta(), frames = f.protocol.datasetWorkbenchFrames(meta, 'request', {})
+  f.port.send(frames[0]!); f.clock.advance(1_100); for (const frame of frames.slice(1)) f.port.send(frame)
+  await f.until(() => f.calls() === 1)
+  assert.ok(f.deadline() - performance.now() <= 18_900 && f.deadline() - performance.now() > 18_800)
+  f.clock.advance(1_400); assert.equal(f.signal()?.aborted, false); assert.equal(f.frames(meta).some(frame => frame.part === 'failure'), false)
+  f.readRelease(); await f.until(() => f.frames(meta).some(frame => frame.part === 'end'))
+  assert.equal(f.joins(), 0); assert.equal(f.frames(meta).some(frame => frame.part === 'failure'), false)
+})
+
+test('身份等待20秒：实际Utility更紧900ms期限不续期，失败仍等原read与join收口后settled', async t => {
+  const f = await identityWaitUtilityFixture(t), meta = f.meta({}, 900)
+  for (const frame of f.protocol.datasetWorkbenchFrames(meta, 'request', {})) f.port.send(frame)
+  await f.until(() => f.calls() === 1); assert.ok(f.deadline() - performance.now() <= 900)
+  f.clock.advance(899); assert.equal(f.frames(meta).some(frame => frame.part === 'failure'), false)
+  f.clock.advance(1); await f.until(() => f.frames(meta).some(frame => frame.part === 'failure'))
+  assert.equal(f.signal()?.aborted, true); assert.equal(f.frames(meta).some(frame => frame.part === 'settled'), false)
+  f.readRelease(); await f.until(() => f.joins() === 1); assert.equal(f.frames(meta).some(frame => frame.part === 'settled'), false)
+  f.joinRelease(); await f.until(() => f.frames(meta).some(frame => frame.part === 'settled'))
+  assert.equal(f.frames(meta).some(frame => frame.part === 'end'), false)
+})
+
+for (const mode of ['组装超过2秒', '非空正文'] as const) test(`身份等待20秒：实际Utility仅合法完整空正文升级（${mode}）`, async t => {
+  const f = await identityWaitUtilityFixture(t), body = mode === '非空正文' ? { extra: true } : {}, meta = f.meta(body), frames = f.protocol.datasetWorkbenchFrames(meta, 'request', body)
+  f.port.send(frames[0]!); if (mode === '组装超过2秒') f.clock.elapse(2_001)
+  for (const frame of frames.slice(1)) f.port.send(frame)
+  await f.until(() => f.frames(meta).some(frame => frame.part === 'settled'))
+  const failure = f.frames(meta).find(frame => frame.part === 'failure'); assert.ok(failure?.part === 'failure')
+  assert.equal(failure.code, mode === '组装超过2秒' ? 'TIMEOUT' : 'INVALID_IPC_REQUEST'); assert.equal(f.calls(), 0)
+})
+
+test('身份等待20秒：实际Utility在identity等待期间换endpoint仍拒绝，不把长预算变成旧Owner授权', async t => {
+  const f = await identityWaitUtilityFixture(t), meta = f.meta()
+  for (const frame of f.protocol.datasetWorkbenchFrames(meta, 'request', {})) f.port.send(frame)
+  await f.until(() => f.calls() === 1); f.clock.advance(2_500); f.runtime.datasetOwnerEndpoint = { ...f.endpoint }; f.readRelease()
+  await f.until(() => f.joins() === 1)
+  const failure = f.frames(meta).find(frame => frame.part === 'failure'); assert.ok(failure?.part === 'failure'); assert.equal(failure.code, 'OUTBOX_SCOPE_MISMATCH')
+  assert.equal(f.frames(meta).some(frame => frame.part === 'end' || frame.part === 'settled'), false)
+  f.joinRelease(); await f.until(() => f.frames(meta).some(frame => frame.part === 'settled'))
+})

@@ -90,7 +90,7 @@ function formatDate(timestamp: number): string {
   <div v-else-if="!props.page.items.length" class="empty-state favorite-library-state">
     <span class="empty-glyph" aria-hidden="true">♡</span>
     <h3>还没有喜欢的{{ kindLabels[props.kind] }}</h3>
-    <p>明确收藏的本地关系会保存在 MusicBridge 中，不会改变 Roon Library 媒体。</p>
+    <p>明确收藏的本地关系会保存在 Mousa 中，不会改变 Roon Library 媒体。</p>
     <button type="button" class="secondary-button" @click="emit('retry')">重新读取</button>
   </div>
   <template v-else>

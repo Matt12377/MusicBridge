@@ -13,6 +13,30 @@ import { createCollectionRepository } from '../src/collection/repository.js';
 import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 
 const page = { offset: 0, limit: 100 };
+function childResultProtocol() {
+  const id = randomUUID();
+  return { resultPrefix: `[MB_COLLECTION_TEST_RESULT:${id}] `, readyLine: `[MB_COLLECTION_TEST_READY:${id}]` };
+}
+/** stdout 同时承载正式诊断；只接纳本次子进程的唯一完整结果帧，不能任选一行结果。 */
+function readChildResult(stdout: string, prefix: string): unknown {
+  const lines = stdout.split(/\r?\n/u);
+  const frames = lines.flatMap((line, index) => line.startsWith(prefix) ? [{ json: line.slice(prefix.length), complete: index < lines.length - 1 }] : []);
+  assert.equal(frames.length, 1, '子进程必须且只能输出一个本次结果帧');
+  assert.equal(frames[0]!.complete, true, '子进程结果帧必须完整换行结束');
+  return JSON.parse(frames[0]!.json);
+}
+
+test('子进程结果协议容纳前后诊断，但拒绝缺失、重复、截断或错误结果帧', () => {
+  const protocol = childResultProtocol(), result = { commandId: randomUUID(), modelId: randomUUID() };
+  const frame = protocol.resultPrefix + JSON.stringify(result) + '\n';
+  const diagnostics = '[MB_LIBRARY_OPERATION] {"state":"complete"}\n';
+  assert.deepEqual(readChildResult(diagnostics + frame + diagnostics, protocol.resultPrefix), result);
+  for (const stdout of [diagnostics, frame + frame, frame + frame.trimEnd(), childResultProtocol().resultPrefix + JSON.stringify(result) + '\n'])
+    assert.throws(() => readChildResult(stdout, protocol.resultPrefix), /必须且只能/u);
+  assert.throws(() => readChildResult(frame.trimEnd(), protocol.resultPrefix), /完整换行/u);
+  assert.throws(() => readChildResult(protocol.resultPrefix + '{invalid}\n', protocol.resultPrefix), SyntaxError);
+});
+
 // 这些测试从当前库构造历史版本，必须移除后加目录表；真正schema14输入另由固定SQL夹具覆盖。
 function dropReferenceCatalog(db: DatabaseSync): void {
   db.exec('DROP TABLE physical_link_history; DROP TABLE commercial_copy_photos; DROP TABLE commercial_copy_details; DROP TABLE commercial_release_copies; DROP TABLE recording_workspace_ledger; DROP TABLE recording_workspace_contexts; DROP TABLE recording_print_receipts; DROP TABLE recording_print_events; DROP TABLE recording_print_artifacts; DROP TABLE recording_print_jobs; DROP TABLE recording_print_requests; DROP TABLE master_artwork_current; DROP TABLE master_artwork_versions; DROP TABLE recording_print_objects; DROP TRIGGER recording_record_permit_copy_guard; DROP TRIGGER recording_record_content_copy_guard; DROP TRIGGER recording_record_permit_media_guard; DROP TABLE recording_record_receipts; DROP TABLE recording_record_permits; DROP TABLE recording_record_events; DROP TABLE recording_record_current; DROP TABLE recording_record_visuals; DROP TABLE recording_records; DROP TABLE recording_record_write_guard; DROP TRIGGER recording_attempt_copy_no_blank; DROP TRIGGER recording_attempt_reservation_no_delete; DROP TRIGGER recording_attempt_reservation_no_rebind; DROP TRIGGER recording_attempt_active_media_no_update; DROP TABLE recording_attempt_receipts; DROP TABLE recording_attempt_events; DROP TABLE recording_attempts; DROP TABLE recording_plan_ledger; DROP TABLE recording_plan_versions; DROP TABLE collection_want_events; DROP TABLE collection_progress_snapshots; DROP TABLE collection_progress_ledger; DROP TABLE collection_wants; DROP TABLE spreadsheet_adjustments; DROP TABLE spreadsheet_rows; DROP TABLE spreadsheet_effects; DROP TABLE spreadsheet_heads; DROP TABLE spreadsheet_revisions; DROP TABLE spreadsheet_source_rows; DROP TABLE spreadsheet_sources; DROP TABLE spreadsheet_ledger; DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources');
@@ -145,19 +169,20 @@ test('两个独立进程并发提交相同命令，只有一个数量和账本�
   repository.list(page); repository.close();
   const command = receipt();
   const modulePath = fileURLToPath(new URL('../src/collection/repository.ts', import.meta.url));
-  const script = `import {createCollectionRepository} from ${JSON.stringify(modulePath)}; const r=createCollectionRepository({filePath:${JSON.stringify(filePath)}}); process.stdout.write(JSON.stringify(r.receive(${JSON.stringify(command)}))); r.close();`;
-  function run(): Promise<string> {
+  function run(): Promise<{ stdout: string; resultPrefix: string }> {
+    const protocol = childResultProtocol();
+    const script = `import {createCollectionRepository} from ${JSON.stringify(modulePath)}; const r=createCollectionRepository({filePath:${JSON.stringify(filePath)}}); const result=r.receive(${JSON.stringify(command)}); r.close(); process.stdout.write(${JSON.stringify('\n' + protocol.resultPrefix)}+JSON.stringify(result)+'\\n');`;
     return new Promise((resolve, reject) => {
       const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', script], { timeout: 10_000 });
       let stdout = '', stderr = '';
       child.stdout.on('data', data => { stdout += data; });
       child.stderr.on('data', data => { stderr += data; });
       child.on('error', reject);
-      child.on('close', code => code === 0 ? resolve(stdout) : reject(new Error(`子进程失败 ${code}: ${stderr}`)));
+      child.on('close', code => code === 0 ? resolve({ stdout, resultPrefix: protocol.resultPrefix }) : reject(new Error(`子进程失败 ${code}: ${stderr}`)));
     });
   }
   const [a, b] = await Promise.all([run(), run()]);
-  assert.deepEqual(JSON.parse(a), JSON.parse(b));
+  assert.deepEqual(readChildResult(a.stdout, a.resultPrefix), readChildResult(b.stdout, b.resultPrefix));
   const reopened = createCollectionRepository({ filePath });
   try { assert.equal(reopened.list(page).items[0]?.counts.total, 8); } finally { reopened.close(); }
   const db = new DatabaseSync(filePath, { readOnly: true });
@@ -172,19 +197,21 @@ test('首次版本读取也等待短暂数据库锁，释放后仅提交一次',
   t.after(() => blocker.close());
   const command = receipt();
   const modulePath = fileURLToPath(new URL('../src/collection/repository.ts', import.meta.url));
-  const script = `import {createCollectionRepository} from ${JSON.stringify(modulePath)}; process.stdout.write('ready\\n'); const r=createCollectionRepository({filePath:${JSON.stringify(filePath)}}); process.stdout.write(JSON.stringify(r.receive(${JSON.stringify(command)}))); r.close();`;
+  const protocol = childResultProtocol();
+  const script = `import {createCollectionRepository} from ${JSON.stringify(modulePath)}; process.stdout.write(${JSON.stringify(protocol.readyLine + '\n')}); const r=createCollectionRepository({filePath:${JSON.stringify(filePath)}}); const result=r.receive(${JSON.stringify(command)}); r.close(); process.stdout.write(${JSON.stringify('\n' + protocol.resultPrefix)}+JSON.stringify(result)+'\\n');`;
   let released = false;
   const release = () => { if (!released) { blocker.exec('COMMIT'); released = true; } };
   try {
     const result = await new Promise<string>((resolve, reject) => {
       const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', script], { timeout: 10_000 });
       let stdout = '', stderr = '', timer: ReturnType<typeof setTimeout> | undefined;
-      child.stdout.on('data', data => { stdout += data; if (!timer && stdout.includes('ready\n')) timer = setTimeout(release, 200); });
+      child.stdout.on('data', data => { stdout += data; if (!timer && stdout.split(/\r?\n/u).slice(0, -1).includes(protocol.readyLine)) timer = setTimeout(release, 200); });
       child.stderr.on('data', data => { stderr += data; });
       child.on('error', reject);
-      child.on('close', code => { clearTimeout(timer); release(); code === 0 ? resolve(stdout.slice('ready\n'.length)) : reject(new Error(`子进程失败 ${code}: ${stderr}`)); });
+      child.on('close', code => { clearTimeout(timer); release(); code === 0 ? resolve(stdout) : reject(new Error(`子进程失败 ${code}: ${stderr}`)); });
     });
-    assert.deepEqual(JSON.parse(result), JSON.parse(String(blocker.prepare('SELECT result FROM inventory_ledger WHERE command_id=?').get(command.commandId)?.result)));
+    assert.equal(result.split(/\r?\n/u).slice(0, -1).filter(line => line === protocol.readyLine).length, 1, '锁测试必须收到唯一就绪帧');
+    assert.deepEqual(readChildResult(result, protocol.resultPrefix), JSON.parse(String(blocker.prepare('SELECT result FROM inventory_ledger WHERE command_id=?').get(command.commandId)?.result)));
     assert.equal(blocker.prepare('SELECT COUNT(*) AS n FROM inventory_ledger').get()?.n, 1);
   } finally { release(); }
 });

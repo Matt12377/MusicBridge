@@ -18,6 +18,10 @@ import * as localAlbumBrowserTypes from '../src/renderer/src/composables/applica
 import * as localAlbumTrackPresentation from '../src/renderer/src/composables/application/local-library-browser/presentation.js'
 import * as localAlbumWorkbenchPresentation from '../src/renderer/src/components/library/local-browser/presentation.js'
 import * as gridWindow from '../src/renderer/src/composables/useGridWindow.js'
+import * as gridArtworkCache from '../src/renderer/src/composables/application/local-library-browser/grid-artwork-cache.js'
+import * as desktopArtworkTrace from '../../../packages/bridge-core/src/shared/desktop-artwork-trace.js'
+import * as libraryOperationLog from '../../../packages/bridge-core/src/shared/library-operation-log.js'
+import * as localLibraryScanPresentation from '../src/renderer/src/composables/application/local-library-browser/scan-presentation.js'
 
 const require = createRequire(import.meta.url), vue = require('vue') as typeof import('vue')
 const id = (n: number) => `11111111-1111-4111-8111-${String(n).padStart(12, '0')}`
@@ -29,7 +33,7 @@ function preview(request: PreviewLocalOrganizer, state: LocalOrganizerPlan['stat
   value.items = tracks.map((trackId, n) => {
     const item = copy(value.items[0]!); item.trackId = trackId; item.operation.operation_id = id(400 + n); item.operation.target_asset_id = id(2000 + n)
     item.raw = { title: `原始曲目 ${n}`, artist: '原始作者', album: '同名专辑', year: '2000', disc: '1', track: String(n + 1) }; item.before = { fields: { title: '当前人工标题', year: '2010' }, annotations: { versionDescription: '当前版本说明' } }; item.after = copy(item.before)
-    for (const [name, change] of Object.entries(request.patch.fields)) { const field = name as keyof typeof item.after.fields; if (change.action === 'clear') delete item.after.fields[field]; else item.after.fields[field] = change.value }
+    for (const [name, change] of Object.entries(request.patch.fields)) { const field = name as keyof typeof request.patch.fields; if (change.action === 'clear') delete item.after.fields[field]; else item.after.fields[field] = change.value }
     if (request.patch.annotations?.versionDescription) { const change = request.patch.annotations.versionDescription; if (change.action === 'clear') delete item.after.annotations.versionDescription; else item.after.annotations.versionDescription = change.value }
     if (request.patch.annotations?.groupingSuggestions) { const change = request.patch.annotations.groupingSuggestions; if (change.action === 'clear') delete item.after.annotations.groupingSuggestions; else item.after.annotations.groupingSuggestions = copy(change.value) }
     return item
@@ -95,6 +99,10 @@ async function mounted(t: test.TestContext, file: string, initial: Record<string
       if (name.endsWith('/local-library-browser/types.js')) return localAlbumBrowserTypes
       if (name.endsWith('/local-library-browser/presentation.js')) return localAlbumTrackPresentation
       if (name.endsWith('/useGridWindow.js')) return gridWindow
+      if (name.endsWith('/local-library-browser/grid-artwork-cache.js')) return gridArtworkCache
+      if (name.endsWith('/local-library-browser/scan-presentation.js')) return localLibraryScanPresentation
+      if (path.resolve(path.dirname(filename), name) === path.resolve(import.meta.dirname, '../../../packages/bridge-core/src/shared/desktop-artwork-trace.js')) return desktopArtworkTrace
+      if (path.resolve(path.dirname(filename), name) === path.resolve(import.meta.dirname, '../../../packages/bridge-core/src/shared/library-operation-log.js')) return libraryOperationLog
       if (name === './presentation.js' && path.dirname(filename) === path.join(componentRoot, 'library/local-browser')) return localAlbumWorkbenchPresentation
       return localRequire(name)
     }
@@ -186,7 +194,8 @@ test('011真实对话框Tab环绕、Esc关闭回到原入口，原页面三按�
 
 test('011leading slot只按本地选择开关增加第四列，跨搜索identity保留且Enter不触发播放', async t => {
   const f = fixture(), summaries = [0, 1].map(n => ({ track: { id: id(1000 + n), assetId: id(2000 + n), selectionRevision: '1', segment: null }, asset: { id: id(2000 + n), libraryRootId: id(1), sourceRootId: id(2), rootRevision: '1', fileRevision: '1', locationRevision: '1', sampleFrames: null, timebaseHz: null }, metadata: { title: `原始曲目 ${n}` }, versionTokens: [] }))
-  const api = { ...f.api, queryLocalLibraryTracks: async (query: LocalLibraryQuery) => ({ ...query, total: 1, hasMore: false, items: [summaries[query.query === '第二页' ? 1 : 0]] }), listLocalLibraryRoots: async () => [], getLocalLibraryPlaybackTarget: async () => null, localLibraryScan: async () => ({ offset: 0, limit: 200, total: 0, hasMore: false, items: [] }) } as unknown as LocalLibraryPublicApi & typeof f.api
+  const libraryRoot = { root: { id: id(1), sourceRootId: id(2), role: 'library' as const, revision: '1' }, label: '合成目录', availability: 'ONLINE' as const }
+  const api = { ...f.api, queryLocalLibraryTracks: async (query: LocalLibraryQuery) => ({ ...query, total: 1, hasMore: false, items: [summaries[query.query === '第二页' ? 1 : 0]] }), listLocalLibraryRoots: async () => [libraryRoot], getLocalLibraryPlaybackTarget: async () => null, localLibraryScan: async () => ({ offset: 0, limit: 200, total: 0, hasMore: false, items: [] }) } as unknown as LocalLibraryPublicApi & typeof f.api
   let plays = 0; const model = useLocalLibrary({ api, getSelectedZone: () => undefined, play: async () => { plays++; throw new Error('选择不应点播') } }); t.after(() => model.dispose())
   const ui = await mounted(t, path.join(componentRoot, 'library/LocalLibraryView.vue'), { session: model, playbackState: null }, api)
   const table = () => ui.all().find(el => el.props.role === 'table')!; assert.equal(table().props['aria-colcount'], 3); await ui.click(button(ui, '选择曲目')); assert.equal(table().props['aria-colcount'], 4)

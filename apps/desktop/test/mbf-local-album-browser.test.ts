@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { type TestContext } from 'node:test'
 import { createHash } from 'node:crypto'
 import * as dto from '@music-bridge/contracts'
 import { createLocalAlbumClient } from '../src/preload/local-album-client.js'
 import { registerLocalAlbumIpc } from '../src/main/local-library-workbench/album-ipc.js'
 import { effectScope } from 'vue'
 import type { LocalArtworkImage } from '@music-bridge/contracts'
+import { emptyLocalAlbumTraceMatches, localAlbumSafeMarker, type LocalAlbumTraceCode } from '../../../packages/bridge-core/src/shared/library-read-trace.js'
 import { createLocalAlbumBrowserModel, LOCAL_ALBUM_ARTWORK_COUNT_QUIET_MS, isLocalAlbumArtworkReply, isLocalAlbumPage, isLocalAlbumSummary, localAlbumTrackPresentation } from '../src/renderer/src/composables/application/local-library-browser/model.js'
 import { useLocalAlbumBrowser, useLocalAlbumBrowserPages } from '../src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.js'
 import { LOCAL_ALBUM_STATUSES, type LocalAlbumArtworkReply, type LocalAlbumArtworkRequest, type LocalAlbumBrowserApi, type LocalAlbumFilterCounts, type LocalAlbumPage, type LocalAlbumQuery, type LocalAlbumSummary, type LocalAlbumTrackItem, type LocalAlbumTrackPage, type LocalAlbumTrackQuery } from '../src/renderer/src/composables/application/local-library-browser/types.js'
@@ -58,12 +59,196 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 const settle = async () => { for (let i = 0; i < 4; i++) await Promise.resolve() }
+const drainRecovery = async () => { for (let i = 0; i < 24; i++) await Promise.resolve() }
+function recoveryClock(t: TestContext) {
+  let now = 1_800_000_000_000, serial = 0, maximum = 0, fired = 0
+  const timers = new Map<number, { at: number; callback: (...args: any[]) => void; args: any[] }>()
+  t.mock.method(Date, 'now', () => now)
+  t.mock.method(globalThis, 'setTimeout', (callback: (...args: any[]) => void, delay = 0, ...args: any[]) => {
+    const handle = ++serial; timers.set(handle, { at: now + Math.max(0, Number(delay)), callback, args }); maximum = Math.max(maximum, timers.size); return handle
+  })
+  t.mock.method(globalThis, 'clearTimeout', (handle: number) => { timers.delete(handle) })
+  return { timers, maximum: () => maximum, async advance(ms: number) {
+    const end = now + ms
+    for (;;) {
+      const next = [...timers].sort((left, right) => left[1].at - right[1].at || left[0] - right[0])[0]
+      if (!next || next[1].at > end) break
+      assert.ok(++fired <= 1000, '合成时钟不得出现计时器风暴')
+      now = next[1].at; timers.delete(next[0]); next[1].callback(...next[1].args); await drainRecovery()
+    }
+    now = end; await drainRecovery()
+  } }
+}
+function safeArtworkFailure(code: LocalAlbumTraceCode, mappedCode: LocalAlbumTraceCode | null = null): Error {
+  const marker = localAlbumSafeMarker({ version: 1, traceSha256: 'a'.repeat(64), parentSha256: null, stage: 'preload.invoke', firstStage: 'owner.artwork',
+    code, name: 'Error', mappedCode, elapsedMs: 2000, outcome: 'reject', matches: emptyLocalAlbumTraceMatches(), preloadAssociated: true })
+  assert.ok(marker); return new Error(marker)
+}
+
+for (const failure of ['TIMEOUT', 'NOT_READY', 'SNAPSHOT_CHANGED', 'source-unavailable'] as const) test(`封面自动恢复：可见${failure}无需目录刷新或手动重试，成功后停止`, async t => {
+  const time = recoveryClock(t), selected = album(990, { artworkState: 'available', artworkPrepared: false }), requests: LocalAlbumArtworkRequest[] = []
+  let available = false, queries = 0
+  const model = createLocalAlbumBrowserModel({ api: api([selected], { queryAlbums: async request => { queries++; return page(request, [selected]) }, getArtwork: async request => {
+    requests.push(request); if (!available) { if (failure === 'source-unavailable') return { ...artworkTuple(request), status: 'source-unavailable', image: null }; throw safeArtworkFailure(failure) }
+    return { ...artworkTuple(request), image: image(), status: 'ready' }
+  } }) }); t.after(model.dispose)
+  await model.activate(); model.setArtworkWindow({ visible: [selected], nearby: [] }); await model.ensureArtwork(selected)
+  assert.equal(model.artworkFor(selected).status, 'error'); available = true
+  await time.advance(60_000)
+  assert.equal(model.artworkFor(selected).status, 'ready'); assert.equal(requests.length, 2); assert.equal(queries, 1)
+  assert.ok(requests.every(request => !Object.hasOwn(request, 'refresh')), '自动恢复只能使用本地优先的普通读口')
+  assert.ok(time.maximum() <= 1); assert.equal(time.timers.size, 0)
+})
+
+test('封面自动恢复：UNKNOWN映射UNAVAILABLE最多三次；未知、永久拒绝、近邻及getter不自动源读', async t => {
+  for (const failure of ['limited', 'plain', 'unknown', 'invalid', 'limit', 'accessor', 'nearby'] as const) await t.test(failure, async sub => {
+    const time = recoveryClock(sub), selected = album(991, { artworkState: 'available' }), requests: LocalAlbumArtworkRequest[] = []; let getterReads = 0
+    const model = createLocalAlbumBrowserModel({ api: api([selected], { getArtwork: async request => {
+      requests.push(request)
+      if (failure === 'plain') throw new Error('TIMEOUT不是安全marker')
+      if (failure === 'accessor') { const error = {}; Object.defineProperty(error, 'message', { get() { getterReads++; return 'TIMEOUT' } }); throw error }
+      throw safeArtworkFailure(failure === 'invalid' ? 'INVALID_IPC_REQUEST' : failure === 'limit' ? 'CONTENT_LIMIT_EXCEEDED' : failure === 'nearby' ? 'TIMEOUT' : 'UNKNOWN', failure === 'limited' ? 'UNAVAILABLE' : null)
+    } }) }); sub.after(model.dispose)
+    await model.activate(); model.setArtworkWindow(failure === 'nearby' ? { visible: [], nearby: [selected] } : { visible: [selected], nearby: [] }); await model.ensureArtwork(selected)
+    await time.advance(120_000)
+    assert.equal(requests.length, failure === 'limited' ? 4 : 1); assert.equal(getterReads, 0); assert.equal(time.timers.size, 0)
+    assert.ok(requests.every(request => !Object.hasOwn(request, 'refresh')))
+  })
+})
+
+test('封面自动恢复：跨普通刷新退避、显式重试立即，离窗换scope及离页不遗留自动读取', async t => {
+  for (const action of ['explicit', 'window', 'scope', 'deactivate', 'dispose'] as const) await t.test(action, async sub => {
+    const time = recoveryClock(sub), selected = album(992, { artworkState: 'available' }); let reads = 0, available = false
+    const model = createLocalAlbumBrowserModel({ api: api([selected], { getArtwork: async request => {
+      reads++; return available ? { ...artworkTuple(request), image: image(), status: 'ready' } : { ...artworkTuple(request), image: null, status: 'source-unavailable' }
+    } }) }); sub.after(model.dispose)
+    await model.activate(); model.setArtworkWindow({ visible: [selected], nearby: [] }); await model.ensureArtwork(selected)
+    for (let pass = 0; pass < 4; pass++) await model.refresh()
+    assert.equal(reads, 1, '刷新目录不能重置源失败冷却')
+    available = true
+    if (action === 'explicit') { await model.retryArtwork(selected); assert.equal(reads, 2); assert.equal(model.artworkFor(selected).status, 'ready') }
+    else if (action === 'window') model.setArtworkWindow({ visible: [], nearby: [] })
+    else if (action === 'scope') await model.search('无匹配的新范围')
+    else if (action === 'deactivate') model.deactivate()
+    else model.dispose()
+    await time.advance(120_000)
+    assert.equal(reads, action === 'explicit' ? 2 : 1); assert.equal(time.timers.size, 0)
+  })
+})
+
+test('封面自动恢复：详情高清失败独立于ready网格，自动成功返回仍保原网格src', async t => {
+  const time = recoveryClock(t), selected = album(993, { artworkState: 'available', artworkPrepared: true }), requests: LocalAlbumArtworkRequest[] = []
+  const grid = { ...image().display, width: 512, height: 512 }; let available = false
+  const model = createLocalAlbumBrowserModel({ compactGridArtwork: true, api: api([selected], { getArtwork: async request => {
+    requests.push(request); if (!request.variant && !available) throw safeArtworkFailure('TIMEOUT')
+    return { ...artworkTuple(request), ...(request.variant ? { variant: request.variant } : {}), grid, image: { ...image('abcd'), display: request.variant ? grid : image('abcd').display }, status: 'ready' }
+  } }) }); t.after(model.dispose)
+  await model.activate(); model.setArtworkWindow({ visible: [selected], nearby: [] }); await model.ensureArtwork(selected); const original = model.artworkFor(selected)
+  await model.openAlbum(selected); await model.ensureArtwork(selected); assert.equal(model.artworkFor(selected).status, 'error')
+  available = true; await time.advance(60_000)
+  assert.equal(requests.length, 3); assert.equal(model.artworkFor(selected).dataUrl, image('abcd').display.dataUrl)
+  assert.ok(requests.every(request => !Object.hasOwn(request, 'refresh')))
+  model.closeAlbum(); assert.equal(model.artworkFor(selected).dataUrl, original.dataUrl); assert.equal(time.timers.size, 0)
+})
+
+test('封面自动恢复：同tuple prepared事实更新使详情旧失败立即普通重取，保留ready网格', async t => {
+  const time = recoveryClock(t), values = [album(994, { artworkState: 'available', artworkPrepared: false })], requests: LocalAlbumArtworkRequest[] = []
+  const grid = { ...image().display, width: 512, height: 512 }; let available = false
+  const model = createLocalAlbumBrowserModel({ backgroundLoading: true, compactGridArtwork: true, api: api(values, { getArtwork: async request => {
+    requests.push(request); if (!request.variant && !available) throw new Error('合成旧详情读取失败')
+    return { ...artworkTuple(request), ...(request.variant ? { variant: request.variant } : {}), grid, image: { ...image('abcd'), display: request.variant ? grid : image('abcd').display }, status: 'ready' }
+  } }) }); t.after(model.dispose)
+  await model.activate(); model.setArtworkWindow({ visible: values, nearby: [] }); await model.ensureArtwork(values[0]!); const original = model.artworkFor(values[0]!)
+  await model.openAlbum(values[0]!); await model.ensureArtwork(values[0]!); assert.equal(model.artworkFor(values[0]!).status, 'error')
+  available = true; values[0] = { ...values[0]!, artworkPrepared: true }; await model.refresh(); await time.advance(1)
+  assert.equal(requests.length, 3); assert.equal(model.artworkFor(values[0]!).dataUrl, image('abcd').display.dataUrl)
+  assert.ok(requests.every(request => !Object.hasOwn(request, 'refresh')))
+  model.closeAlbum(); assert.equal(model.artworkFor(values[0]!).dataUrl, original.dataUrl)
+})
+
+test('普通刷新合并：调用方等待dirty尾随，尾随期的新变化延后一窗，已有ready对象和src不清除', async t => {
+  const time = recoveryClock(t), values = Array.from({ length: 121 }, (_, index) => album(2000 + index, { artworkState: 'available' }))
+  const requests: LocalAlbumQuery[] = [], gates: { pending: ReturnType<typeof deferred<LocalAlbumPage>>; reply: LocalAlbumPage }[] = [], works: Promise<void>[] = []
+  let held = false, active = 0, maximum = 0
+  const model = createLocalAlbumBrowserModel({ pageSize: 60, api: api(values, { queryAlbums: async request => {
+    requests.push(request); active++; maximum = Math.max(maximum, active)
+    try { const reply = page(request, values); if (held && request.offset === 0) { const pending = deferred<LocalAlbumPage>(); gates.push({ pending, reply }); return await pending.promise }; return reply } finally { active-- }
+  } }) })
+  t.after(async () => { held = false; model.dispose(); for (const gate of gates) gate.pending.resolve(gate.reply); await Promise.all(works) })
+  await model.activate(); await model.loadMore(); await model.loadMore(); model.setArtworkWindow({ visible: [values[0]!], nearby: [] }); await model.ensureArtwork(values[0]!); const original = model.artworkFor(values[0]!)
+  held = true; works.push(model.refresh(), model.refresh(), model.refresh()); await drainRecovery()
+  assert.equal(gates.length, 1); assert.equal(model.artworkFor(values[0]!), original)
+  values[0] = { ...values[0]!, title: '尾随新事实' }; gates[0]!.pending.resolve(gates[0]!.reply); await drainRecovery()
+  assert.equal(gates.length, 2); let firstDone = false; void Promise.all(works).then(() => { firstDone = true }); await drainRecovery(); assert.equal(firstDone, false)
+  let lateDone = false; const late = model.refresh().then(() => { lateDone = true }); works.push(late)
+  gates[1]!.pending.resolve(gates[1]!.reply); await Promise.all(works.slice(0, 3)); assert.equal(model.getSnapshot().items[0]!.title, '尾随新事实'); assert.equal(lateDone, false)
+  await time.advance(999); assert.equal(gates.length, 2)
+  values[0] = { ...values[0]!, title: '下一窗口事实' }; await time.advance(1); assert.equal(gates.length, 3)
+  held = false; gates[2]!.pending.resolve(gates[2]!.reply); await late
+  assert.equal(model.getSnapshot().items[0]!.title, '下一窗口事实'); assert.equal(model.artworkFor(values[0]!), original); assert.equal(maximum, 1); assert.equal(requests.length, 12)
+})
+
+test('普通刷新合并：换scope撤销旧dirty尾随，迟到页不覆盖新范围或追加旧请求', async t => {
+  const values = [album(995, { title: '旧专辑' }), album(996, { title: '新范围' })], requests: LocalAlbumQuery[] = [], late = deferred<LocalAlbumPage>()
+  let held: LocalAlbumQuery | undefined, holding = false
+  const model = createLocalAlbumBrowserModel({ api: api(values, { queryAlbums: async request => {
+    requests.push(request); if (holding && request.query === '') { held = request; return late.promise }; return page(request, values)
+  } }) }); t.after(() => { model.dispose(); if (held) late.resolve(page(held, values)) })
+  await model.activate(); holding = true
+  const first = model.refresh(), joined = model.refresh(); assert.ok(held)
+  await model.search('新范围'); const current = model.getSnapshot()
+  late.resolve(page(held, values)); await Promise.all([first, joined]); await drainRecovery()
+  assert.equal(model.getSnapshot(), current); assert.equal(current.query, '新范围'); assert.deepEqual(current.items.map(value => value.id), [values[1]!.id])
+  assert.deepEqual(requests.map(request => request.query), ['', '', '新范围'])
+})
+
+test('本地封面资源：八路回复逐个补位，滚动离窗及切页返回复用内存且不重发读取', async t => {
+  const values = Array.from({ length: 18 }, (_, index) => album(index + 1, { artworkPrepared: true }))
+  const jobs: Array<{ request: LocalAlbumArtworkRequest; pending: ReturnType<typeof deferred<LocalAlbumArtworkReply>> }> = []
+  const model = createLocalAlbumBrowserModel({ api: api(values, { getArtwork: request => {
+    const pending = deferred<LocalAlbumArtworkReply>(); jobs.push({ request, pending }); return pending.promise
+  } }) }); t.after(model.dispose)
+  await model.activate(); model.setArtworkWindow({ visible: values.slice(0, 10), nearby: values.slice(10) })
+  const pending = values.map(value => model.ensureArtwork(value))
+  assert.equal(jobs.length, 8)
+  jobs[0]!.pending.resolve({ ...artworkTuple(jobs[0]!.request), image: image(), status: 'ready' }); await settle()
+  assert.equal(jobs.length, 9, '单张完成立即补位，无须等整批返回')
+  for (let index = 1; index < values.length; index++) {
+    assert.ok(jobs[index]); jobs[index]!.pending.resolve({ ...artworkTuple(jobs[index]!.request), image: image(), status: 'ready' }); await settle()
+  }
+  await Promise.all(pending)
+  model.setArtworkWindow({ visible: values.slice(10), nearby: [] })
+  model.setArtworkWindow({ visible: values.slice(0, 10), nearby: values.slice(10) })
+  await model.ensureArtwork(values[0]!)
+  model.deactivate(); await model.activate(); await model.ensureArtwork(values[0]!)
+  assert.equal(jobs.length, 18)
+  assert.equal(model.artworkFor(values[0]!).status, 'ready')
+  assert.equal(model.getArtworkCacheUsage().running, 0)
+})
+
+test('本地封面资源：两路源读取繁忙时，本地热图仍可越过冷图队列直接显示', async t => {
+  const cold = [album(21), album(22), album(23)], warm = album(24, { artworkPrepared: true }), values = [...cold, warm]
+  const jobs: Array<{ request: LocalAlbumArtworkRequest; pending: ReturnType<typeof deferred<LocalAlbumArtworkReply>> }> = []
+  const model = createLocalAlbumBrowserModel({ api: api(values, { getArtwork: request => {
+    const pending = deferred<LocalAlbumArtworkReply>(); jobs.push({ request, pending }); return pending.promise
+  } }) }); t.after(model.dispose)
+  await model.activate()
+  const pending = values.map(value => model.ensureArtwork(value))
+  assert.deepEqual(jobs.map(job => job.request.albumKey), [cold[0]!.id, cold[1]!.id, warm.id])
+  jobs[2]!.pending.resolve({ ...artworkTuple(jobs[2]!.request), image: image(), status: 'ready' }); await pending[3]
+  assert.equal(model.artworkFor(warm).status, 'ready')
+  assert.equal(jobs.length, 3, '热图完成不会放宽源文件并发')
+  jobs[0]!.pending.resolve({ ...artworkTuple(jobs[0]!.request), image: image(), status: 'ready' }); await pending[0]
+  assert.equal(jobs[3]!.request.albumKey, cold[2]!.id)
+  for (const index of [1, 3]) jobs[index]!.pending.resolve({ ...artworkTuple(jobs[index]!.request), image: image(), status: 'ready' })
+  await Promise.all(pending)
+})
 
 test('MBF合并作用域setScope一次更新搜索来源和筛选，只发一个完整请求并丢弃旧回复',async t=>{
   const selected=album(1,{rootId:otherRoot,title:'合并专辑',statuses:['has-artwork','track-named-audio']}),pending=deferred<LocalAlbumPage>(),requests:LocalAlbumQuery[]=[]
   const model=createLocalAlbumBrowserModel({api:api([selected],{queryAlbums:request=>{requests.push(request);return requests.length===1?pending.promise:Promise.resolve(page(request,[selected]))}})});t.after(model.dispose)
   const activating=model.activate();await model.setScope({query:' 合并 ',rootId:otherRoot,filter:'track-named-audio'})
-  assert.equal(requests.length,2);assert.deepEqual(requests[1],{query:'合并',rootId:otherRoot,filter:'track-named-audio',offset:0,limit:60})
+  assert.equal(requests.length,2);assert.deepEqual(requests[1],{query:'合并',rootId:otherRoot,filter:'track-named-audio',offset:0,limit:200})
   assert.equal(model.getSnapshot().items[0]!.id,selected.id);const current=model.getSnapshot()
   pending.resolve(page(requests[0]!,[]));await activating;assert.equal(model.getSnapshot(),current)
   await model.setScope({query:'合并',rootId:otherRoot,filter:'track-named-audio'});assert.equal(requests.length,2)
@@ -286,7 +471,7 @@ test('MBF分页身份、未知字段、重复专辑和来源错配均拒绝，�
 
 test('MBF读取快照与API原对象分离，Vue组合式函数不自动读取且scope销毁丢弃迟到响应', async t => {
   const selected = album(1), reply = page({ query: '', rootId: null, filter: 'all', offset: 0, limit: 60 }, [selected])
-  const model = createLocalAlbumBrowserModel({ api: api([selected], { queryAlbums: async () => reply }) }); t.after(model.dispose)
+  const model = createLocalAlbumBrowserModel({ pageSize: 60, api: api([selected], { queryAlbums: async () => reply }) }); t.after(model.dispose)
   await model.activate(); selected.title = 'API原对象之后改变'
   assert.equal(model.getSnapshot().items[0]!.title, '同名专辑'); assert.equal(Object.isFrozen(model.getSnapshot().items[0]), true)
   const pending = deferred<LocalAlbumPage>(); let request: LocalAlbumQuery | undefined, reads = 0
@@ -346,7 +531,7 @@ test('本地音乐与CoverDrop保留各自纯读范围选择详情位置，切�
   assert.ok(pages.localLibrary.getArtworkCacheUsage().bytes > 0)
   await pages.coverDrop.activate()
   assert.equal(pages.localLibrary.snapshot.value.active, false)
-  assert.equal(pages.localLibrary.getArtworkCacheUsage().bytes, 0)
+  assert.ok(pages.localLibrary.getArtworkCacheUsage().bytes > 0, '切页保留有界本地封面副本')
   assert.equal(pages.coverDrop.snapshot.value.query, '')
   await pages.coverDrop.setScope({ query: '整理', rootId: otherRoot, filter: 'missing-lyrics' })
   pages.coverDrop.setScrollTop(128); pages.coverDrop.setSelectedAlbums([values[1]!.id])
@@ -361,7 +546,8 @@ test('本地音乐与CoverDrop保留各自纯读范围选择详情位置，切�
   const coverOrigin = pages.coverDrop.snapshot.value
   await pages.localLibrary.activate()
   assert.equal(pages.coverDrop.snapshot.value.active, false)
-  assert.equal(pages.coverDrop.getArtworkCacheUsage().bytes, 0)
+  assert.ok(pages.coverDrop.getArtworkCacheUsage().bytes > 0, '返回不会丢掉另一入口的压缩副本')
+  assert.ok(pages.coverDrop.getArtworkCacheUsage().bytes + pages.localLibrary.getArtworkCacheUsage().bytes <= 64 * 1024 * 1024)
   assert.equal(pages.localLibrary.snapshot.value.scrollTop, 742)
   assert.equal(pages.coverDrop.snapshot.value.selectedAlbum?.id, coverOrigin.selectedAlbum?.id)
   assert.ok(requests.some(request => request.query === '本地' && request.rootId === root && request.filter === 'has-artwork'))
@@ -390,7 +576,7 @@ test('MBF重新激活593：成功空结果离页后源变1，原scope返回只�
   model.setScrollTop(314);model.deactivate();const before=model.getSnapshot()
   values.push(album(9,{rootId:otherRoot,title:'返回后的真实合成专辑'}))
   await model.activate();assert.equal(requests.length,2,'离页后的成功empty不得免除这次当前gallery读取')
-  assert.deepEqual(requests[1],{query:'返回',rootId:otherRoot,filter:'has-artwork',offset:0,limit:60})
+  assert.deepEqual(requests[1],{query:'返回',rootId:otherRoot,filter:'has-artwork',offset:0,limit:200})
   const current=model.getSnapshot();assert.equal(current.active,true);assert.equal(current.loaded,true);assert.equal(current.status,'ready');assert.equal(current.total,1);assert.deepEqual(current.items.map(value=>value.id),[values[0]!.id]);assert.equal(current.stale,false)
   assert.equal(current.query,before.query);assert.equal(current.rootId,before.rootId);assert.equal(current.filter,before.filter);assert.equal(current.scrollTop,before.scrollTop)
   const same=current;await model.activate();assert.equal(requests.length,2,'已active不得重复query');assert.equal(model.getSnapshot(),same)
@@ -421,9 +607,9 @@ test('MBF重新激活593：刷新失败保旧成功范围详情选择缓存，�
 
 
 // 纯读模型的临时来源失败恢复；不调用真实Source、Native、播放或工作库。
-test('MBF临时封面恢复：默认与显式过高并发都不超过原两个读取槽', async t => {
-  for (const concurrency of [undefined, 4]) {
-    const values = [album(11), album(12), album(13)], jobs: Array<{ request: LocalAlbumArtworkRequest; pending: ReturnType<typeof deferred<LocalAlbumArtworkReply>> }> = []
+test('本地封面回复：默认与过高配置都受八路上限保护，源读取另由Core限额', async t => {
+  for (const concurrency of [undefined, 16]) {
+    const values = Array.from({ length: 10 }, (_, index) => album(11 + index, { artworkPrepared: true })), jobs: Array<{ request: LocalAlbumArtworkRequest; pending: ReturnType<typeof deferred<LocalAlbumArtworkReply>> }> = []
     let running = 0, maximum = 0
     const model = createLocalAlbumBrowserModel({ api: api(values, { getArtwork: request => {
       const pending = deferred<LocalAlbumArtworkReply>(); jobs.push({ request, pending }); running++; maximum = Math.max(maximum, running)
@@ -432,16 +618,18 @@ test('MBF临时封面恢复：默认与显式过高并发都不超过原两个�
     t.after(() => { model.dispose(); for (const job of jobs) job.pending.resolve({ ...job.request, image: image() }) })
     await model.activate(); assert.equal(jobs.length, 0)
     const pending = values.map(value => model.ensureArtwork(value))
-    assert.equal(jobs.length, 2); assert.equal(model.getArtworkCacheUsage().running, 2); assert.equal(model.getArtworkCacheUsage().queued, 1)
+    assert.equal(jobs.length, 8); assert.equal(model.getArtworkCacheUsage().running, 8); assert.equal(model.getArtworkCacheUsage().queued, 2)
     jobs[0]!.pending.resolve({ ...jobs[0]!.request, image: image() }); await pending[0]
-    assert.equal(jobs.length, 3); assert.equal(model.getArtworkCacheUsage().running, 2)
-    jobs[1]!.pending.resolve({ ...jobs[1]!.request, image: image() }); jobs[2]!.pending.resolve({ ...jobs[2]!.request, image: image() }); await Promise.all(pending)
-    assert.equal(maximum, 2); assert.equal(model.getArtworkCacheUsage().running, 0); assert.equal(model.getArtworkCacheUsage().queued, 0)
-    assert.equal(model.getArtworkCacheUsage().entries, 3); assert.ok(model.getArtworkCacheUsage().bytes <= 8 * 1024 * 1024)
+    assert.equal(jobs.length, 9); assert.equal(model.getArtworkCacheUsage().running, 8)
+    for (let index = 1; index < values.length; index++) { jobs[index]!.pending.resolve({ ...jobs[index]!.request, image: image() }); await settle() }
+    await Promise.all(pending)
+    assert.equal(maximum, 8); assert.equal(model.getArtworkCacheUsage().running, 0); assert.equal(model.getArtworkCacheUsage().queued, 0)
+    assert.equal(model.getArtworkCacheUsage().entries, 10); assert.ok(model.getArtworkCacheUsage().bytes <= 8 * 1024 * 1024)
   }
 })
 
 test('MBF临时封面恢复：失败刷新保原错误，成功刷新只重读一次且仍繁忙不循环', async t => {
+  const time = recoveryClock(t)
   const selected = album(14, { artworkState: 'unknown', artworkAvailable: false, statuses: [] }); let queryReads = 0, artworkReads = 0, queryFails = false, available = false
   const model = createLocalAlbumBrowserModel({ api: api([selected], { queryAlbums: async request => {
     queryReads++; if (queryFails) throw new Error('file:///synthetic-transient-private-error'); return page(request, [selected])
@@ -454,19 +642,21 @@ test('MBF临时封面恢复：失败刷新保原错误，成功刷新只重读�
   queryFails = true; await model.refresh(); await model.ensureArtwork(selected)
   assert.equal(artworkReads, 1); assert.equal(model.artworkFor(selected), unavailable); assert.deepEqual(model.getArtworkCacheUsage(), usage)
   assert.equal(model.getSnapshot().stale, true); assert.match(model.getSnapshot().refreshError, /保留上次/u); assert.doesNotMatch(JSON.stringify(model.getSnapshot()), /synthetic-transient-private-error|file:\/\//u)
-  queryFails = false; await model.refresh(); await model.ensureArtwork(model.getSnapshot().items[0]!)
+  queryFails = false; await time.advance(2000); await model.refresh(); await model.ensureArtwork(model.getSnapshot().items[0]!)
   assert.equal(artworkReads, 2); assert.equal(model.artworkFor(selected).status, 'error')
   for (let n = 0; n < 4; n++) await model.ensureArtwork(selected)
   assert.equal(artworkReads, 2, '成功范围刷新只授本次原不可用项一次探测，仍繁忙不能自动再派发')
-  await model.refresh(); await model.ensureArtwork(selected); assert.equal(artworkReads, 3, '新的明确刷新代仍可恢复，不能把临时繁忙冻结为永久失败')
+  await model.refresh(); assert.equal(artworkReads, 2, '普通刷新不能重置跨代退避')
+  await time.advance(4000); await model.refresh(); await model.ensureArtwork(selected); assert.equal(artworkReads, 3, '退避结束的刷新仍可恢复，不能把临时繁忙冻结为永久失败')
   for (let n = 0; n < 4; n++) await model.ensureArtwork(selected)
   assert.equal(artworkReads, 3, '同刷新代内的重复ensure不续授机会')
-  available = true; model.deactivate(); await model.activate(); await model.ensureArtwork(selected)
-  assert.equal(queryReads, 5); assert.equal(artworkReads, 4, '下一明确重新激活可恢复同五字段临时失败'); assert.equal(model.artworkFor(selected).status, 'ready')
+  available = true; model.deactivate(); await time.advance(8000); await model.activate(); await model.ensureArtwork(selected)
+  assert.equal(queryReads, 6); assert.equal(artworkReads, 4, '退避后的重新激活可恢复同五字段临时失败'); assert.equal(model.artworkFor(selected).status, 'ready')
   await model.refresh(); await model.ensureArtwork(selected); assert.equal(artworkReads, 4)
 })
 
 test('MBF临时封面恢复：重新激活恢复来源失败，普通错误仍显式重试且ready和missing缓存保留', async t => {
+  const time = recoveryClock(t)
   const busy = album(15, { artworkState: 'unknown', artworkAvailable: false, statuses: [] }), invalid = album(16), ready = album(17), missing = album(18, { artworkAvailable: false, artworkState: 'missing', statuses: ['missing-artwork'] })
   const values = [busy, invalid, ready, missing], reads = new Map<string, number>(); let available = false, queryReads = 0
   const model = createLocalAlbumBrowserModel({ api: api(values, { queryAlbums: async request => { queryReads++; return page(request, values) }, getArtwork: async request => {
@@ -478,7 +668,7 @@ test('MBF临时封面恢复：重新激活恢复来源失败，普通错误仍�
   await model.activate(); await Promise.all(values.map(value => model.ensureArtwork(value))); model.setScrollTop(314)
   const error = model.artworkFor(invalid), readyState = model.artworkFor(ready), missingState = model.artworkFor(missing)
   assert.equal(error.status, 'error'); assert.equal(readyState.status, 'ready'); assert.equal(missingState.status, 'missing')
-  model.deactivate(); available = true; await model.activate(); await Promise.all(values.map(value => model.ensureArtwork(value)))
+  model.deactivate(); available = true; await time.advance(2000); await model.activate(); await Promise.all(values.map(value => model.ensureArtwork(value)))
   assert.equal(queryReads, 2); assert.equal(reads.get(busy.id), 2); assert.equal(model.artworkFor(busy).status, 'ready')
   assert.equal(reads.get(invalid.id), 1); assert.equal(model.artworkFor(invalid), error)
   assert.equal(reads.get(ready.id), 1); assert.equal(model.artworkFor(ready), readyState); assert.equal(reads.has(missing.id), false); assert.equal(model.artworkFor(missing), missingState)
@@ -488,6 +678,7 @@ test('MBF临时封面恢复：重新激活恢复来源失败，普通错误仍�
 })
 
 test('MBF临时封面恢复：详情刷新丢弃关闭后的迟到回复，再次合法刷新才恢复原项', async t => {
+  const time = recoveryClock(t)
   const selected = album(19, { artworkState: 'unknown', artworkAvailable: false, statuses: [] }), late = deferred<LocalAlbumTrackPage>()
   let detailReads = 0, artworkReads = 0, available = false, lateRequest!: LocalAlbumTrackQuery
   const model = createLocalAlbumBrowserModel({ api: api([selected], { queryAlbumTracks: request => {
@@ -497,7 +688,7 @@ test('MBF临时封面恢复：详情刷新丢弃关闭后的迟到回复，再�
   available = true; const refreshing = model.refreshAlbum(); model.closeAlbum(); const closed = model.getSnapshot()
   late.resolve(trackPage(lateRequest, selected)); await refreshing
   assert.equal(model.getSnapshot(), closed); assert.equal(artworkReads, 1); assert.equal(model.getSnapshot().selectedAlbum, null)
-  await model.openAlbum(selected); assert.equal(artworkReads, 1); await model.refreshAlbum(); await model.ensureArtwork(model.getSnapshot().selectedAlbum!)
+  await time.advance(2000); await model.openAlbum(selected); assert.equal(artworkReads, 1); await model.refreshAlbum(); await model.ensureArtwork(model.getSnapshot().selectedAlbum!)
   assert.equal(detailReads, 4); assert.equal(artworkReads, 2); assert.equal(model.artworkFor(selected).status, 'ready')
   await model.refreshAlbum(); await model.ensureArtwork(selected); assert.equal(artworkReads, 2)
 })
@@ -505,6 +696,7 @@ test('MBF临时封面恢复：详情刷新丢弃关闭后的迟到回复，再�
 
 import { createScanReadAdmission } from '../../../packages/bridge-core/src/library/scan-read-admission.js'
 test('MBF临时封面恢复：foreign真实两票连续繁忙后释放，同身份下一激活恢复且渲染不循环', async t => {
+  const time = recoveryClock(t)
   const selected = album(20, { artworkState: 'unknown', artworkAvailable: false, statuses: [] }), context = { epoch: id(900), datasetId: id(901) }, admission = createScanReadAdmission({ isBusy: () => false })
   const foreign = [admission.acquire(context), admission.acquire(context)]; assert.ok(foreign.every(value => value.status === 'granted'))
   let reads = 0
@@ -515,21 +707,22 @@ test('MBF临时封面恢复：foreign真实两票连续繁忙后释放，同身�
     try { return { ...request, image: image(), status: 'ready' } } finally { admission.release(context, permit.permitId) }
   } }) }); t.after(() => { model.dispose(); for (const value of foreign) if (value.status === 'granted') admission.release(context, value.permitId); admission.close() })
   await model.activate(); await model.ensureArtwork(selected); assert.equal(reads, 1); assert.equal(model.artworkFor(selected).status, 'error')
-  await model.refresh(); await model.ensureArtwork(selected); assert.equal(reads, 2); assert.equal(model.artworkFor(selected).canRetry, true)
+  await model.refresh(); assert.equal(reads, 1, '普通刷新不续授繁忙源读取')
+  await time.advance(2000); await model.refresh(); await model.ensureArtwork(selected); assert.equal(reads, 2); assert.equal(model.artworkFor(selected).canRetry, true)
   for (let n = 0; n < 5; n++) await model.ensureArtwork(selected)
   assert.equal(reads, 2); assert.equal(admission.resourceCounts().permits, 2)
   for (const value of foreign) { assert.equal(value.status, 'granted'); if (value.status === 'granted') admission.release(context, value.permitId) }
-  model.deactivate(); await model.activate(); await model.ensureArtwork(model.getSnapshot().items[0]!)
+  model.deactivate(); await time.advance(4000); await model.activate(); await model.ensureArtwork(model.getSnapshot().items[0]!)
   assert.equal(reads, 3); assert.equal(model.artworkFor(selected).status, 'ready'); assert.equal(admission.resourceCounts().permits, 0)
   for (let n = 0; n < 5; n++) await model.ensureArtwork(selected)
   assert.equal(reads, 3)
 })
 
-// 正式model默认分页与合成来源观察；不证明真实SQL、IMG解码或万级性能。
+// 显式小页覆盖合成来源观察；默认200的规模用例另核，不证明真实SQL、IMG解码或万级性能。
 test('MBF连续浏览封面观察变化：187项未知封面首图成功后分页继续至完整墙', async t => {
   const albums = Array.from({ length: 187 }, (_, index) => album(index + 1, { artworkAvailable: false, artworkState: 'unknown', statuses: [] }))
   const requests: LocalAlbumQuery[] = [], replies: LocalAlbumPage[] = [], artworkRequests: LocalAlbumArtworkRequest[] = []
-  const model = createLocalAlbumBrowserModel({ api: api(albums, {
+  const model = createLocalAlbumBrowserModel({ pageSize: 60, api: api(albums, {
     queryAlbums: async request => {
       requests.push({ ...request })
       const reply = page(request, albums)
@@ -568,8 +761,8 @@ test('MBF连续浏览封面观察变化：187项未知封面首图成功后分�
   assert.equal(complete.counts['missing-artwork'], 0); assert.equal(artworkRequests.length, 1)
 })
 
-test('MBF连续浏览规模：10001项以默认60完整读取167页，末页9960起41项且身份唯一', async t => {
-  // 只核原model与内存分页API；167页不是SQL耗时、Native或持久缓存资格。
+test('MBF连续浏览规模：10001项以默认200完整读取51页，末页10000起1项且身份唯一', async t => {
+  // 只核原model与内存分页API；51页不是SQL耗时、Native或持久缓存资格。
   const albums = Array.from({ length: 10001 }, (_, index) => album(index + 1, { artworkAvailable: false, artworkState: 'unknown', statuses: [] }))
   const requests: LocalAlbumQuery[] = [], lengths: number[] = []
   let failRefresh = false
@@ -578,34 +771,34 @@ test('MBF连续浏览规模：10001项以默认60完整读取167页，末页9960
     assert.equal(isLocalAlbumPage(reply, request), true); lengths.push(reply.items.length); return reply
   }, getArtwork: async () => { throw new Error('此例不读取或解码封面') } }) }); t.after(model.dispose)
   await model.activate()
-  assert.equal(model.getSnapshot().items.length, 60); assert.equal(model.getSnapshot().total, 10001)
-  for (let index = 1; index < 167; index++) {
+  assert.equal(model.getSnapshot().items.length, 200); assert.equal(model.getSnapshot().total, 10001)
+  for (let index = 1; index < 51; index++) {
     assert.equal(model.getSnapshot().hasMore, true)
     await model.loadMore()
-    assert.equal(model.getSnapshot().items.length, Math.min((index + 1) * 60, 10001))
+    assert.equal(model.getSnapshot().items.length, Math.min((index + 1) * 200, 10001))
     assert.equal(model.getSnapshot().loadMoreError, '')
   }
-  assert.equal(requests.length, 167); assert.deepEqual(requests.map(value => value.offset), Array.from({ length: 167 }, (_, index) => index * 60))
-  assert.ok(requests.every(value => value.limit === 60)); assert.equal(requests[166]!.offset, 9960)
-  assert.ok(lengths.slice(0, 166).every(value => value === 60)); assert.equal(lengths[166], 41)
+  assert.equal(requests.length, 51); assert.deepEqual(requests.map(value => value.offset), Array.from({ length: 51 }, (_, index) => index * 200))
+  assert.ok(requests.every(value => value.limit === 200)); assert.equal(requests[50]!.offset, 10000)
+  assert.ok(lengths.slice(0, 50).every(value => value === 200)); assert.equal(lengths[50], 1)
   const complete = model.getSnapshot()
   assert.equal(complete.items.length, 10001); assert.equal(complete.total, 10001); assert.equal(complete.counts.all, 10001)
   assert.equal(complete.hasMore, false); assert.equal(new Set(complete.items.map(value => value.id)).size, 10001)
   assert.deepEqual(complete.items.map(value => value.id), albums.map(value => value.id))
   model.setScrollTop(50_000); model.setSelectedAlbums([albums.at(-1)!.id])
   failRefresh = true; await model.refresh(true)
-  assert.equal(requests.length, 168); assert.equal(requests.at(-1)!.offset, 0, '明确刷新失败也只准尝试一个首页')
+  assert.equal(requests.length, 52); assert.equal(requests.at(-1)!.offset, 0, '明确刷新失败也只准尝试一个首页')
   assert.equal(model.getSnapshot().items, complete.items); assert.equal(model.getSnapshot().scrollTop, 50_000)
   assert.deepEqual(model.getSnapshot().selectedAlbumIds, [albums.at(-1)!.id]); assert.equal(model.getSnapshot().stale, true); assert.match(model.getSnapshot().refreshError, /刷新暂未完成/u)
   failRefresh = false; await model.refresh(true)
   const restarted = model.getSnapshot()
-  assert.equal(requests.length, 169); assert.equal(requests.at(-1)!.offset, 0, '已加载10001项后的明确刷新只重新查询第一页')
-  assert.equal(restarted.items.length, 60); assert.equal(restarted.total, 10001); assert.equal(restarted.counts.all, 10001); assert.equal(restarted.hasMore, true)
+  assert.equal(requests.length, 53); assert.equal(requests.at(-1)!.offset, 0, '已加载10001项后的明确刷新只重新查询第一页')
+  assert.equal(restarted.items.length, 200); assert.equal(restarted.total, 10001); assert.equal(restarted.counts.all, 10001); assert.equal(restarted.hasMore, true)
   assert.equal(restarted.scrollTop, 0); assert.deepEqual(restarted.selectedAlbumIds, []); assert.equal(restarted.stale, false); assert.equal(restarted.refreshError, '')
-  assert.deepEqual(restarted.items.map(value => value.id), albums.slice(0, 60).map(value => value.id))
-  await model.loadMore(); assert.equal(requests.length, 170); assert.equal(requests.at(-1)!.offset, 60)
-  assert.equal(model.getSnapshot().items.length, 120); assert.equal(model.getSnapshot().total, 10001); assert.equal(model.getSnapshot().loadMoreError, '')
-  assert.deepEqual(model.getSnapshot().items.map(value => value.id), albums.slice(0, 120).map(value => value.id), '不能混入旧尾页或跳过新首页之后的成员')
+  assert.deepEqual(restarted.items.map(value => value.id), albums.slice(0, 200).map(value => value.id))
+  await model.loadMore(); assert.equal(requests.length, 54); assert.equal(requests.at(-1)!.offset, 200)
+  assert.equal(model.getSnapshot().items.length, 400); assert.equal(model.getSnapshot().total, 10001); assert.equal(model.getSnapshot().loadMoreError, '')
+  assert.deepEqual(model.getSnapshot().items.map(value => value.id), albums.slice(0, 400).map(value => value.id), '不能混入旧尾页或跳过新首页之后的成员')
 })
 
 test('MBF连续浏览集合守门：总数、非封面计数与封面筛选计数变化仍拒收', async t => {
@@ -650,7 +843,7 @@ test('MBF连续浏览集合守门：总数、非封面计数与封面筛选计�
   })
 })
 
-test('MBF可见封面窗口：跳滚撤旧排队，有效离窗结果保留且可见优先仍只占两槽', async t => {
+test('MBF可见封面窗口：受限双槽配置跳滚撤旧排队，有效离窗结果保留且可见优先', async t => {
   const values = Array.from({ length: 8 }, (_, index) => album(80 + index))
   const jobs: { request: LocalAlbumArtworkRequest; pending: ReturnType<typeof deferred<LocalAlbumArtworkReply>> }[] = []
   const tasks: Promise<void>[] = []
@@ -658,7 +851,7 @@ test('MBF可见封面窗口：跳滚撤旧排队，有效离窗结果保留且�
   const model = createLocalAlbumBrowserModel({ api: api(values, { getArtwork: request => {
     const pending = deferred<LocalAlbumArtworkReply>(); jobs.push({ request: { ...request }, pending }); maximum = Math.max(maximum, ++running)
     return pending.promise.finally(() => { running-- })
-  } }) })
+  } }), artworkConcurrency: 2 })
   t.after(async () => { model.dispose(); for (const job of jobs) job.pending.resolve({ ...artworkTuple(job.request), image: image() }); await Promise.all(tasks) })
   await model.activate()
   model.setArtworkWindow({ visible: values.slice(0, 2), nearby: values.slice(2, 4) })

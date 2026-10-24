@@ -32,11 +32,10 @@ export function createRecordingCandidateClient(
   select: SourceCandidatesPublicApi['selectRecordingSourceCandidate'],
   getDatasetId: DatasetScope,
 ): SourceCandidatesPublicApi {
-  const scope = getDatasetId().catch(() => { throw new Error('[OUTBOX_SCOPE_MISMATCH] 当前工作库身份未获确认。') })
-  void scope.catch(() => undefined)
+  const scope = () => getDatasetId().catch(() => { throw new Error('[OUTBOX_SCOPE_MISMATCH] 当前工作库身份未获确认。') })
   const failure = (kind: 'REQUEST' | 'RESPONSE') => new Error(`[INVALID_IPC_${kind}] 候选扫描${kind === 'REQUEST' ? '请求' : '结果'}无效。`)
   async function request(command: string, payload: unknown): Promise<unknown> {
-    return invoke('recordingCandidates:request', { datasetId: await scope, command, payload: structuredClone(payload) })
+    return invoke('recordingCandidates:request', { datasetId: await scope(), command, payload: structuredClone(payload) })
   }
   return {
     async startRecordingSourceCandidateScan(payload) {

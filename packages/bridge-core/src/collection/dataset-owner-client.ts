@@ -1,14 +1,18 @@
+import { captureCatalogTraceSeed, catalogTraceHop } from '../mobile/catalog-private-trace.js';
+import { captureMobileOwnerLoadTrace, withMobileOwnerLoadTrace, markMobileOwnerLoadTrace, observeMobileOwnerLoadTrace, copyMobileOwnerLoadTraceFrame, type MobileOwnerLoadTraceContext } from '../mobile/owner-load-trace.js';
 import { captureLocalAlbumContext, withLocalAlbumContext, runLocalAlbumContext, localAlbumPhase, localAlbumMatch, localAlbumReject, localAlbumRejectCode, emitLocalAlbumNodeTrace, localAlbumLink, localAlbumTraceSha, type LocalAlbumNodeContext } from '../shared/local-album-read-trace-node.js';
-import { isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest, type DatasetWorkbenchResult, type DatasetWorkbenchContext } from './dataset-owner-protocol.js';
+import { isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, datasetWorkbenchOperationMs, isDatasetWorkbenchContextKind, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest, type DatasetWorkbenchResult, type DatasetWorkbenchContext } from './dataset-owner-protocol.js';
 import {isMBQueueLoadResult,isMBQueueNeedsReview,isMBQueueUnavailable,type MBQueueLoadResult} from './mb-queue-owner-types.js';
 import { isLocalAlbumOwnerReadRequest, isLocalAlbumOwnerReadResult, type LocalAlbumOwnerReadRequest, type LocalAlbumOwnerReadResult } from './local-album-browser/owner-protocol.js';
 import { isMBEditionQueueRequest, isMBEditionQueueSnapshot, type MBEditionQueueRequest, type MBEditionQueueSnapshot, isMBQueueRecord, isMBQueueSaveRequest, type MBQueueRecord, type MBQueueSaveRequest } from '@music-bridge/contracts';
 import { LocalSourceFence } from '../stream/local-source-fence.js';
-import { isLocalSourceCaptureResult, type LocalSourceCaptureResult, type LocalSourcePrivatePayload } from './local-source-ticket-types.js';
+import { isLocalSourceCaptureResult, isLocalSourceLyricsSnapshot, type LocalSourceCaptureResult, type LocalSourcePrivatePayload } from './local-source-ticket-types.js';
 import { isMobileOwnerPrivateRequest } from '../mobile/owner-protocol.js';
+import { encodeMobileSealedOwnerRequest, attachMobileSealedOwnerReplyReceiver } from '../mobile/sealed-request-transport.js';
 import { captureMobileOwnerPrivateResult } from '../mobile/owner-boundary-capture.js';
 import type { MobileOwnerPrivateRequest, MobileOwnerPrivateResult } from '../mobile/types.js';
 import { mobileCapabilityLink } from '../mobile/capability-trace.js';
+import { captureMobileRangeWindowOwnerHop, copyMobileRangeWindowOwnerFrame, isMobileRangeWindowOwnerWire } from '../mobile/range-window-observer.js';
 import { LOCAL_RELOCATION_COMMANDS, isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalRelocationCommand, isLocalRelocationInternalCommand, isLocalRelocationCommandResult } from '@music-bridge/contracts';
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalScanCommandResult, isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest, isLocalCatalogCommandResult } from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +20,7 @@ import { isLocalLegacyLinksCommand } from '@music-bridge/contracts';
 import { isLocalSourceWritesCommand, isLocalSourceWritesCommandResult } from '@music-bridge/contracts';
 import { isLocalRelocationPlanCommand, isLocalRelocationPlanCommandResult } from '@music-bridge/contracts';
 import type { Worker } from 'node:worker_threads';
+import { createDatasetOwnerReadRevocation } from './dataset-owner-read-revocation.js';
 import type { IpcCommand, IpcRequest } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
@@ -28,6 +33,7 @@ import {
 } from './dataset-owner-protocol.js';
 
 interface PendingRequest {
+  ownerLoadTrace?: MobileOwnerLoadTraceContext;
   trace?: LocalAlbumNodeContext;
   album?: LocalAlbumOwnerReadRequest;
   mobile?: MobileOwnerPrivateRequest;
@@ -41,6 +47,7 @@ interface PendingRequest {
 
 export interface DatasetOwnerClientOptions {
   worker: Worker;
+  albumReadRevocationBuffer?: SharedArrayBuffer;
   projection?: DatasetOwnerProjectionHandler;
   onFatal?: (reason: DatasetOwnerFatalReason) => void;
 }
@@ -48,11 +55,14 @@ export interface DatasetOwnerClientOptions {
 // 只持有线程端口与窄投影；连接失败后保留原命令身份，不创建数据库或自动重放。
 export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerLargeSnapshotEndpoint & { fatalDrain(): Promise<void> } {
   const { worker } = options;
+  const albumReadRevocation = options.albumReadRevocationBuffer ? createDatasetOwnerReadRevocation(options.albumReadRevocationBuffer) : undefined;
   const epoch = randomUUID();
   let localAlive = true;
   const localFences = new Map<string,LocalSourceFence>();
   const sealLocalSources = () => { localAlive = false; for (const fence of localFences.values()) fence.revoke(); };
   const pending = new Map<string, PendingRequest>();
+  const ownerLoadContexts = new Map<number, MobileOwnerLoadTraceContext>();
+  const ownerRangeHops = new Map<string, NonNullable<ReturnType<typeof captureMobileRangeWindowOwnerHop>>>();
   const projectionFlights=new Map<string,{request:DatasetOwnerProjectionRequest;controller:AbortController}>();
   const projectionRetired=new Map<string,{epoch:string;expiresAtMs:number}>();
   let sequence = 0;
@@ -70,10 +80,10 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     const item=workbenchPending.get(message.id)
     if(!item){if(workbenchRetired.has(message.id)){if(workbenchSettledContexts.has(message.id)&&(message.part==='settled'||message.part==='end'))fatal('protocol-failure');return}fatal('protocol-failure');return}
     if(!sameDatasetWorkbenchMeta(message,item.meta)){fatal('protocol-failure');return}
-    if(item.meta.kind==='context')item.contextStage='context.client.response'
+    if(isDatasetWorkbenchContextKind(item.meta.kind))item.contextStage='context.client.response'
     if(message.part==='failure'){item.expired=true;item.reject(new DatasetWorkbenchWireError(message.code));return}
     if(message.part==='settled'){
-      if(item.meta.kind==='context'){
+      if(isDatasetWorkbenchContextKind(item.meta.kind)){
         // failure/取消仅在原真实settled后清账；重复的已取消ACK仍按原retired规则幂等。
         if(item.expired){wbQuiet(message.id,item);return}
         const value=item.contextResult
@@ -91,7 +101,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       if(value===undefined)return
       if(message.part!=='end')throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
       if(Date.now()>=item.meta.expiresAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
-      if(item.meta.kind==='context'){
+      if(isDatasetWorkbenchContextKind(item.meta.kind)){
         item.contextStage='context.client.dto'
         if(!isDatasetWorkbenchContext(value)||value.epoch!==epoch||value.datasetId!==identity?.datasetId)throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
         workbenchEverReady=true
@@ -100,27 +110,27 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       }else if(item.meta.kind==='owner'){
         if(!item.request||!isDatasetWorkbenchOwnerRequest(item.request)||!isDatasetWorkbenchOwnerResult(item.request.command,value,item.request.payload,item.meta.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
       }else if(!item.request||!isDatasetWorkbenchRequest(item.request)||!isDatasetWorkbenchResult(item.request,value,item.meta.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
-      if(item.expired){if(item.meta.kind!=='context')wbQuiet(message.id,item);return}
+      if(item.expired){if(!isDatasetWorkbenchContextKind(item.meta.kind))wbQuiet(message.id,item);return}
       if(Date.now()>=item.meta.expiresAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
-      if(item.meta.kind==='context'){item.contextResult=value as DatasetWorkbenchContext;return}
+      if(isDatasetWorkbenchContextKind(item.meta.kind)){item.contextResult=value as DatasetWorkbenchContext;return}
       item.resolve(value);wbQuiet(message.id,item)
-    }catch(error){item.expired=true;item.reject(error);if(error instanceof DatasetWorkbenchWireError&&error.code==='TIMEOUT'&&message.part==='end'){if(item.meta.kind!=='context')wbQuiet(message.id,item)}else fatal('protocol-failure')}
+    }catch(error){item.expired=true;item.reject(error);if(error instanceof DatasetWorkbenchWireError&&error.code==='TIMEOUT'&&message.part==='end'){if(!isDatasetWorkbenchContextKind(item.meta.kind))wbQuiet(message.id,item)}else fatal('protocol-failure')}
   }
   function workbenchRpc(kind:DatasetWorkbenchMeta['kind'],request:DatasetWorkbenchRequest|DatasetWorkbenchOwnerRequest|null,read?:{signal?:AbortSignal;deadlineAtMs?:number}):Promise<unknown>{
     if(!identity||!bootCommitted||closing||failed||exited||workbenchPending.size>=(kind==='drain'?24:23)||read?.signal?.aborted){
       const error=new DatasetWorkbenchWireError('NOT_READY','not-sent');
-      if(kind==='context')try{
+      if(isDatasetWorkbenchContextKind(kind))try{
         localAlbumPhase(!identity||!bootCommitted?'context.client.ready':closing||failed||exited?'context.client.route':workbenchPending.size>=23?'context.client.budget':'context.client.cancel');
         localAlbumReject(error,'NOT_READY');
       }catch{ /* 原未发送回执保持。 */ }
       return Promise.reject(error);
     }
-    const remaining=Math.min(2000,Math.floor((read?.deadlineAtMs??performance.now()+2000)-performance.now()))
-    if(remaining<=0){const error=new DatasetWorkbenchWireError('TIMEOUT','not-sent');if(kind==='context')try{localAlbumPhase('context.client.budget');localAlbumReject(error,'TIMEOUT')}catch{}return Promise.reject(error)}
-    const body=request??{},raw=datasetWorkbenchJson(body),meta:DatasetWorkbenchMeta={id:randomUUID(),epoch,datasetId:identity.datasetId,sequence:++sequence,kind,requestSha256:datasetWorkbenchSha(raw),expiresAtMs:Date.now()+remaining}
-    let parentSha256:string|null=null;if(kind==='context')try{parentSha256=captureLocalAlbumContext()?.traceSha256??null}catch{}
+    const body=request??{},budget=datasetWorkbenchOperationMs(kind,body),remaining=Math.min(budget,Math.floor((read?.deadlineAtMs??performance.now()+budget)-performance.now()))
+    if(remaining<=0){const error=new DatasetWorkbenchWireError('TIMEOUT','not-sent');if(isDatasetWorkbenchContextKind(kind))try{localAlbumPhase('context.client.budget');localAlbumReject(error,'TIMEOUT')}catch{}return Promise.reject(error)}
+    const raw=datasetWorkbenchJson(body),meta:DatasetWorkbenchMeta={id:randomUUID(),epoch,datasetId:identity.datasetId,sequence:++sequence,kind,requestSha256:datasetWorkbenchSha(raw),expiresAtMs:Date.now()+remaining}
+    let parentSha256:string|null=null;if(isDatasetWorkbenchContextKind(kind))try{parentSha256=captureLocalAlbumContext()?.traceSha256??null}catch{}
     let contextTrace:LocalAlbumNodeContext|undefined;
-    if(kind==='context')try{
+    if(isDatasetWorkbenchContextKind(kind))try{
       const expectedTraceSha=localAlbumTraceSha(meta.id);
       runLocalAlbumContext(meta.id,parentSha256,'context.client.send',()=>{
         const captured=captureLocalAlbumContext();if(captured?.traceSha256===expectedTraceSha)contextTrace=captured;
@@ -130,13 +140,13 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     return new Promise((resolve,reject)=>{
       let contextRejected=false;
       const rejectOriginal=(error:unknown)=>{
-        if(kind==='context'&&!contextRejected){contextRejected=true;try{
+        if(isDatasetWorkbenchContextKind(kind)&&!contextRejected){contextRejected=true;try{
           if(item.contextTrace)withLocalAlbumContext(item.contextTrace,()=>{localAlbumPhase(item.contextStage??'context.client.send');localAlbumReject(error)});
         }catch{ /* 失败关联不改变原reject。 */ }}
         reject(error);
       };
-      const onAbort=()=>{const item=workbenchPending.get(meta.id);if(item&&!item.expired){if(kind==='context')item.contextStage='context.client.cancel';item.expired=true;item.reject(new DatasetWorkbenchWireError('TIMEOUT'));wbCancel(item)}}
-      const timer=setTimeout(onAbort,remaining),item:WorkbenchPending={meta,request:request?structuredClone(request):null,assembly:createDatasetWorkbenchAssembler(meta,'response'),timer,expired:false,detach(){read?.signal?.removeEventListener('abort',onAbort)},resolve,reject:rejectOriginal,settle:settled,quiet,...(kind==='context'?{contextStage:'context.client.send' as const,contextSignal:read?.signal,...(contextTrace===undefined?{}:{contextTrace})}:{})}
+      const onAbort=()=>{const item=workbenchPending.get(meta.id);if(item&&!item.expired){if(isDatasetWorkbenchContextKind(kind))item.contextStage='context.client.cancel';item.expired=true;item.reject(new DatasetWorkbenchWireError('TIMEOUT'));wbCancel(item)}}
+      const timer=setTimeout(onAbort,remaining),item:WorkbenchPending={meta,request:request?structuredClone(request):null,assembly:createDatasetWorkbenchAssembler(meta,'response'),timer,expired:false,detach(){read?.signal?.removeEventListener('abort',onAbort)},resolve,reject:rejectOriginal,settle:settled,quiet,...(isDatasetWorkbenchContextKind(kind)?{contextStage:'context.client.send' as const,contextSignal:read?.signal,...(contextTrace===undefined?{}:{contextTrace})}:{})}
       workbenchPending.set(meta.id,item);read?.signal?.addEventListener('abort',onAbort,{once:true})
       try{for(const frame of datasetWorkbenchFrames(meta,'request',body))worker.postMessage(frame)}catch{item.expired=true;item.reject(new DatasetWorkbenchWireError('NOT_READY','not-sent'));wbQuiet(meta.id,item);fatal('post-failed')}
     })
@@ -165,6 +175,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
 
   function fatal(reason: DatasetOwnerFatalReason): void {
     if (failed) return;
+    albumReadRevocation?.revoke();
     failed = true; sealLocalSources();
     for(const flight of projectionFlights.values())flight.controller.abort();
     for (const item of pending.values()) item.reject(new DatasetOwnerTransportError(item.sent ? 'unknown' : 'not-sent', item.publicId, item.command));
@@ -178,28 +189,41 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
   let queueLoading = false, queueSaving = false;
   function rpc(operation: DatasetOwnerOperation, request?: IpcRequest, expectedDatasetId?: string, local?: LocalSourcePrivatePayload, queue?: MBQueueSaveRequest, edition?:MBEditionQueueRequest, mobile?: MobileOwnerPrivateRequest, album?: LocalAlbumOwnerReadRequest): Promise<unknown> {
     if (failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent', request?.id, request?.command));
+    const ownerLoadTrace = operation === 'mobileMain' && mobile?.kind === 'load' ? captureMobileOwnerLoadTrace() : undefined;
+    if (ownerLoadTrace) ownerLoadContexts.set(ownerLoadTrace.ordinal, ownerLoadTrace);
+    const catalogTrace = operation === 'mobileMain' && mobile?.kind === 'catalog' && mobile.request.operation === 'listTracks' ? captureCatalogTraceSeed() : undefined;
     const requestId = randomUUID();
+    const ownerRange = operation === 'mobileMain' && mobile?.kind === 'media-source' && ownerRangeHops.size < 16
+      ? captureMobileRangeWindowOwnerHop(epoch, requestId, mobile.request.operation) : undefined;
+    if (ownerRange) ownerRangeHops.set(requestId, ownerRange);
+    const settleRange = (rejected = false, error?: unknown) => {
+      ownerRangeHops.delete(requestId);
+      try { ownerRange?.settle(rejected, error); } catch { /* 旁注不得改变原业务结算。 */ }
+    };
     if (operation === 'mobileMain' && mobile?.kind === 'content'
       && (mobile.request.action === 'initialize' || mobile.request.action === 'updateScope')) mobileCapabilityLink('owner', requestId, 'owner.rpc.link');
     const trace = operation === 'localAlbumRead' ? captureLocalAlbumContext() : undefined;
     if (trace) { localAlbumPhase('client.send'); localAlbumLink(requestId, 'client.send'); }
     const message: DatasetOwnerRequest = {
       version: DATASET_OWNER_PROTOCOL_VERSION, type: 'request', epoch, requestId,
-      sequence: ++sequence, operation, ...(album === undefined ? {} : { album }), ...(mobile === undefined ? {} : { mobile }), ...(local === undefined ? {} : { local }), ...(queue === undefined ? {} : { queue }), ...(edition === undefined ? {} : { edition }), ...(request === undefined ? {} : { request }),
+      sequence: ++sequence, operation, ...(catalogTrace ? { catalogTrace: catalogTraceHop(catalogTrace, requestId) } : {}), ...(ownerLoadTrace ? { ownerLoadTrace: ownerLoadTrace.ordinal } : {}), ...(album === undefined ? {} : { album }), ...(mobile === undefined ? {} : { mobile }), ...(local === undefined ? {} : { local }), ...(queue === undefined ? {} : { queue }), ...(edition === undefined ? {} : { edition }), ...(request === undefined ? {} : { request }),
       ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }),
     };
     return new Promise((resolve, reject) => {
-      const item: PendingRequest = { operation, sent: false, ...(trace ? { trace } : {}),
-        resolve: value => withLocalAlbumContext(trace, () => { emitLocalAlbumNodeTrace('ok'); resolve(value); }),
-        reject: error => withLocalAlbumContext(trace, () => { localAlbumReject(error); reject(error); }), ...(album === undefined ? {} : { album }), ...(mobile === undefined ? {} : { mobile }),
+      const item: PendingRequest = { operation, sent: false, ...(ownerLoadTrace ? { ownerLoadTrace } : {}), ...(trace ? { trace } : {}),
+        resolve: value => { settleRange(); withLocalAlbumContext(trace, () => { emitLocalAlbumNodeTrace('ok'); resolve(value); }); },
+        reject: error => { settleRange(true, error); withLocalAlbumContext(trace, () => { localAlbumReject(error); reject(error); }); }, ...(album === undefined ? {} : { album }), ...(mobile === undefined ? {} : { mobile }),
         ...(request === undefined ? {} : { publicId: request.id, command: request.command }) };
       pending.set(requestId, item);
+      if (ownerRange) { try { worker.postMessage(ownerRange.seed); } catch { /* 只丢旁注；仍发送原请求。 */ } }
       try {
         if (operation === 'close') closePostAttempted = true;
-        worker.postMessage(message); item.sent = true;
+        ownerRange?.start();
+        observeMobileOwnerLoadTrace('core', 'owner.client.post', () => worker.postMessage(encodeMobileSealedOwnerRequest(message))); item.sent = true;
       }
       catch {
         pending.delete(requestId);
+        settleRange(true);
         reject(new DatasetOwnerTransportError('not-sent', request?.id, request?.command));
         fatal('post-failed');
       }
@@ -232,6 +256,16 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
 
   function receive(message: unknown): void {
     if (failed || exited) return;
+    if (isMobileRangeWindowOwnerWire(message, 'mobile-range-window-owner')) {
+      const frame = copyMobileRangeWindowOwnerFrame(message);
+      if (frame) ownerRangeHops.get(frame.frame.id)?.accept(frame);
+      return;
+    }
+    if (ownerRecord(message) && Object.getOwnPropertyDescriptor(message, 'type')?.value === 'mobile-owner-load-trace') {
+      const frame = copyMobileOwnerLoadTraceFrame(message);
+      if (frame) { try { ownerLoadContexts.get(frame.event.ordinal)?.emit(frame.event); } catch { /* 私有旁注不改业务。 */ } }
+      return;
+    }
     // 上一实例的回复无权完成当前实例的promise，也不能使当前实例进入fatal。
     if (ownerRecord(message) && typeof message.epoch === 'string' && message.epoch !== epoch) return;
     if(ownerRecord(message)&&Object.getOwnPropertyDescriptor(message,'type')?.value==='musicbridge.workbench.frame'){wbReceive(message);return;}
@@ -265,8 +299,10 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     }
     let capturedMobile: MobileOwnerPrivateResult | undefined;
     if (message.ok && message.operation === 'mobileMain') {
-      const captured = item.mobile ? captureMobileOwnerPrivateResult(message.result, item.mobile) : null;
-      if (!captured) { fatal('protocol-failure'); return; }
+      withMobileOwnerLoadTrace(item.ownerLoadTrace, () => markMobileOwnerLoadTrace('core', 'owner.client.receive', 'ok'));
+      const captured = withMobileOwnerLoadTrace(item.ownerLoadTrace, () => observeMobileOwnerLoadTrace('core', 'owner.client.capture', () =>
+        item.mobile ? captureMobileOwnerPrivateResult(message.result, item.mobile) : null));
+      if (!captured) { withMobileOwnerLoadTrace(item.ownerLoadTrace, () => markMobileOwnerLoadTrace('core', 'owner.client.capture', 'invalid')); fatal('protocol-failure'); return; }
       capturedMobile = captured;
     }
     if(message.ok&&message.operation==='materializeMBEdition'&&!isMBEditionQueueSnapshot(message.result)){fatal('protocol-failure');return;}
@@ -278,6 +314,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       if (!isLocalSourceCaptureResult(message.result) || message.result.epoch !== epoch || message.result.datasetId !== identity?.datasetId || localFences.has(message.result.ticketId) || localFences.size >= 16) { fatal('protocol-failure'); return; }
       const fence = new LocalSourceFence(message.result.buffer); if (!localAlive) fence.revoke(); localFences.set(message.result.ticketId,fence);
     }
+    if (message.ok && message.operation === 'readLocalSourceLyrics' && !isLocalSourceLyricsSnapshot(message.result)) { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'revalidateLocalSource' && typeof message.result !== 'boolean') { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'releaseLocalSource' && message.result !== undefined) { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'getCollectionSnapshotVersion') {
@@ -313,7 +350,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     item.resolve(capturedMobile ?? message.result);
   }
 
-  worker.on('message', receive);
+  attachMobileSealedOwnerReplyReceiver(worker, receive);
   worker.on('error', () => fatal('worker-error'));
   worker.on('messageerror', () => fatal('protocol-failure'));
   worker.once('exit', code => {
@@ -326,6 +363,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
 
   return {
     async workbenchContext(read){return await workbenchRpc('context',null,read) as DatasetWorkbenchContext},
+    async workbenchReadIdentity(read){return await workbenchRpc('context.identity',null,read) as DatasetWorkbenchContext},
     async joinWorkbench(){await Promise.all([...workbenchPending.values()].map(item=>item.quiet))},
     async dispatchWorkbench(request,context){
       if(!identity||context.identity.epoch!==epoch||context.identity.datasetId!==identity.datasetId||!isDatasetWorkbenchRequest(request))throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH','not-sent')
@@ -337,6 +375,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       return await workbenchRpc('owner',structuredClone(request),context) as DatasetWorkbenchOwnerResult
     },
     async closeWorkbench(){
+      albumReadRevocation?.revoke();
       if(!workbenchEverReady){for(const item of workbenchPending.values())if(!item.expired){item.expired=true;item.reject(new DatasetWorkbenchWireError('NOT_READY'));wbCancel(item)}await Promise.all([...workbenchPending.values()].map(item=>item.quiet));return}
       for(const item of workbenchPending.values())if(!item.expired){item.expired=true;item.reject(new DatasetWorkbenchWireError('NOT_READY'));wbCancel(item)}
       const draining=workbenchRpc('drain',null),quiet=Promise.all([...workbenchPending.values()].map(item=>item.quiet))
@@ -345,6 +384,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     fatalDrain() {
       if (!failed) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
       if (fatalDrainFlight !== undefined) return fatalDrainFlight;
+      albumReadRevocation?.revoke();
       closing = true; sealLocalSources();
       fatalDrainFlight = physicalExit.then(code => {
         if (code !== 0) throw new DatasetOwnerTransportError('unknown');
@@ -399,6 +439,10 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     captureLocalSource(selection) {
       if (!localAlive || !identity || !bootCommitted || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
       return rpc('captureLocalSource',undefined,identity.datasetId,{selection}).then(value => value as LocalSourceCaptureResult);
+    },
+    readLocalSourceLyrics(ticketId) {
+      if (!localAlive || !identity || !bootCommitted || closing || failed || exited || !localFences.get(ticketId)?.current) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      return rpc('readLocalSourceLyrics',undefined,identity.datasetId,{ticketId}).then(value => value as import('@music-bridge/contracts').LyricsSnapshot);
     },
     revalidateLocalSource(ticketId) {
       if (!localAlive || !identity || !localFences.has(ticketId)) return Promise.resolve(false);
@@ -455,6 +499,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     },
     close() {
       if (closure !== undefined) return closure;
+      albumReadRevocation?.revoke();
       closing = true; sealLocalSources();
       // 发close即封入口；owner先停止coordinator，再等待在途dispatch，然后关闭连接。
       closure = rpc('close').then(() => naturalExit);

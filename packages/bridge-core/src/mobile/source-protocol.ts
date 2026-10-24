@@ -1,5 +1,6 @@
 import { isMobileId, isMobileAudioInfo, isMobileProcessing, isMobileDsdSourceAudio, MOBILE_DSD_PCM_PROCESSING_REASON } from '@music-bridge/contracts';
 import type { MobilePlaybackPreparedSource, MobilePlaybackPreparingSource, MobilePlaybackSourceRequest } from './source-types.js';
+import { ownedSourceByteLength } from './owned-source-bytes.js';
 
 /** 仅 Main→Core→原 Owner；不经 Renderer、不接收路径或 FD。 */
 export type MobileOwnerSourceRequest =
@@ -21,6 +22,7 @@ const typedArray = Object.getPrototypeOf(Uint8Array.prototype) as object;
 const byteLength = Object.getOwnPropertyDescriptor(typedArray, 'byteLength')!.get!;
 const byteBuffer = Object.getOwnPropertyDescriptor(typedArray, 'buffer')!.get!;
 function chunk(v: unknown, maximum: number): v is Uint8Array {
+  if (ownedSourceByteLength(v, maximum) !== null) return true;
   if (!(v instanceof Uint8Array) || Object.getPrototypeOf(v) !== Uint8Array.prototype) return false;
   const size = byteLength.call(v) as number;
   return size <= maximum && !(byteBuffer.call(v) instanceof SharedArrayBuffer)

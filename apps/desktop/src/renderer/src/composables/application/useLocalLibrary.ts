@@ -2,14 +2,21 @@ import { useLocalArtwork } from './useLocalArtwork.js'
 import { useLocalOrganizer } from './useLocalOrganizer.js'
 import { useLocalSourceWrites } from './useLocalSourceWrites.js'
 import { useLocalRelocationPlans } from './useLocalRelocationPlans.js'
-import { computed, markRaw, ref, shallowRef, watch } from 'vue'
+import { computed, markRaw, readonly, ref, shallowRef, watch } from 'vue'
 import { LOCAL_ORGANIZER_LIMIT, isCollectionId, isCommandOutboxOverview, isLocalArtworkContext, isLocalCatalogText, isLocalLibraryQueryPage, isLocalLibraryTrackDetail, isLocalPlayTarget, isLocalPlayAlbum, isLocalAlbumSummary, type LocalArtworkContext } from '@music-bridge/contracts'
 import type { CommandOutboxOverview, CommandOutboxPublicApi, LocalLibraryPublicApi, LocalLibraryQueryPage, LocalLibraryTrackSummary, LocalLibraryTrackDetail, LocalMetadata, LocalPlayAccepted, LocalPlayAction, LocalPlayRequest, LocalPlayTarget, LocalSourceUnsupported, LocalRootView, LocalRelocationSelection, LocalRelocationCandidates, LocalRelocationConfirm, LocalCatalogCommandPayloads, PublicRoonZone, TrackSummary } from '@music-bridge/contracts'
 import { localPlaybackSubmissionUnconfirmed, localPlaySubmissionResolved, type LocalLibraryPlayReceipt } from '../../components/player/details.js'
 import { isLocalPlayReceipt, type LocalPlayReceipt, type LocalPlayRejection } from '@music-bridge/contracts'
+import { logLibraryOperation } from '../../../../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { traceLocalPlaybackStep } from './local-playback-timing.js'
 
 export const LOCAL_LIBRARY_PAGE_SIZE = 100
 export const LOCAL_LIBRARY_CACHE_PAGES = 6
+export interface LocalLibraryActivationOptions {
+  deferTrackReads?: boolean
+  /** 专辑首屏之前仅激活会话；不读取目录、目标、待确认操作或旧详情。 */
+  deferContextReads?: boolean
+}
 export interface LocalLibraryOptions {
   api: LocalLibraryPublicApi & Partial<import('@music-bridge/contracts').LocalArtworkPublicApi> & Partial<import('@music-bridge/contracts').LocalOrganizerPublicApi> & Partial<import('@music-bridge/contracts').LocalSourceWritesPublicApi> & Partial<import('@music-bridge/contracts').LocalRelocationPlanPublicApi> & Partial<Pick<CommandOutboxPublicApi, 'getCommandOutbox'>>
   getSelectedZone: () => PublicRoonZone | undefined
@@ -42,7 +49,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   const relocationPlans = markRaw(useLocalRelocationPlans({ api: options.api, onApplied: () => { if (active && !disposed) void refreshBusiness() } }))
   const query = ref(''), rootId = ref<string | null>(null), total = ref(0), scrollTop = ref(0)
   const loaded = ref(false), loading = ref(false), stale = ref(false), error = ref(''), detailError = ref(''), actionError = ref('')
-  const roots = shallowRef<LocalRootView[]>([]), target = shallowRef<LocalPlayTarget | null>(null)
+  const roots = shallowRef<LocalRootView[]>([]), rootsLoaded = ref(false), rootsError = ref(''), target = shallowRef<LocalPlayTarget | null>(null)
   const selectedId = ref<string | null>(null), detail = shallowRef<LocalLibraryTrackDetail | null>(null), detailLoading = ref(false), detailStale = ref(false)
   const detailArtwork = shallowRef<LocalArtworkContext|null>(null)
   const detailReturnTarget = shallowRef<{ trackId: string; index: number; scrollTop: number; query: string; rootId: string | null } | null>(null)
@@ -50,6 +57,8 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   const relocationSelection = shallowRef<LocalRelocationSelection | null>(null), relocationConfirmed = ref(false), relocationUnknown = ref(false)
   const pendingOverride = shallowRef<LocalCatalogCommandPayloads['localCatalog.overrideMetadata'] | null>(null)
   const lastPlay = shallowRef<LocalLibraryPlayReceipt | null>(null)
+  // 仅供显示关联的最近真实工作库读身份；不作为Source、Owner或点播许可。
+  const displayDatasetId = shallowRef<string | null>(null)
   const unconfirmedPlay = shallowRef<LocalPlayRequest | null>(null)
   let resolvedPlay: LocalPlayRequest | null = null
   const canReadOriginalPlay=computed(()=>!!lastPlay.value && (typeof options.readPlayReceipt==='function' || typeof options.api.getLocalLibraryPlayReceipt==='function'))
@@ -62,7 +71,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   let mutationGeneration = 0, outboxGeneration = 0, actionErrorCommandId: string | null = null, sessionDatasetId: string | undefined
   const cacheVersion = ref(0), pages = new Map<number, LocalLibraryQueryPage>()
   const refreshPages = new Set<number>()
-  let active = false, disposed = false, queryGeneration = 0, detailGeneration = 0, contextGeneration = 0, actionGeneration = 0
+  let active = false, disposed = false, trackReadsEnabled = false, queryGeneration = 0, detailGeneration = 0, contextGeneration = 0, actionGeneration = 0
   let pumping: Promise<void> | undefined
   // 立即消费真实闭合观察；随后切来源不会把已结束的原意图重新变成未知。
   const stopPlaybackObservation = options.getPlaybackSnapshot
@@ -97,53 +106,64 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     cacheVersion.value++
   }
   function pump(): Promise<void> {
+    if (!active || disposed || !trackReadsEnabled) return Promise.resolve()
     if (pumping) return pumping
-    if (!active || disposed) return Promise.resolve()
     pumping = (async () => {
-      while (active && !disposed) {
+      while (active && !disposed && trackReadsEnabled) {
         const wanted = desiredPages()
         const pageIndex = wanted.find(index => !pages.has(index) || refreshPages.has(index))
         if (pageIndex === undefined) return
         const generation = queryGeneration, request = { query: query.value, rootId: rootId.value, offset: pageIndex * LOCAL_LIBRARY_PAGE_SIZE, limit: LOCAL_LIBRARY_PAGE_SIZE }
+        const started = performance.now()
+        logLibraryOperation('ui', 'tracks.page', 'start', { offset: request.offset, count: request.limit })
         loading.value = true
         try {
           const page = await options.api.queryLocalLibraryTracks(request)
-          if (!active || disposed || generation !== queryGeneration) continue
+          if (!active || disposed || !trackReadsEnabled || generation !== queryGeneration) {
+            logLibraryOperation('ui', 'tracks.page', 'cancelled', { offset: request.offset, elapsedMs: Math.max(0, performance.now() - started), code: 'STALE_READ' })
+            continue
+          }
           if (!isLocalLibraryQueryPage(page) || page.query !== request.query || page.rootId !== request.rootId || page.offset !== request.offset || page.limit !== request.limit) throw new Error('查询身份不一致')
           const changed = loaded.value && page.total !== total.value
           if (changed) { pages.clear(); refreshPages.clear() }
           pages.delete(pageIndex); pages.set(pageIndex, page); total.value = page.total; loaded.value = true; error.value = ''
           refreshPages.delete(pageIndex); stale.value = desiredPages().some(index => refreshPages.has(index))
           evictPages()
+          logLibraryOperation('ui', 'tracks.page', 'complete', { offset: request.offset, count: page.items.length, total: page.total, elapsedMs: Math.max(0, performance.now() - started) })
         } catch {
-          if (active && !disposed && generation === queryGeneration) { stale.value = pages.size > 0; error.value = stale.value ? '刷新暂未完成，保留上次成功读取的结果。音乐库与收藏保留，请重试读取。' : '这一页暂时无法读取。音乐库与收藏保留，请重试读取。'; return }
+          const current = active && !disposed && trackReadsEnabled && generation === queryGeneration
+          logLibraryOperation('ui', 'tracks.page', current ? 'error' : 'cancelled', { offset: request.offset, elapsedMs: Math.max(0, performance.now() - started), code: current ? 'TRACK_PAGE_UNAVAILABLE' : 'STALE_READ' })
+          if (current) { stale.value = pages.size > 0; error.value = stale.value ? '刷新暂未完成，保留上次成功读取的结果。音乐库与收藏保留，请重试读取。' : '这一页暂时无法读取。音乐库与收藏保留，请重试读取。'; return }
         } finally { if (generation === queryGeneration) loading.value = false }
       }
     })().finally(() => { pumping = undefined; loading.value = false })
     return pumping
   }
   function ensureRange(start: number, end: number): Promise<void> {
+    trackReadsEnabled = true
     wantedStart = Math.max(0, Math.floor(start)); wantedEnd = Math.max(wantedStart + 1, Math.floor(end))
     for (const page of desiredPages()) { const cached = pages.get(page); if (cached) { pages.delete(page); pages.set(page, cached) } }
     stale.value = error.value !== '' && pages.size > 0 || desiredPages().some(index => refreshPages.has(index))
     return pump()
   }
   function resetQuery(preserveScroll: boolean): Promise<void> {
-    queryGeneration++; error.value = ''
+    queryGeneration++; if (trackReadsEnabled) error.value = ''
     if (preserveScroll) { for (const page of pages.keys()) refreshPages.add(page); stale.value = pages.size > 0 }
     else { pages.clear(); refreshPages.clear(); cacheVersion.value++; loaded.value = false; total.value = 0; stale.value = false; scrollTop.value = 0; wantedStart = 0; wantedEnd = 24 }
     return pump()
   }
   async function search(text: string, root: string | null = rootId.value): Promise<void> {
     if (!isLocalCatalogText(text, true) || Array.from(text).length > 256) { error.value = '搜索最多输入 256 个字符，请缩短后再试。'; return }
-    if (text === query.value && root === rootId.value && loaded.value) return
+    trackReadsEnabled = true
+    if (text === query.value && root === rootId.value && loaded.value) { await pump(); return }
     query.value = text; rootId.value = root; closeDetail(); await resetQuery(false)
   }
   async function refreshContext(): Promise<void> {
     const generation = ++contextGeneration
     const [nextRoots, nextTarget] = await Promise.allSettled([options.api.listLocalLibraryRoots(), options.api.getLocalLibraryPlaybackTarget()])
     if (!active || disposed || generation !== contextGeneration) return
-    if (nextRoots.status === 'fulfilled') roots.value = nextRoots.value
+    if (nextRoots.status === 'fulfilled') { roots.value = nextRoots.value; rootsLoaded.value = true; rootsError.value = '' }
+    else rootsError.value = '音乐库目录状态暂时无法读取，已保存的音乐保留，请重试读取。'
     if (nextTarget.status === 'fulfilled' && (nextTarget.value === null || isLocalPlayTarget(nextTarget.value))) target.value = nextTarget.value
     else target.value = null
   }
@@ -202,7 +222,11 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     const generation = ++outboxGeneration, originalOverride = overrideBinding, originalRelocation = pendingRelocation.value
     try {
       const overview = await options.api.getCommandOutbox()
-      if (active && !disposed && generation === outboxGeneration) return applyOutbox(overview, originalOverride, originalRelocation)
+      if (active && !disposed && generation === outboxGeneration) {
+        const changed = applyOutbox(overview, originalOverride, originalRelocation)
+        if (isCommandOutboxOverview(overview)) displayDatasetId.value = overview.datasetId === sessionDatasetId ? overview.datasetId : null
+        return changed
+      }
     } catch { /* 读取失败不改变未知业务动作，也不重发。 */ }
     return false
   }
@@ -228,21 +252,29 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   }
   async function captureDataset(): Promise<string | null> {
     if (!options.api.getCommandOutbox) return null
+    const generation = actionGeneration
     const overview = await options.api.getCommandOutbox()
     if (!isCommandOutboxOverview(overview)) throw new Error('工作库身份未确认')
     sessionDatasetId ??= overview.datasetId
-    if (overview.datasetId !== sessionDatasetId) throw new Error('工作库已变化')
+    if (overview.datasetId !== sessionDatasetId) {
+      if (active && !disposed && generation === actionGeneration) displayDatasetId.value = null
+      throw new Error('工作库已变化')
+    }
+    if (active && !disposed && generation === actionGeneration) displayDatasetId.value = overview.datasetId
     return overview.datasetId
   }
   async function refresh(): Promise<void> { await refreshOutbox(); if (active && !disposed) await refreshBusiness() }
-  async function activate(): Promise<void> {
+  async function activate(activation: LocalLibraryActivationOptions = {}): Promise<void> {
     if (disposed) return
+    if (trackReadsEnabled && activation.deferTrackReads) { queryGeneration++; loading.value = false }
+    trackReadsEnabled = !activation.deferTrackReads
     active = true
+    if (activation.deferContextReads) { contextGeneration++; outboxGeneration++; return }
     const [reconciled] = await Promise.all([refreshOutbox(), refreshContext(), pump(), selectedId.value ? selectTrack(selectedId.value, true) : Promise.resolve()])
     if (reconciled && active && !disposed) await refreshBusiness()
   }
   function suspend(): void { artwork.close(); organizer.close(); sourceWrites.close(); relocationPlans.close(); active = false; queryGeneration++; detailGeneration++; contextGeneration++; actionGeneration++; outboxGeneration++; loading.value = false; detailLoading.value = false; target.value = null }
-  function dispose(): void { stopPlaybackObservation?.(); artwork.dispose(); organizer.dispose(); sourceWrites.dispose(); relocationPlans.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
+  function dispose(): void { stopPlaybackObservation?.(); artwork.dispose(); organizer.dispose(); sourceWrites.dispose(); relocationPlans.dispose(); suspend(); disposed = true; displayDatasetId.value = null; pages.clear(); cacheVersion.value++ }
   function toggleTrackSelection(trackId: string): void {
     if (!isCollectionId(trackId)) return
     selectionError.value = ''
@@ -290,7 +322,11 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
       const album=action==='PLAY_NOW'?options.getPlaybackAlbum?.()??null:null
       if(album&&!isLocalAlbumSummary(album))throw new Error('专辑选择失效')
       const albumIdentity=album?JSON.stringify([album.id,album.rootId,album.revision,album.kind,album.editionId,album.trackCount]):null
-      const [current, currentTarget, currentRoots] = await Promise.all([options.api.getLocalLibraryTrackDetail(trackId), options.api.getLocalLibraryPlaybackTarget(), options.api.listLocalLibraryRoots()])
+      const [current, currentTarget, currentRoots] = await Promise.all([
+        traceLocalPlaybackStep('detail', () => options.api.getLocalLibraryTrackDetail(trackId)),
+        traceLocalPlaybackStep('target', () => options.api.getLocalLibraryPlaybackTarget()),
+        traceLocalPlaybackStep('roots', () => options.api.listLocalLibraryRoots()),
+      ])
       if (!active || disposed || generation !== actionGeneration) return
       if (!isLocalLibraryTrackDetail(current) || current.track.id !== trackId) throw new Error('曲目选择失效')
       roots.value = currentRoots; target.value = currentTarget
@@ -301,7 +337,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
       if (current.track.segment !== null) { actionError.value = '当前 CUE 段落尚不支持原文件直送，曲目保留。'; return }
       let albumSelection:import('@music-bridge/contracts').LocalPlayAlbum|undefined
       if(album){
-        const datasetId=await captureDataset(),latest=options.getPlaybackAlbum?.()
+        const datasetId=await traceLocalPlaybackStep('dataset', captureDataset),latest=options.getPlaybackAlbum?.()
         if(!active||disposed||generation!==actionGeneration)return
         if(!datasetId||!latest||albumIdentity!==JSON.stringify([latest.id,latest.rootId,latest.revision,latest.kind,latest.editionId,latest.trackCount])
           ||album.rootId!==current.asset.libraryRootId)throw new Error('专辑或工作库选择已变化')
@@ -314,7 +350,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
       dispatchedRequest = request
       resolvedPlay = null
       lastPlay.value = { request, result: null, outcome: 'pending' }
-      const result = await options.play(request)
+      const result = await traceLocalPlaybackStep('submit', () => options.play(request))
       if (disposed || lastPlay.value?.request.request_id !== request.request_id) return
       if (result.status === 'accepted' && (result.request_id !== request.request_id || result.action !== request.action)) throw new Error('受理身份不一致')
       lastPlay.value = { request, result, outcome: 'received' }
@@ -444,7 +480,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     || relocationPlans.confirming.value || relocationPlans.cleaning.value || relocationPlans.cancelling.value || relocationPlans.unknown.value
     || organizer.confirming.value || organizer.undoing.value || organizer.cancelling.value || organizer.unknown.value
     || artwork.applying.value || artwork.creating.value || !!artwork.pendingApply.value || !!artwork.pendingEdition.value || !!pendingOverride.value || relocationUnknown.value)
-  return { maintenanceLocked, query, rootId, total, scrollTop, loaded, loading, stale, error, roots, target, targetLabel, rangeWindow, tracks, cachePageCount,
+  return { displayDatasetId: readonly(displayDatasetId), maintenanceLocked, query, rootId, total, scrollTop, loaded, loading, stale, error, roots, rootsLoaded, rootsError, target, targetLabel, rangeWindow, tracks, cachePageCount,
     selectedId, detail, detailLoading, detailStale, detailError, detailReturnTarget, selectedRoot, actionBusy, actionError, titleDraft, pendingOverride, lastPlay,canReadOriginalPlay,readOriginalPlay,
     candidates, relocationSelection, relocationConfirmed, relocationUnknown, pendingRelocation,
     artwork, detailArtwork, organizer, sourceWrites, relocationPlans, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection, openRelocationTrack, openRelocationBatch, openRelocationTracks,

@@ -73,7 +73,7 @@ onBeforeUnmount(() => { dialog.value?.close(); if (returnFocus?.isConnected) ret
       <div><p class="eyebrow">本地音乐库 · 独立发行</p><h2 id="local-artwork-title">选择封面</h2></div>
       <button type="button" data-dialog-close aria-label="关闭封面选图" @click="close">关闭</button>
     </header>
-    <p id="local-artwork-policy" class="policy">音乐封面按 MusicBrainz 发行记录查找 Cover Art Archive 图片；CC0 补充图库需主动选择。远程请求仅在你点击搜索时进行。选图仅用于 MusicBridge 显示，不改写源文件，也不用于发行合并或音质判定。</p>
+    <p id="local-artwork-policy" class="policy">音乐封面按 MusicBrainz 发行记录查找 Cover Art Archive 图片；CC0 补充图库需主动选择。远程请求仅在你点击搜索时进行。选图仅用于 Mousa 显示，不改写源文件，也不用于发行合并或音质判定。</p>
 
     <p v-if="session.loading.value" class="status" role="status">正在读取封面与独立发行…</p>
     <template v-if="context">

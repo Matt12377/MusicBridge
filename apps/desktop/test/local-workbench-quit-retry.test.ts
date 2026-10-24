@@ -7,10 +7,10 @@ import { shouldHideWindowOnClose } from '../src/main/tray.js'
 
 const tick = () => new Promise<void>(resolve => setImmediate(resolve))
 const phases = [
-  'prepare_name', 'prepare_lyrics', 'prepare_reads', 'prepare_normalizer', 'owner_shutdown',
+  'prepare_name', 'prepare_lyrics', 'prepare_reads', 'prepare_normalizer', 'prepare_media_worker', 'owner_shutdown',
   'join_name', 'join_lyrics_grant', 'join_lyrics_provider', 'join_directory', 'join_readers',
   'close_management', 'close_legacy', 'close_assembly', 'close_lyrics_main', 'close_lyrics_provider', 'close_name',
-  'remote_stop', 'mobile_close', 'close_outbox',
+  'remote_stop', 'mobile_close', 'close_outbox', 'close_artist_catalog', 'close_pairing_prompts',
 ] as const
 type Phase = typeof phases[number]
 type Entry = { kind: string; phase?: string; attempt?: number; status?: string }
@@ -84,6 +84,11 @@ async function originalQuitFixture(controls: Partial<Record<Phase, (attempt: num
       joinPrivateWorkbenchReadersProducer: () => stage('join_readers'),
     },
     localWorkbenchRootMainAuthor: { binding: Object.freeze({ original: true }) },
+    artistCatalogService: { close: () => stage('close_artist_catalog') },
+    localWorkbenchMainRecovery: { close: () => record('recovery.close') },
+    remoteCoreStartup: { cancel: () => record('startup.cancel') },
+    remoteCoreModeIntent: 0,
+    remoteCoreModeController: { reset: () => record('remote-mode.reset') },
     localWorkbenchManagementBoundary: { seal: () => record('management.seal'), close: () => stage('close_management') },
     localWorkbenchLegacyIpc: { sealReads: () => stage('prepare_reads'), close: () => stage('close_legacy') },
     localArtworkImportNormalizer: { close: () => stage('prepare_normalizer') },
@@ -93,12 +98,14 @@ async function originalQuitFixture(controls: Partial<Record<Phase, (attempt: num
     localNameMainBridge: { sealOwner: () => stage('prepare_name'), close: () => stage('close_name') },
     remoteCoreTunnelManager: { stop: () => stage('remote_stop').then(state => state ?? { mode: 'local-core', status: 'idle' }) },
     mobileConnectionSettings: { close: () => stage('mobile_close') },
+    mobilePairingPrompts: { stop: () => stage('close_pairing_prompts') },
     commandOutbox: { close: () => { record('outbox.close'); return stage('close_outbox') } },
     roonDisplayConnection: { stop: () => record('roon.stop') },
     closeLocalArtwork: () => record('artwork.seal'),
     closeLocalSourceWrites: () => record('source.seal'),
     closeLocalRelocation: () => record('relocation.seal'),
     stopRecordingPrintWorker: () => record('print.stop'),
+    closeRustMediaWorkerPool: () => stage('prepare_media_worker'),
     destroyTray: () => { destroyed++; record('tray.destroy') },
     revokeLocalWorkbenchRootMainAuthor: () => { revoked++; record('author.revoke') },
     mainDiagnostics: {
@@ -118,7 +125,7 @@ async function originalQuitFixture(controls: Partial<Record<Phase, (attempt: num
     revokeLocalWorkbenchRootMainAuthor = () => { originalRevoke(); localWorkbenchRootMainAuthor = undefined; };
     ${transpiled.outputText}
     return { callback, closeWindow, state: () => ({ quitAfterCoreShutdown, localWorkbenchShutdownConfirmed }),
-      clearCurrentResources: () => { localWorkbenchMainAssembly = undefined; localNameMainBridge = undefined; localWorkbenchLegacyIpc = undefined; } };
+      clearCurrentResources: () => { localWorkbenchMainAssembly = undefined; localNameMainBridge = undefined; localWorkbenchLegacyIpc = undefined; mobilePairingPrompts = undefined; } };
   `) as (input: typeof environment) => {
     callback(event: QuitEvent): void
     closeWindow(event: QuitEvent): void
@@ -252,4 +259,45 @@ test('Main原远程stop返回failed不能确认退出，补原stop仍保首错�
   assert.equal(fixture.count('owner_shutdown'), 1)
   assert.equal(fixture.state().localWorkbenchShutdownConfirmed, true)
   assert.equal(fixture.counters().quitCalls, 1)
+})
+
+test('Main退出先等同原移动服务，再join首次固定的原生配对窗口，重复Quit不并发', { timeout: 2_000 }, async t => {
+  const mobile = heldClose(), prompts = heldClose();
+  t.after(async () => { mobile.resolve(); prompts.resolve(); await tick() })
+  const fixture = await originalQuitFixture({ mobile_close: () => mobile.promise, close_pairing_prompts: () => prompts.promise });
+  fixture.invoke(); await tick();
+  assert.equal(fixture.count('mobile_close'), 1);
+  assert.equal(fixture.count('close_pairing_prompts'), 0, '原移动服务关闭前不提前宣布原生窗口已join');
+  fixture.clearCurrentResources();
+  mobile.resolve(); await tick();
+  assert.equal(fixture.count('close_pairing_prompts'), 1, 'global被撤销后仍join首次退出固定的prompt对象');
+  assert.equal(fixture.state().localWorkbenchShutdownConfirmed, false);
+  assert.equal(fixture.counters().quitCalls, 0);
+  fixture.invoke(); fixture.invoke(); await tick();
+  assert.equal(fixture.count('mobile_close'), 1);
+  assert.equal(fixture.count('close_pairing_prompts'), 1);
+  prompts.resolve(); await tick();
+  assert.equal(fixture.state().localWorkbenchShutdownConfirmed, true);
+  assert.equal(fixture.counters().quitCalls, 1);
+  assert.equal(fixture.count('owner_shutdown'), 1);
+})
+
+test('Main移动服务关闭失败也join原生配对窗口，保留原失败并按同原对象补关闭', { timeout: 2_000 }, async t => {
+  const prompts = heldClose(), original = Object.assign(new Error('合成移动服务关闭失败'), { code: 'CHANGED' });
+  t.after(async () => { prompts.resolve(); await tick() })
+  const fixture = await originalQuitFixture({ mobile_close: attempt => { if (attempt === 1) throw original }, close_pairing_prompts: () => prompts.promise });
+  fixture.invoke(); await tick();
+  assert.equal(fixture.count('close_pairing_prompts'), 1);
+  assert.equal(fixture.state().localWorkbenchShutdownConfirmed, false);
+  assert.equal(fixture.counters().quitCalls, 0);
+  prompts.resolve(); await tick();
+  assert.ok(fixture.diagnostics.some(item => item.event === 'local_workbench_shutdown_failure' && item.fields.state === 'mobile_close' && item.fields.code === 'CHANGED'));
+  assert.equal(fixture.state().localWorkbenchShutdownConfirmed, false);
+  assert.equal(fixture.count('owner_shutdown'), 1, '移动关闭失败仍完成原Owner清理');
+  fixture.invoke(); await tick();
+  assert.equal(fixture.count('mobile_close'), 2);
+  assert.equal(fixture.count('close_pairing_prompts'), 2);
+  assert.equal(fixture.count('owner_shutdown'), 1);
+  assert.equal(fixture.state().localWorkbenchShutdownConfirmed, true);
+  assert.equal(fixture.counters().quitCalls, 1);
 })

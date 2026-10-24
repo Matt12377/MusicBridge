@@ -33,7 +33,7 @@ interface Resource {
 }
 interface Job {
   identity: string; signature: string; source: MobileDsdSourceAccess; deadline: number;
-  resources: Set<Resource>; controller: AbortController; done: Promise<void>; started: boolean; accepting: boolean;
+  resources: Set<Resource>; controller: AbortController; done: Promise<void>; started: boolean; accepting: boolean; releaseActivity?: () => void;
 }
 
 /** 缓存只有原 Dataset Owner 一个作者；不打开 SQLite，不在 Main 建 FD Pool。 */
@@ -230,7 +230,8 @@ export async function createMobilePreparedCache(options: {
   function pump(): void {
     if (active || closing || fatal) return; const next = queue.shift(); if (!next) return;
     active = next; next.started = true;
-    const done = execute(next).then(() => { if (jobs.get(next.identity) === next) jobs.delete(next.identity); if (active === next) active = null; pump(); }, error => { fatal = true; throw error; });
+    // 只有真实execute及其FD/子进程finally完成才归还；quiet未知的拒绝保留活动。
+    const done = execute(next).then(() => { next.releaseActivity?.(); delete next.releaseActivity; if (jobs.get(next.identity) === next) jobs.delete(next.identity); if (active === next) active = null; pump(); }, error => { fatal = true; throw error; });
     next.done = done; void done.catch(() => { /* quiet 未证则保留容量/资源；close/release 会观察同一个拒绝。 */ });
   }
   function waitingDeadline(window: MobilePlaybackPreparationWindow): number {
@@ -245,7 +246,7 @@ export async function createMobilePreparedCache(options: {
     r.controller.abort(); r.state = 'released'; if (r.timer) clearTimeout(r.timer); r.timer = null;
     return r.closing ??= (async () => {
       const job = r.job; job?.resources.delete(r);
-      if (job && job.resources.size === 0) { job.controller.abort(); if (!job.started) { const index = queue.indexOf(job); if (index >= 0) queue.splice(index,1); jobs.delete(job.identity); await closeMobileDsdSource(job.source); } await job.done; }
+      if (job && job.resources.size === 0) { job.controller.abort(); if (!job.started) { const index = queue.indexOf(job); if (index >= 0) queue.splice(index,1); jobs.delete(job.identity); await closeMobileDsdSource(job.source); job.releaseActivity?.(); delete job.releaseActivity; } await job.done; }
       await Promise.allSettled([...r.pending]);
       if (r.file) { await r.file.close(); r.file = null; }
       r.entry?.refs.delete(r.id); r.entry = null;
@@ -259,7 +260,7 @@ export async function createMobilePreparedCache(options: {
     r.timer = setTimeout(() => { void release(r.id).catch(() => { fatal = true; }); }, r.expiresAt - Date.now()); r.timer.unref();
   }
   const cache: MobilePreparedCache = Object.freeze({ get qualified(){ return !closing && !fatal; },
-    async begin(request: {resourceId:string;source:MobileDsdSourceAccess;window:MobilePlaybackPreparationWindow}, signal:AbortSignal): Promise<MobileDsdCacheStatus> {
+    async begin(request: {resourceId:string;source:MobileDsdSourceAccess;window:MobilePlaybackPreparationWindow;beginActivity?:()=>()=>void}, signal:AbortSignal): Promise<MobileDsdCacheStatus> {
       current(); if (!UUID.test(request.resourceId) || signal.aborted) return fail('RESOURCE_RELEASED');
       const prior = resources.get(request.resourceId); if (prior) {
         const original = mobileDsdSourceIdentity(prior.source), next = mobileDsdSourceIdentity(request.source);
@@ -272,7 +273,7 @@ export async function createMobilePreparedCache(options: {
       const r:Resource={id:request.resourceId,source:request.source,window:{...request.window},deadline,state:'preparing',controller:new AbortController(),
         error:null,job:null,entry:null,file:null,pending:new Set(),closing:null,fromCache:false,expiresAt:0,timer:null}; resources.set(r.id,r);renewLease(r);
       let job = jobs.get(grouping); if (job && !job.accepting) job = undefined;
-      if (!job) { job={identity:grouping,signature:identity.signature,source:r.source,deadline,resources:new Set(),controller:new AbortController(),done:Promise.resolve(),started:false,accepting:true}; jobs.set(grouping,job); queue.push(job); }
+      if (!job) { job={identity:grouping,signature:identity.signature,source:r.source,deadline,resources:new Set(),controller:new AbortController(),done:Promise.resolve(),started:false,accepting:true,...(request.beginActivity ? { releaseActivity: request.beginActivity() } : {})}; jobs.set(grouping,job); queue.push(job); }
       r.job=job; job.resources.add(r); pump(); return preparing(r);
     },
     async status(id:string):Promise<MobileDsdCacheStatus> { current(); const r=resources.get(id); if(!r || r.state==='released')return fail('RESOURCE_RELEASED');

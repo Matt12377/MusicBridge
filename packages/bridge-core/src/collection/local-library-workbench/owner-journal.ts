@@ -614,7 +614,8 @@ export function projectLocalScanSettingsOwnerEvent(value:LocalScanSettingsOwnerP
     if(event.expectedRevision!==value.settings.revision)return invalid()
     result=structuredClone(event.settings);value.settings=result
   }else{
-    if(value.jobs.has(event.frozen.jobId)||event.frozen.settingsRevision!==value.settings.revision||event.frozen.albumConcurrency!==value.settings.albumConcurrency||event.frozen.readerConcurrency!==1)return invalid()
+    if(value.jobs.has(event.frozen.jobId)||event.frozen.settingsRevision!==value.settings.revision||event.frozen.albumConcurrency!==value.settings.albumConcurrency
+      ||!(event.schema===1&&[1,2].includes(event.frozen.readerConcurrency)||event.schema===2&&event.frozen.readerConcurrency===8))return invalid()
     result=structuredClone(event.frozen);value.jobs.set(event.frozen.jobId,result)
   }
   value.commands.set(event.commandId,{event:structuredClone(event),result});value.highWater=sequence
@@ -836,7 +837,7 @@ function libraryInput(value:unknown):unknown {return libraryInputWithCanonical(v
 const libraryIds = (value: unknown, min = 0, max = 10000): value is string[] => isLocalWorkbenchDenseArray(value, max)
   && value.length >= min && value.every(dto.isLocalWorkbenchIdentity) && new Set(value).size === value.length
 const librarySame = (left: unknown, right: unknown): boolean => localWorkbenchJournalCanonical(left) === localWorkbenchJournalCanonical(right)
-const libraryMetadata = (value: unknown): value is dto.LocalMetadata => isLocalWorkbenchDataRecord(value, [], ['title','artist','album','disc','track','year']) && dto.isLocalMetadata(value)
+const libraryMetadata = (value: unknown): value is dto.LocalMetadata => isLocalWorkbenchDataRecord(value, [], ['title','artist','album','disc','track','year','albumArtist','artists','albumArtists']) && dto.isLocalMetadata(value)
 const libraryFinite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0
 /** 原扫描的完整叶约束；不反向导入持久ScanStore形成新的依赖环。 */
 function libraryScanFile(value: unknown): value is import('../local-scan-facts.js').ScanFileState {
@@ -1216,6 +1217,14 @@ export function assertLocalLibraryManagementBatch(previous:ReadonlyMap<string,Lo
       if(!librarySame(ids,wanted)||!librarySame(operation.receipt.libraryIds,wanted))return invalid()
       for(const binding of paired){
         const old=previous.get(librarySlot('binding',binding.key))?.record
+        if(!old){
+          const pending=previous.get(librarySlot('operation',operation.key))?.record
+          // 仅原旧库remove可首次写停用标记；已受理running和成功回执仍必须是同完整原命令。
+          if(command!=='library.remove'||binding.revision!==1||binding.active||binding.watchEnabled||binding.role!=='catalog'
+            ||pending?.kind!=='operation'||pending.revision!==1||pending.receipt.state!=='running'||pending.original.command!=='library.remove'
+            ||operation.revision!==2||pending.originalSha256!==operation.originalSha256||!librarySame(pending.original,operation.original))return invalid()
+          continue
+        }
         if(old?.kind!=='binding'||!old.active||binding.sourceRootId!==old.sourceRootId||binding.rootRevision!==old.rootRevision||binding.role!==old.role)return invalid()
         const expected={...old,revision:binding.revision,operationId:operation.key}
         if(command==='library.rename')expected.name=(request as dto.LocalLibraryManagementPayloads['library.rename']).name

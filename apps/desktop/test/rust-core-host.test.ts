@@ -111,7 +111,7 @@ test('只指定 Rust 配置保留既有第七参数行为，不要求主机 call
   assert.equal(calls[0]![7], undefined)
 })
 
-test('Worker 使用固定 Owner 文件、名称、三键身份、同一物理锁SAB和有限环境；原 Client 准备启动关闭各一次', async t => {
+test('Worker 使用固定 Owner 文件、名称、四键身份、同一物理锁与撤销SAB和有限环境；原 Client 准备启动关闭各一次', async t => {
   const descriptor = Object.getOwnPropertyDescriptor(process, 'resourcesPath')
   Object.defineProperty(process, 'resourcesPath', { configurable: true, value: '/synthetic/resources' })
   t.after(() => { if (descriptor) Object.defineProperty(process, 'resourcesPath', descriptor); else Reflect.deleteProperty(process, 'resourcesPath') })
@@ -132,8 +132,13 @@ test('Worker 使用固定 Owner 文件、名称、三键身份、同一物理锁
   assert.equal(creations[0]!.entry.href, new URL('../src/main/dataset-owner.js', import.meta.url).href)
   assert.equal(creations[0]!.options.name, 'MusicBridge Dataset Owner')
   const workerData = creations[0]!.options.workerData
-  assert.deepEqual(workerData, { dataDirectory: '/synthetic/data', resourcesDirectory: '/synthetic/resources', physicalResourceBuffer: physicalResourceLocks.buffer })
-  assert.deepEqual(Object.keys(workerData).sort(), ['dataDirectory', 'physicalResourceBuffer', 'resourcesDirectory'])
+  const revocationBuffer = workerData.albumReadRevocationBuffer
+  assert.ok(revocationBuffer instanceof SharedArrayBuffer)
+  assert.equal(revocationBuffer.byteLength, 4)
+  const revocation = new Int32Array(revocationBuffer)
+  assert.equal(Atomics.load(revocation, 0), 0)
+  assert.deepEqual(workerData, { dataDirectory: '/synthetic/data', resourcesDirectory: '/synthetic/resources', physicalResourceBuffer: physicalResourceLocks.buffer, albumReadRevocationBuffer: revocationBuffer })
+  assert.deepEqual(Object.keys(workerData).sort(), ['albumReadRevocationBuffer', 'dataDirectory', 'physicalResourceBuffer', 'resourcesDirectory'])
   assert.equal(workerData.physicalResourceBuffer, physicalResourceLocks.buffer)
   assert.ok(workerData.physicalResourceBuffer instanceof SharedArrayBuffer)
   assert.equal(workerData.physicalResourceBuffer.byteLength, PHYSICAL_RESOURCE_BUFFER_BYTES)
@@ -141,17 +146,53 @@ test('Worker 使用固定 Owner 文件、名称、三键身份、同一物理锁
   const identity = await owner.prepare()
   assert.equal(identity.datasetId, worker.datasetId)
   await owner.commitBoot()
-  await owner.close()
+  const closing = owner.close()
+  assert.equal(Atomics.load(revocation, 0), 1, 'Client必须同步置同一WorkerData闩，不能等待关闭回包才撤销')
+  assert.equal(closing, owner.close())
+  await closing
+  assert.equal(Atomics.load(revocation, 0), 1)
   assert.deepEqual(worker.requests.map(request => request.operation), ['prepare', 'commitBoot', 'close'])
   assert.equal(fatal, undefined)
 })
 
+test('同一宿主工厂的每个Owner独占撤销闩，未打开工作台也同步撤销且不影响另一Owner', async t => {
+  const { calls, run } = capture(), workers: OwnerWorker[] = [], buffers: SharedArrayBuffer[] = []
+  await runDesktopCoreHost({ env, dependencies: { runCoreUtilityProcess: run, createWorker(_entry, options) {
+    const worker = new OwnerWorker(); workers.push(worker)
+    assert.equal(options.workerData.physicalResourceBuffer, physicalResourceLocks.buffer)
+    buffers.push(options.workerData.albumReadRevocationBuffer); return worker.asWorker()
+  } } })
+  const factory = calls[0]![5]!, options = { projection: async () => { throw new Error('本场景不投影') }, onFatal: () => {} }
+  const first = factory(options), second = factory(options)
+  t.after(async () => { await Promise.all([first.close(), second.close()]) })
+  assert.equal(workers.length, 2); assert.equal(buffers.length, 2); assert.notEqual(buffers[0], buffers[1])
+  const firstState = new Int32Array(buffers[0]!), secondState = new Int32Array(buffers[1]!)
+  assert.equal(Atomics.load(firstState, 0), 0); assert.equal(Atomics.load(secondState, 0), 0)
+  const firstIdentity = await first.prepare(), secondIdentity = await second.prepare()
+  assert.notEqual(firstIdentity.epoch, secondIdentity.epoch)
+  await first.commitBoot(); await second.commitBoot()
+  assert.equal(typeof first.closeWorkbench, 'function')
+  const draining = first.closeWorkbench!()
+  assert.equal(Atomics.load(firstState, 0), 1, 'closeWorkbench返回Promise前就必须封住原只读入口')
+  assert.equal(Atomics.load(secondState, 0), 0, '另一Owner的独立闩不能被旧Owner撤销')
+  await draining
+  assert.deepEqual(workers[0]!.requests.map(request => request.operation), ['prepare', 'commitBoot'], '未打开过工作台保留原无drain消息路径')
+  const closing = second.close()
+  assert.equal(Atomics.load(secondState, 0), 1); assert.equal(Atomics.load(firstState, 0), 1)
+  await closing
+  assert.equal(Atomics.load(secondState, 0), 1, '关闭回包不得把单向闩复位')
+})
+
 test('原 fatal 回调继续由 Client 上报，无自动重建 Owner', async () => {
   const { calls, run } = capture(), worker = new OwnerWorker()
-  let creations = 0, fatal: unknown
-  await runDesktopCoreHost({ env, dependencies: { runCoreUtilityProcess: run, createWorker() { creations++; return worker.asWorker() } } })
+  let creations = 0, fatal: unknown, revocationBuffer: SharedArrayBuffer | undefined
+  await runDesktopCoreHost({ env, dependencies: { runCoreUtilityProcess: run, createWorker(_entry, options) { creations++; revocationBuffer = options.workerData.albumReadRevocationBuffer; return worker.asWorker() } } })
   const owner = calls[0]![5]!({ projection: async () => { throw new Error('本场景不投影') }, onFatal: reason => { fatal = reason } })
+  assert.ok(revocationBuffer instanceof SharedArrayBuffer)
+  const revocation = new Int32Array(revocationBuffer)
+  assert.equal(Atomics.load(revocation, 0), 0)
   worker.emit('error', new Error('合成线程故障'))
+  assert.equal(Atomics.load(revocation, 0), 1, '原fatal必须撤销同一物理闩')
   assert.equal(fatal, 'worker-error')
   await assert.rejects(owner.prepare())
   assert.equal(creations, 1)

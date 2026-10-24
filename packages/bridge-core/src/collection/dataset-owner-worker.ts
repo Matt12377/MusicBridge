@@ -1,8 +1,11 @@
+import { copyCatalogTraceHop, withCatalogTrace, withCatalogTraceScope, catalogTraceAsync } from '../mobile/catalog-private-trace.js';
+import { createMobileOwnerLoadTraceContext, withMobileOwnerLoadTrace, markMobileOwnerLoadTrace, observeMobileOwnerLoadTrace } from '../mobile/owner-load-trace.js';
 import { captureLocalAlbumContext, withLocalAlbumContext, runLocalAlbumContext, localAlbumPhase, localAlbumMatch, localAlbumReject, localAlbumRejectCode, emitLocalAlbumNodeTrace, localAlbumLink, type LocalAlbumNodeContext } from '../shared/local-album-read-trace-node.js';
 import { createMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync, mobileCapabilityReject, closeMobileCapabilityContext } from '../mobile/capability-trace.js';
+import { createMobileRangeWindowOwnerReceiver, isMobileRangeWindowOwnerWire, flushMobileRangeWindowOwner, mobileRangeWindowCoreObserve } from '../mobile/range-window-observer.js';
 import { consumeSourceWorkbenchDirectoryReply, isSourceWorkbenchDirectoryWire, captureSourceWorkbenchDirectoryRegistrationRequest, captureSourceWorkbenchDirectoryRegistrationReply, captureSourceWorkbenchDirectoryRegistration, invalidateSourceWorkbenchDirectory, type SourceWorkbenchDirectoryOwnerDomain } from './source-writes-authority.js';
 import { lyricsPhysicalDigest as directoryDigest } from '../library/lyrics-source-format.js';
-import { isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest, type DatasetWorkbenchResult, type DatasetWorkbenchContext } from './dataset-owner-protocol.js';
+import { isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, datasetWorkbenchRequestMs, datasetWorkbenchExecutionDeadline, isDatasetWorkbenchContextKind, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest, type DatasetWorkbenchResult, type DatasetWorkbenchContext } from './dataset-owner-protocol.js';
 import { MBQueueStoreError } from './mb-queue-store.js';
 import {LocalSourcePreparationError} from '../application/local-source-resolver.js';
 import { LocalFactsCommitFatal } from '../stream/local-source-fence.js';
@@ -19,6 +22,7 @@ import { createRelocationMainActor } from './source-relocation-authority.js';
 import { validateIpcRequest, validateIpcInternalRequest, isLocalCatalogInternalCommand, isLocalScanInternalCommand, type IpcCommand, type IpcFailure } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import { readDatasetOwnerRequestForCapture } from '../mobile/owner-boundary-capture.js';
+import { attachMobileSealedOwnerReceiver, encodeMobileSealedOwnerReply } from '../mobile/sealed-request-transport.js';
 import {
   DATASET_OWNER_PROTOCOL_VERSION, DatasetOwnerDispatchError, DatasetOwnerTransportError,
   isDatasetCollectionSnapshot, isDatasetLargeCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionResponse,
@@ -44,6 +48,9 @@ interface PendingProjection {
 }
 
 export function attachDatasetOwnerWorkerPort(port: MessagePort, options: DatasetOwnerWorkerOptions): void {
+  const ownerRange = createMobileRangeWindowOwnerReceiver({ sink(frame) {
+    try { port.postMessage(frame); } catch { /* 旁注post失败不调用原业务abandon。 */ }
+  } });
   let epoch: string | undefined;
   let lastSequence = 0;
   let domain: OwnedDatasetDomain | undefined;
@@ -59,13 +66,13 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   let disconnected = false;
   const dispatches = new Set<Promise<unknown>>();
   const projections = new Map<string, PendingProjection>();
-  type WorkbenchFlight={meta:DatasetWorkbenchMeta;assembly:ReturnType<typeof createDatasetWorkbenchAssembler>;controller:AbortController;timer:NodeJS.Timeout;running:boolean;expired:boolean;task?:Promise<void>;trace?:LocalAlbumNodeContext|undefined}
+  type WorkbenchFlight={meta:DatasetWorkbenchMeta;receivedAtMs:number;startedAtMs:number;deadlineAtMs:number;assembly:ReturnType<typeof createDatasetWorkbenchAssembler>;controller:AbortController;timer:NodeJS.Timeout;running:boolean;expired:boolean;task?:Promise<void>;trace?:LocalAlbumNodeContext|undefined}
   const workbenchFlights=new Map<string,WorkbenchFlight>(),workbenchRetired=new Map<string,DatasetWorkbenchMeta>()
   let workbenchClosing=false,workbenchClosure:Promise<void>|undefined
   function wbPost(frame:unknown):void{post(frame)}
   function wbFailure(item:WorkbenchFlight,code:'INVALID_IPC_REQUEST'|'INVALID_IPC_RESPONSE'|'OUTBOX_SCOPE_MISMATCH'|'NOT_READY'|'TIMEOUT',cause?:{error:unknown}):void{
     if(!item.expired){
-      if(item.meta.kind==='context')try{
+      if(isDatasetWorkbenchContextKind(item.meta.kind))try{
         const record=()=>{if(cause)localAlbumReject(cause.error,code);else localAlbumRejectCode(code,code)};
         if(item.trace)withLocalAlbumContext(item.trace,record);
         else runLocalAlbumContext(item.meta.id,null,'context.worker.receive',record,false,false);
@@ -76,7 +83,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   function wbSettle(item:WorkbenchFlight):void{
     clearTimeout(item.timer);workbenchFlights.delete(item.meta.id);workbenchRetired.set(item.meta.id,item.meta)
     if(workbenchRetired.size>1024)workbenchRetired.delete(workbenchRetired.keys().next().value!)
-    if(item.expired||item.meta.kind==='context')wbPost(datasetWorkbenchControl(item.meta,'settled'))
+    if(item.expired||isDatasetWorkbenchContextKind(item.meta.kind))wbPost(datasetWorkbenchControl(item.meta,'settled'))
   }
   function wbCloseDomain():Promise<void>{
     if(!workbenchClosure){workbenchClosing=true;for(const item of workbenchFlights.values())if(item.meta.kind!=='drain'){item.controller.abort();if(!item.running){wbFailure(item,'NOT_READY');wbSettle(item)}}
@@ -84,11 +91,12 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     return workbenchClosure
   }
   async function wbContext(meta:DatasetWorkbenchMeta):Promise<DatasetWorkbenchContext>{
-    if(meta.kind==='context')try{localAlbumPhase('context.worker.ready')}catch{}
+    if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase('context.worker.ready')}catch{}
     if(closing||failed||workbenchClosing||!bootCommitted||!domain?.workbenchContext||!domain.dispatchWorkbench||!domain.dispatchWorkbenchOwner||!domain.closeWorkbench||domain.datasetId!==boundDatasetId||meta.epoch!==epoch||meta.datasetId!==boundDatasetId)throw new DatasetWorkbenchWireError('NOT_READY','not-sent')
-    if(meta.kind==='context')try{localAlbumPhase('context.worker.owner')}catch{}
-    const value=await domain.workbenchContext()
-    if(meta.kind==='context')try{localAlbumPhase('context.worker.dto')}catch{}
+    if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase('context.worker.owner')}catch{}
+    if(meta.kind==='context.identity'&&!domain.workbenchReadIdentity)throw new DatasetWorkbenchWireError('NOT_READY','not-sent')
+    const value=await (meta.kind==='context.identity'?domain.workbenchReadIdentity!():domain.workbenchContext())
+    if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase('context.worker.dto')}catch{}
     if(!isDatasetWorkbenchContext(value)||value.epoch!==epoch||value.datasetId!==boundDatasetId||closing||failed||workbenchClosing||domain.datasetId!==boundDatasetId)throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
     return value
   }
@@ -104,21 +112,28 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     if(raw.part==='begin'){
       if(item||workbenchRetired.has(raw.id)||raw.sequence!==lastSequence+1){protocolFailure();return}
       lastSequence=raw.sequence
-      const meta=datasetWorkbenchMeta(raw),controller=new AbortController(),remaining=Math.min(2000,meta.expiresAtMs-Date.now())
-      const flight:WorkbenchFlight={meta,assembly:createDatasetWorkbenchAssembler(meta,'request'),controller,timer:undefined as unknown as NodeJS.Timeout,running:false,expired:false}
-      if(meta.kind==='context')try{flight.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
+      const meta=datasetWorkbenchMeta(raw),controller=new AbortController(),receivedAtMs=Date.now(),startedAtMs=performance.now(),remaining=Math.min(DATASET_WORKBENCH_BOUNDS.requestMs,meta.expiresAtMs-receivedAtMs)
+      const flight:WorkbenchFlight={meta,receivedAtMs,startedAtMs,deadlineAtMs:startedAtMs+remaining,assembly:createDatasetWorkbenchAssembler(meta,'request'),controller,timer:undefined as unknown as NodeJS.Timeout,running:false,expired:false}
+      if(isDatasetWorkbenchContextKind(meta.kind))try{flight.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
       item=flight;workbenchFlights.set(raw.id,flight)
       flight.timer=setTimeout(()=>{controller.abort();wbFailure(flight,'TIMEOUT');if(!flight.running)wbSettle(flight)},Math.max(1,remaining))
-      if(remaining<=0||workbenchFlights.size>24){if(meta.kind==='context')try{localAlbumPhase('context.worker.ready')}catch{}wbFailure(flight,remaining<=0?'TIMEOUT':'NOT_READY');wbSettle(flight);return}
+      if(meta.kind==='drain'&&meta.expiresAtMs>receivedAtMs+DATASET_WORKBENCH_BOUNDS.drainMs){wbFailure(flight,'INVALID_IPC_REQUEST');wbSettle(flight);return}
+      if(remaining<=0||workbenchFlights.size>24){if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase('context.worker.ready')}catch{}wbFailure(flight,remaining<=0?'TIMEOUT':'NOT_READY');wbSettle(flight);return}
     }
     if(!item){if(workbenchRetired.has(raw.id))return;protocolFailure();return}
     if(item.running||!sameDatasetWorkbenchMeta(raw,item.meta)){protocolFailure();return}
-    if(item.meta.kind==='context')try{item.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
+    if(isDatasetWorkbenchContextKind(item.meta.kind))try{item.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
     try{
       const body=item.assembly.accept(raw);if(body===undefined)return
       if(datasetWorkbenchSha(datasetWorkbenchJson(body))!==item.meta.requestSha256)throw new DatasetWorkbenchWireError('INVALID_IPC_REQUEST')
       if(item.meta.kind==='execute'&&!isDatasetWorkbenchRequest(body)||item.meta.kind==='owner'&&!isDatasetWorkbenchOwnerRequest(body)||!['execute','owner'].includes(item.meta.kind)&&(!ownerRecord(body)||Reflect.ownKeys(body).length!==0))throw new DatasetWorkbenchWireError('INVALID_IPC_REQUEST')
-      const flight=item;flight.running=true
+      if(item.meta.kind==='drain'&&(!bootCommitted||item.meta.epoch!==epoch||item.meta.datasetId!==boundDatasetId||!domain?.closeWorkbench))throw new DatasetWorkbenchWireError('NOT_READY')
+      const flight=item;flight.deadlineAtMs=datasetWorkbenchExecutionDeadline(item.meta,body,item.receivedAtMs,item.startedAtMs);flight.running=true
+      // 身份读也只在合法空正文完成后按原expiry重装剩余计时，不能从现在另给20秒。
+      if(flight.meta.kind==='context.identity'||flight.meta.kind==='drain'||flight.meta.kind==='execute'&&datasetWorkbenchRequestMs(body)===DATASET_WORKBENCH_BOUNDS.libraryRemoveMs){
+        clearTimeout(flight.timer)
+        flight.timer=setTimeout(()=>{flight.controller.abort();wbFailure(flight,'TIMEOUT')},Math.max(1,flight.deadlineAtMs-performance.now()))
+      }
       const task=Promise.resolve().then(async()=>{
         let result:unknown
         if(flight.meta.kind==='drain'){
@@ -126,29 +141,29 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
           await wbCloseDomain();result={closed:true}
         }else{
           const identity=await wbContext(flight.meta)
-          if(flight.controller.signal.aborted||Date.now()>=flight.meta.expiresAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
-          if(flight.meta.kind==='context')result=identity
+          if(flight.controller.signal.aborted||Date.now()>=flight.meta.expiresAtMs||performance.now()>=flight.deadlineAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
+          if(isDatasetWorkbenchContextKind(flight.meta.kind))result=identity
           else if(flight.meta.kind==='owner'){
             if(!isDatasetWorkbenchOwnerRequest(body)||!isDatasetWorkbenchOwnerScope(body,identity.datasetId))throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
-            result=await domain!.dispatchWorkbenchOwner!(structuredClone(body),{identity:Object.freeze({epoch:identity.epoch,datasetId:identity.datasetId}),signal:flight.controller.signal,deadlineAtMs:performance.now()+Math.max(0,flight.meta.expiresAtMs-Date.now())})
+            result=await domain!.dispatchWorkbenchOwner!(structuredClone(body),{identity:Object.freeze({epoch:identity.epoch,datasetId:identity.datasetId}),signal:flight.controller.signal,deadlineAtMs:flight.deadlineAtMs})
             await wbContext(flight.meta)
             if(!isDatasetWorkbenchOwnerResult(body.command,result,body.payload,identity.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
           }else{
             const request=body as DatasetWorkbenchRequest
             if(request.family==='lyrics'&&('scope'in request.payload&&request.payload.scope.datasetId!==identity.datasetId||'library'in request.payload&&request.payload.library.datasetId!==identity.datasetId))throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
-            result=await domain!.dispatchWorkbench!(structuredClone(request),{identity:Object.freeze({epoch:identity.epoch,datasetId:identity.datasetId}),signal:flight.controller.signal,deadlineAtMs:performance.now()+Math.max(0,flight.meta.expiresAtMs-Date.now())})
+            result=await domain!.dispatchWorkbench!(structuredClone(request),{identity:Object.freeze({epoch:identity.epoch,datasetId:identity.datasetId}),signal:flight.controller.signal,deadlineAtMs:flight.deadlineAtMs})
             await wbContext(flight.meta)
             if(!isDatasetWorkbenchResult(request,result,identity.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
           }
         }
-        if(flight.expired||flight.controller.signal.aborted||Date.now()>=flight.meta.expiresAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
-        if(flight.meta.kind==='context')try{localAlbumPhase('context.worker.reply')}catch{}
+        if(flight.expired||flight.controller.signal.aborted||Date.now()>=flight.meta.expiresAtMs||performance.now()>=flight.deadlineAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
+        if(isDatasetWorkbenchContextKind(flight.meta.kind))try{localAlbumPhase('context.worker.reply')}catch{}
         for(const frame of datasetWorkbenchFrames(flight.meta,'response',result))wbPost(frame)
       }).catch(error=>{wbFailure(flight,error instanceof DatasetWorkbenchWireError?error.code:'NOT_READY',{error})}).finally(()=>{dispatches.delete(task);wbSettle(flight)})
       flight.task=task;dispatches.add(task)
     }catch(error){wbFailure(item,error instanceof DatasetWorkbenchWireError?error.code:'INVALID_IPC_REQUEST',{error});wbSettle(item)}
     };
-    if(raw.kind==='context')runLocalAlbumContext(raw.id,null,'context.worker.receive',receive,false,false);else receive();
+    if(isDatasetWorkbenchContextKind(raw.kind))runLocalAlbumContext(raw.id,null,'context.worker.receive',receive,false,false);else receive();
   }
   const sourcePort=options.privateSourceWritesPort,sourceActor=sourcePort?createSourceWritesMainActor(sourcePort):undefined;
   let sourceSequence=0,sourceRequests=0;
@@ -266,10 +281,14 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   }
 
   function reply(request: DatasetOwnerRequest, result: unknown): void {
+    flushMobileRangeWindowOwner();
     const message: DatasetOwnerResponse = { version: DATASET_OWNER_PROTOCOL_VERSION, type: 'response', epoch: request.epoch, requestId: request.requestId, operation: request.operation, ok: true, result };
-    post(message);
+    const sent = observeMobileOwnerLoadTrace('owner', 'owner.post', () => post(request.operation === 'mobileMain' && request.mobile
+      ? encodeMobileSealedOwnerReply(message, request.mobile) : message));
+    if (!sent) markMobileOwnerLoadTrace('owner', 'owner.post', 'post-failed');
   }
   function reject(request: DatasetOwnerRequest, error: unknown): void {
+    flushMobileRangeWindowOwner();
     if (request.operation === 'localAlbumRead') localAlbumReject(error);
     mobileCapabilityReject('owner.rpc.failure', error);
     if(error instanceof LocalFactsCommitFatal || error instanceof MBQueueStoreError && error.code === 'QUEUE_COMMIT_UNKNOWN'){domain?.sealLocalSources?.();protocolFailure();return;}
@@ -311,6 +330,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     await Promise.allSettled([...dispatches, ...(commitment === undefined ? [] : [commitment])]);
   }
   function closeDomain(): Promise<void> {
+    ownerRange.close();
     closing = true; domain?.sealLocalSources?.();
     closure ??= (async () => {
       if (preparation !== undefined) {
@@ -327,7 +347,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     failed = true;
     rejectProjections();
     // 父端断链仍先停止coordinator并等待已发请求，禁止中断数据库事务。
-    void closeDomain().then(() => { port.off('message', receive); sourcePort?.close(); relocationPort?.close(); port.close(); }, () => undefined);
+    void closeDomain().then(() => { detachSealedReceiver(); sourcePort?.close(); relocationPort?.close(); port.close(); }, () => undefined);
   }
   function protocolFailure(): void {
     if (failed) return;
@@ -340,7 +360,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
       try {
         await closeDomain();
         reply(request, undefined);
-        port.off('message', receive);
+        detachSealedReceiver();
         sourcePort?.close(); relocationPort?.close(); port.close(); // closed确认后让worker自然退出；不调用process.exit/terminate。
       } catch (error) {
         reject(request, error);
@@ -400,8 +420,11 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
         let captured: DatasetOwnerRequest;
         try { captured = capture(); }
         catch { throw new DatasetOwnerTransportError('not-sent'); }
-        const operation = domain.mobileMain(captured.mobile!); dispatches.add(operation);
-        try { reply(request, await operation); } finally { dispatches.delete(operation); }
+        const currentDomain = domain;
+        const operation = observeMobileOwnerLoadTrace('owner', 'owner.dispatch', () => captured.mobile!.kind === 'media-source'
+          ? mobileRangeWindowCoreObserve('owner.source.dispatch', () => currentDomain.mobileMain!(captured.mobile!))
+          : currentDomain.mobileMain!(captured.mobile!)); dispatches.add(operation);
+        try { const result = await operation; markMobileOwnerLoadTrace('owner', 'owner.reply', 'ok'); reply(request, result); } finally { dispatches.delete(operation); }
       } catch (error) { reject(request, error); }
       return;
     }
@@ -451,10 +474,14 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
       } catch (error) { reject(request, error); }
       return;
     }
-    if (['captureLocalSource','revalidateLocalSource','releaseLocalSource'].includes(request.operation)) {
+    if (['captureLocalSource','readLocalSourceLyrics','revalidateLocalSource','releaseLocalSource'].includes(request.operation)) {
       try {
         if (!bootCommitted || request.expectedDatasetId !== boundDatasetId || domain.datasetId !== boundDatasetId) throw new Error('本地私有来源未就绪或epoch不符。');
         const payload = request.local!;
+        if (request.operation === 'readLocalSourceLyrics' && 'ticketId' in payload && domain.readLocalSourceLyrics) {
+          const task = domain.readLocalSourceLyrics(payload.ticketId); dispatches.add(task);
+          void task.then(value => reply(request,value), error => reject(request,error)).finally(() => dispatches.delete(task)); return;
+        }
         if (request.operation === 'captureLocalSource' && 'selection' in payload && domain.captureLocalSource) reply(request,domain.captureLocalSource(payload.selection));
         else if (request.operation === 'revalidateLocalSource' && 'ticketId' in payload && domain.revalidateLocalSource) reply(request,domain.revalidateLocalSource(payload.ticketId));
         else if (request.operation === 'releaseLocalSource' && 'ticketId' in payload && domain.releaseLocalSource) {domain.releaseLocalSource(payload.ticketId);reply(request,undefined);}
@@ -462,6 +489,8 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
       } catch (error) { reject(request,error); }
       return;
     }
+    // 启动预热期间内部数据库已提交，但普通命令仍不得提前读写来源或曲库。
+    if (!bootCommitted) { reject(request, new DatasetOwnerDispatchError(responseFailure(request.request?.id ?? request.requestId, 'NOT_READY', '领域所有者仍在准备读取服务。'))); return; }
     const internal = request.operation === 'dispatchInternal';
     const checked = internal ? validateIpcInternalRequest(request.request) : validateIpcRequest(request.request);
     if (!checked.ok) { reject(request, new DatasetOwnerDispatchError({ version: 1, id: request.request!.id, ok: false, error: checked.error })); return; }
@@ -478,6 +507,26 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   }
 
   function handle(request: DatasetOwnerRequest, capture: () => DatasetOwnerRequest): Promise<void> {
+    const operation = request.operation === 'mobileMain' && request.mobile?.kind === 'media-source' ? request.mobile.request.operation : undefined;
+    return ownerRange.run(request.epoch, request.requestId, operation, () => handleWithoutRange(request, capture));
+  }
+
+  function handleWithoutRange(request: DatasetOwnerRequest, capture: () => DatasetOwnerRequest): Promise<void> {
+    const seed = copyCatalogTraceHop(request.catalogTrace,request.requestId);
+    if (seed && request.operation === 'mobileMain' && request.mobile?.kind === 'catalog' && request.mobile.request.operation === 'listTracks'
+      && seed.offset === request.mobile.request.offset && seed.limit === request.mobile.request.limit) {
+      return withCatalogTraceScope(seed, 'owner', () => catalogTraceAsync('owner.receive', () => handleOriginal(request, capture)));
+    }
+    return withCatalogTrace(undefined, 'owner', () => handleWithoutCatalogTrace(request, capture));
+  }
+
+  function handleWithoutCatalogTrace(request: DatasetOwnerRequest, capture: () => DatasetOwnerRequest): Promise<void> {
+    if (request.ownerLoadTrace !== undefined) {
+      const trace = createMobileOwnerLoadTraceContext(request.ownerLoadTrace, event => {
+        try { port.postMessage({ type: 'mobile-owner-load-trace', event }); } catch { /* 诊断不替换原回复。 */ }
+      });
+      return withMobileOwnerLoadTrace(trace, () => observeMobileOwnerLoadTrace('owner', 'owner.receive', () => handleOriginal(request, capture)));
+    }
     if (request.operation === 'mobileMain' && request.mobile?.kind === 'content'
       && (request.mobile.request.action === 'initialize' || request.mobile.request.action === 'updateScope')) {
       const context = createMobileCapabilityContext(request.requestId, 'owner', 'owner');
@@ -492,6 +541,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   }
 
   function receive(message: unknown): void {
+    if (isMobileRangeWindowOwnerWire(message, 'mobile-range-window-owner-seed')) { ownerRange.acceptSeed(message, epoch); return; }
     if (epoch !== undefined && ownerRecord(message) && typeof message.epoch === 'string' && message.epoch !== epoch) return;
     if(ownerRecord(message)&&Object.getOwnPropertyDescriptor(message,'type')?.value==='musicbridge.workbench.frame'){wbReceive(message);return;}
     if (isDatasetOwnerProjectionResponse(message)) {
@@ -515,7 +565,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     lastSequence = request.sequence;
     void handle(request, boundary.capture).catch(() => protocolFailure());
   }
-  port.on('message', receive);
+  const detachSealedReceiver = attachMobileSealedOwnerReceiver(port, receive);
   port.on('messageerror', protocolFailure);
   port.once('close', () => { if (!closing) { disconnected = true; abandon(); } });
   // 本代真实目录登记后的专用port断链，必须沿原Owner关闭等dispatch/FD静止；旧无目录模式不改。

@@ -1,3 +1,10 @@
+import { isMobileArtistSearchRequestTarget, type MobileArtistSearchBackend } from './mobile-artist-search-backend.js';
+import type { MobilePairingBootstrapHttpBackend } from './mobile-pairing-bootstrap-http.js';
+import { createMobileArtistSearchHttpObservation, describeMobileArtistSearchHttp } from './mobile-artist-search-observation.js';
+import { createMobileResourceCapacityProbe, MOBILE_RESOURCE_CAPACITY_FLAG } from '../../../../packages/bridge-core/src/mobile/resource-capacity-trace.js';
+import { createMobileHttpSocketGate, MobileHttpSocketGateError, canReuseMobileHttp, mobileHttpConnectionHeaders } from './mobile-http-reuse.js'
+import { createCatalogHttpObservation } from '../../../../packages/bridge-core/src/mobile/catalog-http-observation.js'
+import { withMobileOwnerLoadTrace, markMobileOwnerLoadTrace, observeMobileOwnerLoadTrace, type MobileOwnerLoadTraceContext, type MobileOwnerLoadTraceHttp, type MobileOwnerLoadTraceProbe } from '../../../../packages/bridge-core/src/mobile/owner-load-trace.js'
 import { withMobileRangeWindowContext, type MobileRangeWindowContext, type MobileRangeWindowProbe } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js'
 import { createServer, type Server } from 'node:https'
 import { createMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync, mobileCapabilitySync, mobileCapabilityReject, closeMobileCapabilityContext, mobilePreparationAsync, mobilePreparationSync, type MobileCapabilityContext, type MobilePreparationProbe } from '../../../../packages/bridge-core/src/mobile/capability-trace.js'
@@ -11,6 +18,8 @@ import {
   type MobileHeaderPairs,
   type MobileResourceSemanticContext,
   type MobileContentReadContext,
+  type MobileCatalogFeatures,
+  isMobilePairingBootstrapPath, MOBILE_PAIRING_BOOTSTRAP_MAX_BODY_BYTES,
 } from '@music-bridge/contracts'
 import {
   MOBILE001_OPERATIONS, MobileServiceError,
@@ -23,6 +32,8 @@ import type { Mobile003Backend, Mobile003Operation } from './mobile-backend.js'
 import type { MobileContentBackend, MobileContentBackendReply } from './mobile-content-backend.js'
 import type { MobileRangeTimingProbe, MobileRangeTimingContext, MobileRangeTimingSpan } from './mobile-range-timing.js'
 import { MOBILE_CONTENT_OPERATIONS, type MobileContentOperation } from '../../../../packages/bridge-core/src/mobile/content-types.js'
+import { boundedMobileMediaReadRange, withMobileMediaReadBudget, captureMobileMediaReadBudget,
+  MOBILE_MEDIA_READ_TOTAL_MS } from '../../../../packages/bridge-core/src/mobile/media-read-budget.js'
 
 /** 新门面自己的有限预算，不改变旧 Control API、Stream Gateway 或任务 Gate。 */
 export const MOBILE_HTTPS_LIMITS = Object.freeze({
@@ -44,11 +55,14 @@ export interface MobileHttpsServerOptions {
   dsd?: Mobile003Backend
   /** 004由原Main认证及原Core/Owner组合根显式装载。 */
   content?: MobileContentBackend
+  artistSearch?: MobileArtistSearchBackend
+  pairing?: MobilePairingBootstrapHttpBackend
   allowedHosts?: readonly string[]
   /** 可信Main单次旁注，缺省关闭，不进入HTTP或RPC合同。 */
   rangeTimingProbe?: MobileRangeTimingProbe
   rangeWindowProbe?: MobileRangeWindowProbe
   preparationProbe?: MobilePreparationProbe
+  ownerLoadTraceProbe?: MobileOwnerLoadTraceProbe
 }
 export interface MobileHttpsListening { baseUrl: string; certificateSha256: string }
 export interface MobileHttpsServer { start(): Promise<MobileHttpsListening>; close(): Promise<void> }
@@ -114,13 +128,13 @@ function withAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
     promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', stop)).catch(() => {})
   })
 }
-function readBody(request: IncomingMessage, headers: MobileHeaderPairs, signal: AbortSignal): Promise<Uint8Array> {
+function readBody(request: IncomingMessage, headers: MobileHeaderPairs, signal: AbortSignal, maxBytes = MOBILE_JSON_REQUEST_MAX_BYTES): Promise<Uint8Array> {
   const rawLength = oneHeader(headers, 'content-length'), encoding = oneHeader(headers, 'content-encoding')
   if (encoding !== undefined && encoding !== 'identity') throw serviceFailure(400, 'INVALID_REQUEST')
   if (rawLength !== undefined && (!/^(0|[1-9]\d*)$/u.test(rawLength) || !Number.isSafeInteger(Number(rawLength)))) {
     throw serviceFailure(400, 'INVALID_REQUEST')
   }
-  if (rawLength !== undefined && Number(rawLength) > MOBILE_JSON_REQUEST_MAX_BYTES) throw serviceFailure(413, 'CONTENT_LIMIT_EXCEEDED')
+  if (rawLength !== undefined && Number(rawLength) > maxBytes) throw serviceFailure(413, 'CONTENT_LIMIT_EXCEEDED')
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []; let bytes = 0, done = false
     const finish = (error?: MobileServiceError) => {
@@ -134,7 +148,7 @@ function readBody(request: IncomingMessage, headers: MobileHeaderPairs, signal: 
     }
     const data = (chunk: Buffer) => {
       bytes += chunk.byteLength
-      if (bytes > MOBILE_JSON_REQUEST_MAX_BYTES) { finish(serviceFailure(413, 'CONTENT_LIMIT_EXCEEDED')); return }
+      if (bytes > maxBytes) { finish(serviceFailure(413, 'CONTENT_LIMIT_EXCEEDED')); return }
       chunks.push(Buffer.from(chunk))
     }
     const end = () => finish(rawLength !== undefined && Number(rawLength) !== bytes ? serviceFailure(400, 'INVALID_REQUEST') : undefined)
@@ -145,7 +159,7 @@ function readBody(request: IncomingMessage, headers: MobileHeaderPairs, signal: 
     if (signal.aborted) failed()
   })
 }
-function captureReply(operation: Mobile001Operation | Mobile002Operation | Mobile003Operation | MobileContentOperation, reply: Mobile001BackendReply & { resourceContext?: MobileResourceSemanticContext; contentContext?: MobileContentReadContext }, origin: string, path: string): Mobile001BackendReply {
+function captureReply(operation: Mobile001Operation | Mobile002Operation | Mobile003Operation | MobileContentOperation, reply: Mobile001BackendReply & { resourceContext?: MobileResourceSemanticContext; contentContext?: MobileContentReadContext }, origin: string, path: string, catalogFeatures?: MobileCatalogFeatures): Mobile001BackendReply {
   if (!(reply.body instanceof Uint8Array) || reply.body.buffer instanceof SharedArrayBuffer
     || reply.body.byteLength > MOBILE_API_RESPONSE_MAX_BYTES || !Array.isArray(reply.headers)
     || reply.headers.length > MOBILE_HTTPS_LIMITS.headers || reply.beforeSend !== undefined && typeof reply.beforeSend !== 'function') {
@@ -160,6 +174,8 @@ function captureReply(operation: Mobile001Operation | Mobile002Operation | Mobil
   const checked = decodeMobileResponse(operation, { status: reply.status, headers, body, finalUrl: `${origin}${path}` }, {
     responseOrigin: origin, requestPath: path, ...(reply.resourceContext ? { resource: reply.resourceContext } : {}),
     ...(reply.contentContext ? { content: reply.contentContext } : {}),
+    // 只消费本次已解码请求，后端回包不能自签nullable资格。
+    ...(catalogFeatures === 'unknown-duration-v1' ? { catalogFeatures } : {}),
   })
   if (!checked.ok) throw serviceFailure(503, 'BUSY')
   const length = headers.find(([name]) => name.toLowerCase() === 'content-length')
@@ -187,13 +203,13 @@ function safeReply(error: unknown, requestId: string): Mobile001BackendReply {
   return { status: safe.status, headers: [['Content-Type', 'application/json'], ['Content-Length', String(body.byteLength)],
     ...(safe.retryAfterMs === undefined ? [] : [['Retry-After', String(Math.ceil(safe.retryAfterMs / 1000))] as [string, string]])], body }
 }
-function output(response: ServerResponse, reply: Mobile001BackendReply): Promise<void> {
+function output(response: ServerResponse, reply: Mobile001BackendReply, reuseVerified = false): Promise<void> {
   return new Promise(resolve => {
     const done = () => { response.removeListener('finish', done); response.removeListener('close', done); response.removeListener('error', done); resolve() }
     response.once('finish', done); response.once('close', done); response.once('error', done)
     response.setTimeout(MOBILE_HTTPS_LIMITS.responseWriteMs, () => response.destroy())
     response.writeHead(reply.status, [...reply.headers.filter(([name]) => name.toLowerCase() !== 'cache-control').flatMap(([name, value]) => [name, value]),
-      'Connection', 'close', 'Cache-Control', 'no-store', 'X-Content-Type-Options', 'nosniff'])
+      ...mobileHttpConnectionHeaders(response,reply.status,reuseVerified), 'Cache-Control', 'no-store', 'X-Content-Type-Options', 'nosniff'])
     response.end(reply.body)
   })
 }
@@ -205,6 +221,7 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
     || Array.from(requestedHosts).some(value => !isMobilePrivateIPv4(value)) || !requestedHosts.includes(host)
     || typeof options.backend?.dispatch !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
   const dispatch = options.backend.dispatch.bind(options.backend)
+  if (options.pairing && typeof options.pairing.dispatch !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
   const operationSet = new Set<string>(MOBILE001_OPERATIONS)
   if (options.playback) {
     if (typeof options.playback.dispatch !== 'function' || typeof options.playback.resourceCapabilities !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
@@ -235,12 +252,16 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
   const hosts = new Set(requestedHosts), sockets = new Set<Duplex>(), active = new Set<AbortController>()
   const controls = new Set<AbortController>(), media = new Set<AbortController>()
   const handlers = new Set<Promise<void>>(), mediaCleanup = new Set<Promise<void>>()
+  const socketGate = createMobileHttpSocketGate()
   let closed = false, listeningPort = 0, startFlight: Promise<MobileHttpsListening> | undefined, closeFlight: Promise<void> | undefined
   const privateSamples = createMobileContentSampleSelector()
+  const resourceCapacity = createMobileResourceCapacityProbe({ enabled: process.argv.includes(MOBILE_RESOURCE_CAPACITY_FLAG) })
+  const catalogObservation = createCatalogHttpObservation(options.preparationProbe !== undefined)
+  const artistSearchObservation = createMobileArtistSearchHttpObservation(options.preparationProbe !== undefined)
   server.maxConnections = MOBILE_HTTPS_LIMITS.connections
   // 不让 Node 先截断重复头；总字节先限，随后完整 rawHeaders 闭集核最多64项。
   server.maxHeadersCount = 0
-  server.maxRequestsPerSocket = 1; server.keepAliveTimeout = 1000
+  server.maxRequestsPerSocket = 16; server.keepAliveTimeout = 1000
   server.on('connection', socket => {
     if (closed || sockets.size >= MOBILE_HTTPS_LIMITS.connections) { socket.destroy(); return }
     sockets.add(socket); socket.once('close', () => sockets.delete(socket))
@@ -253,6 +274,7 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
     for (const socket of sockets) socket.destroy()
   })
   server.on('request', (request, response) => {
+    const requestArrivedAtMs = performance.now()
     // 本监听回调的到达时刻；不冒充TCP到包或跨进程时钟。
     const rangeArrival = options.rangeWindowProbe?.markArrival()
     const handler = (async () => {
@@ -260,9 +282,14 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
       if (closed) { response.destroy(); return }
       const controller = new AbortController(); active.add(controller)
       let ownMediaReply: MobileMediaReply | undefined
+      let socketTurn: ReturnType<typeof socketGate.enter> | undefined
+      let bodyConsumed = false, successfulResponse = false
+      let ownerLoadTrace: MobileOwnerLoadTraceContext | undefined
       let capabilityContext: MobileCapabilityContext | undefined
       let privateSample: ReturnType<typeof privateSamples.claim>
       let privateReplyStatus: number | undefined
+      let catalogHttp: ReturnType<typeof catalogObservation.begin>
+      let artistSearchHttp: ReturnType<typeof artistSearchObservation.begin>
       let rangeTiming: MobileRangeTimingContext | undefined, rangeOpen: MobileRangeTimingSpan | undefined
       let rangeWindow: MobileRangeWindowContext | undefined
       const windowAbort = () => { if (!response.writableFinished) options.rangeWindowProbe?.abort(rangeWindow) }
@@ -270,21 +297,63 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
       const cancel = () => { options.rangeWindowProbe?.abort(rangeWindow); controller.abort() }
       const peerClose = () => { if (!response.writableFinished) cancel() }
       request.once('aborted', cancel); response.once('close', peerClose)
-      const deadline = setTimeout(() => { cancel(); response.destroy() }, MOBILE_HTTPS_LIMITS.requestMs)
+      let deadline = setTimeout(() => { cancel(); response.destroy() }, MOBILE_HTTPS_LIMITS.requestMs)
       try {
         const peer = request.socket.remoteAddress?.replace(/^::ffff:/u, '')
         if (!isMobilePrivateIPv4(peer)) throw serviceFailure(400, 'INVALID_REQUEST')
         const headers = headerPairs(request), origin = authority(headers, hosts, listeningPort), target = requestTarget(request.url)
+        if (isMobilePairingBootstrapPath(target.path)) {
+          if (!options.pairing) throw serviceFailure(404, 'INVALID_REQUEST')
+          if (controls.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) throw serviceFailure(429, 'BUSY')
+          controls.add(controller)
+          socketTurn = socketGate.enter(request.socket, controller.signal)
+          await withAbort(socketTurn.ready, controller.signal)
+          const body = await readBody(request, headers, controller.signal, MOBILE_PAIRING_BOOTSTRAP_MAX_BODY_BYTES)
+          bodyConsumed = true
+          const reply = await withAbort(options.pairing.dispatch({ method: request.method ?? '', path: target.path,
+            query: target.query, headers, body, remoteAddress: peer, origin, certificateSha256, signal: controller.signal }), controller.signal)
+          if (reply.beforeSend) await withAbort(reply.beforeSend(), controller.signal)
+          if (closed || controller.signal.aborted || response.destroyed) throw serviceFailure(503, 'BUSY')
+          await output(response, reply, canReuseMobileHttp(request, bodyConsumed, controller.signal))
+          successfulResponse = reply.status >= 200 && reply.status < 300 && response.writableFinished
+          return
+        }
+        if (isMobileArtistSearchRequestTarget(request.url ?? '')) {
+          artistSearchHttp = artistSearchObservation.begin(describeMobileArtistSearchHttp(target.path, target.query))
+          if (!options.artistSearch) throw serviceFailure(404, 'INVALID_REQUEST')
+          if (controls.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) throw serviceFailure(429, 'BUSY')
+          controls.add(controller)
+          socketTurn = socketGate.enter(request.socket, controller.signal)
+          await withAbort(socketTurn.ready, controller.signal)
+          const body = await readBody(request, headers, controller.signal)
+          bodyConsumed = true
+          const reply = await withAbort(options.artistSearch.dispatch({ method: request.method ?? '', requestTarget: request.url!,
+            headerPairs: headers, body, signal: controller.signal }), controller.signal)
+          artistSearchHttp?.handleComplete()
+          if (reply.body.byteLength > MOBILE_API_RESPONSE_MAX_BYTES) throw serviceFailure(503, 'BUSY')
+          if (reply.beforeSend) await withAbort(reply.beforeSend(), controller.signal)
+          artistSearchHttp?.beforeSendComplete()
+          if (closed || controller.signal.aborted || response.destroyed) throw serviceFailure(503, 'BUSY')
+          await output(response, reply, canReuseMobileHttp(request, bodyConsumed, controller.signal))
+          successfulResponse = reply.status >= 200 && reply.status < 300 && response.writableFinished
+          return
+        }
         const resolved = resolveMobileOperation(request.method ?? '', target.path.slice(1).split('/'))
         if (!resolved.ok || !operationSet.has(resolved.value)) throw serviceFailure(404, 'INVALID_REQUEST')
         const operation = resolved.value as Mobile001Operation | Mobile002Operation | Mobile003Operation | MobileContentOperation
-        capabilityContext = options.preparationProbe?.claim(operation, requestId, controller.signal)
+        if (operation === 'getCapabilities' || operation === 'getServer') {
+          ownerLoadTrace = options.ownerLoadTraceProbe?.claim()
+          withMobileOwnerLoadTrace(ownerLoadTrace, () => markMobileOwnerLoadTrace('main', 'http.receive', 'ok'))
+        }
+        capabilityContext = operation === 'getTrack' ? undefined : options.preparationProbe?.claim(operation, requestId, controller.signal)
         if (capabilityContext) {
-          withMobileCapabilityContext(capabilityContext, () => mobileCapabilitySync(operation === 'getServer' ? 'preparation.http.identity' : 'preparation.http.session', () => undefined))
+          withMobileCapabilityContext(capabilityContext, () => mobileCapabilitySync(operation === 'getServer' ? 'preparation.http.identity'
+            : operation === 'createResource' ? 'preparation.http.resource' : 'preparation.http.session', () => undefined))
         } else if (operation === 'getCapabilities') {
-          capabilityContext = createMobileCapabilityContext(requestId, 'main', 'http', null, controller.signal)
+          // 关联样本统一由原 owner-load 预算发布，避免同一记录从两个出口重复输出。
+          capabilityContext = createMobileCapabilityContext(requestId, 'main', 'http', null, controller.signal, ownerLoadTrace ? () => {} : undefined)
           withMobileCapabilityContext(capabilityContext, () => mobileCapabilitySync('http.receive', () => undefined))
-        } else if (options.preparationProbe) {
+        } else if (options.preparationProbe && operation !== 'listTracks') {
           // 只沿既有私有开关；每类最多八次，成功与首错分槽，不记录路径、图片ID或正文。
           privateSample = privateSamples.claim(operation)
           if (privateSample) {
@@ -293,14 +362,32 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
             withMobileCapabilityContext(capabilityContext, () => mobileCapabilitySync('http.receive', () => undefined))
           }
         }
+        if (operation === 'createResource') {
+          capabilityContext = resourceCapacity.claim(requestId, 'main', 'http', controller.signal, capabilityContext) ?? capabilityContext
+        }
+        if (ownerLoadTrace && capabilityContext) {
+          try { options.ownerLoadTraceProbe?.bindCapability(ownerLoadTrace.ordinal, capabilityContext.requestSha256) } catch { /* 旁注失败不改变原 HTTP。 */ }
+        }
         const isMedia = operation === 'getMediaAsset' || operation === 'headMediaAsset'
+        const ranges = headers.filter(([name]) => name.toLowerCase() === 'range')
+        const boundedRead = operation === 'getMediaAsset' && request.method === 'GET' && ranges.length === 1
+          && !headers.some(([name]) => name.toLowerCase() === 'if-range') && boundedMobileMediaReadRange(ranges[0]![1])
+        const processAcceptedRequest = async () => {
         const lane = isMedia ? media : controls
         if (lane.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) throw serviceFailure(429, isMedia ? 'RESOURCE_BUSY' : 'BUSY')
         lane.add(controller)
+        socketTurn=socketGate.enter(request.socket,controller.signal)
+        await withAbort(socketTurn.ready,controller.signal)
+        if(operation==='listTracks'&&options.preparationProbe){
+          const context=createMobileCapabilityContext(requestId,'main','http',null,controller.signal,()=>{});
+          if(context){catalogHttp=catalogObservation.begin(context.requestSha256);if(catalogHttp){context.privateContentDiagnostic=true;capabilityContext=context;}}
+        }
         const body = await withMobileCapabilityContext(capabilityContext, () => mobilePreparationAsync('preparation.http.body', () => readBody(request, headers, controller.signal)))
+        bodyConsumed=true
         const bearer = accessToken(headers)
         const resourceCapabilities = operation === 'createResource'
-          ? await withAbort(options.playback!.resourceCapabilities(bearer, target.path.split('/')[4]!, origin, controller.signal), controller.signal)
+          ? await withAbort(withMobileCapabilityContext(capabilityContext, () => mobilePreparationAsync('preparation.http.resource-capabilities',
+            () => options.playback!.resourceCapabilities(bearer, target.path.split('/')[4]!, origin, controller.signal))), controller.signal)
           : undefined
         const decoded = withMobileCapabilityContext(capabilityContext, () => mobilePreparationSync('preparation.http.decode', () => decodeMobileRequest(operation, { method: request.method!, path: target.path, headers, query: target.query, body }, {
           responseOrigin: origin, requestPath: target.path, ...(resourceCapabilities ? { resourceCapabilities } : {}),
@@ -314,10 +401,15 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
           withMobileCapabilityContext(capabilityContext, () => mobileCapabilityReject('preparation.http.decode', failure))
           throw failure
         }
+        // 详情仅认领原合同已接受的NetEase路径；本地详情、解码拒绝及后续请求不扩大全局采样。
+        if (operation === 'getTrack' && decoded.value.pathParameters.trackId?.startsWith('nt:')) {
+          capabilityContext = options.preparationProbe?.claim('getTrack', requestId, controller.signal)
+          withMobileCapabilityContext(capabilityContext, () => mobilePreparationSync('preparation.http.track', () => undefined))
+        }
         if (operation === 'createSession') options.preparationProbe?.associateSession(capabilityContext, decoded.value.idempotencyKey)
         let raw: Mobile001BackendReply | Mobile002BackendReply | MobileContentBackendReply
-        if ((MOBILE001_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(withMobileCapabilityContext(capabilityContext, () => mobilePreparationAsync('preparation.http.dispatch', () => dispatch({ operation: operation as Mobile001Operation,
-          request: decoded.value, accessToken: bearer, signal: controller.signal }))), controller.signal)
+        if ((MOBILE001_OPERATIONS as readonly string[]).includes(operation)) raw = await withMobileOwnerLoadTrace(ownerLoadTrace, () => observeMobileOwnerLoadTrace('main', 'http.dispatch', () => withAbort(withMobileCapabilityContext(capabilityContext, () => mobilePreparationAsync('preparation.http.dispatch', () => dispatch({ operation: operation as Mobile001Operation,
+          request: decoded.value, accessToken: bearer, signal: controller.signal }))), controller.signal)))
         else if (operation === 'getUIContentCapabilities') raw = await withAbort(withMobileCapabilityContext(capabilityContext, () => mobileCapabilityAsync('preparation.http.dispatch', () => options.dsd!.dispatch({ operation,
           request: decoded.value, accessToken: bearer, signal: controller.signal, origin }))), controller.signal)
         else if ((MOBILE_CONTENT_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(withMobileCapabilityContext(capabilityContext, () => mobileCapabilityAsync('preparation.http.dispatch', () => options.content!.dispatch({
@@ -347,27 +439,41 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
           rangeTiming?.end(rangeOpen)
         }
         if ('kind' in raw && raw.kind === 'media') {
-          clearTimeout(deadline); response.setTimeout(0); ownMediaReply = raw
+          if (!captureMobileMediaReadBudget()) clearTimeout(deadline)
+          response.setTimeout(0); ownMediaReply = raw
           rangeTiming?.reply(raw.status, raw.expectedBodyBytes)
-          await withMobileRangeWindowContext(rangeWindow, () => sendMobileMediaResponse(request, response, raw, controller.signal, {}, rangeTiming)); return
+          await withMobileRangeWindowContext(rangeWindow, () => sendMobileMediaResponse(request, response, raw, controller.signal, {}, rangeTiming, canReuseMobileHttp(request,bodyConsumed,controller.signal)));
+          successfulResponse=raw.status>=200&&raw.status<300&&response.writableFinished; return
         }
-        const reply = withMobileCapabilityContext(capabilityContext, () => privateSample
-          ? mobileCapabilitySync('preparation.http.capture', () => captureReply(operation, raw, origin, target.path))
-          : mobilePreparationSync('preparation.http.capture', () => captureReply(operation, raw, origin, target.path)))
-        if (reply.beforeSend) await withAbort(withMobileCapabilityContext(capabilityContext, () => privateSample
+        const reply = withMobileOwnerLoadTrace(ownerLoadTrace, () => observeMobileOwnerLoadTrace('main', 'http.capture', () => withMobileCapabilityContext(capabilityContext, () => privateSample
+          ? mobileCapabilitySync('preparation.http.capture', () => captureReply(operation, raw, origin, target.path, decoded.value.catalogFeatures))
+          : mobilePreparationSync('preparation.http.capture', () => captureReply(operation, raw, origin, target.path, decoded.value.catalogFeatures)))))
+        if (reply.beforeSend) await withMobileOwnerLoadTrace(ownerLoadTrace, () => withAbort(withMobileCapabilityContext(capabilityContext, () => privateSample
           ? mobileCapabilityAsync('preparation.http.beforeSend', () => reply.beforeSend!())
-          : mobilePreparationAsync('preparation.http.beforeSend', () => reply.beforeSend!())), controller.signal)
+          : mobilePreparationAsync('preparation.http.beforeSend', () => reply.beforeSend!())), controller.signal))
         if (closed || controller.signal.aborted || response.destroyed) throw serviceFailure(503, 'BUSY')
         if (privateSample) {
           privateReplyStatus = reply.status
           withMobileCapabilityContext(capabilityContext, () => privateStatus(reply.status))
         }
-        await withMobileCapabilityContext(capabilityContext, () => mobileCapabilityAsync('http.send', () => output(response, reply)))
+        await withMobileCapabilityContext(capabilityContext, () => mobileCapabilityAsync('http.send', () => output(response, reply, canReuseMobileHttp(request,bodyConsumed,controller.signal))))
+        successfulResponse=reply.status>=200&&reply.status<300&&response.writableFinished
         if (operation === 'getUIContentCapabilities' && reply.status === 200 && response.writableFinished) options.preparationProbe?.arm()
+        }
+        if (boundedRead) {
+          // 唯一截止锚定本HTTP入口；排队/open/每次授权和各包均不另获三十秒。
+          const end = requestArrivedAtMs + MOBILE_MEDIA_READ_TOTAL_MS
+          clearTimeout(deadline)
+          deadline = setTimeout(() => { cancel(); response.destroy() }, Math.max(1, end - performance.now()))
+          await withMobileMediaReadBudget(end, controller.signal, processAcceptedRequest)
+        } else await processAcceptedRequest()
       } catch (error) {
+        artistSearchHttp?.reject(error)
+        withMobileOwnerLoadTrace(ownerLoadTrace, () => markMobileOwnerLoadTrace('main', 'http.failure', 'error'))
         rangeFailed = true; rangeFailure = error; rangeTiming?.reject(rangeOpen, error)
+        if(error instanceof MobileHttpSocketGateError)response.destroy()
         withMobileCapabilityContext(capabilityContext, () => mobileCapabilityReject('http.failure', error))
-        if (!closed && !controller.signal.aborted && !response.destroyed && !response.headersSent) {
+        if (!closed && !controller.signal.aborted && !response.destroyed && !request.socket.destroyed && !response.headersSent) {
           const reply = safeReply(error, requestId)
           if (privateSample) {
             privateReplyStatus = reply.status
@@ -379,6 +485,12 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
         }
         else if (!response.writableFinished) response.destroy()
       } finally {
+        artistSearchHttp?.finish(response.headersSent ? response.statusCode : null, controller.signal.aborted)
+        if (ownerLoadTrace) { try { options.ownerLoadTraceProbe?.publishCapabilities() } catch { /* 只读安全环，不改变原终态。 */ } }
+        withMobileOwnerLoadTrace(ownerLoadTrace, () => markMobileOwnerLoadTrace('main', 'http.terminal', rangeFailed || controller.signal.aborted || !response.writableFinished ? 'error' : 'ok', 'business', {
+          status: response.headersSent ? response.statusCode as MobileOwnerLoadTraceHttp['status'] : null,
+          aborted: controller.signal.aborted, headersSent: response.headersSent, writableFinished: response.writableFinished,
+        }))
         clearTimeout(deadline); active.delete(controller)
         controls.delete(controller); media.delete(controller)
         request.removeListener('aborted', cancel); response.removeListener('close', peerClose)
@@ -390,10 +502,12 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
           const cleanup = getMobileMediaReleaseCompletion(ownMediaReply)
           if (cleanup) { mediaCleanup.add(cleanup); void cleanup.then(() => mediaCleanup.delete(cleanup), () => {}) }
         }
+        catalogHttp?.finish(response.headersSent ? response.statusCode : null,rangeFailed||controller.signal.aborted&&!response.writableFinished,response.writableFinished)
         privateSample?.finish(capabilityContext, privateReplyStatus, rangeFailed, response.writableFinished)
         closeMobileCapabilityContext(capabilityContext)
         rangeTiming?.finish(rangeFailed ? 'reject' : 'ok', rangeFailure)
         options.rangeWindowProbe?.finish(rangeWindow, { status: response.headersSent ? response.statusCode : null, finished: response.writableFinished, failed: rangeFailed, error: rangeFailure })
+        socketTurn?.finish(successfulResponse&&!rangeFailed&&bodyConsumed&&response.shouldKeepAlive)
       }
     })()
     handlers.add(handler)

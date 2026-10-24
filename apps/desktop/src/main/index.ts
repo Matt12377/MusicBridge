@@ -1,29 +1,42 @@
-import { createMobileRangeWindowProbe } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js'
+import { MOBILE_RESOURCE_CAPACITY_FLAG } from '../../../../packages/bridge-core/src/mobile/resource-capacity-trace.js';
+import { createMobileOwnerLoadTraceProbe } from '../../../../packages/bridge-core/src/mobile/owner-load-trace.js'
+import { createMobileRangeWindowProbe, createMobileRangeWindowTraceWriter } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js'
 import { runLocalAlbumMainRead } from './local-library-workbench/album-ipc.js'
 import { localAlbumPhase, localAlbumMatch, localAlbumRejectCode, localAlbumLink, collectLocalAlbumSafeTrace } from '../../../../packages/bridge-core/src/shared/local-album-read-trace-node.js'
 import { collectDesktopArtwork, snapshotDesktopArtwork } from '../../../../packages/bridge-core/src/shared/desktop-artwork-trace-node.js'
 import { readDesktopArtworkLine, desktopArtworkTraceEnabled } from '../../../../packages/bridge-core/src/shared/desktop-artwork-trace.js'
 import { readLocalAlbumSafeTraceLine } from '../shared/library-read-trace.js'
+import { readLibraryOperationLine, logLibraryOperation } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { closeRustMediaWorkerPool } from '../../../../packages/bridge-core/src/library/rust-media-worker.js'
+import { resolveDesktopMediaWorker } from './media-worker-bootstrap.js'
+import { createRemoteCoreModeController } from './remote-core-mode.js'
+import { createRemoteCoreStartup, REMOTE_CORE_STARTUP_PREFERENCE, REMOTE_CORE_STARTUP_READY } from './remote-core-startup.js'
 import { randomUUID } from 'node:crypto'
-import { createMobilePreparationProbe } from '../../../../packages/bridge-core/src/mobile/capability-trace.js'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { createMobilePreparationProbe, MOBILE_CAPABILITY_TRACE_PREFIX, type MobileCapabilityTraceRecord } from '../../../../packages/bridge-core/src/mobile/capability-trace.js'
 import { createLocalNameSettings } from './local-library-workbench/name-settings.js'
 import { createLocalWorkbenchNativeChooser, createLocalWorkbenchDirectoryMainBridge } from './local-library-workbench/native-chooser.js'
 import { createLocalLyricsMainService, createLocalLyricsMainProviderBridge } from './local-library-workbench/lyrics-service.js'
-import type { DatasetLyricsProviderStart } from '../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
+import { DATASET_WORKBENCH_BOUNDS, type DatasetLyricsProviderStart } from '../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
 import { registerLocalWorkbenchIpc } from './local-library-workbench/workbench-ipc.js'
 import { registerLocalAlbumIpc } from './local-library-workbench/album-ipc.js'
 import { isLocalAlbumMainResponse } from '../../../../packages/bridge-core/src/collection/local-album-browser/main-protocol.js'
 import { createLocalNameTransport, createLocalArtworkProviders, createLocalArtworkWebNavigation } from './local-library-workbench/providers/index.js'
 import { registerLocalArtworkNavigationPhysical } from './local-library-workbench/providers/artwork-web-navigation.js'
-import { normalizeLocalArtwork } from './local-artwork-image.js'
+import { normalizeLocalArtworkInWorker } from './local-artwork-image.js'
 import { resizeMobileProviderArtwork } from './mobile-artwork-image.js'
 import { createLocalAlbumArtworkNormalizer } from './local-library-workbench/album-artwork-normalizer.js'
 import { createLocalArtworkImportNormalizer } from './local-library-workbench/artwork-import-normalizer.js'
 import { createLocalWorkbenchQuitCoordinator } from './local-library-workbench/quit-coordinator.js'
+import { createLocalWorkbenchMainRecovery, type LocalWorkbenchMainRecovery } from './local-workbench-main-recovery.js'
 import { readDatasetWorkbenchNativeConfiguration } from './dataset-owner-bootstrap.js'
-import { createLocalWorkbenchService, createLocalWorkbenchNameMainBridge, createLocalWorkbenchMainAssembly, createLocalWorkbenchManagementBoundary, createLocalWorkbenchTransportOwner, type LocalWorkbenchOwnerPorts, type LocalWorkbenchRootMainAuthor } from './local-library-workbench/service.js'
+import { createLocalWorkbenchService, createLocalWorkbenchNameMainBridge, createLocalWorkbenchMainAssembly, createLocalWorkbenchManagementBoundary, createLocalWorkbenchTransportOwner, LocalWorkbenchMainBoundaryError, type LocalWorkbenchOwnerPorts, type LocalWorkbenchRootMainAuthor } from './local-library-workbench/service.js'
 import { installLocalArtworkHandlers } from './local-artwork-ipc.js'
 import { createMobileConnectionSettings, installMobileConnectionHandlers } from './mobile-settings.js'
+import { createMobileBonjourPublisher } from './mobile-bonjour.js'
+import { createMobilePairingPromptCoordinator } from './mobile-pairing-prompt.js'
+import { createArtistCatalogService, type ArtistCatalogService } from './artist-catalog-service.js'
+import { installArtistCatalogHandlers } from './artist-catalog-ipc.js'
 import { createMobileRangeTimingProbe } from './mobile-range-timing.js'
 import { installLocalSourceWritesHandlers } from './local-source-writes-ipc.js'
 import { installLocalRelocationHandlers } from './local-relocation-ipc.js'
@@ -42,6 +55,7 @@ import { createCollectionReadonlySettings, installCollectionReadonlyHandlers } f
 import { createCollectionReadonlyControlClient, type CollectionReadonlyControlChild, type CollectionReadonlyControlPort } from './collection-readonly-control-client.js'
 import { createCollectionReadonlyMainProbe } from './collection-readonly-main-probe.js'
 declare const __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__: boolean
+declare const __MUSIC_BRIDGE_MEDIA_WORKER_SHA256__: string
 declare const __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: boolean
 import { createCollectionScaleMainProbe } from './collection-scale-main-probe.js'
 
@@ -52,9 +66,23 @@ declare const __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__: boolean
 const mobileRangeTimingProbe = typeof __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__ === 'boolean' && __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__
   ? createMobileRangeTimingProbe({ enabled: true }) : undefined
 const mobileRangeWindowProbe = typeof __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__ === 'boolean' && __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__
-  ? createMobileRangeWindowProbe({ enabled: true }) : undefined
-const mobilePreparationProbe = typeof __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__ === 'boolean' && __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__
-  ? createMobilePreparationProbe({ enabled: true }) : undefined
+  ? process.argv.includes('--mb-private-range-continuity') && process.argv.includes('--mb-private-content-trace')
+    ? createMobileRangeWindowProbe({ enabled: true, continuous: true,
+      windowSink: createMobileRangeWindowTraceWriter({ enabled: true, sink: line => { process.stdout.write(line) } }) })
+    : createMobileRangeWindowProbe({ enabled: true, ...(process.argv.includes('--mb-private-content-trace')
+      ? { windowSink: createMobileRangeWindowTraceWriter({ enabled: true, sink: line => { process.stdout.write(line) } }) } : {}) }) : undefined
+// 仅显式本地启动参数启用；不读取环境、Renderer或配对内容。
+const mobileOwnerLoadTraceProbe = process.argv.includes('--mb-private-owner-load-trace')
+  ? createMobileOwnerLoadTraceProbe({ enabled: true, sink: line => { process.stdout.write(line) } }) : undefined
+// 内容诊断可在正式构建中显式启用；不连带打开媒体 Range 探针，也不改变正常启动。
+const mobilePreparationProbe = (typeof __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__ === 'boolean' && __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__)
+  || process.argv.includes('--mb-private-content-trace') || process.argv.includes(MOBILE_RESOURCE_CAPACITY_FLAG)
+  ? createMobilePreparationProbe({ enabled: true, sink: record => {
+      // 仅输出原闭集计时事件；探针自身限制会话/资源数，不包含曲目、凭据或错误正文。
+      process.stdout.write(MOBILE_CAPABILITY_TRACE_PREFIX + JSON.stringify(record) + '\n')
+    } }) : undefined
+// 显式连接诊断从首次身份读取开始取证；沿用原八次/首败停止预算。
+if (process.argv.includes('--mb-private-owner-load-trace')) mobilePreparationProbe?.arm()
 import { assertPackagedRouteDiagnosticEnvironment, createPackagedRouteMainProbe } from './packaged-route-main-probe.js'
 import { assertPackagedRendererDiagnosticEnvironment, createPackagedRendererMainProbe } from './packaged-renderer-main-probe.js'
 import { observePackagedRendererIpc } from './packaged-renderer-ipc-observer.js'
@@ -152,7 +180,9 @@ import { mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// 内部名称决定既有资料目录和保险库钥匙身份；展示更名不改变它。
 const APPLICATION_NAME = 'Music Bridge for Roon'
+const DISPLAY_NAME = 'Mousa'
 app.setName(APPLICATION_NAME)
 
 import { migrateRoonConfig } from './config-migration.js'
@@ -269,10 +299,14 @@ const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
 let mobileConnectionSettings: ReturnType<typeof createMobileConnectionSettings> | undefined
+let mobilePairingPrompts: ReturnType<typeof createMobilePairingPromptCoordinator> | undefined
+let artistCatalogService: ArtistCatalogService | undefined
 let closeLocalArtwork: (()=>void) | undefined
 let closeLocalSourceWrites: (() => void) | undefined
 let closeLocalRelocation: (() => void) | undefined
 let localWorkbenchRootMainAuthor: LocalWorkbenchRootMainAuthor | undefined
+let localWorkbenchMainRecovery: LocalWorkbenchMainRecovery | undefined
+let localWorkbenchMainRecoverySupervisor: CoreSupervisor | undefined
 let localWorkbenchTransportOwner: LocalWorkbenchOwnerPorts | undefined
 let localWorkbenchManagementBoundary: ReturnType<typeof createLocalWorkbenchManagementBoundary<Electron.IpcMainInvokeEvent>> | undefined
 let localWorkbenchMainAssembly: ReturnType<typeof createLocalWorkbenchMainAssembly> | undefined
@@ -290,21 +324,55 @@ function attachLocalWorkbenchRootMainAuthor(author: LocalWorkbenchRootMainAuthor
   const owner = createLocalWorkbenchTransportOwner(author)
   localWorkbenchRootMainAuthor = author
   localWorkbenchTransportOwner = owner
-  if (localWorkbenchMainAssembly) void localWorkbenchMainAssembly.activate(author).catch(() => {
-    if (localWorkbenchRootMainAuthor === author) mainDiagnostics.recordLifecycle('local_workbench_main_resources_not_ready', 'warn')
-  })
+}
+async function announceCurrentLocalWorkbenchReady(author: LocalWorkbenchRootMainAuthor, supervisor: CoreSupervisor, assertCurrent: () => void): Promise<void> {
+  const assembly = localWorkbenchMainAssembly
+  const check = () => {
+    assertCurrent()
+    if (!assembly || localWorkbenchMainAssembly !== assembly || coreSupervisor !== supervisor || supervisor.status !== 'ready' || localWorkbenchRootMainAuthor !== author || quitAfterCoreShutdown)
+      throw new CoreIpcError('NOT_READY', '原 Main 整理作者或资源已经撤销。')
+  }
+  check()
+  const state = await supervisor.request('core.getState', {})
+  check()
+  if (state.runtime !== 'ready') throw new CoreIpcError('NOT_READY', '原 Core 健康快照尚未就绪。')
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('core:event', { version: IPC_VERSION, event: 'core.health', payload: { state } })
+  check()
+  // 原恢复链已等待真实assembly.activate；健康核验后才允许Owner开启后台补齐。
+  const deadlineAtMs = performance.now() + DATASET_WORKBENCH_BOUNDS.requestMs
+  const accepted = await author.requestOwner('lifecycle.mainReady', {}, { binding: author.binding, signal: new AbortController().signal, deadlineAtMs })
+  check()
+  if (accepted !== true) throw new CoreIpcError('INVALID_IPC_RESPONSE', '原后台就绪确认未通过核验。')
 }
 async function bindCurrentLocalWorkbenchRootMainAuthor(supervisor: CoreSupervisor): Promise<void> {
-  try {
-    const author = await supervisor.createWorkbenchRootMainAuthor()
-    if (coreSupervisor !== supervisor || supervisor.status !== 'ready' || quitAfterCoreShutdown) return
-    attachLocalWorkbenchRootMainAuthor(author, supervisor)
-  } catch {
-    // 缺真实Domain服务或旧route撤销不会冒attach；旧窗口/播放流程继续保留。
-    if (coreSupervisor === supervisor && !localWorkbenchRootMainAuthor) mainDiagnostics.recordLifecycle('local_workbench_owner_not_ready', 'warn')
+  if (localWorkbenchMainRecoverySupervisor !== supervisor) {
+    localWorkbenchMainRecovery?.close()
+    localWorkbenchMainRecoverySupervisor = supervisor
+    localWorkbenchMainRecovery = createLocalWorkbenchMainRecovery({
+      isReady: () => coreSupervisor === supervisor && supervisor.status === 'ready' && !quitAfterCoreShutdown,
+      create: () => supervisor.createWorkbenchRootMainAuthor(),
+      attach: author => attachLocalWorkbenchRootMainAuthor(author, supervisor),
+      activate: async author => {
+        const assembly = localWorkbenchMainAssembly
+        if (!assembly) throw new CoreIpcError('NOT_READY', 'Main 原整理资源尚未注册。')
+        await assembly.activate(author)
+        if (localWorkbenchMainAssembly !== assembly || localWorkbenchRootMainAuthor !== author)
+          throw new CoreIpcError('NOT_READY', '原 Main 整理资源已经撤销。')
+      },
+      announce: (author, check) => announceCurrentLocalWorkbenchReady(author, supervisor, check),
+      failureCode: error => error instanceof CoreIpcError || error instanceof LocalWorkbenchMainBoundaryError ? error.code : 'UNKNOWN',
+      observe: event => {
+        logLibraryOperation('library', `workbench.main-bind.${event.phase}`, event.state, { count: event.attempt, elapsedMs: event.elapsedMs, ...(event.code ? { code: event.code } : {}) })
+        if (event.state !== 'error' || coreSupervisor !== supervisor) return
+        if (event.phase === 'create' && !localWorkbenchRootMainAuthor) mainDiagnostics.recordLifecycle('local_workbench_owner_not_ready', 'warn')
+        else mainDiagnostics.recordLifecycle('local_workbench_main_resources_not_ready', 'warn')
+      },
+    })
   }
+  await localWorkbenchMainRecovery!.request()
 }
 function revokeLocalWorkbenchRootMainAuthor(): void {
+  localWorkbenchMainRecovery?.revoke()
   const previous=localWorkbenchRootMainAuthor
   if(previous)void localNameMainBridge?.revokeOwner(previous.binding).catch(()=>mainDiagnostics.recordLifecycle('local_name_resources_not_closed','warn'))
   localWorkbenchRootMainAuthor = undefined
@@ -423,6 +491,32 @@ function recordPreloadRoonImageShape(value: unknown): void {
   })
 }
 
+let remoteCoreStartup: ReturnType<typeof createRemoteCoreStartup> | undefined
+let remoteCoreModeIntent = 0
+const remoteCoreModeController = createRemoteCoreModeController({
+  readMode: () => ({ mode: coreMode, remoteStreamPort }),
+  setMode: (mode, port) => { coreMode = mode; remoteStreamPort = port },
+  restart: async () => {
+    if (!coreSupervisor) throw new CoreIpcError('NOT_READY', 'Core 尚未就绪，不能切换远程模式。')
+    if (quitAfterCoreShutdown) throw new CoreIpcError('NOT_READY', '应用正在退出，不能启动Core。')
+    remoteCoreStartup?.markCoreActivation()
+    await coreSupervisor.restart(buildCoreEnvironment())
+  },
+})
+
+async function restoreLocalCoreAfterTunnelFailure(state: RemoteCoreTunnelState): Promise<void> {
+  if (quitAfterCoreShutdown) return
+  try {
+    await remoteCoreModeController.unavailable(state)
+    mainDiagnostics.recordLifecycle('remote_core_fallback_checked', 'info', { state: coreMode })
+    process.stdout.write(`[remote-core] fallback state=${coreMode}\n`)
+  } catch (error) {
+    mainDiagnostics.recordLifecycle('remote_core_fallback_failed', 'error', { code: 'CORE_RESTART_FAILED' })
+    process.stderr.write('[remote-core] fallback failed code=CORE_RESTART_FAILED\n')
+    throw error
+  }
+}
+
 const remoteCoreTunnelManager = new RemoteCoreTunnelManager({
   onStateChanged: (state) => {
     if (state.status === 'failed' || state.status === 'disconnected') {
@@ -440,26 +534,16 @@ const remoteCoreTunnelManager = new RemoteCoreTunnelManager({
       mainWindow.webContents.send('remote-core:event', state)
     }
   },
-  onTunnelBound: async (state) => {
-    const supervisor = coreSupervisor
-    if (!supervisor || state.remoteStreamPort === undefined) {
-      throw new Error('Core supervisor is not ready for remote development mode')
-    }
-    const previousMode = coreMode
-    const previousRemotePort = remoteStreamPort
-    coreMode = 'remote-core-development'
-    remoteStreamPort = state.remoteStreamPort
-    try {
-      await supervisor.restart(buildCoreEnvironment())
-    } catch (error) {
-      coreMode = previousMode
-      remoteStreamPort = previousRemotePort
-      await supervisor.restart(buildCoreEnvironment()).catch(() => undefined)
-      throw error
-    }
+  onTunnelBound: state => {
+    if (quitAfterCoreShutdown) throw new CoreIpcError('NOT_READY', '应用正在退出，不能切换 Core。')
+    return remoteCoreModeController.bound(state)
   },
-  onDisconnected: async () => {
-    await coreSupervisor?.request('playback.stop', {}).catch(() => undefined)
+  onTunnelUnavailable: state => restoreLocalCoreAfterTunnelFailure(state),
+  onDisconnected: async state => {
+    const stopped = coreSupervisor?.request('playback.stop', {}).catch(() => undefined)
+    // 先捕获原绑定并启动回退；不能等停止播放后再用迟到状态撤销新绑定。
+    await restoreLocalCoreAfterTunnelFailure(state)
+    await stopped
   },
 })
 
@@ -541,7 +625,7 @@ function buildTrayMenu(
     { label: presentation.statusLabel, enabled: false },
     { label: presentation.trackLabel, enabled: false },
     { type: 'separator' },
-    { label: 'Open Music Bridge', click: () => showMainWindow() },
+    { label: '打开 Mousa', click: () => showMainWindow() },
     {
       label: 'Previous',
       enabled: snapshot.playback.canPrevious,
@@ -560,7 +644,7 @@ function buildTrayMenu(
     { label: 'Show Queue', click: () => showMainWindow('show-queue') },
     { label: 'Export Diagnostics', click: () => void exportDiagnosticsFromMain(supervisor) },
     { type: 'separator' },
-    { label: 'Quit Music Bridge', click: () => app.quit() },
+    { label: '退出 Mousa', click: () => app.quit() },
   ])
 }
 
@@ -589,17 +673,17 @@ function installApplicationMenu(): void {
   const template: Electron.MenuItemConstructorOptions[] = process.platform === 'darwin'
     ? [
         {
-          label: APPLICATION_NAME,
+          label: DISPLAY_NAME,
           submenu: [
-            { role: 'about' },
+            { role: 'about', label: `关于 ${DISPLAY_NAME}` },
             { type: 'separator' },
             { role: 'services' },
             { type: 'separator' },
-            { role: 'hide' },
+            { role: 'hide', label: `隐藏 ${DISPLAY_NAME}` },
             { role: 'hideOthers' },
             { role: 'unhide' },
             { type: 'separator' },
-            { role: 'quit' },
+            { role: 'quit', label: `退出 ${DISPLAY_NAME}` },
           ],
         },
         editMenu,
@@ -648,7 +732,7 @@ function createTray(supervisor: CoreSupervisor): void {
   if (process.platform !== 'darwin') return
   destroyTray()
   tray = new Tray(createTrayIcon())
-  tray.setToolTip('Music Bridge for Roon')
+  tray.setToolTip(DISPLAY_NAME)
   tray.on('click', () => showMainWindow())
   requestTrayRefresh(supervisor)
 }
@@ -954,6 +1038,11 @@ function requirePlaybackTrackId(value: unknown): string {
   return value
 }
 
+/** 本地UUID仅选择Core当前播放歌词快照，不进入Provider播放/收藏等数字ID入口。 */
+function requireLyricsTrackId(value: unknown): string {
+  return isCollectionId(value) ? value : requirePlaybackTrackId(value)
+}
+
 function requireLyricsMatchId(value: unknown): string {
   if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{15,127}$/u.test(value)) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid lyrics match session')
@@ -1128,17 +1217,19 @@ async function exportDiagnosticsFromMain(
     ? { canceled: false, filePath: testOutputPath }
     : mainWindow
       ? await dialog.showSaveDialog(mainWindow, {
-          title: '导出 Music Bridge 诊断文件',
+          title: '导出 Mousa 诊断文件',
           defaultPath: 'MusicBridge-diagnostics.json',
           filters: [{ name: 'JSON', extensions: ['json'] }],
         })
       : await dialog.showSaveDialog({
-          title: '导出 Music Bridge 诊断文件',
+          title: '导出 Mousa 诊断文件',
           defaultPath: 'MusicBridge-diagnostics.json',
           filters: [{ name: 'JSON', extensions: ['json'] }],
         })
   if (selection.canceled || !selection.filePath) return { exported: false }
 
+  // 原手动诊断合同仍为v1；连续v2走显式stdout闭集及配套reader，不伪装成旧schema。
+  const rangeWindow = mobileRangeWindowProbe?.snapshot()
   await writeDiagnosticReport(selection.filePath, {
     platform: {
       platform: process.platform,
@@ -1151,7 +1242,7 @@ async function exportDiagnosticsFromMain(
     main: mainDiagnostics.snapshot(core.health),
     privateEvidence: { version: 1, ...(desktopArtworkTraceEnabled ? { desktopArtwork: snapshotDesktopArtwork() } : {}), localAlbum: supervisor.getLocalAlbumReadTraceSnapshot(), localPlayback: supervisor.getLocalPlaybackEvidenceSnapshot(), mobileCapability: supervisor.getMobileCapabilityTraceSnapshot(),
       ...(mobileRangeTimingProbe ? { mobileRangeTiming: mobileRangeTimingProbe.snapshot() } : {}),
-      ...(mobileRangeWindowProbe ? { mobileRangeWindow: mobileRangeWindowProbe.snapshot() } : {}),
+      ...(rangeWindow?.schema === 'mb.mobile-range-window.v1' ? { mobileRangeWindow: rangeWindow } : {}),
       ...(mobilePreparationProbe ? { mobilePreparation: mobilePreparationProbe.snapshot() } : {}) },
     core,
     gates: [
@@ -1202,7 +1293,7 @@ function createCurrentLocalWorkbenchResources(author: LocalWorkbenchRootMainAuth
     vault: new CredentialVault({ filePath: path.join(coreDataDirectory, 'local-name-cloud.credential'), storage: safeStorage }), securePrompt: nativeChooser.securePrompt })
   const names = createLocalNameTransport({ getConfiguration: backend => settings.getConfiguration(backend), resolveSecret: (backend, configuration, signal) => settings.resolveSecret(backend, configuration, signal), ...(physicalTestTransport ? { fetch: physicalTestTransport.nameFetch } : {}) })
   const originalTransportState=physicalTestTransport?.readTransportAvailability
-  const artwork = createLocalArtworkProviders({ normalize: bytes => normalizeLocalArtwork(bytes, raw => nativeImage.createFromBuffer(raw)),
+  const artwork = createLocalArtworkProviders({ normalize: async (bytes, signal) => (await normalizeLocalArtworkInWorker(bytes, signal)).image,
     ...(physicalTestTransport ? { transport: physicalTestTransport.artworkTransport } : {}),
     async readTransportAvailability(signal){
       if(signal.aborted||!resourcesCreated||!artworkCreated||resourcesClosing||resourcesClosed)return false
@@ -1391,42 +1482,62 @@ function createCurrentLocalWorkbenchResources(author: LocalWorkbenchRootMainAuth
 
 /** 三个只读专辑入口固定本次实际作者；同dataset新代也不能接收旧代迟到结果。 */
 function registerCurrentLocalAlbumIpc(supervisor: CoreSupervisor, assembly: ReturnType<typeof createLocalWorkbenchMainAssembly>): void {
+  type ReadScope = { author: LocalWorkbenchRootMainAuthor; pin: ReturnType<typeof assembly.captureLocalAlbumReadAuthor> }
+  const reads = new AsyncLocalStorage<ReadScope>()
   const trusted = (event: Electron.IpcMainInvokeEvent) => {
     const target = requireTrustedRenderer(event)
     if (event.senderFrame !== target.webContents.mainFrame) publicIpcFailure('NOT_READY', '本地专辑只允许当前应用主页面。')
   }
-  const check = async (author: LocalWorkbenchRootMainAuthor) => {
-    if (quitAfterCoreShutdown || coreSupervisor !== supervisor || supervisor.status !== 'ready' || localWorkbenchRootMainAuthor !== author) throw new CoreIpcError('NOT_READY', '原本地专辑作者已经撤销。')
-    await author.assertCurrent(author.binding)
-    if (quitAfterCoreShutdown || coreSupervisor !== supervisor || supervisor.status !== 'ready' || localWorkbenchRootMainAuthor !== author) throw new CoreIpcError('OUTBOX_SCOPE_MISMATCH', '原本地专辑Owner或Utility已经改变。')
+  const checkLocal = (scope: ReadScope) => {
+    if (quitAfterCoreShutdown || coreSupervisor !== supervisor || supervisor.status !== 'ready' || localWorkbenchRootMainAuthor !== scope.author)
+      throw new CoreIpcError('OUTBOX_SCOPE_MISMATCH', '原本地专辑Owner或Utility已经改变。')
+    scope.pin.assertCurrent()
+  }
+  const check = async (scope: ReadScope) => {
+    const started = performance.now()
+    let succeeded = false
+    try {
+      checkLocal(scope)
+      // 每次独立IPC首末都实核Owner；中间复用本操作的Main引用栅栏，避免15次串行身份RPC。
+      await scope.pin.verifyCurrent()
+      checkLocal(scope)
+      succeeded = true
+    } finally {
+      const elapsedMs = Math.max(0, performance.now() - started)
+      if (elapsedMs >= 50) logLibraryOperation('library', 'albums.author-check', succeeded ? 'complete' : 'error', { elapsedMs, slowAfterMs: 50 })
+    }
   }
   const capture = async (datasetId: string) => {
-    const author = localWorkbenchRootMainAuthor
-    if (!author) throw new CoreIpcError('NOT_READY', '本地专辑真实Owner尚未就绪。')
-    await check(author)
-    const assertOriginalAssembly = await assembly.captureAuthor(datasetId)
-    await assertOriginalAssembly(); await check(author)
-    const datasetMatched = author.binding.datasetId === datasetId; localAlbumMatch('dataset', datasetMatched)
+    const scope = reads.getStore()
+    if (!scope) throw new CoreIpcError('NOT_READY', '本地专辑本次读取上下文尚未就绪。')
+    checkLocal(scope)
+    const datasetMatched = scope.pin.binding.datasetId === datasetId; localAlbumMatch('dataset', datasetMatched)
     if (!datasetMatched) throw new CoreIpcError('OUTBOX_SCOPE_MISMATCH', '原本地专辑工作库已经改变。')
-    return author
+    return scope
   }
   registerLocalAlbumIpc({
     ipcMain: { handle: (channel, handler) => registerPerformanceHandler(channel, (event, value) => runLocalAlbumMainRead(value, async () => {
+      const started = performance.now()
       localAlbumPhase('main.trusted'); trusted(event); localAlbumMatch('trusted', true)
       localAlbumPhase('main.author'); const author = localWorkbenchRootMainAuthor
       if (!author) throw new CoreIpcError('NOT_READY', '本地专辑真实Owner尚未就绪。')
-      await check(author)
-      const result = await handler(event, value)
-      localAlbumPhase('main.trusted'); trusted(event); localAlbumMatch('trusted', true); localAlbumPhase('main.author'); await check(author)
-      return result
+      const scope: ReadScope = { author, pin: assembly.captureLocalAlbumReadAuthor(author.binding.datasetId) }
+      return reads.run(scope, async () => {
+        await check(scope)
+        const result = await handler(event, value)
+        localAlbumPhase('main.trusted'); trusted(event); localAlbumMatch('trusted', true); localAlbumPhase('main.author'); await check(scope)
+        localAlbumPhase('main.trusted'); trusted(event); localAlbumMatch('trusted', true)
+        logLibraryOperation('library', 'albums.main-reply', 'complete', { elapsedMs: Math.max(0, performance.now() - started) })
+        return result
+      })
     })) },
     assertTrusted: event => trusted(event as Electron.IpcMainInvokeEvent),
     assertDataset: async datasetId => { await capture(datasetId) },
     read: async (request, datasetId) => {
-      localAlbumPhase('main.dataset'); const author = await capture(datasetId); localAlbumMatch('dataset', true)
+      localAlbumPhase('main.dataset'); const scope = await capture(datasetId); localAlbumMatch('dataset', true)
       const call = { version: 1 as const, type: 'local-album-main-request' as const, id: randomUUID(), datasetId, request: structuredClone(request) }
       localAlbumLink(call.id, 'main.dispatch'); const reply = await supervisor.readLocalAlbum(call)
-      localAlbumPhase('main.author'); await check(author)
+      localAlbumPhase('main.author'); checkLocal(scope)
       localAlbumPhase('main.dto'); const responseValid = isLocalAlbumMainResponse(reply, call); localAlbumMatch('dto', responseValid)
       if (!responseValid) throw new CoreIpcError('INVALID_IPC_RESPONSE', '原本地专辑结果身份无效。')
       if (!reply.ok) { localAlbumPhase('main.response'); localAlbumRejectCode(reply.error.code); throw new Error(reply.error.message) }
@@ -1441,6 +1552,16 @@ function registerIpcHandlers(
 ): void {
   if (!coreDataDirectory) throw new Error('命令outbox缺少私有数据目录')
   if (!mobileConnectionSettings) throw new Error('移动连接设置尚未初始化。')
+  if (!artistCatalogService) throw new Error('艺术家目录尚未初始化。')
+  installArtistCatalogHandlers<Electron.IpcMainInvokeEvent>({
+    handle: (channel, handler) => registerPerformanceHandler(channel, handler),
+    requireTrusted: event => {
+      if (quitAfterCoreShutdown) throw new CoreIpcError('NOT_READY', '艺术家目录正在关闭。')
+      const target = requireTrustedRenderer(event)
+      if (event.senderFrame !== target.webContents.mainFrame) throw new CoreIpcError('NOT_READY', '艺术家查询只允许当前应用主页面。')
+    },
+    service: artistCatalogService,
+  })
   installMobileConnectionHandlers<Electron.IpcMainInvokeEvent>({ handle: (channel, handler) => ipcMain.handle(channel, handler),
     requireTrusted: event => { requireTrustedRenderer(event); if (!mainWindow || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error('移动连接只允许当前应用主页面。'); },
     settings: mobileConnectionSettings })
@@ -1458,7 +1579,7 @@ function registerIpcHandlers(
   const assembly = createLocalWorkbenchMainAssembly({ currentAuthor: () => localWorkbenchRootMainAuthor, createResources: createCurrentLocalWorkbenchResources })
   localWorkbenchMainAssembly = assembly
   registerCurrentLocalAlbumIpc(supervisor, assembly)
-  if (localWorkbenchRootMainAuthor) void assembly.activate(localWorkbenchRootMainAuthor).catch(() => mainDiagnostics.recordLifecycle('local_workbench_main_resources_not_ready', 'warn'))
+  void bindCurrentLocalWorkbenchRootMainAuthor(supervisor)
   const trustedWorkbench = (event: Electron.IpcMainInvokeEvent) => { if(quitAfterCoreShutdown)publicIpcFailure('NOT_READY','整理正在退出，不再接受新请求。');const target=requireTrustedRenderer(event);if(event.senderFrame!==target.webContents.mainFrame)publicIpcFailure('NOT_READY','整理操作只允许当前应用主页面。') }
   localWorkbenchLegacyIpc = registerLocalWorkbenchIpc({ ipcMain: { handle: (channel,handler) => registerPerformanceHandler(channel,(event,value) => handler(event,value)), removeHandler: channel => ipcMain.removeHandler(channel) },
     assertTrusted: event => trustedWorkbench(event as Electron.IpcMainInvokeEvent),
@@ -1528,7 +1649,7 @@ function registerIpcHandlers(
   registerPerformanceHandler('localWorkbench:nameSettings', (event, value: unknown) => managementBoundary.nameSettings(event, value))
   registerPerformanceHandler('localWorkbench:lyrics', (event, value: unknown) => managementBoundary.lyrics(event, value))
   installLocalLegacyLinksHandlers({handle:(channel,handler)=>registerPerformanceHandler(channel,handler),requireTrusted:requireTrustedRenderer,supervisor})
-  closeLocalArtwork=installLocalArtworkHandlers<Electron.IpcMainInvokeEvent>({ handle:(channel,handler)=>registerPerformanceHandler(channel,handler), requireTrusted:requireTrustedRenderer, eventKey:event=>String(event.sender.id), supervisor, attachOriginal: request => supervisor.requestSourceWrites('localSourceWrites.attachOriginal', request), ...(!isStartupTest&&!isUiE2e?{providers:{'cover-art-archive-v1':createMusicCoverArtProvider(),'commons-cc0-v1':createCommonsArtworkProvider()}}:{}), decode:bytes=>nativeImage.createFromBuffer(bytes), pick:()=>pickLocalLibrary({title:'选择封面图片',message:'只保存到 MusicBridge；不会修改原图、cover.jpg 或音乐标签。',properties:['openFile'],filters:[{name:'PNG / JPEG',extensions:['png','jpg','jpeg']}]}) }).close
+  closeLocalArtwork=installLocalArtworkHandlers<Electron.IpcMainInvokeEvent>({ handle:(channel,handler)=>registerPerformanceHandler(channel,handler), requireTrusted:requireTrustedRenderer, eventKey:event=>String(event.sender.id), supervisor, attachOriginal: request => supervisor.requestSourceWrites('localSourceWrites.attachOriginal', request), ...(!isStartupTest&&!isUiE2e?{providers:{'cover-art-archive-v1':createMusicCoverArtProvider(),'commons-cc0-v1':createCommonsArtworkProvider()}}:{}), decode:bytes=>nativeImage.createFromBuffer(bytes), pick:()=>pickLocalLibrary({title:'选择封面图片',message:'只保存到 Mousa；不会修改原图、cover.jpg 或音乐标签。',properties:['openFile'],filters:[{name:'PNG / JPEG',extensions:['png','jpg','jpeg']}]}) }).close
   commandOutbox = createCommandOutboxService({ store, currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId, ...executor })
   closeLocalSourceWrites = installLocalSourceWritesHandlers<Electron.IpcMainInvokeEvent>({
     handle: (channel, handler) => registerPerformanceHandler(channel, handler), supervisor, outbox: commandOutbox,
@@ -2161,7 +2282,7 @@ function registerIpcHandlers(
   registerPerformanceHandler('lyrics:get', (event, trackId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('lyrics.get', {
-        trackId: requirePlaybackTrackId(trackId),
+        trackId: requireLyricsTrackId(trackId),
       }),
     ),
   )
@@ -2269,9 +2390,10 @@ function registerIpcHandlers(
   registerPerformanceHandler('remote-core:reconnect', (event) => invokeRemoteCore(event, reconnectRemoteCoreDevelopment))
 }
 
-function createWindow(supervisor: CoreSupervisor): BrowserWindow {
+function createWindow(supervisor: CoreSupervisor, startup?: ReturnType<typeof createRemoteCoreStartup>): BrowserWindow {
   nativeTheme.themeSource = 'light'
   const window = new BrowserWindow({
+    title: DISPLAY_NAME,
     width: 960,
     height: 640,
     minWidth: 720,
@@ -2283,10 +2405,11 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
       ...buildBrowserWindowWebPreferences(),
       ...(isUiE2e ? { backgroundThrottling: false } : {}),
       preload: path.join(currentDirectory, '../preload/index.cjs'),
-      additionalArguments: ['--music-bridge-mobile-settings=v1', ...(process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? ['--music-bridge-performance-trace=1'] : []), ...(isLibraryReadTrace ? ['--music-bridge-library-read-trace=1'] : [])],
+      additionalArguments: ['--music-bridge-mobile-settings=v1', ...(startup ? ['--music-bridge-startup-nonce=' + startup.nonce] : []), ...(process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? ['--music-bridge-performance-trace=1'] : []), ...(isLibraryReadTrace ? ['--music-bridge-library-read-trace=1'] : [])],
     },
   })
   mainWindow = window
+  startup?.bindWindow(window)
 
   // 仅此真实主window的可信主frame；网页子view和任意console文本不进入证据环。
   window.webContents.on('console-message', details => {
@@ -2294,6 +2417,8 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
       const frame = details.frame, mainFrame = window.webContents.mainFrame
       if (!frame || frame.processId !== mainFrame.processId || frame.routingId !== mainFrame.routingId
         || !isTrustedRendererSender({ senderId: window.webContents.id, windowId: window.webContents.id, frameUrl: frame.url })) return
+      const operation = readLibraryOperationLine(details.message)
+      if (operation?.part === 'ui') console.info(details.message)
       const artwork = desktopArtworkTraceEnabled ? readDesktopArtworkLine(details.message) : null
       if (artwork?.origin === 'renderer') collectDesktopArtwork(artwork)
       const safe = readLocalAlbumSafeTraceLine(details.message)
@@ -2315,51 +2440,60 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
     window.hide()
   })
   window.on('closed', () => {
-    if (mainWindow === window) mainWindow = undefined
+    if (mainWindow === window) {
+      startup?.cancel()
+      mainWindow = undefined
+    }
   })
   collectionScaleProbe?.observeRenderer(window)
   void window.loadURL(`${RENDERER_SCHEME}://${RENDERER_HOST}${RENDERER_ENTRY_PATH}`)
 
   window.webContents.once('did-finish-load', () => {
     lifecycleProbe.mark('ui-loaded')
-    collectionReadonlyProbe?.observeWindow(window)
-    collectionScaleProbe?.observeWindow(window)
-    if (isStartupTest && !isCoreCrashGate && supervisor.status === 'ready') {
-      void window.webContents
-        .executeJavaScript(
-          'Promise.all([window.musicBridge.pingCore(), window.musicBridge.getCoreHealth(), window.musicBridge.getCoreState()])',
-        )
-        .then((result: unknown) => {
-          const [ping, health, state] = Array.isArray(result) ? result : []
-          const healthValid = validateIpcEvent({
-            version: IPC_VERSION,
-            event: 'core.health',
-            payload: { state: health },
-          }).ok
-          const stateValid = validateIpcEvent({
-            version: IPC_VERSION,
-            event: 'core.health',
-            payload: { state },
-          }).ok
-          const passed =
-            ping &&
-            typeof ping === 'object' &&
-            'pong' in ping &&
-            ping.pong === true &&
-            healthValid &&
-            stateValid
-          process.stdout.write(`${passed ? 'DESKTOP_STARTUP_READY' : 'DESKTOP_STARTUP_FAIL'}\n`)
-          if (passed) {
-            setTimeout(() => app.quit(), 25)
-          } else {
+    const checkStartup = () => {
+      collectionReadonlyProbe?.observeWindow(window)
+      collectionScaleProbe?.observeWindow(window)
+      if (isStartupTest && !isCoreCrashGate && !quitAfterCoreShutdown && !window.isDestroyed() && supervisor.status === 'ready') {
+        void window.webContents
+          .executeJavaScript(
+            'Promise.all([window.musicBridge.pingCore(), window.musicBridge.getCoreHealth(), window.musicBridge.getCoreState()])',
+          )
+          .then((result: unknown) => {
+            const [ping, health, state] = Array.isArray(result) ? result : []
+            const healthValid = validateIpcEvent({
+              version: IPC_VERSION,
+              event: 'core.health',
+              payload: { state: health },
+            }).ok
+            const stateValid = validateIpcEvent({
+              version: IPC_VERSION,
+              event: 'core.health',
+              payload: { state },
+            }).ok
+            const passed =
+              ping &&
+              typeof ping === 'object' &&
+              'pong' in ping &&
+              ping.pong === true &&
+              healthValid &&
+              stateValid
+            process.stdout.write(`${passed ? 'DESKTOP_STARTUP_READY' : 'DESKTOP_STARTUP_FAIL'}\n`)
+            if (passed) {
+              setTimeout(() => app.quit(), 25)
+            } else {
+              app.exit(1)
+            }
+          })
+          .catch(() => {
+            process.stdout.write('DESKTOP_STARTUP_FAIL\n')
             app.exit(1)
-          }
-        })
-        .catch(() => {
-          process.stdout.write('DESKTOP_STARTUP_FAIL\n')
-          app.exit(1)
-        })
+          })
+      }
     }
+    // 提前加载窗口时，原启动Gate仍须等同一bootstrap真正结算。
+    if (startup) {
+      void startup.waitUntilReady({ sender: window.webContents, senderFrame: window.webContents.mainFrame }, { version: 1, nonce: startup.nonce }).then(checkStartup, () => undefined)
+    } else checkStartup()
   })
 
   return window
@@ -2385,6 +2519,10 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     && environment.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
     && environment.MUSIC_BRIDGE_CORE_CRASH_PROBE === '1'
   ) environment.MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED = '1'
+  if (process.env.MB_MEDIA_WORKER_BINARY && process.env.MB_MEDIA_WORKER_BINARY_SHA256) {
+    environment.MB_MEDIA_WORKER_BINARY = process.env.MB_MEDIA_WORKER_BINARY
+    environment.MB_MEDIA_WORKER_BINARY_SHA256 = process.env.MB_MEDIA_WORKER_BINARY_SHA256
+  }
   return environment
 }
 
@@ -2412,11 +2550,15 @@ async function invokeRemoteCore<T>(
 }
 
 async function startRemoteCoreDevelopment(requestedTarget: unknown): Promise<RemoteCoreTunnelState> {
+  const intent = ++remoteCoreModeIntent
   const environmentTarget = process.env.CORE_SSH_TARGET
   const sshTarget = typeof requestedTarget === 'string' && requestedTarget.length > 0
     ? requestedTarget
     : isSafeSshTarget(environmentTarget) ? environmentTarget : ''
   const localPorts = resolveRemoteCoreLocalPorts(process.env)
+  if (coreMode === 'remote-core-development') await restoreLocalCoreAfterTunnelFailure(remoteCoreTunnelManager.getState())
+  if (intent !== remoteCoreModeIntent || quitAfterCoreShutdown) return remoteCoreTunnelManager.getState()
+  remoteCoreModeController.reset()
   return remoteCoreTunnelManager.start({
     sshTarget,
     remoteStreamPort: DEFAULT_REMOTE_STREAM_PORT,
@@ -2426,9 +2568,12 @@ async function startRemoteCoreDevelopment(requestedTarget: unknown): Promise<Rem
 }
 
 async function stopRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
+  const intent = ++remoteCoreModeIntent
+  remoteCoreModeController.reset()
   await coreSupervisor?.request('playback.stop', {}).catch(() => undefined)
+  if (intent !== remoteCoreModeIntent) return remoteCoreTunnelManager.getState()
   const state = await remoteCoreTunnelManager.stop()
-  if (coreMode === 'remote-core-development') {
+  if (intent === remoteCoreModeIntent && coreMode === 'remote-core-development') {
     coreMode = 'local-core'
     remoteStreamPort = undefined
     await coreSupervisor?.restart(buildCoreEnvironment())
@@ -2437,6 +2582,10 @@ async function stopRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
 }
 
 async function reconnectRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
+  const intent = ++remoteCoreModeIntent
+  if (coreMode === 'remote-core-development') await restoreLocalCoreAfterTunnelFailure(remoteCoreTunnelManager.getState())
+  if (intent !== remoteCoreModeIntent || quitAfterCoreShutdown) return remoteCoreTunnelManager.getState()
+  remoteCoreModeController.reset()
   return remoteCoreTunnelManager.reconnect()
 }
 
@@ -2470,10 +2619,11 @@ function createCoreSupervisor(
     if (armed) crashGateEntered = true
     return armed
   })
-  return new CoreSupervisor({
+  const supervisor = new CoreSupervisor({
     entryPath: path.join(currentDirectory, 'core.js'),
     cwd: dataDirectory,
     env: buildCoreEnvironment(),
+    ...(mobilePreparationProbe ? { onMobileCapabilityTrace: (record: MobileCapabilityTraceRecord) => mobilePreparationProbe.acceptCoreTrace(record) } : {}),
     playbackEventProtocol: process.env.MUSIC_BRIDGE_COMPACT_PLAYBACK_EVENTS === '0' ? null : 'compact-v1',
     sourceWritesPort: true,
     relocationMainPort: true,
@@ -2554,6 +2704,8 @@ function createCoreSupervisor(
       }
     },
   })
+  supervisor.configurePrivatePersistentOwnerStartup()
+  return supervisor
 }
 
 async function prepareCoreDataDirectory(): Promise<{
@@ -2626,12 +2778,28 @@ async function waitForCoreRestartCredentialRecovery(
 }
 
 async function bootstrap(): Promise<void> {
+  const bootstrapStarted = performance.now()
   if (packagedRouteProbe && !app.isPackaged) throw new Error('固定路由诊断必须运行实际候选应用包。')
   if (packagedRendererProbe && !app.isPackaged) throw new Error('原控件诊断必须运行实际候选应用包。')
   lifecycleProbe.mark('bootstrap-start')
   await app.whenReady()
+  // 二进制位置与SHA仅来自Main编译身份；Renderer、目录文件名和Provider均不能替换。
+  if (typeof __MUSIC_BRIDGE_MEDIA_WORKER_SHA256__ === 'string') {
+    const started = performance.now()
+    logLibraryOperation('worker', 'media.bootstrap', 'start', {})
+    try {
+      const media = await resolveDesktopMediaWorker({ entryDirectory: currentDirectory, resourcesDirectory: process.resourcesPath,
+        packaged: app.isPackaged, binarySha256: __MUSIC_BRIDGE_MEDIA_WORKER_SHA256__ })
+      process.env.MB_MEDIA_WORKER_BINARY = media.binaryPath
+      process.env.MB_MEDIA_WORKER_BINARY_SHA256 = media.binarySha256
+      logLibraryOperation('worker', 'media.bootstrap', 'complete', { elapsedMs: performance.now() - started })
+    } catch (error) {
+      logLibraryOperation('worker', 'media.bootstrap', 'error', { elapsedMs: performance.now() - started, code: 'WORKER_FAILED' })
+      throw error
+    }
+  }
   if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy(packagedRendererProbe || collectionReadonlyProbe || collectionScaleProbe ? 'regular' : 'accessory')
-  app.setAboutPanelOptions({ applicationName: APPLICATION_NAME })
+  app.setAboutPanelOptions({ applicationName: DISPLAY_NAME })
   installApplicationMenu()
   await installRendererProtocol()
   installSessionSecurity(session.defaultSession)
@@ -2748,8 +2916,23 @@ async function bootstrap(): Promise<void> {
   if (isCoreRestartCredentialRecoveryGate || electronColdStartStage === 'seed') {
     await prepared.credentialVault.save('v'.repeat(32))
   }
-  await supervisor.start()
+  // 专用无窗口Gate保持原入口；普通应用先读取同源偏好，再激活唯一首代Core。
+  let earlyWindow: BrowserWindow | undefined
+  if (!packagedRouteProbe && !isCoreRestartCredentialRecoveryGate && !isElectronColdStartGate) {
+    const startup = createRemoteCoreStartup({ nonce: randomUUID(),
+      suggestedTarget: process.env.CORE_SSH_TARGET, currentWindow: () => mainWindow,
+      isClosing: () => quitAfterCoreShutdown })
+    remoteCoreStartup = startup
+    ipcMain.handle(REMOTE_CORE_STARTUP_PREFERENCE, (event, value: unknown) => startup.acceptPreference(event, value))
+    ipcMain.handle(REMOTE_CORE_STARTUP_READY, (event, value: unknown) => startup.waitUntilReady(event, value))
+    earlyWindow = createWindow(supervisor, startup)
+    await startup.activate({ startLocal: () => supervisor.start(),
+      startRemote: target => startRemoteCoreDevelopment(target), isCoreReady: () => supervisor.status === 'ready' })
+    startup.assertCurrent()
+  } else await supervisor.start()
+  remoteCoreStartup?.assertCurrent()
   await bindCurrentLocalWorkbenchRootMainAuthor(supervisor)
+  remoteCoreStartup?.assertCurrent()
   if (packagedRouteProbe) {
     await packagedRouteProbe.run(supervisor)
     app.quit()
@@ -2761,6 +2944,7 @@ async function bootstrap(): Promise<void> {
   })
   // 隔离测试绝不自动读取本机的真实服务地址。
   if (!isStartupTest && !isUiE2e) await roonDisplayConnection.restore()
+  remoteCoreStartup?.assertCurrent()
   const credentialCore = {
     verifyCredential: async (credential: string) =>
       (await supervisor.requestInternal('auth.verifyCredential', { credential })).status,
@@ -2771,12 +2955,16 @@ async function bootstrap(): Promise<void> {
   if (electronColdStartStage === 'restore') {
     await restoreProviderCredential({ vault: prepared.credentialVault, core: credentialCore })
   } else if (!packagedRendererProbe) {
-    await provisionProviderCredential({
+    const provisioningStatus = await provisionProviderCredential({
       vault: prepared.credentialVault,
       environment: process.env,
       core: credentialCore,
     })
+    // 只记录闭集恢复结果，便于区分未登录与凭据读取/验证未完成；不记录凭据或异常正文。
+    logLibraryOperation('library', 'startup.provider-auth', provisioningStatus === 'configured' ? 'complete' : 'skipped',
+      { code: provisioningStatus.toUpperCase() })
   }
+  remoteCoreStartup?.assertCurrent()
   initialProvisioningComplete = true
   if (isCoreRestartCredentialRecoveryGate) {
     const passed = await waitForCoreRestartCredentialRecovery(
@@ -2807,15 +2995,27 @@ async function bootstrap(): Promise<void> {
     else app.exit(1)
     return
   }
+  artistCatalogService = createArtistCatalogService({ supervisor,
+    directory: path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'artist-catalog') })
+  const pairingPrompts = !isStartupTest && !isUiE2e
+    ? createMobilePairingPromptCoordinator({ getWindow: () => mainWindow }) : undefined
+  mobilePairingPrompts = pairingPrompts
   mobileConnectionSettings = createMobileConnectionSettings({ directory: path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'mobile-connection'),
+    artistCatalog: artistCatalogService,
+    ...(pairingPrompts ? { nearbyPairing: {
+      publisher: createMobileBonjourPublisher(),
+      show: input => pairingPrompts.show(input),
+      dismiss: requestId => pairingPrompts.dismiss(requestId),
+    } } : {}),
     ...(mobileRangeTimingProbe ? { rangeTimingProbe: mobileRangeTimingProbe } : {}),
     ...(mobileRangeWindowProbe ? { rangeWindowProbe: mobileRangeWindowProbe } : {}),
     ...(mobilePreparationProbe ? { preparationProbe: mobilePreparationProbe } : {}),
+    ...(mobileOwnerLoadTraceProbe ? { ownerLoadTraceProbe: mobileOwnerLoadTraceProbe } : {}),
     protector: { encryptString: value => { if (!safeStorage.isEncryptionAvailable()) throw new Error('移动连接安全存储不可用。'); return safeStorage.encryptString(value) },
       decryptString: value => { if (!safeStorage.isEncryptionAvailable()) throw new Error('移动连接安全存储不可用。'); return safeStorage.decryptString(value) } },
     currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId,
     requestOwner: request => supervisor.requestMobileMain(request), isCoreReady: () => supervisor.status === 'ready' && !quitAfterCoreShutdown,
-    requestContentRpc: (request, signal) => supervisor.requestMobileContentMain(request, signal),
+    requestContentRpc: (request, signal, recheck) => supervisor.requestMobileContentMain(request, signal, recheck),
     environment: __MUSIC_BRIDGE_DEVELOPMENT_BUILD__ ? 'development' : 'production',
     resizeArtwork: (bytes, size, providerInput) => {
       if (providerInput) {
@@ -2828,9 +3028,17 @@ async function bootstrap(): Promise<void> {
       return new Uint8Array(resized.toJPEG(90));
     } })
   if (!isStartupTest && !isUiE2e) await mobileConnectionSettings.restore()
+  remoteCoreStartup?.assertCurrent()
   registerIpcHandlers(supervisor, prepared.credentialVault)
-  const window = createWindow(supervisor)
+  const window = earlyWindow ?? createWindow(supervisor)
   createTray(supervisor)
+  if (remoteCoreStartup) {
+    if (supervisor.status !== 'ready' || ['checking', 'starting', 'reconnecting', 'stopping'].includes(remoteCoreTunnelManager.getState().status)) {
+      throw new CoreIpcError('NOT_READY', '最终Core模式尚未完成启动。')
+    }
+    remoteCoreStartup.complete()
+    logLibraryOperation('library', 'startup.bootstrap', 'complete', { code: 'FINAL_READY', elapsedMs: performance.now() - bootstrapStarted })
+  }
   if (collectionScaleProbe) {
     try { await collectionScaleProbe.runWindowProbe(window) } catch { collectionScaleProbe.emit('main.probeFailed', { code: 'PROBE_FAILED' }) }
     app.quit(); return
@@ -2864,12 +3072,17 @@ async function bootstrap(): Promise<void> {
   })
 }
 
-void bootstrap().catch(() => {
+void bootstrap().catch(error => {
+  const cancelled = remoteCoreStartup?.cancelled
+  remoteCoreStartup?.fail(error)
+  if (quitAfterCoreShutdown) return
+  if (cancelled) { app.quit(); return }
   process.stderr.write('DESKTOP_STARTUP_FAIL\n')
   app.exit(1)
 })
 
 app.on('before-quit', (event) => {
+  remoteCoreStartup?.cancel()
   packagedRouteProbe?.emit('main.beforeQuit')
   packagedRendererProbe?.emit('main.beforeQuit')
   collectionReadonlyProbe?.emit('main.beforeQuit')
@@ -2899,11 +3112,20 @@ app.on('before-quit', (event) => {
       management: localWorkbenchManagementBoundary, legacy: localWorkbenchLegacyIpc,
       normalizer: localArtworkImportNormalizer, assembly: localWorkbenchMainAssembly,
       lyricsMain: localLyricsMainService, lyricsProvider: localLyricsProviderBridge, name: localNameMainBridge,
-      remote: remoteCoreTunnelManager, mobile: mobileConnectionSettings, outbox: commandOutbox,
+      remote: remoteCoreTunnelManager, mobile: mobileConnectionSettings, pairingPrompts: mobilePairingPrompts,
+      outbox: commandOutbox, artistCatalog: artistCatalogService,
       display: roonDisplayConnection, closeArtwork: closeLocalArtwork,
       closeSourceWrites: closeLocalSourceWrites, closeRelocation: closeLocalRelocation, probe: collectionScaleProbe,
     }
     quitAfterCoreShutdown = true
+    localWorkbenchMainRecovery?.close()
+    remoteCoreModeIntent++
+    remoteCoreModeController.reset()
+    // 首代尚未发布作者时，SSH绑定回调可能正等待Core.start；先启动同原关闭，
+    // 解除remote_stop→绑定→冷启动的等待环。原owner_shutdown仍须等它的真实结果。
+    const initialCoreShutdown = remoteCoreStartup?.remoteActivationPending && !original.author
+      && original.supervisor.status === 'starting' ? original.supervisor.shutdown() : undefined
+    void initialCoreShutdown?.catch(() => undefined)
     original.management?.seal()
     stopRecordingPrintWorker()
     let outboxClosing: Promise<void> | undefined
@@ -2919,22 +3141,28 @@ app.on('before-quit', (event) => {
           ['seal_artwork_ipc', () => original.closeArtwork?.()],
           ['seal_source_writes_ipc', () => original.closeSourceWrites?.()],
           ['seal_relocation_ipc', () => original.closeRelocation?.()],
+          ['close_artist_catalog', () => original.artistCatalog?.close()],
         ] },
         { onStart: () => lifecycleProbe.mark('remote-stop-start'), onSettled: () => lifecycleProbe.mark('remote-stop-end'), steps: [
           ['remote_stop', async () => {
             const state = await original.remote.stop()
             if (state.status !== 'idle' || state.mode !== 'local-core') throw new CoreIpcError('NOT_READY', '原远程隧道关闭尚未确认。')
           }],
-          ['mobile_close', () => original.mobile?.close()],
+          ['mobile_close', async () => {
+            // 仍等待首次退出固定的服务；即使其关闭失败也收起本轮原生验证码窗口。
+            try { await original.mobile?.close() }
+            finally { await original.pairingPrompts?.stop() }
+          }],
         ] },
         { onStart: () => lifecycleProbe.mark('core-shutdown-start'), steps: [
           ['prepare_name', () => original.author ? original.name?.sealOwner(original.author.binding) : undefined],
           ['prepare_lyrics', () => original.author ? original.lyricsProvider?.revokeOwner(original.author.binding) : undefined],
           ['prepare_reads', () => original.legacy?.sealReads()],
           ['prepare_normalizer', () => original.normalizer?.close()],
+          ['prepare_media_worker', () => closeRustMediaWorkerPool()],
         ] },
         // 某一准备/Owner关闭失败，仍等待同原其余关闭与join；未确认时保留作者和批准FD。
-        { steps: [['owner_shutdown', () => original.supervisor.shutdown()]] },
+        { steps: [['owner_shutdown', () => initialCoreShutdown ?? original.supervisor.shutdown()]] },
         { steps: [
           ['join_name', () => original.supervisor.joinPrivateNameProviderBridge()],
           ['join_lyrics_grant', () => original.supervisor.joinPrivateLyricsGrantProducer()],

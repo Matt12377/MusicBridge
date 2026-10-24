@@ -10,6 +10,12 @@ import * as publicContracts from '@music-bridge/contracts'
 import * as workbenchController from '../../src/renderer/src/composables/application/local-library-workbench/controller.js'
 import * as localAlbumPresentation from '../../src/renderer/src/components/library/local-browser/presentation.js'
 import * as localRelocationPlans from '../../src/renderer/src/composables/application/useLocalRelocationPlans.js'
+import * as localAlbumBrowserTypes from '../../src/renderer/src/composables/application/local-library-browser/types.js'
+import * as localLibraryScanControl from '../../src/renderer/src/composables/application/local-library-browser/scan-control.js'
+import * as gridArtworkCache from '../../src/renderer/src/composables/application/local-library-browser/grid-artwork-cache.js'
+import * as gridWindow from '../../src/renderer/src/composables/useGridWindow.js'
+import * as desktopArtworkTrace from '../../../../packages/bridge-core/src/shared/desktop-artwork-trace.js'
+import * as libraryOperationLog from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
 import { calculateVirtualWindow } from '../../src/renderer/src/composables/virtualWindow.js'
 
 /** 实际 SFC + Vue renderer 的行为宿主；不代替浏览器几何、native 解码或真实 IPC。 */
@@ -103,11 +109,17 @@ export async function mountVueSfc(t: TestContext, file: string, initial: Record<
       if (name.endsWith('/virtualWindow.js')) return { calculateVirtualWindow }
       if (name.startsWith('.') && name.endsWith('.js')) {
         const source = path.resolve(path.dirname(sourceFile), name.slice(0, -3) + '.ts')
-        // 这两个真实模块也依赖ESM合同；保持与行为用例相同的原模块实例。
+        // 使用真实ESM模块实例；SFC的CJS宿主不能递归require仅提供ESM入口的合同。
         const hostDirectory = path.dirname(fileURLToPath(import.meta.url))
         if (source === path.resolve(hostDirectory, '../../src/renderer/src/composables/application/local-library-workbench/controller.ts')) return workbenchController
         if (source === path.resolve(hostDirectory, '../../src/renderer/src/components/library/local-browser/presentation.ts')) return localAlbumPresentation
         if (source === path.resolve(hostDirectory, '../../src/renderer/src/composables/application/useLocalRelocationPlans.ts')) return localRelocationPlans
+        if (source === path.resolve(hostDirectory, '../../src/renderer/src/composables/application/local-library-browser/types.ts')) return localAlbumBrowserTypes
+        if (source === path.resolve(hostDirectory, '../../src/renderer/src/composables/application/local-library-browser/scan-control.ts')) return localLibraryScanControl
+        if (source === path.resolve(hostDirectory, '../../src/renderer/src/composables/application/local-library-browser/grid-artwork-cache.ts')) return gridArtworkCache
+        if (source === path.resolve(hostDirectory, '../../src/renderer/src/composables/useGridWindow.ts')) return gridWindow
+        if (source === path.resolve(hostDirectory, '../../../../packages/bridge-core/src/shared/desktop-artwork-trace.ts')) return desktopArtworkTrace
+        if (source === path.resolve(hostDirectory, '../../../../packages/bridge-core/src/shared/library-operation-log.ts')) return libraryOperationLog
         if (existsSync(source)) return localRequire(source)
       }
       return localRequire(name)

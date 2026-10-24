@@ -1,4 +1,6 @@
+import { mobileResourceCapacityFailure } from './resource-capacity-trace.js';
 import { randomUUID } from 'node:crypto';
+import { types as nodeTypes } from 'node:util';
 import { mobileCanonicalJson, mobileCatalogResponseSnapshot, mobileDataSnapshot, mobileInteger, mobileRecord, mobileTrackSelectionEquals } from '@music-bridge/contracts';
 import type { MobileTrack, MobileTrackSelection } from '@music-bridge/contracts';
 import { captureMobileNeteaseSelection } from './netease-catalog-service.js';
@@ -9,6 +11,7 @@ import type { MobileNeteaseAccountPort, MobileNeteaseCatalogResolver, MobileNete
 import type { MobilePlaybackPreparedSource, MobilePlaybackSourceRequest } from './source-types.js';
 import { MobilePlaybackError, type MobilePlaybackErrorCode } from './playback-types.js';
 import { MobileServiceError } from './types.js';
+import { captureMobileCapabilityContext, mobileContentDiagnosticReject, observeMobileSourcePreparationTrace, type MobileCapabilityStage } from './capability-trace.js';
 
 const defaults: Readonly<MobileNeteaseSourceLimits> = Object.freeze({liveResources:8,storedResources:2048,readers:32,resourceReaders:4,readIds:4096,
   prepareMs:10000,readMs:5000,releaseMs:10000,leaseMs:300000,maxLifetimeMs:43200000});
@@ -32,7 +35,7 @@ function sameOwner(a:MobileNeteaseScope,b:MobileNeteaseScope):boolean {
 function asError(e:unknown):MobilePlaybackError {
   if(e instanceof MobilePlaybackError)return e;
   if(e instanceof MobileServiceError){const code=e.code;
-    if(code==='CONTENT_LIMIT_EXCEEDED'||code==='CURSOR_INVALID')return new MobilePlaybackError(503,'BUSY',true,1000);
+    if(code==='CONTENT_LIMIT_EXCEEDED'||code==='CURSOR_INVALID'||code==='ARTIST_INDEX_PREPARING')return new MobilePlaybackError(503,'BUSY',true,1000);
     return new MobilePlaybackError(e.status===413?503:e.status,code,e.retryable,e.retryAfterMs);
   }
   return new MobilePlaybackError(503,'BUSY',true,1000);
@@ -59,6 +62,33 @@ export function createMobileNeteaseSourceService(options:{account:MobileNeteaseA
   streams:MobileNeteaseStreamPort;assertCurrent:MobileNeteaseFence;isQualified?:()=>boolean;nowMs?:()=>number;limits?:Partial<MobileNeteaseSourceLimits>}):MobileNeteaseSourceService {
   const cap=limits(options.limits),now=options.nowMs??Date.now,records=new Map<string,Resource>(),readerOwners=new Map<string,Resource>();
   let closed=false,fatal=false,closing:Promise<void>|null=null;
+  const diagnosed = new WeakSet<object>();
+  function diagnoseChanged(stage: () => MobileCapabilityStage, error: unknown): void {
+    try {
+      const context = captureMobileCapabilityContext();
+      if (context?.privateContentDiagnostic !== true || context.closed || context.firstBusiness || diagnosed.has(context)) return;
+      if (nodeTypes.isProxy(error)) return;
+      const descriptor = error && typeof error === 'object' ? Object.getOwnPropertyDescriptor(error, 'code') : undefined;
+      if (!descriptor || !Object.hasOwn(descriptor, 'value') || descriptor.value !== 'SOURCE_CHANGED') return;
+      diagnosed.add(context); mobileContentDiagnosticReject(stage(), error);
+    } catch { /* 私有分类失败不替换原端口或一致性错误。 */ }
+  }
+  function sourceSync<T>(stage: MobileCapabilityStage, work: () => T): T {
+    return observeMobileSourcePreparationTrace(stage, () => {
+      try { return work(); } catch (error) { diagnoseChanged(() => stage, error); throw error; }
+    });
+  }
+  function sourceStep<T>(stage: MobileCapabilityStage, work: () => Promise<T>): Promise<T> {
+    const context = captureMobileCapabilityContext();
+    if (context?.privateContentDiagnostic !== true || context.closed || context.firstBusiness) return work();
+    return observeMobileSourcePreparationTrace(stage, () => {
+      try { return work().catch(error => { diagnoseChanged(() => stage, error); throw error; }); }
+      catch (error) { diagnoseChanged(() => stage, error); throw error; }
+    });
+  }
+  function sourceChanged(stage: () => MobileCapabilityStage): never {
+    try { return fail(409, 'SOURCE_CHANGED'); } catch (error) { diagnoseChanged(stage, error); throw error; }
+  }
   const qualified=():boolean=>!closed&&!fatal&&options.isQualified?.()===true;
   function clock(){const n=now();return mobileInteger(n)?n:fail(503,'BUSY');}
   function live(){let n=0;for(const r of records.values())if(r.state!=='released')n++;return n;}
@@ -160,7 +190,7 @@ export function createMobileNeteaseSourceService(options:{account:MobileNeteaseA
   }
   function reader(r:Resource,id:string):Reader {
     const owner=readerOwners.get(id);if(owner&&owner!==r)return fail(409,'INVALID_REQUEST');const prior=r.readers.get(id);if(prior)return prior;
-    if(readerOwners.size>=cap.readIds)return fail(429,'RESOURCE_BUSY');
+    if(readerOwners.size>=cap.readIds)return mobileResourceCapacityFailure('capacity.provider.read-ids-full',()=>fail(429,'RESOURCE_BUSY'));
     const read:Reader={id,controller:new AbortController(),offset:null,pending:null,closed:false,closing:null};
     readerOwners.set(id,r);r.readers.set(id,read);return read;
   }
@@ -168,22 +198,27 @@ export function createMobileNeteaseSourceService(options:{account:MobileNeteaseA
     return ['codec','container','sampleRateHz','bitsPerSample','channels'].every(k=>track.audio[k as keyof typeof track.audio]===source[k as keyof typeof source]);
   }
   async function prepare(r:Resource):Promise<MobilePlaybackPreparedSource> {
-    const rawTrack=await options.catalog.resolveTrack(r.scope,r.selection!,r.controller.signal),captured=mobileCatalogResponseSnapshot('track',rawTrack);
-    if(!captured.ok)return fail(409,'SOURCE_CHANGED');const track=frozen(captured.value);
-    if(track.source!=='netease'||track.availability!=='available'||!mobileTrackSelectionEquals(r.selection!,{trackId:track.id,source:track.source,versionId:track.versionId,contentRevision:track.contentRevision}))return fail(409,'SOURCE_CHANGED');
-    await current(r,true);
-    const lease=await options.streams.open({scope:r.scope,resourceId:r.id,selection:r.selection!},r.controller.signal);r.lease=lease;
+    const rawTrack=await sourceStep('provider.source.prepare.catalog',()=>options.catalog.resolveTrack(r.scope,r.selection!,r.controller.signal)),captured=mobileCatalogResponseSnapshot('track',rawTrack);
+    if(!captured.ok)return sourceChanged(()=>'provider.source.prepare.catalog-facts');const track=frozen(captured.value);
+    if(track.source!=='netease'||track.availability!=='available'||!mobileInteger(track.durationMs)||!mobileTrackSelectionEquals(r.selection!,{trackId:track.id,source:track.source,versionId:track.versionId,contentRevision:track.contentRevision}))return sourceChanged(()=>'provider.source.prepare.catalog-facts');
+    await sourceStep('provider.source.prepare.current',()=>current(r,true));
+    const lease=await sourceStep('provider.source.prepare.open',()=>options.streams.open({scope:r.scope,resourceId:r.id,selection:r.selection!},r.controller.signal));r.lease=lease;
     // 即使 open 迟到/已取消，也先捕获原 cleanup 方法，不以取消丢掉真实 lease。
-    captureLease(r,lease);local(r,true);await verify(r,true);
+    sourceSync('provider.source.prepare.capture-lease',()=>captureLease(r,lease));local(r,true);await sourceStep('provider.source.prepare.verify-before',()=>verify(r,true));
     const probeId=randomUUID();let facts:Awaited<ReturnType<typeof readMobileNeteaseAudioFacts>>;
-    try{facts=await readMobileNeteaseAudioFacts(r.binding!.size,(start,n,signal)=>operation(r,()=>r.binding!.functions.read.call(lease,probeId,start,n,signal)),r.controller.signal);}
-    finally{try{await r.binding!.functions.closeRead.call(lease,probeId);}catch(e){throw quietFailure(r,e);}}
-    await verify(r,true);
-    if(!audioMatches(track,facts.audio)||facts.durationMs!==null&&Math.abs(facts.durationMs-track.durationMs)>MOBILE_NETEASE_DURATION_TOLERANCE_MS)return fail(409,'SOURCE_CHANGED');
+    try{facts=await sourceStep('provider.source.prepare.audio-read',()=>readMobileNeteaseAudioFacts(r.binding!.size,(start,n,signal)=>operation(r,()=>r.binding!.functions.read.call(lease,probeId,start,n,signal)),r.controller.signal));}
+    finally{try{await sourceStep('provider.source.prepare.audio-close',()=>r.binding!.functions.closeRead.call(lease,probeId));}catch(e){throw quietFailure(r,e);}}
+    await sourceStep('provider.source.prepare.verify-after',()=>verify(r,true));
+    if(!audioMatches(track,facts.audio)||facts.durationMs!==null&&Math.abs(facts.durationMs-track.durationMs)>MOBILE_NETEASE_DURATION_TOLERANCE_MS)return sourceChanged(()=>{
+      const field=track.audio.codec!==facts.audio.codec?'codec':track.audio.container!==facts.audio.container?'container'
+        :track.audio.sampleRateHz!==facts.audio.sampleRateHz?'sample-rate':track.audio.bitsPerSample!==facts.audio.bitsPerSample?'bits'
+          :track.audio.channels!==facts.audio.channels?'channels':'duration';
+      return `provider.source.prepare.audio-facts.${field}` as MobileCapabilityStage;
+    });
     const source:MobilePlaybackPreparedSource=Object.freeze({handle:r.id,sourceAudio:facts.audio,actualAudio:facts.audio,
       processing:Object.freeze({mode:'direct',reason:'当前 Provider 精确来源的直接只读传输。',fromPreparedCache:false}),
       size:r.binding!.size,contentType:facts.contentType,durationMs:facts.durationMs??track.durationMs,seekable:true});
-    r.prepared=source;r.state='active';await current(r);return source;
+    r.prepared=source;r.state='active';await sourceStep('provider.source.prepare.ready-current',()=>current(r));return source;
   }
   return{
     get qualified(){return qualified();},
@@ -193,12 +228,13 @@ export function createMobileNeteaseSourceService(options:{account:MobileNeteaseA
         if(!requestValid({operation:'prepare',selection:rawRequest})||!mobileNeteaseId(rawRequest.resourceId))return fail(400,'INVALID_REQUEST');
         const c=mobileDataSnapshot(rawRequest,undefined,'request');if(!c.ok||!mobileRecord(c.value))return fail(400,'INVALID_REQUEST');const req=c.value;
         const selection=captureMobileNeteaseSelection({trackId:req.trackId,source:'netease',versionId:req.versionId,contentRevision:req.contentRevision});
-        await scopeCurrent(scope,'acquire',signal);const id=req.resourceId as string,fingerprint=mobileCanonicalJson(req);let r=records.get(id);
-        if(r){if(!sameOwner(scope,r.scope))return fail(404,'INVALID_REQUEST');local(r,true);
-          if(r.fingerprint!==fingerprint)return fail(409,'IDEMPOTENCY_CONFLICT');if(r.prepared){await verify(r);return r.prepared;}
+        await sourceStep('provider.source.prepare.scope',()=>scopeCurrent(scope,'acquire',signal));const id=req.resourceId as string,fingerprint=mobileCanonicalJson(req);let r=records.get(id);
+        if(r){if(!sameOwner(scope,r.scope))return fail(404,'INVALID_REQUEST');const existing=r;sourceSync('provider.source.prepare.replay',()=>local(existing,true));
+          if(r.fingerprint!==fingerprint)return fail(409,'IDEMPOTENCY_CONFLICT');if(r.prepared){const prepared=r;await sourceStep('provider.source.prepare.replay',()=>verify(prepared));return r.prepared;}
           if(r.preparation){const remaining=cap.prepareMs-(clock()-r.created);if(remaining<=0){const e=new MobilePlaybackError(503,'BUSY',true,1000);retire(r,e);throw e;}
             return deadline(r.preparation,remaining,r.controller);}
-        }else{if(records.size>=cap.storedResources||live()>=cap.liveResources)return fail(429,'RESOURCE_BUSY');r=make(id,scope,selection,fingerprint,'preparing');}
+        }else{if(records.size>=cap.storedResources)return mobileResourceCapacityFailure('capacity.provider.stored-resources-full',()=>fail(429,'RESOURCE_BUSY'));
+          if(live()>=cap.liveResources)return mobileResourceCapacityFailure('capacity.provider.live-resources-full',()=>fail(429,'RESOURCE_BUSY'));r=make(id,scope,selection,fingerprint,'preparing');}
         const record=r,unbind=bindAbort(signal,record.controller);record.preparation=prepare(record);void record.preparation.catch(e=>retire(record,e));
         try{return await deadline(record.preparation,cap.prepareMs,record.controller);}catch(e){retire(record,e);throw asError(e);}finally{unbind();}
       },
@@ -212,9 +248,10 @@ export function createMobileNeteaseSourceService(options:{account:MobileNeteaseA
       async read(handle,readId,start,maxBytes,signal){const r=resource(scope,handle);signal.throwIfAborted();
         if(!requestValid({operation:'read',handle,readId,start,maxBytes})||!mobileNeteaseId(readId))return fail(400,'INVALID_REQUEST');
         await current(r);if(!r.prepared||start>=r.prepared.size)return fail(400,'INVALID_REQUEST');
-        const previous=r.readers.get(readId);if(previous?.closed)return fail(410,'RESOURCE_RELEASED');if(previous?.pending)return fail(429,'RESOURCE_BUSY');
+        const previous=r.readers.get(readId);if(previous?.closed)return fail(410,'RESOURCE_RELEASED');if(previous?.pending)return mobileResourceCapacityFailure('capacity.provider.read-pending',()=>fail(429,'RESOURCE_BUSY'));
         if(!previous){let active=0,total=0;for(const item of records.values())for(const v of item.readers.values())if(!v.closed){active++;if(item===r)total++;}
-          if(active>=cap.readers||total>=cap.resourceReaders)return fail(429,'RESOURCE_BUSY');}
+          if(active>=cap.readers)return mobileResourceCapacityFailure('capacity.provider.readers-full',()=>fail(429,'RESOURCE_BUSY'));
+          if(total>=cap.resourceReaders)return mobileResourceCapacityFailure('capacity.provider.resource-readers-full',()=>fail(429,'RESOURCE_BUSY'));}
         const read=reader(r,readId);if(read.offset!==null&&read.offset!==start)return fail(400,'INVALID_REQUEST');
         const offResource=bindAbort(r.controller.signal,read.controller),offCaller=bindAbort(signal,read.controller),length=Math.min(maxBytes,r.prepared.size-start);
         const p=(async()=>{await verify(r);read.controller.signal.throwIfAborted();
@@ -229,7 +266,7 @@ export function createMobileNeteaseSourceService(options:{account:MobileNeteaseA
         if(!requestValid({operation:'close-read',handle,readId})||!mobileNeteaseId(readId))return fail(400,'INVALID_REQUEST');
         await awaitQuiet(r,closeReader(r,reader(r,readId)));},
       async release(handle){if(!requestValid({operation:'release',handle})||!mobileNeteaseId(handle))return fail(400,'INVALID_REQUEST');
-        let r=records.get(handle);if(!r){if(records.size>=cap.storedResources)return fail(429,'RESOURCE_BUSY');r=make(handle,scope,null,null,'released');}
+        let r=records.get(handle);if(!r){if(records.size>=cap.storedResources)return mobileResourceCapacityFailure('capacity.provider.stored-resources-full',()=>fail(429,'RESOURCE_BUSY'));r=make(handle,scope,null,null,'released');}
         if(!sameOwner(scope,r.scope))return fail(404,'INVALID_REQUEST');await awaitQuiet(r,release(r));},
     };},
     async revokeDevice(deviceId,deviceEpoch){if(!mobileNeteaseId(deviceId)||!mobileInteger(deviceEpoch,1))return fail(400,'INVALID_REQUEST');

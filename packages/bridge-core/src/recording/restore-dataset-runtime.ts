@@ -71,6 +71,7 @@ function checkDatabaseFiles(file: string, required: boolean): boolean {
 function openRepository(file: string, required: boolean, check: () => void, referenceArchiveRoot: string): CollectionRepository {
   check();
   const exists = checkDatabaseFiles(file, required), identity = exists ? lstatSync(file, { bigint: true }) : undefined;
+  let requireCurrentSchema = false;
   if (exists) {
     const inspection = new DatabaseSync(file, { readOnly: true, allowExtension: false });
     try {
@@ -84,15 +85,19 @@ function openRepository(file: string, required: boolean, check: () => void, refe
       if (version >= 28) verifyReferenceCatalogZipDatabase(inspection);
       if (version >= 29) verifyRecordingRecordPageSearch(inspection);
       if (version >= 30) verifyPreparationZipSessionDatabase(inspection);
-      if (version >= 31) verifyLocalCatalogDatabase(inspection);
-      if (version >= 32) verifyLocalScanDatabase(inspection);
-      if (version >= 33) verifyMBQueueDatabase(inspection,false);
+      // 旧版本迁移可能独立提交，必须先完整预检；当前版本由实际工作库原事务完整核验。
+      if (version < 34) {
+        if (version >= 31) verifyLocalCatalogDatabase(inspection);
+        if (version >= 32) verifyLocalScanDatabase(inspection);
+        if (version >= 33) verifyMBQueueDatabase(inspection,false);
+      }
       if (Number(inspection.prepare('PRAGMA user_version').get()?.user_version) >= 34) verifyLocalArtworkDatabase(inspection);
       inspection.prepare('SELECT id FROM collection_models LIMIT 1').all();
+      requireCurrentSchema = version === 34;
     } finally { inspection.close(); }
   }
   check(); checkDatabaseFiles(file, required);
-  const repository = createCollectionRepository({ filePath: file, referenceArchiveRoot });
+  const repository = createCollectionRepository({ filePath: file, referenceArchiveRoot, ...(requireCurrentSchema ? { requireCurrentSchema: true as const } : {}) });
   try {
     // 工厂是惰性的；最小真实读取才能证明本次启动实际打开了选定数据库。
     repository.list({ offset: 0, limit: 1 }); check(); checkDatabaseFiles(file, true);

@@ -1,4 +1,5 @@
 import { createLocalAlbumClient } from './local-album-client.js'
+import { createArtistCatalogClient } from './artist-catalog-client.js'
 import { createLocalWorkbenchClient, installTrustedDirectoryDrop, type TrustedDirectoryDropEvent } from './local-workbench-client.js'
 import { createLocalOrganizerClient } from './local-organizer-client.js'
 import { createLocalArtworkClient } from './local-artwork-client.js'
@@ -39,13 +40,39 @@ const recordRoonImageShape =
     process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH ?? '',
   )
 
+// 偏好消息与DOM/module完成独立，避免Renderer等待Main、Main又等待DOMContentLoaded。
+const startupNonceArguments = process.argv?.filter(value => value.startsWith('--music-bridge-startup-nonce=')) ?? []
+const startupNonce = startupNonceArguments.length === 1 ? startupNonceArguments[0]!.slice('--music-bridge-startup-nonce='.length) : undefined
+let initialBootstrapReady = startupNonce === undefined
+const initialBootstrap = startupNonce === undefined ? Promise.resolve() : (async () => {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(startupNonce)) throw new Error('[NOT_READY] 启动窗口身份无效。')
+  let readable = false, autoStart = false, sshTarget: string | null = null
+  try {
+    autoStart = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
+    sshTarget = window.localStorage.getItem('musicbridge.remoteCore.sshTarget')
+    readable = sshTarget === null || sshTarget.length <= 255
+    if (!readable) { autoStart = false; sshTarget = null }
+  } catch { autoStart = false; sshTarget = null }
+  // 同窗口重载只会收到已消费的偏好回执，再等待/复用原终态，不重新派发autoStart。
+  await ipcRenderer.invoke('remote-core:bootstrap-preference', { version: 1, nonce: startupNonce, readable, autoStart, sshTarget }).catch(() => undefined)
+  await ipcRenderer.invoke('remote-core:bootstrap-ready', { version: 1, nonce: startupNonce })
+  initialBootstrapReady = true
+})()
+void initialBootstrap.catch(() => undefined)
+
 const rendererPerformance = new PerformanceTraceRecorder({ component: 'renderer', enabled: process.argv?.includes('--music-bridge-performance-trace=1') ?? false })
 const interactions = createPerformanceInteractions(rendererPerformance)
-const invokePerformance: typeof ipcRenderer.invoke = createPerformanceInvoker(
+const invokeObserved: typeof ipcRenderer.invoke = createPerformanceInvoker(
   (channel, ...args) => ipcRenderer.invoke(channel, ...args), rendererPerformance,
   callback => { if (typeof requestAnimationFrame === 'function') requestAnimationFrame(callback) },
   interactions.consume,
 ) as typeof ipcRenderer.invoke
+const invokePerformance: typeof ipcRenderer.invoke = (channel, ...args) => {
+  if (initialBootstrapReady) return invokeObserved(channel, ...args)
+  // 仅原启动纯读等待放行；任何变更都不进入延后执行队列。
+  if (channel === 'app:get-info' || channel === 'commandOutbox:context') return initialBootstrap.then(() => invokeObserved(channel, ...args))
+  return Promise.reject(new Error('[NOT_READY] 应用正在准备，请稍后操作。'))
+}
 const invokeScoped = (channel: string, value?: unknown): Promise<unknown> => invokePerformance(channel, value)
 const getDatasetId = createCommandOutboxDatasetScope(invokeScoped)
 const outbox = createCommandOutboxClient(invokeScoped, getDatasetId)
@@ -54,6 +81,8 @@ const candidateClient = createRecordingCandidateClient(invokeScoped, request => 
 const preparationZipClient = createPreparationZipClient(invokeScoped, getDatasetId)
 const localAlbumClient = createLocalAlbumClient(invokeScoped, getDatasetId)
 const localWorkbenchClient = createLocalWorkbenchClient(invokeScoped, getDatasetId)
+
+contextBridge.exposeInMainWorld('musicBridgeCatalog', Object.freeze(createArtistCatalogClient(invokeScoped, getDatasetId)))
 
 contextBridge.exposeInMainWorld(
   'musicBridge',

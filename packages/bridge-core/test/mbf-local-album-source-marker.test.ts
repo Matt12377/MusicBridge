@@ -8,6 +8,9 @@ import { MessageChannel } from 'node:worker_threads'
 import * as dto from '@music-bridge/contracts'
 import { createCollectionRepository, type CollectionRepository } from '../src/collection/repository.js'
 import { createLocalAlbumOwnerService } from '../src/collection/local-album-browser/owner-port.js'
+import { createLocalWorkbenchReadService,createLocalLibraryManagementRuntime } from '../src/collection/local-library-workbench/read-service.js'
+import { createCompletedScanSnapshotView } from '../src/collection/local-scan-snapshot-view.js'
+import type { LocalLibraryManagementCaptureRecord } from '../src/collection/local-library-workbench/owner-journal.js'
 import { LocalAlbumReadError } from '../src/collection/local-album-browser/grouping.js'
 import type { LocalAlbumArtworkReadResult, LocalAlbumNameEnhancementFact } from '../src/collection/local-album-browser/types.js'
 import type { ScanPreparedBatch, ScanPreparedItem } from '../src/collection/local-scan-store.js'
@@ -164,7 +167,7 @@ type SourceFunction = 'ordinal' | 'fields'
 interface SourceStatement {
   id: number
   method: 'get' | 'all' | 'iterate'
-  kind: 'gallery' | 'find' | 'members' | 'derived' | 'indexed-members' | 'other'
+  kind: 'gallery' | 'find' | 'members' | 'derived' | 'indexed-members' | 'compact' | 'current-group-members' | 'other'
   sqlSha256: string
   rows: number
   nativeByTrack: Record<string, { ordinal: number; fields: number }>
@@ -242,7 +245,11 @@ function installNativeSourceObserver(t: TestContext): void {
       if (!projection) return Reflect.apply(original, this, bindings)
       // 每次真实执行单独分配ticket；prepare仅登记原Statement归属，缓存命中同样经过这里。
       const ticket: SourceStatement = { id: observation.statements.length + 1, method,
-        kind: sql.includes('mb_album_derived_snapshot') ? 'derived' : sql.includes('page_members AS MATERIALIZED') && sql.includes('FROM json_each(@memberPage)') ? 'indexed-members' : sql.includes('envelope FROM counts') ? 'gallery' : sql.includes('SELECT * FROM groups WHERE album_key') ? 'find' : sql.includes('page_members AS') ? 'members' : 'other',
+        kind: sql.includes('/* mb_album_compact_groups */') ? 'compact'
+          : sql.includes('current_group AS MATERIALIZED(SELECT * FROM groups WHERE album_key=@albumKey AND root_id=@rootId)')
+            && sql.includes('page_members AS MATERIALIZED(SELECT * FROM members WHERE album_key=@albumKey AND root_id=@rootId ORDER BY sequence LIMIT @limit OFFSET @offset)')
+            && sql.includes('FROM current_group g LEFT JOIN page_members p ON 1') ? 'current-group-members'
+          : sql.includes('mb_album_derived_snapshot') ? 'derived' : sql.includes('page_members AS MATERIALIZED') && sql.includes('FROM json_each(@memberPage)') ? 'indexed-members' : sql.includes('envelope FROM counts') ? 'gallery' : sql.includes('SELECT * FROM groups WHERE album_key') ? 'find' : sql.includes('page_members AS') ? 'members' : 'other',
         sqlSha256: hash(sql), rows: 0, nativeByTrack: {} }
       observation.statements.push(ticket)
       for (const registration of registrations.get(database)?.values() ?? [])
@@ -354,13 +361,11 @@ test('MBF来源标记：真实Owner的65基础轨每SQL只求值一次，fields�
   assert.deepEqual((await f.members(reissue)).items[0]!.facts.metadata, catalog.metadata(target.track.id))
   report('65轨原关系gallery', before.observation); report('65轨冷目标find与实际尾页', tail.observation); report('65轨多发行gallery', after.observation)
   const ids = f.tracks.map(value => value.track.id)
-  // 冷目标的find与members各覆盖65基础来源；尾页只输出第65轨，每条真实SQL的ordinal仍各求值一次。
-  assertOneMarker(before.observation, [{ kind: 'gallery', method: 'get', rows: 1, trackIds: ids }])
-  assertOneMarker(after.observation, [{ kind: 'gallery', method: 'get', rows: 1, trackIds: ids }])
-  assertOneMarker(tail.observation, [
-    { kind: 'find', method: 'get', rows: 1, trackIds: ids },
-    { kind: 'members', method: 'all', rows: 1, trackIds: ids },
-  ])
+  // 冷gallery逐组iterate构建完整Compact；一轨新增发行仍只核65基础来源，不按关系倍增标记。
+  assertOneMarker(before.observation, [{ kind: 'compact', method: 'iterate', rows: 1, trackIds: ids }])
+  assertOneMarker(after.observation, [{ kind: 'compact', method: 'iterate', rows: 2, trackIds: ids }])
+  // 发行尾页的当前组与成员共用一条完整CTE；仍真实覆盖65身份，只输出第65轨。
+  assertOneMarker(tail.observation, [{ kind: 'current-group-members', method: 'all', rows: 1, trackIds: ids }])
   assert.deepEqual(after.observation.statements[0]!.nativeByTrack, before.observation.statements[0]!.nativeByTrack)
 })
 
@@ -394,6 +399,58 @@ test('MBF来源标记：部分历史、六effective与空字符串override保持
   report('部分历史和空字符串override', observed.observation)
 })
 
+test('MBF来源标记：真实空Map暖读经部分观察、数组与scalar覆盖及普通水位推进后保持冷重放等价', { concurrency: false }, async t => {
+  const f = await fixture(t, { tracks: 2 }), catalog = f.repository.localCatalog, target = f.tracks[1]!, edition = f.edition('空Map事实', [target])
+  assert.equal(catalog.privateSourceWritesRead(view => view.projection.fullRaw.size), 0)
+  const initial = (await f.albums()).items.find(album => album.editionId === edition.id)!
+  assert.deepEqual((await f.members(initial)).items[0]!.facts.metadata.raw, fields(2))
+  const partial: dto.LocalMetadata = { artist: '观察主艺人', artists: ['观察主艺人', '观察合作艺人'], albumArtist: '观察专辑艺人', albumArtists: ['观察专辑艺人', '观察专辑合作艺人'], year: '2029' }
+  catalog.observeMetadata({ commandId: randomUUID(), trackId: target.track.id, source: 'tag', parserVersion, fields: partial })
+  const commandId = randomUUID(), overlay: dto.LocalMetadata = { title: '', album: '', artist: '人工歌曲艺人', albumArtist: '人工专辑艺人' }
+  const override = catalog.overrideMetadata({ commandId, trackId: target.track.id, expectedRevision: null, fields: overlay })
+  const raw = { ...fields(2), ...partial }, effective: dto.LocalMetadata = { title: '', artist: '人工歌曲艺人', album: '', year: '2029', disc: '1', track: '2', albumArtist: '人工专辑艺人' }
+  const album = (await f.albums()).items.find(value => value.id === initial.id)!, member = await f.members(album), captured = await f.inspect(album)
+  assert.deepEqual(member.items[0]!.facts.metadata, { raw, override, effective })
+  assert.deepEqual(catalog.metadata(target.track.id), member.items[0]!.facts.metadata)
+  assert.deepEqual(captured.members[0]!.fact.rawMetadata, raw); assert.deepEqual(captured.members[0]!.fact.summary.metadata, effective)
+  assert.equal(Object.hasOwn(member.items[0]!.facts.metadata.effective, 'artists'), false); assert.equal(Object.hasOwn(member.items[0]!.facts.metadata.effective, 'albumArtists'), false)
+  const watermark = catalog.privateAlbumBrowserRevision()
+  catalog.observeMetadata({ commandId: randomUUID(), trackId: f.tracks[0]!.track.id, source: 'tag', parserVersion, fields: { title: '其它轨普通观察推进水位' } })
+  assert.notEqual(catalog.privateAlbumBrowserRevision(), watermark)
+  const warmPage = await f.albums(), warmAlbum = warmPage.items.find(value => value.id === album.id)!
+  assert.deepEqual(warmAlbum, album, '无Source事件的账本推进不能改写目标发行事实或错误复用旧投影')
+  assert.deepEqual(await f.members(warmAlbum), member)
+  assert.equal(JSON.stringify(await f.inspect(warmAlbum)), JSON.stringify(captured))
+  assert.equal(catalog.privateSourceWritesRead(view => view.projection.fullRaw.size), 0, '空资格来自原已审计Map，不以native fields调用次数推断')
+  await f.close()
+  const cold = createCollectionRepository({ filePath: f.filePath }), coldOwner = ownerFor(cold)
+  try {
+    assert.equal(cold.localCatalog.privateSourceWritesRead(view => view.projection.fullRaw.size), 0)
+    const coldPage = await coldOwner.queryAlbums(query()), coldAlbum = coldPage.items.find(value => value.id === album.id)!
+    assert.deepEqual(coldPage, warmPage)
+    assert.deepEqual(await coldOwner.queryAlbumTracks({ albumKey: coldAlbum.id, rootId: coldAlbum.rootId, offset: 0, limit: 200 }), member)
+    assert.equal(JSON.stringify(await coldOwner.inspectAlbum({ albumKey: coldAlbum.id, rootId: coldAlbum.rootId, revision: coldAlbum.revision })), JSON.stringify(captured))
+    assert.deepEqual(cold.localCatalog.metadata(target.track.id), { raw, override, effective })
+  } finally { coldOwner.close(); cold.close() }
+})
+
+test('MBF来源标记：空Map暖缓存仍拒绝外部未知写，恢复原字节不能复活旧核验凭证', { concurrency: false }, async t => {
+  const f = await fixture(t, { tracks: 1 }), catalog = f.repository.localCatalog, target = f.tracks[0]!
+  assert.equal(catalog.privateSourceWritesRead(view => view.projection.fullRaw.size), 0)
+  const album = (await f.albums()).items[0]!
+  await f.members(album); await f.inspect(album)
+  const writer = new DatabaseSync(f.filePath)
+  try {
+    const original = writer.prepare('SELECT data FROM local_catalog_tracks WHERE id=?').get(target.track.id)?.data
+    assert.equal(typeof original, 'string')
+    writer.prepare('UPDATE local_catalog_tracks SET data=? WHERE id=?').run(`${original} `, target.track.id)
+    await assert.rejects(f.albums(), errorCode('UNAVAILABLE'))
+    await assert.rejects(f.members(album), errorCode('UNAVAILABLE'))
+    writer.prepare('UPDATE local_catalog_tracks SET data=? WHERE id=?').run(original!, target.track.id)
+    await assert.rejects(f.albums(), errorCode('UNAVAILABLE'), '原data_version围栏不能因JSON内容或原字节恢复而重置')
+  } finally { writer.close() }
+})
+
 test('MBF来源标记：真实Owner七类counts、空页和零CUE；scan与手选封面变化保持原修订围栏', { concurrency: false }, async t => {
   const f = await fixture(t, { tracks: 3, trackNamed: true }), catalog = f.repository.localCatalog
   await f.commit([await f.accepted('Track004.wav', fields(4, '散落原标签'), false), await f.rejected('元数据失败/01.bin', 'PARSE_FAILED'), await f.rejected('普通拒收/01.bin')])
@@ -418,13 +475,15 @@ test('MBF来源标记：真实Owner七类counts、空页和零CUE；scan与手�
   const awaiting = all.items.find(album => album.representativeTrackId === unknown.track.id)!
   assert.equal(awaiting.artworkState, 'unknown'); assert.equal((await f.artwork(awaiting)).image, null)
   const confirmed = (await f.albums(query({ filter: 'missing-artwork' }))).items[0]!
-  assert.equal(confirmed.id, awaiting.id); assert.equal(confirmed.artworkState, 'missing'); assert.notEqual(confirmed.revision, awaiting.revision)
+  assert.equal(confirmed.id, awaiting.id); assert.equal(confirmed.artworkState, 'missing')
+  assert.equal(confirmed.revision, awaiting.revision, '库存观察只改变显示状态，不能伪造原组内容修订。')
+  assert.deepEqual(confirmed, { ...awaiting, artworkState: 'missing', statuses: [...awaiting.statuses, 'missing-artwork'] })
   const scanAlbum = all.items.find(album => album.representativeTrackId === f.tracks[0]!.track.id)!
   await f.commit(await Promise.all(f.tracks.map((value, index) => f.accepted(value.relative, fields(index + 1), false))))
   const noEmbedded = (await f.albums()).items.find(album => album.id === scanAlbum.id)!
   assert.equal(noEmbedded.artworkState, 'unknown'); assert.notEqual(noEmbedded.revision, scanAlbum.revision)
   await assert.rejects(f.inspect(scanAlbum), errorCode('SNAPSHOT_CHANGED'))
-  await assert.rejects(f.artwork(confirmed), errorCode('SNAPSHOT_CHANGED'))
+  await assert.rejects(f.artwork(scanAlbum), errorCode('SNAPSHOT_CHANGED'))
   const target = f.tracks[0]!, edition = f.edition('手选封面', [target]), before = (await f.albums()).items.find(album => album.editionId === edition.id)!
   const context = f.repository.localArtwork.context({ trackId: target.track.id, editionId: edition.id }); assert.ok(context.target)
   const staged = f.repository.localArtwork.stage({ target: context.target, origin: 'manual', sourceIdentity: f.coverDigest, sourceLabel: '自有合成图片', image: f.image })
@@ -452,7 +511,9 @@ test('MBF来源标记：真实Owner七类counts、空页和零CUE；scan与手�
 
 test('MBF来源标记：原SourceWrites真实plan/grant/commit的非空及空fullRaw、锚后观察和override/provenance', { concurrency: false }, async t => {
   const f = await fixture(t, { tracks: 65 }), target = await f.ownedFlac(), catalog = f.repository.localCatalog, edition = f.edition('源写回事实', [target])
+  assert.equal(catalog.privateSourceWritesRead(view => view.projection.fullRaw.size), 0, '先由实际审计空Map建立暖作者，再发布真实Source事实')
   const initial = (await f.albums()).items.find(album => album.editionId === edition.id)!, beforeAsset = catalog.asset(target.asset.id)
+  assert.deepEqual((await f.members(initial)).items[0]!.facts.metadata.raw, target.raw)
   const api = createLocalSourceWritesService({ repository: f.repository, datasetId: f.datasetId, ownerEpoch: randomUUID(), assertCurrent() { catalog.root(f.root.id) } })
   const channel = new MessageChannel(), actor = createSourceWritesMainActor(channel.port1)
   f.addCloser(async () => { try { await api.close() } finally { channel.port1.close(); channel.port2.close() } })
@@ -463,6 +524,8 @@ test('MBF来源标记：原SourceWrites真实plan/grant/commit的非空及空ful
   }
   assert.equal(policy().enabled, false, '原默认OFF必须保留；只启用这个新owned repository的局部policy')
   assert.equal(api.setPolicy({ datasetId: f.datasetId, commandId: randomUUID(), expectedPolicyRevision: policy().revision, enabled: true }).outcome, 'accepted')
+  assert.equal(catalog.privateSourceWritesRead(view => view.projection.fullRaw.size), 0, 'Source策略回执不构成标签事实锚')
+  assert.deepEqual((await f.albums()).items.find(album => album.id === initial.id), initial)
   function plan(id: string): dto.LocalSourceWritesPlan {
     const result = api.get({ datasetId: f.datasetId, selector: { kind: 'plan', planId: id } }); assert.equal(result.kind, 'plan'); assert.ok(result.kind === 'plan' && result.plan)
     return result.plan
@@ -510,7 +573,10 @@ test('MBF来源标记：原SourceWrites真实plan/grant/commit的非空及空ful
   }
   // 两次均经真实publisher提交；不append ready/facts，不填fullRaw Map或简化journal。
   const partial = await publish({ title: { action: 'set', value: '源完整锚题名' }, album: { action: 'set', value: '源完整锚专辑' }, artist: { action: 'remove' }, year: { action: 'remove' }, disc: { action: 'remove' }, track: { action: 'remove' } })
-  const expectedRaw = { title: '源完整锚题名', album: '源完整锚专辑' }
+  // 新Reader用空数组记录已核实的无艺人事实；原六字段被删除后仍必须全部缺席。
+  const emptyRaw = { artists: [], albumArtists: [] }
+  const expectedRaw = { ...emptyRaw, title: '源完整锚题名', album: '源完整锚专辑' }
+  assert.equal(catalog.privateSourceWritesRead(view => view.projection.fullRaw.size), 1, '真实facts使原空Map变为非空，旧no-anchor作者不得继续服务')
   assert.deepEqual(partial.fact.fullRaw, expectedRaw); assert.notEqual(partial.fact.afterAsset.fileRevision, beforeAsset.fileRevision)
   assert.deepEqual(catalog.trackDetail(target.track.id).metadata.raw, expectedRaw)
   const positive = await observeNativeSources(() => f.albums()), anchored = positive.value.items.find(album => album.editionId === edition.id)!
@@ -536,17 +602,19 @@ test('MBF来源标记：原SourceWrites真实plan/grant/commit的非空及空ful
   assert.deepEqual(mergedCapture.members[0]!.fact.rawMetadata, mergedRaw); assert.deepEqual(mergedCapture.members[0]!.fact.summary.metadata, mergedRaw)
   await assert.rejects(f.inspect(anchored), errorCode('SNAPSHOT_CHANGED'))
   const removed = await publish({ title: { action: 'remove' }, artist: { action: 'remove' }, album: { action: 'remove' }, year: { action: 'remove' }, disc: { action: 'remove' }, track: { action: 'remove' } })
-  assert.deepEqual(removed.fact.fullRaw, {}); assert.deepEqual(catalog.trackDetail(target.track.id).metadata.raw, {})
-  const emptyAnchor = catalog.privateSourceWritesRead(view => view.projection.fullRaw.get(target.track.id)); assert.ok(emptyAnchor); assert.deepEqual(emptyAnchor.fields, {})
+  assert.deepEqual(removed.fact.fullRaw, emptyRaw); assert.deepEqual(catalog.trackDetail(target.track.id).metadata.raw, emptyRaw)
+  assert.equal(catalog.privateSourceWritesRead(view => view.projection.fullRaw.size), 1, '真实Reader的空标签数组仍是非空Map中的有效锚，不能按标签内容取得空Map资格')
+  const emptyAnchor = catalog.privateSourceWritesRead(view => view.projection.fullRaw.get(target.track.id)); assert.ok(emptyAnchor); assert.deepEqual(emptyAnchor.fields, emptyRaw)
   const empty = (await f.albums()).items.find(album => album.id === anchored.id)!
-  assert.notEqual(empty.revision, anchored.revision); assert.deepEqual((await f.members(empty)).items[0]!.facts.metadata.raw, {})
+  assert.notEqual(empty.revision, anchored.revision); assert.deepEqual((await f.members(empty)).items[0]!.facts.metadata.raw, emptyRaw)
   await assert.rejects(f.inspect(anchored), errorCode('SNAPSHOT_CHANGED'))
   catalog.observeMetadata({ commandId: randomUUID(), trackId: target.track.id, source: 'tag', parserVersion, fields: { artist: '锚后新艺人', year: '2027' } })
-  const afterRaw = { artist: '锚后新艺人', year: '2027' }, after = (await f.albums()).items.find(album => album.id === anchored.id)!
+  const afterRaw = { ...emptyRaw, artist: '锚后新艺人', year: '2027' }, after = (await f.albums()).items.find(album => album.id === anchored.id)!
   assert.deepEqual(catalog.metadata(target.track.id).raw, afterRaw); assert.deepEqual(after.artists, ['锚后新艺人']); assert.equal(after.year, '2027')
   const firstCommand = randomUUID(), firstOverride = catalog.overrideMetadata({ commandId: firstCommand, trackId: target.track.id, expectedRevision: null, fields: { title: '', artist: 'MB覆盖艺人', album: '' } })
   const overridden = (await f.albums()).items.find(album => album.id === anchored.id)!
-  assert.notEqual(overridden.revision, after.revision); assert.deepEqual((await f.members(overridden)).items[0]!.facts.metadata.effective, { ...afterRaw, ...firstOverride.fields })
+  // 单值artist人工覆盖会移除effective.artists；raw及未编辑的专辑艺人数组仍保留。
+  assert.notEqual(overridden.revision, after.revision); assert.deepEqual((await f.members(overridden)).items[0]!.facts.metadata.effective, { title: '', artist: 'MB覆盖艺人', album: '', year: '2027', albumArtists: [] })
   assert.deepEqual(catalog.privateWorkbenchMetadataProvenance([target.track.id]), [{ trackId: target.track.id, override: { commandId: firstCommand, revision: firstOverride.revision, fields: firstOverride.fields } }])
   const clearedCommand = randomUUID(), cleared = catalog.overrideMetadata({ commandId: clearedCommand, trackId: target.track.id, expectedRevision: firstOverride.revision, fields: {} })
   const restored = (await f.albums()).items.find(album => album.id === anchored.id)!
@@ -557,14 +625,91 @@ test('MBF来源标记：原SourceWrites真实plan/grant/commit的非空及空ful
   const revision = restored.revision, asset = catalog.asset(target.asset.id)
   await f.close()
   const cold = createCollectionRepository({ filePath: f.filePath }), coldOwner = ownerFor(cold)
+  const originalFunction=DatabaseSync.prototype.function;let observationIndexCalls=0
+  DatabaseSync.prototype.function=function(this:DatabaseSync,name,options,callback){
+    if(name==='mb_album_observation_after'){
+      const observed=function(this:unknown,...values:SQLOutputValue[]){observationIndexCalls++;return Reflect.apply(callback,this,values)}
+      Object.defineProperty(observed,'length',{value:callback.length});return Reflect.apply(originalFunction,this,[name,options,observed])
+    }
+    return Reflect.apply(originalFunction,this,[name,options,callback])
+  } as DatabaseSync['function']
   try {
     assert.deepEqual(cold.localCatalog.asset(target.asset.id), asset); assert.deepEqual(cold.localCatalog.metadata(target.track.id), { raw: afterRaw, override: cleared, effective: afterRaw })
-    const coldAnchor = cold.localCatalog.privateSourceWritesRead(view => view.projection.fullRaw.get(target.track.id)); assert.ok(coldAnchor); assert.deepEqual(coldAnchor.fields, {}); assert.equal(coldAnchor.ledgerOrdinal, emptyAnchor.ledgerOrdinal)
+    const coldAnchor = cold.localCatalog.privateSourceWritesRead(view => view.projection.fullRaw.get(target.track.id)); assert.ok(coldAnchor); assert.deepEqual(coldAnchor.fields, emptyRaw); assert.equal(coldAnchor.ledgerOrdinal, emptyAnchor.ledgerOrdinal)
     assert.deepEqual(cold.localCatalog.privateWorkbenchMetadataProvenance([target.track.id]), [{ trackId: target.track.id, override: { commandId: clearedCommand, revision: cleared.revision, fields: {} } }])
     const page = await request('queryAlbums.cold', query(), () => coldOwner.queryAlbums(query())), album = page.items.find(value => value.editionId === edition.id)!
     assert.equal(album.revision, revision)
     const body = { albumKey: album.id, rootId: album.rootId, offset: 0, limit: 1 }, member = await request('queryAlbumTracks.cold', body, () => coldOwner.queryAlbumTracks(body))
     assert.deepEqual(member.items[0]!.facts.metadata, cold.localCatalog.metadata(target.track.id)); assert.equal(member.items[0]!.facts.track.id, target.track.id)
+    assert.ok(observationIndexCalls>0,'真实SourceWrites冷开Owner分页必须实际调用完整冷核关系索引，不能只在合成source port激活')
   }
-  finally { coldOwner.close(); cold.close() }
+  finally { DatabaseSync.prototype.function=originalFunction;coldOwner.close(); cold.close() }
+})
+
+
+test('管理历史观测：原SourceWrites真实发布的非空/空锚、锚后观察与202候选fallback全部冷重放等价', {concurrency:false}, async t=>{
+  const f=await fixture(t,{tracks:1}),target=await f.ownedFlac(),catalog=f.repository.localCatalog,edition=f.edition('历史锚点发行',[target])
+  const emptyRaw={artists:[],albumArtists:[]}
+  // 原单曲读恰200条仍有效；锚后总候选达到202时必须保留原SQL回退，不能丢锚前历史。
+  for(let i=1;i<200;i++)catalog.observeMetadata({commandId:randomUUID(),trackId:target.track.id,source:'synthetic',parserVersion,fields:{title:target.raw.title!}})
+  const api=createLocalSourceWritesService({repository:f.repository,datasetId:f.datasetId,ownerEpoch:randomUUID(),assertCurrent(){catalog.root(f.root.id)}})
+  const channel=new MessageChannel(),actor=createSourceWritesMainActor(channel.port1)
+  f.addCloser(async()=>{try{await api.close()}finally{channel.port1.close();channel.port2.close()}})
+  await api.prepareRecoveryProtection()
+  function policy(){const value=api.get({datasetId:f.datasetId,selector:{kind:'context',target:null}});assert.equal(value.kind,'context');if(value.kind!=='context')assert.fail('原SourceWrites context');return value.context.policy}
+  assert.equal(api.setPolicy({datasetId:f.datasetId,commandId:randomUUID(),expectedPolicyRevision:policy().revision,enabled:true}).outcome,'accepted')
+  function plan(id:string){const value=api.get({datasetId:f.datasetId,selector:{kind:'plan',planId:id}});assert.equal(value.kind,'plan');if(value.kind!=='plan'||!value.plan)assert.fail('原SourceWrites plan');return value.plan}
+  async function waitPlan(id:string,done:(value:dto.LocalSourceWritesPlan)=>boolean){const until=Date.now()+20000;for(;;){const value=plan(id);if(done(value))return value;if(Date.now()>=until)assert.fail('合成SourceWrites真实发布未及时settled');await new Promise<void>(resolve=>setTimeout(resolve,10))}}
+  async function publish(fields:Extract<dto.LocalSourceWritesIntent,{kind:'tags'}>['fields']){
+    const before=await readFile(path.join(f.media,target.relative)),preview=api.preview({datasetId:f.datasetId,commandId:randomUUID(),intent:{kind:'tags',target:{mode:'single',trackId:target.track.id},fields}})
+    assert.equal(preview.outcome,'accepted');assert.ok(preview.planId)
+    const ready=await waitPlan(preview.planId,value=>value.state!=='PREVIEWING');assert.equal(ready.state,'READY',ready.issues.join(','));assert.ok(ready.planHash&&ready.contextFingerprint)
+    const confirm:dto.ConfirmLocalSourceWrites={datasetId:f.datasetId,commandId:randomUUID(),planId:ready.planId,expectedViewRevision:ready.viewRevision,scope:'SOURCE_FILES',range:ready.range,planHash:ready.planHash,contextFingerprint:ready.contextFingerprint}
+    const challenge=api.challenge({datasetId:f.datasetId,confirm},actor);assert.equal(api.executeGranted({datasetId:f.datasetId,confirm,grant:challenge.grant},actor).outcome,'accepted')
+    const completed=await waitPlan(ready.planId,value=>['COMPLETED','PARTIAL','FAILED','CANCELLED','RECOVERY_REQUIRED'].includes(value.state));assert.equal(completed.state,'COMPLETED',completed.issues.join(','))
+    const fact=catalog.privateSourceWritesRead(view=>{const stored=view.projection.plans.get(completed.planId);assert.ok(stored);const facts=stored.events.filter(event=>event.kind==='facts');assert.equal(facts.length,1);const event=facts[0]!;if(event.kind!=='facts')assert.fail('原SourceWrites必须提供facts');return event.fact})
+    assert.deepEqual(await readFile(fact.backup.path),before);assert.equal(hash(await readFile(path.join(f.media,target.relative))),fact.observation.sha256)
+    const {fingerprint,...proof}=fact.rawProof;assert.equal(fingerprint,sourceWritesHash({proof,fullRaw:fact.fullRaw}));assert.equal(proof.sourceSha256,fact.observation.sha256)
+    return fact
+  }
+  const identity={datasetId:f.datasetId,assertCurrent(){catalog.root(f.root.id)}}
+  catalog.privateBindWorkbenchDataset(identity)
+  const roots=async():Promise<dto.LocalRootView[]>=>{const root=catalog.root(f.root.id);return [{root,label:'自有合成来源',availability:await sourceRootAvailability(f.repository.sources.root(root.sourceRootId))}]}
+  const workbench=createLocalWorkbenchReadService({datasetId:f.datasetId,repository:f.repository,localAlbums:f.owner,assertCurrent:()=>identity.assertCurrent(),readRootViews:roots})
+  const snapshots=createCompletedScanSnapshotView({repository:f.repository,identity})
+  const management=createLocalLibraryManagementRuntime({identity,catalog,localScan:f.repository.localScan,workbench,localAlbums:f.owner,readRootViews:roots,assertAccepting:()=>identity.assertCurrent(),completedSnapshots:snapshots})
+  f.addCloser(async()=>{try{await management.close()}finally{workbench.close();snapshots.close()}})
+  const originals:LocalLibraryManagementCaptureRecord[]=[]
+  async function capture(raw:dto.LocalMetadata){
+    const album=(await f.albums()).items.find(value=>value.editionId===edition.id)!;assert.ok(album)
+    const readback=await management.execute('library.album.capture',{albumId:album.id,rootId:album.rootId,revision:album.revision})
+    const value=catalog.privateLibraryManagementRead(identity,'capture',readback.albums[0]!.capture.readToken);assert.ok(value)
+    const member=value.record.original.albums[0]!.resolved.group.members.find(value=>value.fact.summary.track.id===target.track.id);assert.ok(member);assert.deepEqual(member.fact.rawMetadata,raw)
+    originals.push(structuredClone(value.record))
+  }
+  await capture(target.raw)
+  const nonempty=await publish({title:{action:'set',value:'非空完整锚'},album:{action:'set',value:'锚点专辑'},artist:{action:'remove'},year:{action:'remove'},disc:{action:'remove'},track:{action:'remove'}})
+  assert.deepEqual(nonempty.fullRaw,{...emptyRaw,title:'非空完整锚',album:'锚点专辑'});await capture(nonempty.fullRaw)
+  catalog.observeMetadata({commandId:randomUUID(),trackId:target.track.id,source:'tag',parserVersion,fields:{artist:'非空锚后艺人'}})
+  await capture({...nonempty.fullRaw,artist:'非空锚后艺人'})
+  const empty=await publish({title:{action:'remove'},artist:{action:'remove'},album:{action:'remove'},year:{action:'remove'},disc:{action:'remove'},track:{action:'remove'}})
+  assert.deepEqual(empty.fullRaw,emptyRaw);await capture(emptyRaw)
+  catalog.observeMetadata({commandId:randomUUID(),trackId:target.track.id,source:'tag',parserVersion,fields:{year:'2029'}})
+  assert.equal(Number(catalog.privateRead(db=>db.prepare('SELECT count(*) n FROM local_catalog_observations WHERE track_id=?').get(target.track.id)!.n)),202,'原锚前200条、第一锚后1条、第二锚后1条全部保留；不借单次200条公开观察读口扩容')
+  await capture({...emptyRaw,year:'2029'});assert.equal(originals.length,5)
+  assert.equal(api.setPolicy({datasetId:f.datasetId,commandId:randomUUID(),expectedPolicyRevision:policy().revision,enabled:false}).outcome,'accepted')
+  const finalBytes=await readFile(path.join(f.media,target.relative));await f.close()
+  const statements:string[]=[],prepare=DatabaseSync.prototype.prepare
+  const prepareObserver=t.mock.method(DatabaseSync.prototype,'prepare',function(this:DatabaseSync,sql:string){if(sql.includes('SELECT o.data FROM local_catalog_observations o WHERE o.track_id=? AND EXISTS')&&sql.includes('l.rowid<?'))statements.push(sql);return prepare.call(this,sql)})
+  try{
+    const cold=createCollectionRepository({filePath:f.filePath}),coldIdentity={datasetId:f.datasetId,assertCurrent(){cold.localCatalog.root(f.root.id)}}
+    try{
+      cold.localCatalog.privateBindWorkbenchDataset(coldIdentity)
+      assert.ok(statements.length>=2,'第202候选后原完整capture必须实际回退原SQL，并由真实fullRaw锚点正确裁旧')
+      for(const original of originals)assert.deepEqual(cold.localCatalog.privateLibraryManagementRead(coldIdentity,'capture',original.key)!.record,original)
+      assert.deepEqual(cold.localCatalog.metadata(target.track.id).raw,{...emptyRaw,year:'2029'})
+      const anchor=cold.localCatalog.privateSourceWritesRead(view=>view.projection.fullRaw.get(target.track.id));assert.ok(anchor);assert.deepEqual(anchor.fields,emptyRaw)
+      assert.deepEqual(await readFile(path.join(f.media,target.relative)),finalBytes,'冷核和候选回退不能再写源文件')
+    }finally{cold.close()}
+  }finally{prepareObserver.mock.restore()}
 })

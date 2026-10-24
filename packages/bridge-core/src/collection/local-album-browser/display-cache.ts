@@ -1,5 +1,6 @@
 import { noteDesktopArtwork, desktopArtworkStarted, desktopArtworkElapsed } from '../../shared/desktop-artwork-trace-node.js'
 import { localAlbumSafeError } from '../../shared/local-album-read-trace-node.js'
+import { logLibraryOperation } from '../../shared/library-operation-log.js'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { constants, closeSync, fchmodSync, fstatSync, lstatSync, mkdirSync, openSync, realpathSync, statfsSync } from 'node:fs'
@@ -13,8 +14,10 @@ export type LocalAlbumDisplayCacheEvidence = {
   unresolved: boolean
   embeddedConfirmed: boolean
   independentOnly: boolean
+  /** 新策略已评估明确子碟父目录；旧证据继续有效，只有旧CD缺图需定向重探。 */
+  discoveryPolicy?: 'disc-parent-v1'
 }
-export interface LocalAlbumDisplayCacheRecord { image: dto.LocalArtworkImage; evidence: LocalAlbumDisplayCacheEvidence }
+export interface LocalAlbumDisplayCacheRecord { image: dto.LocalArtworkImage; evidence: LocalAlbumDisplayCacheEvidence; grid?: dto.LocalAlbumArtworkGrid }
 
 const MAX_ENTRIES = 20_000, MAX_BYTES = 16 * 1024 * 1024 * 1024, MAX_FILE_BYTES = 20 * 1024 * 1024 * 1024
 const MAX_METADATA_BYTES = 2 * 1024 * 1024, PAGE_BYTES = 4096, APPLICATION_ID = 0x4d424143
@@ -73,8 +76,11 @@ function sourceEvidence(value: unknown, independent: boolean): boolean {
     && relative(value.relative) && signature(value.signature) && safeInteger(value.size, 1, 68_719_476_736)
     && (!independent || typeof value.included === 'boolean')
 }
-function validEvidence(value: unknown): value is LocalAlbumDisplayCacheEvidence {
-  if (!closed(value, ['independent', 'embedded', 'unresolved', 'embeddedConfirmed', 'independentOnly']) || value.unresolved !== false
+export function validLocalAlbumDisplayEvidence(value: unknown): value is LocalAlbumDisplayCacheEvidence {
+  if (!closed(value, value && typeof value === 'object' && Object.hasOwn(value, 'discoveryPolicy')
+    ? ['independent', 'embedded', 'unresolved', 'embeddedConfirmed', 'independentOnly', 'discoveryPolicy']
+    : ['independent', 'embedded', 'unresolved', 'embeddedConfirmed', 'independentOnly'])
+    || Object.hasOwn(value, 'discoveryPolicy') && value.discoveryPolicy !== 'disc-parent-v1' || value.unresolved !== false
     || typeof value.embeddedConfirmed !== 'boolean' || typeof value.independentOnly !== 'boolean'
     || !(value.embeddedConfirmed || value.independentOnly) || !Array.isArray(value.independent)
     || Object.getPrototypeOf(value.independent) !== Array.prototype || value.independent.length > 32
@@ -87,8 +93,8 @@ function validEvidence(value: unknown): value is LocalAlbumDisplayCacheEvidence 
   }
   return (!value.independentOnly || included) && (value.embedded === null || sourceEvidence(value.embedded, false))
 }
-function encode(value: unknown): { metadata: string; jpeg: Buffer } | null {
-  if (!closed(value, ['image', 'evidence']) || !validEvidence(value.evidence)
+export function encodeLocalAlbumDisplayRecord(value: unknown): { metadata: string; jpeg: Buffer } | null {
+  if (!closed(value, value && typeof value === 'object' && Object.hasOwn(value, 'grid') ? ['image', 'evidence', 'grid'] : ['image', 'evidence']) || !validLocalAlbumDisplayEvidence(value.evidence)
     || !closed(value.image, ['original', 'display'])
     || !closed(value.image.original, ['mime', 'bytes', 'sha256', 'width', 'height'])
     || !closed(value.image.display, ['mime', 'bytes', 'sha256', 'width', 'height', 'dataUrl'])
@@ -98,16 +104,32 @@ function encode(value: unknown): { metadata: string; jpeg: Buffer } | null {
   const geometry = jpegGeometry(jpeg)
   if (jpeg.length !== display.bytes || jpeg.toString('base64') !== encoded || hash(jpeg) !== display.sha256
     || !geometry || geometry.width !== display.width || geometry.height !== display.height) return null
-  const metadata = JSON.stringify({ original: value.image.original, display, evidence: value.evidence })
-  return Buffer.byteLength(metadata) <= MAX_METADATA_BYTES ? { metadata, jpeg } : null
+  let grid: Omit<dto.LocalAlbumArtworkGrid, 'dataUrl'> | undefined, gridBytes = Buffer.alloc(0)
+  if (Object.hasOwn(value, 'grid')) {
+    if (!dto.isLocalAlbumArtworkGrid(value.grid)) return null
+    const { dataUrl, ...info } = value.grid
+    const encoded = dataUrl.slice('data:image/jpeg;base64,'.length)
+    gridBytes = Buffer.from(encoded, 'base64')
+    const size = jpegGeometry(gridBytes)
+    if (gridBytes.length !== info.bytes || gridBytes.toString('base64') !== encoded || hash(gridBytes) !== info.sha256
+      || !size || size.width !== info.width || size.height !== info.height) return null
+    grid = info
+  }
+  const payload = grid ? Buffer.concat([jpeg, gridBytes]) : jpeg
+  if (payload.length > dto.LOCAL_ARTWORK_DISPLAY_BYTES) return null
+  const metadata = JSON.stringify({ original: value.image.original, display, evidence: value.evidence, ...(grid ? { grid } : {}) })
+  return Buffer.byteLength(metadata) <= MAX_METADATA_BYTES ? { metadata, jpeg: payload } : null
 }
-function decode(metadata: unknown, bytes: unknown): LocalAlbumDisplayCacheRecord | null {
+export function decodeLocalAlbumDisplayRecord(metadata: unknown, bytes: unknown): LocalAlbumDisplayCacheRecord | null {
   if (typeof metadata !== 'string' || Buffer.byteLength(metadata) > MAX_METADATA_BYTES || !(bytes instanceof Uint8Array)
     || !safeInteger(bytes.byteLength, 1, dto.LOCAL_ARTWORK_DISPLAY_BYTES)) return null
   const value: unknown = JSON.parse(metadata)
-  if (!closed(value, ['original', 'display', 'evidence']) || !closed(value.display, ['mime', 'bytes', 'sha256', 'width', 'height'])) return null
-  const record = { image: { original: value.original, display: { ...value.display, dataUrl: `data:image/jpeg;base64,${Buffer.from(bytes).toString('base64')}` } }, evidence: value.evidence }
-  const encoded = encode(record)
+  if (!closed(value, value && typeof value === 'object' && Object.hasOwn(value, 'grid') ? ['original', 'display', 'evidence', 'grid'] : ['original', 'display', 'evidence'])
+    || !closed(value.display, ['mime', 'bytes', 'sha256', 'width', 'height']) || !safeInteger(value.display.bytes, 1, dto.LOCAL_ARTWORK_DISPLAY_BYTES)) return null
+  const displayBytes = bytes.subarray(0, value.display.bytes)
+  const record = { image: { original: value.original, display: { ...value.display, dataUrl: `data:image/jpeg;base64,${Buffer.from(displayBytes).toString('base64')}` } }, evidence: value.evidence,
+    ...(Object.hasOwn(value, 'grid') ? { grid: typeof value.grid === 'object' && value.grid !== null ? { ...value.grid, dataUrl: `data:image/jpeg;base64,${Buffer.from(bytes.subarray(value.display.bytes)).toString('base64')}` } : null } : {}) }
+  const encoded = encodeLocalAlbumDisplayRecord(record)
   if (!encoded || encoded.metadata !== metadata || !encoded.jpeg.equals(Buffer.from(bytes))) return null
   return record as LocalAlbumDisplayCacheRecord
 }
@@ -121,6 +143,8 @@ export function createLocalAlbumDisplayCache(options: { filePath: string; maxEnt
   type Entry = { rootId: string; payloadBytes: number; used: number }
   const entries = new Map<string, Entry>(), rootEntries = new Map<string, Set<string>>()
   const retiredRoots = new Set<string>(), cleanupRoots = new Set<string>(), badKeys = new Set<string>()
+  // 迁移索引只读来源元数据，不在启动或命中时扫描JPEG；每个根按需建立一次。
+  const migrationIndex = new Map<string, Map<string, string[]>>()
   let database: DatabaseSync | undefined, cleanup: ReturnType<typeof setImmediate> | undefined
   let stopped = false, failed = !safeInteger(maxEntries, 1, MAX_ENTRIES) || !safeInteger(maxBytes, 1, MAX_BYTES)
   let count = 0, bytes = 0, clock = 0, dataVersion = 0
@@ -274,8 +298,8 @@ export function createLocalAlbumDisplayCache(options: { filePath: string; maxEnt
         const entry = entries.get(key); if (!entry || entry.rootId !== rootId) return null
         const row = db.prepare('SELECT CASE WHEN length(jpeg) BETWEEN 1 AND 1048576 THEN jpeg END jpeg,CASE WHEN length(CAST(metadata AS BLOB)) BETWEEN 1 AND 2097152 THEN metadata END metadata,payload_bytes FROM local_album_display_cache WHERE cache_key=? AND root_id=?').get(key, rootId)
         let record: LocalAlbumDisplayCacheRecord | null = null
-        try { if (row) record = decode(row.metadata, row.jpeg) } catch { /* 仅隔离本条坏JSON/内容，其他合法entry仍可命中。 */ }
-        if (!record || row?.payload_bytes !== entry.payloadBytes || entry.payloadBytes !== record.image.display.bytes) {
+        try { if (row) record = decodeLocalAlbumDisplayRecord(row.metadata, row.jpeg) } catch { /* 仅隔离本条坏JSON/内容，其他合法entry仍可命中。 */ }
+        if (!record || row?.payload_bytes !== entry.payloadBytes || entry.payloadBytes !== record.image.display.bytes + (record.grid?.bytes ?? 0)) {
           if (badKeys.size < maxEntries) badKeys.add(key)
           return null
         }
@@ -284,11 +308,42 @@ export function createLocalAlbumDisplayCache(options: { filePath: string; maxEnt
         entries.delete(key); entries.set(key, { ...entry, used: ++clock }); return record
       } catch (error) { noteDesktopArtwork('disk-disable', key, { reason: 'get', code: localAlbumSafeError(error).code }); disable(); return null }
     },
+    findTrusted(rootId: string, source: { relative: string; signature: string; directory: string }): LocalAlbumDisplayCacheRecord | null {
+      if (!dto.isCollectionId(rootId) || !relative(source.relative) || !signature(source.signature) || retiredRoots.has(rootId) || stopped || failed) return null
+      try {
+        const db = open(); if (retiredRoots.has(rootId) || !db) return null
+        let bySource = migrationIndex.get(rootId)
+        if (!bySource) {
+          bySource = new Map(); let metadataBytes = 0
+          for (const row of db.prepare('SELECT cache_key,metadata FROM local_album_display_cache WHERE root_id=? ORDER BY last_used DESC,cache_key LIMIT ?').iterate(rootId, maxEntries)) {
+            if (!validKey(row.cache_key) || typeof row.metadata !== 'string') continue
+            metadataBytes += Buffer.byteLength(row.metadata)
+            // 索引建立也有预算；未索引条目仍保留原库，下次可以走正常有界源读取。
+            if (metadataBytes > 64 * 1024 * 1024) break
+            try {
+              const value = JSON.parse(row.metadata) as { evidence?: unknown }
+              if (!validLocalAlbumDisplayEvidence(value.evidence) || !value.evidence.embedded) continue
+              const embedded = value.evidence.embedded, identity = JSON.stringify([embedded.relative, embedded.signature])
+              const keys = bySource.get(identity) ?? []
+              if (keys.length < 32) keys.push(row.cache_key)
+              bySource.set(identity, keys)
+            } catch { /* 损坏旧条目不影响其它可验证资源；原件继续保留。 */ }
+          }
+          migrationIndex.set(rootId, bySource)
+        }
+        const directory = path.posix.normalize(source.directory || '.')
+        for (const candidate of bySource.get(JSON.stringify([source.relative, source.signature])) ?? []) {
+          const record = this.get(candidate, rootId)
+          if (record && record.evidence.independent.every(item => path.posix.dirname(item.relative) === directory)) return record
+        }
+        return null
+      } catch (error) { noteDesktopArtwork('disk-disable', null, { reason: 'get', code: localAlbumSafeError(error).code }); disable(); return null }
+    },
     put(key: string, rootId: string, record: LocalAlbumDisplayCacheRecord): void {
       if (!validKey(key) || !dto.isCollectionId(rootId) || retiredRoots.has(rootId) || stopped || failed) { noteDesktopArtwork('disk-skip', validKey(key) ? key : null, { reason: failed ? 'disabled' : stopped ? 'closed' : retiredRoots.has(rootId) ? 'retired' : 'invalid' }); return }
-      const putStarted = desktopArtworkStarted()
+      const putStarted = performance.now()
       try {
-        const encoded = encode(record); if (!encoded || encoded.jpeg.length > maxBytes) { noteDesktopArtwork('disk-skip', key, { reason: 'invalid' }); return }
+        const encoded = encodeLocalAlbumDisplayRecord(record); if (!encoded || encoded.jpeg.length > maxBytes) { noteDesktopArtwork('disk-skip', key, { reason: 'invalid' }); return }
         const db = open(); if (!db || retiredRoots.has(rootId)) { noteDesktopArtwork('disk-skip', key, { reason: 'retired' }); return }
         const prior = entries.get(key), previousBytes = prior?.payloadBytes ?? 0
         let plannedCount = count + (prior ? 0 : 1), plannedBytes = bytes - previousBytes + encoded.jpeg.length
@@ -312,14 +367,17 @@ export function createLocalAlbumDisplayCache(options: { filePath: string; maxEnt
         for (const [candidate] of victims) unindex(candidate)
         unindex(key); index(key, { rootId, payloadBytes: encoded.jpeg.length, used }); badKeys.delete(key)
         count = plannedCount; bytes = plannedBytes; clock = used; inspectConnection(db)
+        migrationIndex.delete(rootId)
         noteDesktopArtwork('disk-put', key, { elapsedMs: desktopArtworkElapsed(putStarted), bytes: encoded.jpeg.length })
-      } catch (error) { noteDesktopArtwork('disk-disable', key, { reason: 'put', code: localAlbumSafeError(error).code }); disable() }
+        logLibraryOperation('cache', 'artwork.persist', 'complete', { id: key, elapsedMs: performance.now() - putStarted, bytes: encoded.jpeg.length, count: plannedCount, slowAfterMs: 50 })
+      } catch (error) { logLibraryOperation('cache', 'artwork.persist', 'error', { id: key, elapsedMs: performance.now() - putStarted, code: 'CACHE_WRITE_FAILED', slowAfterMs: 50 }); noteDesktopArtwork('disk-disable', key, { reason: 'put', code: localAlbumSafeError(error).code }); disable() }
     },
     removeRoot(rootId: string): void {
       if (!dto.isCollectionId(rootId) || stopped || failed) return
       if (retiredRoots.size >= MAX_ENTRIES && !retiredRoots.has(rootId)) { noteDesktopArtwork('disk-disable', null, { reason: 'capacity' }); disable(); return }
       // 立即拒get/迟到put；持久墓碑成功后即可返回，不等整根物理清理。
       retiredRoots.add(rootId)
+      migrationIndex.delete(rootId)
       try {
         const db = open(); if (!db) return
         if (retiredRoots.size > MAX_ENTRIES) throw new Error('显示缓存撤根记录超过上限。')
@@ -329,7 +387,7 @@ export function createLocalAlbumDisplayCache(options: { filePath: string; maxEnt
     },
     close(): void {
       if (stopped) return
-      stopped = true; cancelCleanup(); entries.clear(); rootEntries.clear(); cleanupRoots.clear(); badKeys.clear()
+      stopped = true; cancelCleanup(); entries.clear(); rootEntries.clear(); cleanupRoots.clear(); badKeys.clear(); migrationIndex.clear()
       const db = database; database = undefined
       // DB操作同步完成后才能到这里；取消尚未开始的setImmediate，不留下一轮写入。
       try { db?.close() } catch { failed = true }

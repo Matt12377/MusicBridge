@@ -10,6 +10,7 @@ const props = withDefaults(defineProps<{
   busy?: boolean
   /** 可选的逐曲播放资格；不影响详情、选择和信息整理入口。 */
   playableTrackIds?: ReadonlySet<string>
+  canRequestAction?: (track: TrackSummary, action: 'play' | 'queue' | 'play-next') => boolean
   initialLoading?: boolean
   loadingMore?: boolean
   loadMoreError?: string | null
@@ -125,6 +126,7 @@ function requestPlay(track: TrackSummary): void {
 }
 
 function canRequest(track: TrackSummary, action: 'play' | 'queue' | 'play-next'): boolean {
+  if (props.canRequestAction?.(track, action) === false) return false
   if (props.playableTrackIds !== undefined) return !props.busy && props.playableTrackIds.has(track.id)
   return action !== 'play' || !props.busy
 }

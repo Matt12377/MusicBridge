@@ -145,13 +145,17 @@ async function fixture(t: TestContext, options: { tracks?: number; embedded?: bo
 
 interface ScanObservation {
   nativeBySource: Record<string, number>
-  nativeEvents: { rootId: string; relative: string; ordinal: number }[]
-  registrations: { originalArity: number; wrappedArity: number }[]
+  nativeByName: Record<ScanNative626, Record<string, number>>
+  nativeEvents: { name: ScanNative626; rootId: string; relative: string; ordinal: number }[]
+  registrations: ScanRegistration626[]
   scanSqlBySource: Record<string, { locator: number; direct: number; fallback: number }>
+  compactStatements: number
+  compactRows: number
   projectionStatements: number
   projectionRows: number
 }
-type ScanRegistration626 = { originalArity: number; wrappedArity: number }
+type ScanNative626 = 'mb_album_scan' | 'mb_album_scan_projected'
+type ScanRegistration626 = { name: ScanNative626; originalArity: number; wrappedArity: number }
 interface NativeScanObserverState626 {
   owner: TestContext
   observation?: ScanObservation | undefined
@@ -177,24 +181,30 @@ function installNativeScanObserver626(t: TestContext): void {
   }
   const observedFunction = function (this: DatabaseSync, ...args: unknown[]) {
     let registration: ScanRegistration626 | undefined
-    if (args[0] === 'mb_album_scan') {
+    const name = args[0]
+    if (name === 'mb_album_scan' || name === 'mb_album_scan_projected') {
       const database = this, callback = args[args.length - 1]
       assert.equal(typeof callback, 'function')
-      const invoke = callback as (rootId: SQLOutputValue, relative: SQLOutputValue) => SQLOutputValue
-      assert.equal(invoke.length, 2, '原真实mb_album_scan必须保持二参数SQLite arity')
-      // 原二参数callback只查当前活动window，不捕获已完成的observation。
-      const counted = function (this: unknown, rootId: SQLOutputValue, relative: SQLOutputValue): SQLOutputValue {
+      const invoke = callback as (...values: SQLOutputValue[]) => SQLOutputValue
+      assert.equal(invoke.length, name === 'mb_album_scan' ? 2 : 6, '原真实扫描callback必须保持二/六参数SQLite arity')
+      // 原callback的全部参数原样转发；只查当前活动window，不捕获已完成的observation。
+      const forward = function (this: unknown, ...values: SQLOutputValue[]): SQLOutputValue {
+        const [rootId, relative] = values
         const observation = state.observation, execution = state.active
         if (observation) {
           if (execution) assert.equal(execution.database, database, '扫描native必须属于原Statement的Database')
           register(registration!)
           const key = countKey(rootId, relative)
           observation.nativeBySource[key] = (observation.nativeBySource[key] ?? 0) + 1
-          observation.nativeEvents.push({ rootId: String(rootId), relative: String(relative), ordinal: observation.nativeEvents.length + 1 })
+          observation.nativeByName[name][key] = (observation.nativeByName[name][key] ?? 0) + 1
+          observation.nativeEvents.push({ name, rootId: String(rootId), relative: String(relative), ordinal: observation.nativeEvents.length + 1 })
         }
-        return Reflect.apply(invoke, this, [rootId, relative]) as SQLOutputValue
+        return Reflect.apply(invoke, this, values) as SQLOutputValue
       }
-      registration = { originalArity: invoke.length, wrappedArity: counted.length }
+      const counted = name === 'mb_album_scan'
+        ? function (this: unknown, rootId: SQLOutputValue, relative: SQLOutputValue): SQLOutputValue { return forward.call(this, rootId, relative) }
+        : function (this: unknown, rootId: SQLOutputValue, relative: SQLOutputValue, data: SQLOutputValue, count: SQLOutputValue, assetRootId: SQLOutputValue, assetRelative: SQLOutputValue): SQLOutputValue { return forward.call(this, rootId, relative, data, count, assetRootId, assetRelative) }
+      registration = { name, originalArity: invoke.length, wrappedArity: counted.length }
       assert.equal(registration.wrappedArity, registration.originalArity)
       args[args.length - 1] = counted
     }
@@ -216,13 +226,14 @@ function installNativeScanObserver626(t: TestContext): void {
     const observed = function (this: StatementSync, ...bindings: unknown[]) {
       const database = owners.get(this)
       if (!database) return Reflect.apply(original, this, bindings)
-      const text = this.sourceSQL.replace(/\s+/gu, ' ').trim(), projection = text.includes('envelope FROM counts')
+      const text = this.sourceSQL.replace(/\s+/gu, ' ').trim(), projection = text.includes('envelope FROM counts'), compact = text.includes('/* mb_album_compact_groups */')
       const kind = text === 'SELECT id FROM local_catalog_assets WHERE root_id=? AND relative=? LIMIT 2' ? 'locator'
         : text === 'SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?' ? 'direct'
           : text.startsWith('SELECT s.* FROM local_catalog_assets a JOIN local_scan_file_state s ON s.asset_id=a.id') ? 'fallback' : null
       const execution = { statement: this, database }
       function begin(observation: ScanObservation): void {
         if (projection) observation.projectionStatements++
+        if (compact) observation.compactStatements++
         if (kind) { const key = countKey(bindings[0], bindings[1]); const reads = observation.scanSqlBySource[key] ??= { locator: 0, direct: 0, fallback: 0 }; reads[kind]++ }
       }
       const withinStatement = <V>(action: () => V): V => { const previous = state.active; state.active = execution; try { return action() } finally { state.active = previous } }
@@ -241,6 +252,7 @@ function installNativeScanObserver626(t: TestContext): void {
               return withinStatement(() => {
                 const result = Reflect.apply(step, cursor, args) as IteratorResult<unknown>
                 if (stepName === 'next' && observation && projection && !result.done) observation.projectionRows++
+                if (stepName === 'next' && observation && compact && !result.done) observation.compactRows++
                 return result
               })
             }
@@ -255,9 +267,11 @@ function installNativeScanObserver626(t: TestContext): void {
       if (observation) begin(observation)
       return withinStatement(() => {
         const result = Reflect.apply(original, this, bindings)
-        if (observation && projection) {
-          if (method === 'all') { assert.ok(Array.isArray(result), '原SQLite all必须返回行数组'); observation.projectionRows += result.length }
-          else observation.projectionRows += result === undefined ? 0 : 1
+        if (observation && (projection || compact)) {
+          if (method === 'all') assert.ok(Array.isArray(result), '原SQLite all必须返回行数组')
+          const rows = method === 'all' ? (result as unknown[]).length : result === undefined ? 0 : 1
+          if (projection) observation.projectionRows += rows
+          if (compact) observation.compactRows += rows
         }
         return result
       })
@@ -287,7 +301,7 @@ async function observeNativeScans<T>(action: () => Promise<T>): Promise<{ value:
   assert.equal(observing, false, 'prototype观测不得交叠')
   assert.ok(nativeScanObserver626, '必须先沿本测试真实fixture安装观察器')
   const state = nativeScanObserver626
-  const observation: ScanObservation = { nativeBySource: {}, nativeEvents: [], registrations: [], scanSqlBySource: {}, projectionStatements: 0, projectionRows: 0 }
+  const observation: ScanObservation = { nativeBySource: {}, nativeByName: { mb_album_scan: {}, mb_album_scan_projected: {} }, nativeEvents: [], registrations: [], scanSqlBySource: {}, compactStatements: 0, compactRows: 0, projectionStatements: 0, projectionRows: 0 }
   observing = true; state.observation = observation; state.registrations = new Set()
   try { return { value: await action(), observation } }
   finally { state.observation = undefined; state.registrations = undefined; observing = false; assert.equal(state.active, undefined) }
@@ -322,21 +336,27 @@ test('MBF扫描证据：真实Owner的65轨超过memo容量，同轨增加发行
   assert.equal(zero.representativeTrackId, null); assert.deepEqual(zeroCapture.members, []); assert.deepEqual(zeroCapture.issues, [])
   assert.deepEqual(zeroCapture.rejectedFiles!.map(value => value.relative), [rejectedRelative])
   const key = countKey(f.root.id, target.relative), rejectedKey = countKey(f.root.id, rejectedRelative)
-  for (const observed of [before.observation, after.observation]) {
-    assert.deepEqual(observed.registrations, [{ originalArity: 2, wrappedArity: 2 }])
+  const memberSources = f.tracks.map(value => countKey(f.root.id, value.relative)), expectedSources = [...memberSources, rejectedKey].sort()
+  for (const { value, observation: observed } of [before, after]) {
+    assert.deepEqual([...observed.registrations].sort((a, b) => a.name.localeCompare(b.name)), [{ name: 'mb_album_scan', originalArity: 2, wrappedArity: 2 }, { name: 'mb_album_scan_projected', originalArity: 6, wrappedArity: 6 }])
+    assert.equal(observed.compactStatements, 1); assert.equal(observed.compactRows, value.total)
     assert.equal(observed.projectionStatements, 1); assert.equal(observed.projectionRows, 1)
     assert.ok(observed.nativeBySource[key]! > 0, '必须观测目标轨真实native回调，不能以两个缺失计数相等通过')
-    assert.ok(Object.keys(observed.scanSqlBySource).length >= 65, '实际原resolver必须覆盖超过32个互异来源，不只测memo中的头部')
+    assert.deepEqual(Object.keys(observed.nativeBySource).sort(), expectedSources, '完整65成员与独立拒收来源均须实际进入原native闭集')
+    assert.deepEqual(Object.keys(observed.nativeByName.mb_album_scan_projected).sort(), expectedSources, '六参数入口覆盖全部来源，不能以旧resolver的点SELECT次数冒充原状态校验')
+    for (const source of memberSources) assert.equal(observed.nativeBySource[source], 1, '每个真实基础成员只求值一次；跨JS点SELECT移入同语句投影不放宽原native预算')
     assert.ok(observed.nativeBySource[rejectedKey]! > 0, 'scan_files拒收链的额外native读取必须记入，不以全request=65冒充成员一次')
   }
   process.stdout.write(JSON.stringify({ 事件: '扫描证据真实分层计数', 基础来源数: 65, 目标轨道: target.track.id, 目标位置: target.relative,
     关系数: { before: 1, after: 2 }, native回调: { before: before.observation.nativeBySource[key], after: after.observation.nativeBySource[key] },
     原scanSQL: { before: before.observation.scanSqlBySource[key], after: after.observation.scanSqlBySource[key] },
     拒收链native额外调用: { before: before.observation.nativeBySource[rejectedKey], after: after.observation.nativeBySource[rejectedKey] },
+    原native入口计数: { before: before.observation.nativeByName, after: after.observation.nativeByName },
     全部native计数: { before: before.observation.nativeBySource, after: after.observation.nativeBySource },
     边界: '比较同基础来源的关系扇出；scan_files/CUE及不同SQL statement仍可独立读取。不是性能或300k资格。' }) + '\n')
   // 旧实现在同轨两发行上展开scan_json五个引用；旧memo只合并codec，不能消除native回调增长。
   assert.equal(after.observation.nativeBySource[key], before.observation.nativeBySource[key], '同一基础轨增加发行关系，不应再次求值成员扫描证据；拒收链的独立额外读取保持相同')
+  assert.equal(after.observation.nativeBySource[rejectedKey], before.observation.nativeBySource[rejectedKey], '独立拒收来源的实际native调用不得随其他成员发行关系增长')
 })
 
 test('MBF扫描证据：真实Owner完整七类counts、零轨issues、搜索和跨页；unknown按需缺图后才计数', { concurrency: false }, async t => {
@@ -367,13 +387,23 @@ test('MBF扫描证据：真实Owner完整七类counts、零轨issues、搜索和
   const cue = all.items.find(album => album.statuses.includes('cue-unsplit'))!, cueCapture = await f.inspect(cue)
   assert.deepEqual(cueCapture.issues, [{ kind: 'cue', relative: cueRelative, status: 'failed' }]); assert.deepEqual(cueCapture.members, [])
   const awaiting = all.items.find(album => album.representativeTrackId === unknown.track.id)!
+  let artworkReads = 0
+  f.setArtworkReader(async () => { artworkReads++; return { image: null, status: 'ready' } })
   assert.equal(awaiting.artworkState, 'unknown'); assert.deepEqual((await f.artwork(awaiting)).image, null)
+  assert.equal(artworkReads, 1)
   const missing = await f.albums(query({ filter: 'missing-artwork' })), confirmed = missing.items[0]!
-  assert.equal(missing.total, 1); assert.equal(confirmed.id, awaiting.id); assert.equal(confirmed.artworkState, 'missing'); assert.notEqual(confirmed.revision, awaiting.revision)
-  await assert.rejects(f.artwork(awaiting), errorCode('SNAPSHOT_CHANGED'))
+  assert.equal(missing.total, 1); assert.equal(confirmed.id, awaiting.id); assert.equal(confirmed.artworkState, 'missing'); assert.equal(confirmed.revision, awaiting.revision, '只读缺图观察不改变来源身份')
+  const retained = await f.artwork(awaiting); assert.equal(retained.status, 'ready'); assert.equal(retained.image, null); assert.equal(artworkReads, 1, '旧同源claim可复用已确认缺图，不重新读取源')
+  await assert.rejects(f.artwork({ ...awaiting, revision: 'synthetic-stale-source' }), errorCode('SNAPSHOT_CHANGED'))
+  await assert.rejects(f.artwork({ ...confirmed, rootId: randomUUID() }), errorCode('SNAPSHOT_CHANGED')); assert.equal(artworkReads, 1)
   f.repository.localCatalog.observeMetadata({ commandId: randomUUID(), trackId: f.tracks[0]!.track.id, source: 'tag', parserVersion, fields: { title: '独立来源水位变化' } })
-  const refreshed = await f.albums(); assert.equal(refreshed.counts['missing-artwork'], 0); assert.equal(refreshed.items.find(album => album.id === awaiting.id)!.artworkState, 'unknown')
-  await assert.rejects(f.artwork(confirmed), errorCode('SNAPSHOT_CHANGED'))
+  const refreshed = await f.albums(), refreshedTarget = refreshed.items.find(album => album.id === awaiting.id)!
+  assert.equal(refreshed.counts['missing-artwork'], 0); assert.equal(refreshedTarget.artworkState, 'unknown'); assert.equal(refreshedTarget.revision, confirmed.revision)
+  const reread = await f.artwork(confirmed); assert.equal(reread.status, 'ready'); assert.equal(reread.image, null); assert.equal(artworkReads, 2, '其他组水位变化清除观察，当前同源claim须在新lease内重新读取')
+  f.repository.localCatalog.observeMetadata({ commandId: randomUUID(), trackId: unknown.track.id, source: 'tag', parserVersion, fields: { title: '目标成员真实来源变化' } })
+  const changed = (await f.albums()).items.find(album => album.id === awaiting.id)!
+  assert.notEqual(changed.revision, confirmed.revision)
+  await assert.rejects(f.artwork(awaiting), errorCode('SNAPSHOT_CHANGED')); await assert.rejects(f.artwork(confirmed), errorCode('SNAPSHOT_CHANGED')); assert.equal(artworkReads, 2)
 })
 
 test('MBF扫描证据：真实部分raw历史和MB override完整保留；原扫描签名/解析器/封面变化拒旧捕获', { concurrency: false }, async t => {

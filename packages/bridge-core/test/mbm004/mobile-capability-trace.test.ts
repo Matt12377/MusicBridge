@@ -4,7 +4,7 @@ import {
   MOBILE_CAPABILITY_TRACE_PREFIX, captureMobileCapabilityContext, closeMobileCapabilityContext,
   copyMobileCapabilityTraceRecord, copyMobileCapabilityTraceSnapshot, createMobileCapabilityContext,
   createMobileCapabilityTraceCollector, createMobileCapabilityTraceReader, createMobileContentSampleSelector, mobileCapabilityAsync,
-  mobileCapabilityReject, mobileCapabilityRequestSha, mobileCapabilitySync, withMobileCapabilityContext,
+  mobileCapabilityReject, mobileCapabilityRequestSha, mobileCapabilitySync, noteMobileUIFeature, withMobileCapabilityContext,
   type MobileCapabilityTraceRecord,
 } from '../../src/mobile/capability-trace.js';
 
@@ -67,6 +67,112 @@ test('私有HTTP探针八次未捕获失败明确UNKNOWN，五种发现和UI各�
     claim.finish(context, 503, true, true); closeMobileCapabilityContext(context);
     assert.ok(decode(lines).some(row => row.stage === `http.discovery.${name}.503` && row.code === 'BUSY'));
   }
+});
+
+test('收藏和个人歌单操作各保留首成功与首错，不借用发现页或其他卡片的槽位', () => {
+  const selector = createMobileContentSampleSelector(), lines: string[] = [];
+  for (const [operation, name] of [['getNeteaseLikedPlaylist', 'liked'], ['listNeteaseLikedPlaylistTracks', 'liked-tracks'],
+    ['listPersonalPlaylists', 'playlists'], ['listPersonalPlaylistTracks', 'playlist-tracks'], ['listFavoriteAlbums', 'favorites']]) {
+    for (const failed of [false, true]) {
+      const claim = selector.claim(operation!); assert.ok(claim);
+      const context = createMobileCapabilityContext(firstId, 'main', 'http', null, undefined, line => { lines.push(line); }); assert.ok(context);
+      context.deferredRecords = []; context.httpTerminalReserve = true;
+      withMobileCapabilityContext(context, () => {
+        if (failed) mobileCapabilityReject('http.failure', failure());
+        mobileCapabilitySync('http.send', () => undefined);
+      });
+      claim.finish(context, failed ? 503 : 200, failed, true); closeMobileCapabilityContext(context);
+    }
+    assert.equal(selector.claim(operation!), undefined);
+    const rows = decode(lines);
+    assert.equal(rows.filter(row => row.stage === `http.discovery.${name}.200`).length, 1);
+    assert.equal(rows.filter(row => row.stage === `http.discovery.${name}.503` && row.code === 'BUSY').length, 1);
+  }
+  assert.equal(selector.claim('getNeteaseLikedPlaylist.private'), undefined);
+  assert.equal(selector.claim('getFavoriteAlbumState'), undefined);
+  assert.doesNotMatch(lines.join(''), /私密正文|message|stack|https?:|playlistId|token/u);
+});
+
+test('R18_COLLECTION_DETAILS 共享详情操作首成功不耗首错，饱和仍保原409及HTTP终态', () => {
+  const selector = createMobileContentSampleSelector(), lines: string[] = [];
+  for (const failed of [false, true]) {
+    const claim = selector.claim('getNeteaseDiscoveryCollectionTracks'); assert.ok(claim);
+    const context = createMobileCapabilityContext(failed ? secondId : firstId, 'main', 'http', null, undefined, line => lines.push(line)); assert.ok(context);
+    context.deferredRecords = []; context.httpTerminalReserve = true;
+    withMobileCapabilityContext(context, () => {
+      for (let index = 0; index < 100; index++) mobileCapabilitySync('main.current', () => undefined);
+      if (failed) mobileCapabilityReject('http.failure', Object.assign(failure(), { code: 'SOURCE_CHANGED' }));
+      mobileCapabilitySync(failed ? 'http.status.409' : 'http.status.200', () => undefined);
+      mobileCapabilitySync('http.send', () => undefined);
+    });
+    const start = lines.length; claim.finish(context, failed ? 409 : 200, failed, true);
+    claim.finish(context, 503, true, true);
+    const rows = decode(lines.slice(start)); assert.ok(rows.length <= 64);
+    assert.equal(rows.filter(row => row.stage === `http.discovery.collection-tracks.${failed ? 409 : 200}`).length, 1);
+    assert.ok(rows.some(row => row.stage === 'http.send' && row.phase === 'ok'));
+    if (failed) assert.ok(rows.some(row => row.stage === 'http.failure' && row.phase === 'reject' && row.code === 'SOURCE_CHANGED'));
+    closeMobileCapabilityContext(context);
+  }
+  assert.equal(selector.claim('getNeteaseDiscoveryCollectionTracks'), undefined);
+  for (const operation of ['listNeteaseRecommendedPlaylists', 'listNeteaseCharts', 'listPersonalPlaylistTracks']) assert.ok(selector.claim(operation));
+  assert.doesNotMatch(lines.join(''), /私密正文|message|stack|https?:|collectionId|token/u);
+});
+
+test('R18_COLLECTION_DETAILS 八次边界与新增固定首拒仍用原十五字段，未知阶段和正文拒收', () => {
+  const selector = createMobileContentSampleSelector(), lines: string[] = [];
+  for (let index = 0; index < 8; index++) {
+    const claim = selector.claim('getNeteaseDiscoveryCollectionTracks'); assert.ok(claim);
+    const context = createMobileCapabilityContext(firstId, 'main', 'http', null, undefined, line => lines.push(line)); assert.ok(context);
+    context.deferredRecords = []; context.httpTerminalReserve = true;
+    withMobileCapabilityContext(context, () => mobileCapabilitySync('http.send', () => undefined));
+    claim.finish(context, 200, false, true); closeMobileCapabilityContext(context);
+  }
+  assert.equal(selector.claim('getNeteaseDiscoveryCollectionTracks'), undefined);
+  assert.equal(selector.claim('getNeteaseDiscoveryCollectionTracks.private'), undefined);
+  const rows = decode(lines);
+  assert.equal(rows.filter(row => row.stage === 'http.discovery.collection-tracks.200').length, 1);
+  assert.equal(rows.filter(row => row.stage === 'http.discovery.collection-tracks.failure-unknown' && row.code === 'UNKNOWN').length, 1);
+  for (const stage of ['provider.content.stream.batch.id-invalid', 'provider.content.stream.batch.unexpected-id',
+    'provider.content.stream.batch.duplicate-id', 'provider.content.stream.batch.missing-id', 'provider.content.stream.item-status']) {
+    const row = { ...rows[0]!, stage, phase: 'reject', code: 'SOURCE_CHANGED' };
+    assert.ok(copyMobileCapabilityTraceRecord(row)); assert.equal(Object.keys(row).length, 15);
+    assert.equal(copyMobileCapabilityTraceRecord({ ...row, stage: `${stage}.private` }), null);
+    assert.equal(copyMobileCapabilityTraceRecord({ ...row, providerValue: '禁止输出的真实状态' }), null);
+  }
+});
+
+test('能力枚举只记闭集feature和状态，不序列化未知对象、身份或正文', () => {
+  const lines: string[] = [], context = createMobileCapabilityContext(firstId, 'main', 'http', null, undefined, line => { lines.push(line); }); assert.ok(context);
+  let conversions = 0;
+  const privateValue = { toString() { conversions++; return '私密能力正文'; } };
+  withMobileCapabilityContext(context, () => {
+    for (const state of ['ready', 'loginRequired', 'unavailable', 'unsupported']) noteMobileUIFeature('personalPlaylists', state);
+    noteMobileUIFeature('personalPlaylists.private', 'ready');
+    noteMobileUIFeature(privateValue, 'ready'); noteMobileUIFeature('personalPlaylists', privateValue);
+    noteMobileUIFeature('personalPlaylists', 'https://private.invalid/');
+  });
+  closeMobileCapabilityContext(context);
+  const rows = decode(lines);
+  assert.deepEqual(rows.map(row => row.stage), ['ready', 'loginRequired', 'unavailable', 'unsupported'].map(state => `http.ui.feature.personalPlaylists.${state}`));
+  assert.ok(rows.every(row => row.phase === 'cache' && row.code === 'OK'));
+  assert.equal(conversions, 0);
+  assert.doesNotMatch(lines.join(''), /私密能力正文|https?:|private|11111111|message|stack|token/u);
+});
+
+test('普通旁注饱和后十项能力枚举与HTTP终态仍在原六十四条预算内', () => {
+  const lines: string[] = [], context = createMobileCapabilityContext(firstId, 'main', 'http', null, undefined, line => { lines.push(line); }); assert.ok(context);
+  context.httpTerminalReserve = true;
+  withMobileCapabilityContext(context, () => {
+    for (let index = 0; index < 100; index++) mobileCapabilitySync('main.current', () => undefined);
+    for (const feature of ['addedAlbums', 'neteaseDailyRecommendations', 'lyrics', 'neteaseLikedPlaylist', 'personalFavorites',
+      'personalPlaylists', 'neteaseRecommendedPlaylists', 'neteaseNewAlbums', 'neteaseCharts', 'neteasePersonalFM']) noteMobileUIFeature(feature, 'ready');
+    mobileCapabilitySync('http.status.200', () => undefined); mobileCapabilitySync('http.send', () => undefined);
+  });
+  closeMobileCapabilityContext(context);
+  const rows = decode(lines);
+  assert.equal(rows.filter(row => row.stage.startsWith('http.ui.feature.')).length, 10);
+  assert.ok(rows.some(row => row.stage === 'http.send' && row.phase === 'ok'));
+  assert.ok(rows.length <= 64);
 });
 
 test('能力旁注闭集拒绝私密字段、访问器和代理，损坏帧不吞后续合法帧，首拒独立于有界环', () => {

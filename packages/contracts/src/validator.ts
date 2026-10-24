@@ -1,3 +1,4 @@
+import { isLocalArtistCommand, isLocalArtistCommandPayload, isLocalArtistCommandResult } from './artist-catalog-api.js';
 import { isPreviewReferenceArchiveCatalogRequest, isImportReferenceArchiveCatalogRequest } from './reference-catalog.js';
 import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalArtworkCommandPayload, isLocalArtworkCommandResult } from './local-artwork.js';
 import { isLocalLegacyLinksCommand, isLocalLegacyLinksCommandPayload, isLocalLegacyLinksCommandResult, localLegacyRecord, localLegacyLinksDataSnapshot } from './local-legacy-links.js';
@@ -793,8 +794,7 @@ function isLyricsPayload(value: unknown): value is { trackId: string } {
     isRecord(value) &&
     hasOnlyKeys(value, ['trackId']) &&
     safeString(value.trackId, 128) &&
-    /^\d+$/.test(value.trackId) &&
-    value.trackId !== '0'
+    (isCollectionId(value.trackId) || /^\d+$/.test(value.trackId) && value.trackId !== '0')
   );
 }
 
@@ -1259,6 +1259,10 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'auth.pollQr' || command === 'auth.cancelQr') {
     return isChallengePayload(payload);
   }
+  if (isLocalArtistCommand(command)) return isLocalArtistCommandPayload(command, payload);
+  if (command === 'library.searchSuggestions') return isRecord(payload) && hasOnlyKeys(payload, ['query']) && typeof payload.query === 'string' && payload.query.length <= 200;
+  if (command === 'library.artistProfile') return isRecord(payload) && hasOnlyKeys(payload, ['artistId']) && typeof payload.artistId === 'string' && /^[1-9][0-9]{0,19}$/u.test(payload.artistId);
+  if (command === 'library.artistAlbums') return isLibraryArtistPayload(payload);
   if (command === 'library.search' || command === 'library.searchArtists' || command === 'library.searchAlbums') return isLibrarySearchPayload(payload);
   if (command === 'library.artist') return isLibraryArtistPayload(payload);
   if (command === 'library.album') return isLibraryAlbumPayload(payload);
@@ -1318,6 +1322,7 @@ const PUBLIC_ERROR_CODES = new Set([
   'TIMEOUT',
   'CANCELLED',
   'NOT_READY',
+  'ARTIST_INDEX_PREPARING',
   'ATTEMPT_NOT_ACCEPTED',
   'AUTH_REQUIRED',
   'AUTH_EXPIRED',
@@ -1938,6 +1943,13 @@ function isCommandResult(
     case 'auth.pollQr':
       return isPublicAuthState(value) ||
         (allowInternalResult && isInternalQrPollResult(value));
+    case 'localArtist.list': case 'localArtist.get': case 'localArtist.albums': case 'localArtist.tracks': case 'localArtist.search':
+      return isLocalArtistCommandResult(command, value);
+    case 'library.searchSuggestions':
+      return isRecord(value) && hasOnlyKeys(value, ['keywords']) && Array.isArray(value.keywords) && value.keywords.length <= 10 && value.keywords.every(v => typeof v === 'string' && v.length <= 200);
+    case 'library.artistProfile':
+      return isRecord(value) && hasOnlyKeys(value, ['id','name','albumCount','trackCount','artworkUrl','biography']) && typeof value.id === 'string' && /^[1-9][0-9]{0,19}$/u.test(value.id) && typeof value.name === 'string' && typeof value.biography === 'string' && value.biography.length <= 20000 && Number.isSafeInteger(value.albumCount) && Number(value.albumCount) >= 0 && Number.isSafeInteger(value.trackCount) && Number(value.trackCount) >= 0 && (value.artworkUrl === undefined || typeof value.artworkUrl === 'string' && /^https:\/\/[^\s]+$/u.test(value.artworkUrl));
+    case 'library.artistAlbums': return isPageOfAlbums(value);
     case 'library.search':
     case 'library.liked':
       return isPageOfTracks(value);

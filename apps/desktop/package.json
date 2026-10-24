@@ -7,7 +7,7 @@
   "productName": "Music Bridge for Roon",
   "scripts": {
     "prebuild": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
-    "build": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode production && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build",
+    "build": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node ../../native/media-worker/scripts/stage.mjs && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode production && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build",
     "postbuild": "node scripts/verify-preload-dependencies.mjs",
     "pretypecheck": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json",
@@ -19,16 +19,20 @@
     "test:electron": "node --import tsx --test electron-gate/*.test.ts",
     "pretest:security": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "test:security": "node --import tsx --test test/security.test.ts test/ipc-security.test.ts test/csp.test.ts test/protocol.test.ts test/preload.test.ts test/credential-provisioning.test.ts test/credential-vault.test.ts",
-    "dev": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode development && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
+    "build:dev": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node ../../native/media-worker/scripts/stage.mjs && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode development && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs",
+    "build:dev:renderer": "electron-vite build --config electron.renderer-dev.config.ts --mode development --ignoreConfigWarning",
+    "dev": "corepack pnpm@10.17.1 run build:dev && electron dist/main/index.js",
     "start": "node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
     "pack": "electron-builder --dir",
     "pack:beta": "electron-builder --mac --arm64",
     "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production",
-    "test:e2e": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode production && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs && electron-vite build --config e2e/private-core.vite.config.ts --mode development && playwright test"
+    "test:e2e": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node ../../native/media-worker/scripts/stage.mjs && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode production && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs && electron-vite build --config e2e/private-core.vite.config.ts --mode development && playwright test",
+    "build:media-worker": "node ../../native/media-worker/scripts/build.mjs && node ../../native/media-worker/scripts/stage.mjs"
   },
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",
     "@neteasecloudmusicapienhanced/api": "4.40.1",
+    "fast-srp-hap": "2.0.4",
     "music-metadata": "11.15.0",
     "node-roon-api": "github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8",
     "node-roon-api-audioinput": "github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f",
@@ -47,10 +51,10 @@
     "@types/node": "22.20.1",
     "@vitejs/plugin-vue": "6.0.1",
     "@vue/compiler-sfc": "3.5.42",
+    "axe-core": "4.13.0",
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
-    "axe-core": "4.13.0",
     "tsx": "4.23.12",
     "typescript": "5.9.3",
     "vite": "7.1.3",
@@ -58,7 +62,7 @@
   },
   "build": {
     "appId": "com.musicbridge.roon",
-    "artifactName": "MusicBridge-${version}-${arch}.${ext}",
+    "artifactName": "Mousa-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -89,10 +93,14 @@
       "icon": "build/musicbridge-icon.icns",
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "CFBundleDisplayName": "Mousa",
+        "CFBundleDevelopmentRegion": "en"
+      }
     },
     "dmg": {
-      "title": "Music Bridge for Roon ${version}",
+      "title": "Mousa ${version}",
       "backgroundColor": "#10131a",
       "contents": [
         {
@@ -118,7 +126,7 @@
       "onlyLoadAppFromAsar": true,
       "grantFileProtocolExtraPrivileges": false
     },
-    "beforePack": "./scripts/native-cue-package.mjs",
+    "beforePack": "./scripts/native-media-worker-package.mjs",
     "extraResources": [
       {
         "from": "native/rust-core/darwin-arm64",
@@ -226,6 +234,22 @@
           "mb-library-watch",
           "legal/fsevents-helper.cpp"
         ]
+      },
+      {
+        "from": "native/media-worker/darwin-arm64",
+        "to": "media-worker/darwin-arm64",
+        "filter": [
+          "manifest.json",
+          "bin/musicbridge-media-worker"
+        ]
+      },
+      {
+        "from": "build/InfoPlist.strings",
+        "to": "en.lproj/InfoPlist.strings"
+      },
+      {
+        "from": "build/InfoPlist.strings",
+        "to": "zh-Hans.lproj/InfoPlist.strings"
       }
     ],
     "afterPack": "./scripts/native-local-audio-tags-package.mjs"

@@ -1,4 +1,5 @@
 import { isCollectionId } from './collection.js';
+import type { LocalSearchPlayContext } from './artist-catalog-api.js';
 /** 旧九字段仍合法；可选专辑身份只选择Owner完整组，不携前端成员或路径许可。 */
 export const LOCAL_PLAY_ACTIONS = ['PLAY_NOW', 'APPEND_MB_QUEUE', 'PLAY_NEXT_MB_QUEUE'] as const;
 export type LocalPlayAction = typeof LOCAL_PLAY_ACTIONS[number];
@@ -11,6 +12,7 @@ export interface LocalPlayRequest {
   schema_version: '1.2'; request_id: string; route: 'roon_audio_input'; source_kind: 'local_file';
   local_track_id: string; asset_id: string; expected_asset_revision: string; target: LocalPlayTarget; action: LocalPlayAction;
   album?: LocalPlayAlbum;
+  context?: LocalSearchPlayContext;
 }
 export interface LocalPlaybackIntent extends LocalPlayRequest {
   intent_generation: string; attempt_id: string;
@@ -40,16 +42,24 @@ export function isLocalPlayAlbum(v: unknown): v is LocalPlayAlbum {
     && (v.kind === 'source-directory' && v.editionId === null || v.kind === 'edition' && isCollectionId(v.editionId))
     && typeof v.trackCount === 'number' && Number.isSafeInteger(v.trackCount) && v.trackCount >= 1 && v.trackCount <= 5000;
 }
+export function isLocalSearchPlayContext(v: unknown): v is LocalSearchPlayContext {
+  const revision = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._:@-]{0,255}$/u.test(value);
+  return record(v) && revision(v.revision) && (v.kind === 'artist'
+    ? keys(v, ['kind','artistId','revision']) && typeof v.artistId === 'string' && /^local-artist:[a-f0-9]{64}$/u.test(v.artistId)
+    : v.kind === 'search' && keys(v, ['kind','query','revision']) && typeof v.query === 'string' && [...v.query].length <= 256
+      && !/[\u0000-\u001f\u007f]/u.test(v.query));
+}
 const publicKeys = ['schema_version','request_id','route','source_kind','local_track_id','asset_id','expected_asset_revision','target','action'] as const;
 function publicFields(v: Record<string, unknown>): boolean {
   return v.schema_version === '1.2' && text(v.request_id) && v.route === 'roon_audio_input' && v.source_kind === 'local_file'
     && text(v.local_track_id) && text(v.asset_id) && isLocalPlayDecimal(v.expected_asset_revision) && isLocalPlayTarget(v.target)
     && (LOCAL_PLAY_ACTIONS as readonly unknown[]).includes(v.action)
-    && (!Object.hasOwn(v,'album') || v.action === 'PLAY_NOW' && isLocalPlayAlbum(v.album));
+    && (!Object.hasOwn(v,'album') || v.action === 'PLAY_NOW' && !Object.hasOwn(v,'context') && isLocalPlayAlbum(v.album))
+    && (!Object.hasOwn(v,'context') || v.action === 'PLAY_NOW' && !Object.hasOwn(v,'album') && isLocalSearchPlayContext(v.context));
 }
-export const isLocalPlayRequest = (v: unknown): v is LocalPlayRequest => record(v) && keys(v, publicKeys, ['album']) && publicFields(v);
+export const isLocalPlayRequest = (v: unknown): v is LocalPlayRequest => record(v) && keys(v, publicKeys, ['album','context']) && publicFields(v);
 export function isLocalPlaybackIntent(v: unknown): v is LocalPlaybackIntent {
-  if (!record(v) || !keys(v, [...publicKeys,'intent_generation','attempt_id','segment','selection_revision','autoplay_after_restart'], ['album']) || !publicFields(v)) return false;
+  if (!record(v) || !keys(v, [...publicKeys,'intent_generation','attempt_id','segment','selection_revision','autoplay_after_restart'], ['album','context']) || !publicFields(v)) return false;
   const segment = v.segment;
   return isLocalPlayDecimal(v.intent_generation) && text(v.attempt_id) && isLocalPlayDecimal(v.selection_revision) && v.autoplay_after_restart === false
     && (segment === null || record(segment) && keys(segment, ['segment_id','start_frame','end_frame_exclusive','timebase_hz'])

@@ -1,20 +1,28 @@
 import { emitRendererArtwork, desktopArtworkStarted, desktopArtworkElapsed, desktopArtworkKey } from '../../../../../../../../packages/bridge-core/src/shared/desktop-artwork-trace.js'
 import { isCollectionId, isLocalCatalogText, isLocalAlbumSummary, isLocalAlbumPage, isLocalAlbumTrackPage, isLocalAlbumArtworkReply } from '@music-bridge/contracts'
+import { logLibraryOperation } from '../../../../../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { readLocalAlbumSafeMarker } from '../../../../../shared/library-read-trace.js'
 import { LOCAL_ALBUM_STATUSES, type LocalAlbumArtworkRequest, type LocalAlbumArtworkState, type LocalAlbumArtworkWindow, type LocalAlbumBrowserOptions, type LocalAlbumBrowserSnapshot, type LocalAlbumFilter, type LocalAlbumFilterCounts, type LocalAlbumPage, type LocalAlbumQuery, type LocalAlbumReturnTarget, type LocalAlbumSummary, type LocalAlbumTrackItem, type LocalAlbumTrackPage, type LocalAlbumTrackQuery } from './types.js'
 export { isLocalAlbumSummary, isLocalAlbumPage, isLocalAlbumTrackItem, isLocalAlbumTrackPage, isLocalAlbumArtworkReply } from '@music-bridge/contracts'
 export { localAlbumTrackPresentation } from './presentation.js'
 
-export const LOCAL_ALBUM_PAGE_SIZE = 60
+export const LOCAL_ALBUM_PAGE_SIZE = 200
 export const LOCAL_ALBUM_TRACK_PAGE_SIZE = 100
-export const LOCAL_ALBUM_ARTWORK_CONCURRENCY = 2
+/** 本地资源回复可并发；源文件提取仍由 Core 独立的两槽队列限制。 */
+export const LOCAL_ALBUM_ARTWORK_CONCURRENCY = 8
 export const LOCAL_ALBUM_ARTWORK_CACHE_BYTES = 64 * 1024 * 1024
 export const LOCAL_ALBUM_ARTWORK_CACHE_ENTRIES = 128
+export const LOCAL_ALBUM_ARTWORK_COMPACT_CACHE_ENTRIES = 2048
 export const LOCAL_ALBUM_ARTWORK_COUNT_QUIET_MS = 250
 export const LOCAL_ALBUM_ARTWORK_COUNT_MAX_WAIT_MS = 1000
+export const LOCAL_ALBUM_ARTWORK_RETRY_MIN_MS = 2000
+export const LOCAL_ALBUM_ARTWORK_RETRY_MAX_MS = 30_000
+const GALLERY_REFRESH_TAIL_MS = 1000
 const filters = ['all', ...LOCAL_ALBUM_STATUSES] as const
 const idleArtwork: LocalAlbumArtworkState = Object.freeze({ status: 'idle', dataUrl: null, error: '', canRetry: false })
 const missingArtwork: LocalAlbumArtworkState = Object.freeze({ status: 'missing', dataUrl: null, error: '', canRetry: false })
 const unavailableArtwork: LocalAlbumArtworkState = Object.freeze({ status: 'error', dataUrl: null, error: '封面来源暂不可用，请在来源恢复后重试。已保存的封面选择保留。', canRetry: true })
+const failedArtwork: LocalAlbumArtworkState = Object.freeze({ status: 'error', dataUrl: null, error: '封面暂时无法读取，可重试。已保存的封面选择保留。', canRetry: true })
 const artworkCountError = '封面计数暂未更新，保留上次确认的数量，请重试。'
 const artworkState = (album: LocalAlbumSummary) => album.artworkState ?? (album.artworkAvailable ? 'available' : 'missing')
 const emptyCounts = (): LocalAlbumFilterCounts => Object.freeze(Object.fromEntries(filters.map(filter => [filter, 0])) as unknown as LocalAlbumFilterCounts)
@@ -39,16 +47,28 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   const trackPageSize = positiveOption(options.trackPageSize, LOCAL_ALBUM_TRACK_PAGE_SIZE, 200)
   const artworkConcurrency = positiveOption(options.artworkConcurrency, LOCAL_ALBUM_ARTWORK_CONCURRENCY, LOCAL_ALBUM_ARTWORK_CONCURRENCY)
   const artworkCacheBytes = positiveOption(options.artworkCacheBytes, LOCAL_ALBUM_ARTWORK_CACHE_BYTES, 64 * 1024 * 1024)
-  const artworkCacheEntries = positiveOption(options.artworkCacheEntries, LOCAL_ALBUM_ARTWORK_CACHE_ENTRIES, 128)
-  let disposed = false, galleryGeneration = 0, detailGeneration = 0, artworkGeneration = 0, artworkRunning = 0, clock = 0, artworkInvalidationEpoch = 0, artworkRefreshEpoch = 0
+  const artworkCacheEntries = positiveOption(options.artworkCacheEntries, LOCAL_ALBUM_ARTWORK_CACHE_ENTRIES, LOCAL_ALBUM_ARTWORK_COMPACT_CACHE_ENTRIES)
+  const backgroundArtworkLoading = options.backgroundArtworkLoading !== false
+  let disposed = false, galleryGeneration = 0, detailGeneration = 0, artworkGeneration = 0, artworkRunning = 0, artworkSourceRunning = 0, clock = 0, artworkInvalidationEpoch = 0, artworkRefreshEpoch = 0
   let galleryPending: { generation: number; promise: Promise<void> } | undefined, galleryReadSerial = 0
+  interface GalleryRefresh { epoch: number; phase: 'first' | 'tail'; dirty: boolean; promise: Promise<void> }
+  let galleryRefreshEpoch = 0, galleryRefreshWork: GalleryRefresh | undefined
+  let galleryRefreshDeferred: { epoch: number; promise: Promise<void>; finish: () => void; fail: (error: unknown) => void; timer?: ReturnType<typeof setTimeout> } | undefined
   let detailPending: { generation: number; promise: Promise<void> } | undefined
-  interface ArtworkEntry { request: LocalAlbumArtworkRequest; state: LocalAlbumArtworkState; bytes: number; used: number; refreshEpoch: number; promise?: Promise<void> }
-  interface ArtworkJob { entry: ArtworkEntry; generation: number; finish: () => void }
+  interface ArtworkRetry { attempts: number; atMs: number; limited: boolean }
+  interface ArtworkEntry { request: LocalAlbumArtworkRequest; state: LocalAlbumArtworkState; bytes: number; used: number; refreshEpoch: number; promise?: Promise<void>; background?: boolean; backgroundDetached?: boolean; retry?: ArtworkRetry }
+  interface ArtworkJob { entry: ArtworkEntry; generation: number; queuedAtMs: number; prepared: boolean; finish: () => void }
   const artworkCache = new Map<string, ArtworkEntry>(), artworkQueue: ArtworkJob[] = []
   // 真正进行中的读取不属于展示LRU；出窗/淘汰只撤显示引用，实际settle前仍占槽。
   const artworkFlights = new Map<string, ArtworkJob>()
   const galleryAlbums = new Map<string, LocalAlbumSummary>()
+  let detailArtwork: Pick<ArtworkEntry, 'request' | 'state' | 'bytes' | 'refreshEpoch' | 'retry'> | undefined
+  let artworkRetryTimer: ReturnType<typeof setTimeout> | undefined, artworkRetryAtMs: number | undefined
+  let artworkRetryWork: object | undefined
+  const backgroundSeen = new Set<string>(), backgroundCompleted = new Set<string>()
+  let backgroundCursor = 0, backgroundCompletedCount = 0, backgroundReadyCount = 0
+  let galleryBackgroundTimer: ReturnType<typeof setTimeout> | undefined, artworkBackgroundTimer: ReturnType<typeof setTimeout> | undefined
+  let artworkBackgroundWork: { generation: number; identity: string } | undefined
   interface ArtworkCountObservation { request: LocalAlbumArtworkRequest; state: 'available' | 'missing'; generation: number; serial: number; scope: Pick<LocalAlbumQuery, 'query' | 'rootId' | 'filter'> }
   const artworkCountObservations = new Map<string, ArtworkCountObservation>()
   let artworkCountTimer: ReturnType<typeof setTimeout> | undefined, artworkCountMaxTimer: ReturnType<typeof setTimeout> | undefined, artworkCountWork: Promise<void> | undefined, artworkCountSerial = 0, galleryArtworkCountSerial = 0
@@ -60,15 +80,171 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     status: 'idle', initialLoading: false, refreshing: false, loadingMore: false, error: '', refreshError: '', loadMoreError: '', stale: false, scrollTop: 0,
     selectedAlbum: null, selectedAlbumIds: Object.freeze([]), tracks: Object.freeze([]), trackTotal: 0, tracksHasMore: false, detailStatus: 'idle', detailLoading: false, detailRefreshing: false, detailLoadingMore: false,
     detailError: '', detailRefreshError: '', detailLoadMoreError: '', detailStale: false, returnTarget: null, artwork: Object.freeze(Object.create(null)) as Readonly<Record<string, LocalAlbumArtworkState>> })
+  let artworkSnapshotDirty = false, artworkSnapshotSize = 0
+  let publishedDetailKey: string | undefined, publishedDetailState: LocalAlbumArtworkState | undefined
+  function setCachedArtwork(key: string, entry: ArtworkEntry): void { entry.backgroundDetached = false; artworkCache.set(key, entry); artworkSnapshotDirty = true }
+  function deleteCachedArtwork(key: string): void { if (artworkCache.delete(key)) artworkSnapshotDirty = true }
+  function clearCachedArtwork(): void { if (artworkCache.size) { artworkCache.clear(); artworkSnapshotDirty = true } }
+  function snapshotArtwork(selected: LocalAlbumSummary | null): LocalAlbumBrowserSnapshot['artwork'] {
+    const detail = detailArtwork && selected && sameArtworkRequest(detailArtwork.request, artworkRequest(selected)) ? detailArtwork : undefined
+    const detailKey = detail?.request.albumKey, detailState = detail?.state
+    if (!artworkSnapshotDirty && detailKey === publishedDetailKey && detailState === publishedDetailState) return state.artwork
+    artworkSnapshotDirty = false; publishedDetailKey = detailKey; publishedDetailState = detailState
+    const size = artworkCache.size + Number(detailKey !== undefined && !artworkCache.has(detailKey))
+    let unchanged = size === artworkSnapshotSize && (detailKey === undefined || state.artwork[detailKey] === detailState)
+    if (unchanged) for (const [key, entry] of artworkCache) {
+      if (state.artwork[key] !== (key === detailKey ? detailState : entry.state)) { unchanged = false; break }
+    }
+    if (unchanged) return state.artwork
+    const artwork = Object.create(null) as Record<string, LocalAlbumArtworkState>
+    for (const [key, entry] of artworkCache) artwork[key] = entry.state
+    if (detailKey !== undefined && detailState) artwork[detailKey] = detailState
+    artworkSnapshotSize = size
+    return Object.freeze(artwork)
+  }
+  function pruneBackgroundIdentities(albums: readonly LocalAlbumSummary[]): void {
+    if (!backgroundSeen.size && !backgroundCompleted.size) return
+    const retained = new Set(albums.map(album => artworkIdentity(artworkRequest(album))))
+    // 同代真正排队或读取中的后台身份只在原finally归还后裁掉，不能靠目录刷新伪造结束。
+    if (artworkBackgroundWork?.generation === artworkGeneration) retained.add(artworkBackgroundWork.identity)
+    for (const identities of [backgroundSeen, backgroundCompleted]) for (const identity of identities) if (!retained.has(identity)) identities.delete(identity)
+  }
   function publish(patch: Partial<LocalAlbumBrowserSnapshot> = {}): void {
-    if (patch.items) { galleryAlbums.clear(); for (const album of patch.items) galleryAlbums.set(album.id, album) }
-    const artwork = Object.assign(Object.create(null), Object.fromEntries([...artworkCache].map(([key, entry]) => [key, entry.state]))) as Record<string, LocalAlbumArtworkState>
-    state = Object.freeze({ ...state, ...patch, artwork: Object.freeze(artwork) })
+    if (patch.items) {
+      for (const album of patch.items) {
+        const previous = galleryAlbums.get(album.id), entry = artworkCache.get(album.id)
+        if (previous?.artworkPrepared !== true && album.artworkPrepared === true && previous && sameArtworkRequest(artworkRequest(previous), artworkRequest(album))) {
+          // 同一图片后来有了持久副本，旧失败不能冒充这次本地资源读取。
+          if (entry?.state.status === 'error') deleteCachedArtwork(album.id)
+          if (detailArtwork?.state.status === 'error' && sameArtworkRequest(detailArtwork.request, artworkRequest(album))) {
+            detailArtwork.retry = { attempts: 0, atMs: Date.now(), limited: false }
+          }
+          if (!entry || entry.state.status === 'error') { const identity = artworkIdentity(artworkRequest(album)); backgroundSeen.delete(identity); backgroundCompleted.delete(identity) }
+        }
+      }
+      galleryAlbums.clear(); for (const album of patch.items) galleryAlbums.set(album.id, album)
+      pruneBackgroundIdentities(patch.items)
+      backgroundCursor = 0
+      if (backgroundArtworkLoading) {
+        backgroundCompletedCount = patch.items.reduce((count, album) => count + Number(backgroundCompleted.has(artworkIdentity(artworkRequest(album)))), 0)
+        backgroundReadyCount = patch.items.reduce((count, album) => count + Number(album.artworkPrepared === true && !backgroundSeen.has(artworkIdentity(artworkRequest(album)))), 0)
+      }
+    }
+    const selected = patch.selectedAlbum === undefined ? state.selectedAlbum : patch.selectedAlbum
+    const artwork = snapshotArtwork(selected)
+    state = Object.freeze({ ...state, ...patch, artwork, ...(options.backgroundLoading && backgroundArtworkLoading ? { backgroundArtwork: Object.freeze({
+      completed: backgroundCompletedCount, total: patch.items?.length ?? state.items.length,
+      running: (patch.active ?? state.active) && !disposed && (backgroundReadyCount > 0 || !!artworkBackgroundWork),
+    }) } : {}) })
     options.onChange?.(state)
+    scheduleArtworkRecovery()
+  }
+  const artworkIdentity = (request: LocalAlbumArtworkRequest): string => JSON.stringify([request.albumKey, request.rootId, request.editionId, request.representativeTrackId, request.revision])
+  function stopBackground(): void {
+    clearTimeout(galleryBackgroundTimer); clearTimeout(artworkBackgroundTimer)
+    galleryBackgroundTimer = undefined; artworkBackgroundTimer = undefined
+    if (artworkBackgroundWork && !backgroundCompleted.has(artworkBackgroundWork.identity)) backgroundSeen.delete(artworkBackgroundWork.identity)
+    artworkBackgroundWork = undefined
+  }
+  function scheduleBackground(): void {
+    if (!options.backgroundLoading || disposed || !state.active || !state.loaded) return
+    if (state.hasMore && !state.initialLoading && !state.refreshing && !state.loadingMore && !state.loadMoreError && galleryPending?.generation !== galleryGeneration && !galleryBackgroundTimer) {
+      const generation = galleryGeneration
+      // 每页让出事件循环，首屏、滚动和播放不等待完整目录。
+      galleryBackgroundTimer = setTimeout(() => { galleryBackgroundTimer = undefined; if (currentGallery(generation)) void readGallery('more') }, 16)
+    }
+    // 全页发现与RAM读图分离；正式页面由Grid兴趣窗口读图，Core持续补齐持久副本。
+    if (!backgroundArtworkLoading || state.refreshing || artworkBackgroundTimer || artworkBackgroundWork) return
+    while (backgroundCursor < state.items.length && (state.items[backgroundCursor]!.artworkPrepared !== true
+      || backgroundSeen.has(artworkIdentity(artworkRequest(state.items[backgroundCursor]!))))) backgroundCursor++
+    if (backgroundCursor >= state.items.length) return
+    const generation = artworkGeneration
+    artworkBackgroundTimer = setTimeout(() => {
+      artworkBackgroundTimer = undefined
+      if (disposed || !state.active || generation !== artworkGeneration || state.refreshing) return
+      const album = state.items[backgroundCursor++]
+      if (!album || album.artworkPrepared !== true) { scheduleBackground(); return }
+      const identity = artworkIdentity(artworkRequest(album)), work = { generation, identity }
+      if (backgroundSeen.has(identity)) { scheduleBackground(); return }
+      backgroundSeen.add(identity); artworkBackgroundWork = work
+      backgroundReadyCount = Math.max(0, backgroundReadyCount - 1)
+      // 后台只持有一路请求，前台窗口仍可占用其余本地图/源读槽位。
+      void ensureArtwork(album, false, true).finally(() => {
+        if (artworkBackgroundWork !== work || disposed || !state.active || generation !== artworkGeneration) return
+        artworkBackgroundWork = undefined
+        const request = artworkRequest(album), current = galleryAlbums.get(album.id)
+        if (!current || !sameArtworkRequest(artworkRequest(current), request)) { backgroundSeen.delete(identity); backgroundCompleted.delete(identity) }
+        completeBackgroundArtwork(request)
+        publish(); scheduleBackground()
+      })
+    }, 0)
   }
   const currentGallery = (generation: number): boolean => state.active && !disposed && generation === galleryGeneration
   const currentDetail = (generation: number, album: LocalAlbumSummary): boolean => state.active && !disposed && generation === detailGeneration
     && state.selectedAlbum?.id === album.id && state.selectedAlbum.rootId === album.rootId
+  function completeBackgroundArtwork(request: LocalAlbumArtworkRequest): void {
+    const identity = artworkIdentity(request), entry = artworkCache.get(request.albumKey), album = galleryAlbums.get(request.albumKey)
+    if (!backgroundSeen.has(identity) || backgroundCompleted.has(identity) || !entry || !album
+      || !sameArtworkRequest(entry.request, request) || !sameArtworkRequest(artworkRequest(album), request)
+      || entry.state.status !== 'ready' && entry.state.status !== 'missing') return
+    backgroundCompleted.add(identity); backgroundCompletedCount++
+  }
+  function retryLimit(error: unknown): boolean | undefined {
+    // 只消费Preload闭合marker的own data message，不解析任意错误文本或访问getter。
+    try {
+      const descriptor = error && typeof error === 'object' ? Object.getOwnPropertyDescriptor(error, 'message') : undefined
+      const safe = descriptor && Object.hasOwn(descriptor, 'value') ? readLocalAlbumSafeMarker(descriptor.value) : null
+      if (!safe) return undefined
+      if (safe.code === 'TIMEOUT' || safe.code === 'NOT_READY' || safe.code === 'SNAPSHOT_CHANGED') return false
+      if (safe.code === 'UNKNOWN' && safe.mappedCode === 'UNAVAILABLE') return true
+    } catch { /* 未获闭合的拒绝只保留显式重试。 */ }
+    return undefined
+  }
+  function nextArtworkRetry(previous: ArtworkRetry | undefined, limited: boolean): ArtworkRetry {
+    const attempts = previous?.attempts ?? 0
+    return { attempts, limited, atMs: Date.now() + Math.min(LOCAL_ALBUM_ARTWORK_RETRY_MAX_MS, LOCAL_ALBUM_ARTWORK_RETRY_MIN_MS * 2 ** Math.min(attempts, 4)) }
+  }
+  function recoveryCandidate(): { album: LocalAlbumSummary; retry: ArtworkRetry } | undefined {
+    let next: { album: LocalAlbumSummary; retry: ArtworkRetry } | undefined
+    const consider = (album: LocalAlbumSummary, entry: Pick<ArtworkEntry, 'request' | 'state' | 'retry'>): void => {
+      const retry = entry.retry
+      if (entry.state.status !== 'error' || artworkState(album) === 'missing' || !retry || retry.limited && retry.attempts >= 3
+        || !sameArtworkRequest(artworkRequest(album), entry.request) || artworkFlights.has(album.id)) return
+      if (!next || retry.atMs < next.retry.atMs) next = { album, retry }
+    }
+    const selected = state.selectedAlbum
+    if (selected && detailArtwork) consider(selected, detailArtwork)
+    for (const entry of artworkCache.values()) {
+      const album = selected?.id === entry.request.albumKey ? selected : galleryAlbums.get(entry.request.albumKey)
+      if (!album || entry.promise || selected?.id === album.id && detailArtwork?.state.status === 'error') continue
+      const interest = artworkWindow?.get(album.id)
+      if (selected?.id !== album.id && (!interest || interest.priority !== 0 || !sameArtworkRequest(interest.request, entry.request))) continue
+      consider(album, entry)
+    }
+    return next
+  }
+  function stopArtworkRecovery(): void {
+    clearTimeout(artworkRetryTimer); artworkRetryTimer = undefined; artworkRetryAtMs = undefined; artworkRetryWork = undefined
+  }
+  function scheduleArtworkRecovery(): void {
+    const next = !disposed && state.active && !artworkRetryWork ? recoveryCandidate() : undefined
+    if (!next) { clearTimeout(artworkRetryTimer); artworkRetryTimer = undefined; artworkRetryAtMs = undefined; return }
+    if (artworkRetryTimer !== undefined && artworkRetryAtMs === next.retry.atMs) return
+    clearTimeout(artworkRetryTimer); artworkRetryAtMs = next.retry.atMs
+    const generation = artworkGeneration
+    artworkRetryTimer = setTimeout(() => {
+      artworkRetryTimer = undefined; artworkRetryAtMs = undefined
+      if (disposed || !state.active || generation !== artworkGeneration) return
+      const candidate = recoveryCandidate()
+      if (!candidate || candidate.retry.atMs > Date.now()) { scheduleArtworkRecovery(); return }
+      const work = {}; artworkRetryWork = work
+      // 无目录刷新也可发现Core后来准备好的副本；普通读口始终优先本地，不强制重开源图。
+      void readArtwork(candidate.album, false, false, true).finally(() => {
+        if (artworkRetryWork !== work) return
+        artworkRetryWork = undefined; scheduleArtworkRecovery()
+      })
+    }, Math.max(1, next.retry.atMs - Date.now()))
+  }
   // 封面实读观测可更新两项显示计数；只有按封面筛选时它们才参与当前集合的成员资格。
   const countsEqual = (left: LocalAlbumFilterCounts, right: LocalAlbumFilterCounts, selectedFilter: LocalAlbumFilter): boolean => filters.every(filter =>
     selectedFilter !== 'has-artwork' && selectedFilter !== 'missing-artwork' && (filter === 'has-artwork' || filter === 'missing-artwork') || left[filter] === right[filter])
@@ -159,28 +335,76 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     artworkCountWork = work
     try { await work } finally { if (artworkCountWork === work) artworkCountWork = undefined; scheduleArtworkCounts() }
   }
-  function invalidateCachedArtwork(albumKey: string): void { artworkCache.delete(albumKey); artworkFlights.delete(albumKey) }
-  /** 每个成功刷新代只恢复原快照项一次；渲染和 LRU 淘汰不重新获得自动资格。 */
+  function invalidateCachedArtwork(albumKey: string): void {
+    deleteCachedArtwork(albumKey); artworkFlights.delete(albumKey)
+    for (const job of artworkQueue) if (job.entry.request.albumKey === albumKey) job.entry.backgroundDetached = false
+    if (detailArtwork?.request.albumKey === albumKey) detailArtwork = undefined
+  }
+  /** 普通投影刷新只恢复退避结束的原不可用项；新刷新代不重置失败冷却。 */
   function retryRefreshedUnavailableArtwork(albums: readonly LocalAlbumSummary[], entries: readonly ArtworkEntry[], generation: number): void {
     for (const entry of entries) {
       if (!state.active || disposed || generation !== artworkGeneration) return
-      // 显式刷新已经探过的失败不在同一动作内再自动重试；普通恢复刷新仍保原一次资格。
+      // 显式刷新已经探过的失败不在同一动作内再自动重试；普通恢复仍遵守同图片退避。
       if (artworkRefreshPending && entry.refreshEpoch === artworkRefreshEpoch
         || artworkDetailRefreshPending && state.selectedAlbum?.id === entry.request.albumKey) continue
       const album = albums.find(value => sameArtworkRequest(entry.request, artworkRequest(value)))
       if (!album || artworkState(album) === 'missing' || artworkState(album) === 'source-unavailable'
         || artworkCache.get(entry.request.albumKey) !== entry || entry.state !== unavailableArtwork) continue
-      invalidateCachedArtwork(album.id)
-      void ensureArtwork(album)
+      if (entry.retry && entry.retry.atMs > Date.now()) continue
+      void readArtwork(album, false, false, true)
     }
   }
   function observeRevisions(albums: readonly LocalAlbumSummary[]): void {
     for (const album of albums) { const entry = artworkCache.get(album.id); if (entry && !sameArtworkRequest(entry.request, artworkRequest(album))) invalidateCachedArtwork(album.id) }
   }
 
+  function cancelGalleryRefreshes(): void {
+    galleryRefreshEpoch++
+    if (galleryRefreshDeferred) { clearTimeout(galleryRefreshDeferred.timer); galleryRefreshDeferred.finish(); galleryRefreshDeferred = undefined }
+  }
+  function scheduleGalleryRefreshTail(): void {
+    const deferred = galleryRefreshDeferred
+    if (!deferred || deferred.timer !== undefined || galleryRefreshWork) return
+    deferred.timer = setTimeout(() => {
+      if (galleryRefreshDeferred !== deferred) return
+      galleryRefreshDeferred = undefined
+      if (disposed || !state.active || deferred.epoch !== galleryRefreshEpoch) { deferred.finish(); return }
+      void refreshGallery().then(deferred.finish, deferred.fail)
+    }, GALLERY_REFRESH_TAIL_MS)
+  }
+  function refreshGallery(): Promise<void> {
+    if (disposed || !state.active) return Promise.resolve()
+    if (galleryRefreshDeferred?.epoch === galleryRefreshEpoch) return galleryRefreshDeferred.promise
+    const current = galleryRefreshWork
+    if (current?.epoch === galleryRefreshEpoch) {
+      if (current.phase === 'first') { current.dirty = true; return current.promise }
+      let finish!: () => void, fail!: (error: unknown) => void
+      const promise = new Promise<void>((resolve, reject) => { finish = resolve; fail = reject })
+      galleryRefreshDeferred = { epoch: galleryRefreshEpoch, promise, finish, fail }
+      return promise
+    }
+    let finish!: () => void, fail!: (error: unknown) => void
+    const promise = new Promise<void>((resolve, reject) => { finish = resolve; fail = reject })
+    const work: GalleryRefresh = { epoch: galleryRefreshEpoch, phase: 'first', dirty: false, promise }
+    galleryRefreshWork = work
+    const currentScope = (): boolean => !disposed && state.active && work.epoch === galleryRefreshEpoch
+    const run = async (): Promise<void> => {
+      if (galleryPending?.generation === galleryGeneration) await galleryPending.promise
+      if (!currentScope()) return
+      await readGallery(state.loaded ? 'refresh' : 'initial')
+      if (!currentScope() || !work.dirty) return
+      work.phase = 'tail'
+      await readGallery(state.loaded ? 'refresh' : 'initial')
+    }
+    const settled = (): void => { if (galleryRefreshWork === work) galleryRefreshWork = undefined; scheduleGalleryRefreshTail() }
+    void run().then(() => { settled(); finish() }, error => { settled(); fail(error) })
+    return promise
+  }
+
   async function readGallery(mode: 'initial' | 'refresh' | 'more', restart = false): Promise<void> {
     if (!state.active || disposed || mode === 'more' && (!state.loaded || !state.hasMore)) return
     if (mode === 'more' && galleryPending?.generation === galleryGeneration) return galleryPending.promise
+    clearTimeout(galleryBackgroundTimer); galleryBackgroundTimer = undefined
     galleryReadSerial++
     const generation = mode === 'more' ? galleryGeneration : ++galleryGeneration
     const artworkRetryGeneration = artworkGeneration, unavailableEntries = mode === 'refresh' ? [...artworkCache.values()].filter(entry => entry.state === unavailableArtwork) : []
@@ -207,6 +431,7 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
           if (!page.hasMore) break
         }
         if (!currentGallery(generation) || !firstPage || !lastPage) return
+        if (mode === 'more' && !collected.length && lastPage.hasMore) throw new Error('专辑目录没有继续推进')
         const items = Object.freeze(mode === 'more' ? [...previousItems, ...collected] : collected)
         observeRevisions(items)
         if (artworkRetryGeneration === artworkGeneration) galleryArtworkCountSerial = Math.max(galleryArtworkCountSerial, observedBeforePage)
@@ -225,6 +450,7 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     const pending = { generation, promise }; galleryPending = pending
     await promise
     if (galleryPending === pending) galleryPending = undefined
+    if (currentGallery(generation)) scheduleBackground()
   }
 
   async function readDetail(mode: 'initial' | 'refresh' | 'more'): Promise<void> {
@@ -284,12 +510,15 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   function clearDetail(restoreScroll: boolean): LocalAlbumReturnTarget | null {
     if (disposed) return null
     const target = state.returnTarget
+    detailArtwork = undefined
     detailGeneration++
     publish({ selectedAlbum: null, tracks: Object.freeze([]), trackTotal: 0, tracksHasMore: false, detailStatus: 'idle', detailLoading: false, detailRefreshing: false, detailLoadingMore: false,
       detailError: '', detailRefreshError: '', detailLoadMoreError: '', detailStale: false, returnTarget: null, ...(restoreScroll && target ? { scrollTop: target.scrollTop } : {}) })
     return target
   }
   function cancelArtworkRequests(): void {
+    stopBackground()
+    stopArtworkRecovery()
     artworkGeneration++
     clearTimeout(artworkCountTimer); clearTimeout(artworkCountMaxTimer); artworkCountTimer = undefined; artworkCountMaxTimer = undefined; artworkCountObservations.clear()
     artworkFlights.clear()
@@ -298,10 +527,15 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     artworkDetailRefreshPending = undefined
     artworkRefreshGeneration = null
     for (const job of artworkQueue.splice(0)) job.finish()
-    for (const [key, entry] of artworkCache) if (entry.state.status === 'loading') artworkCache.delete(key)
+    for (const [key, entry] of artworkCache) {
+      if (entry.state.status === 'loading') deleteCachedArtwork(key)
+      else entry.promise = undefined
+    }
   }
   async function resetScope(patch: Pick<Partial<LocalAlbumBrowserSnapshot>, 'query' | 'rootId' | 'filter'>): Promise<void> {
+    cancelGalleryRefreshes()
     galleryGeneration++; clearDetail(false); cancelArtworkRequests()
+    backgroundSeen.clear(); backgroundCompleted.clear(); backgroundCompletedCount = 0; backgroundReadyCount = 0; backgroundCursor = 0
     publish({ ...patch, selectedAlbumIds: Object.freeze([]), items: Object.freeze([]), total: 0, hasMore: false, counts: emptyCounts(), loaded: false, status: 'idle', initialLoading: false, refreshing: false, loadingMore: false,
       error: '', refreshError: '', loadMoreError: '', stale: false, scrollTop: 0 })
     await readGallery('initial')
@@ -340,6 +574,7 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   async function openAlbum(album: LocalAlbumSummary, position: { scrollTop?: number } = {}): Promise<void> {
     if (!state.active || disposed || !isLocalAlbumSummary(album)) return
     detailGeneration++
+    if (detailArtwork && !sameArtworkRequest(detailArtwork.request, artworkRequest(album))) detailArtwork = undefined
     const scrollTop = typeof position.scrollTop === 'number' && Number.isFinite(position.scrollTop) ? Math.max(0, position.scrollTop) : state.scrollTop
     const returnTarget = state.returnTarget ?? Object.freeze({ albumKey: album.id, query: state.query, rootId: state.rootId, filter: state.filter, scrollTop })
     publish({ selectedAlbum: immutable(album), returnTarget, scrollTop, tracks: Object.freeze([]), trackTotal: 0, tracksHasMore: false, detailStatus: 'idle',
@@ -369,12 +604,17 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     if (current.length === ids.length && current.every((id, index) => id === ids[index])) return
     publish({ selectedAlbumIds: Object.freeze([...ids]) })
   }
-  function setScrollTop(scrollTop: number): void { if (!disposed && Number.isFinite(scrollTop)) publish({ scrollTop: Math.max(0, scrollTop) }) }
+  function setScrollTop(scrollTop: number): void {
+    if (disposed || !Number.isFinite(scrollTop)) return
+    const next = Math.max(0, scrollTop)
+    if (next !== state.scrollTop) publish({ scrollTop: next })
+  }
   async function refresh(revalidateArtwork = false): Promise<void> {
     if (disposed) return
     if (!state.active) { publish({ stale: state.loaded }); return }
     if (artworkRefreshPending) return artworkRefreshPending
-    if (!revalidateArtwork) { await readGallery(state.loaded ? 'refresh' : 'initial'); return }
+    if (!revalidateArtwork) { await refreshGallery(); return }
+    cancelGalleryRefreshes()
     const window = artworkWindow
     const albums = [...(state.selectedAlbum ? [state.selectedAlbum] : []), ...state.items]
     // 未挂窗口的调用者只校验已有RAM项；正式页面只探测当前可见/近邻，绝不遍历全库I/O。
@@ -402,7 +642,9 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     if (!revalidateArtwork) { await readDetail(state.detailStatus === 'error' || state.detailStatus === 'idle' ? 'initial' : 'refresh'); return }
     const generation = detailGeneration, imageGeneration = artworkGeneration
     const work = (async () => {
-      invalidateCachedArtwork(album.id); publish({ detailRefreshing: true, detailRefreshError: '' })
+      if (options.compactGridArtwork) detailArtwork = undefined
+      else invalidateCachedArtwork(album.id)
+      publish({ detailRefreshing: true, detailRefreshError: '' })
       await ensureArtwork(album, true)
       if (!currentDetail(generation, album) || imageGeneration !== artworkGeneration) return
       // 旧tuple被原守门拒绝仍继续读取详情；若身份确实更新，只按新五字段再探测一次。
@@ -416,9 +658,15 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   }
 
   function artworkPriority(request: LocalAlbumArtworkRequest): number {
+    if (state.selectedAlbum && sameArtworkRequest(artworkRequest(state.selectedAlbum), request)) return 0
     if (artworkWindow === null) return 1
     const interest = artworkWindow.get(request.albumKey)
     return interest && sameArtworkRequest(interest.request, request) ? interest.priority : 2
+  }
+  function touchArtwork(entry: ArtworkEntry, background: boolean): void {
+    // 后台命中不续前台的访问时钟；真实窗口/前台请求升级后不再降回后台层。
+    if (!background) { entry.background = false; entry.used = ++clock }
+    else if (entry.background === true) entry.used = ++clock
   }
   function setArtworkWindow(window: LocalAlbumArtworkWindow): void {
     if (disposed) return
@@ -432,6 +680,10 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
       }
     }
     if (window.visible.length + window.nearby.length > 0 && next.size === 0) return
+    for (const [key, interest] of next) {
+      const entry = artworkCache.get(key) ?? artworkFlights.get(key)?.entry
+      if (entry?.background === true && sameArtworkRequest(entry.request, interest.request)) touchArtwork(entry, false)
+    }
     if (artworkWindow && next.size === artworkWindow.size && [...next].every(([key, value]) => {
       const previous = artworkWindow!.get(key); return previous?.priority === value.priority && sameArtworkRequest(previous.request, value.request)
     })) return
@@ -439,105 +691,166 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     let changed = false
     for (let index = artworkQueue.length - 1; index >= 0; index--) {
       const job = artworkQueue[index]!
-      if (artworkPriority(job.entry.request) !== 2) continue
+      if (job.entry.background || artworkPriority(job.entry.request) !== 2) continue
       artworkQueue.splice(index, 1); job.finish()
-      if (artworkCache.get(job.entry.request.albumKey) === job.entry) { artworkCache.delete(job.entry.request.albumKey); changed = true }
+      if (artworkCache.get(job.entry.request.albumKey) === job.entry) { deleteCachedArtwork(job.entry.request.albumKey); changed = true }
     }
     // 原读口无物理abort；只撤离窗的展示引用，flight索引继续持有同安全代的读取和结果。
-    for (const [key, entry] of artworkCache) if (entry.state.status === 'loading' && artworkPriority(entry.request) === 2) { artworkCache.delete(key); changed = true }
+    for (const [key, entry] of artworkCache) if (!entry.background && entry.state.status === 'loading' && artworkPriority(entry.request) === 2) { deleteCachedArtwork(key); changed = true }
     if (changed) publish()
     pumpArtwork()
+    scheduleArtworkRecovery()
   }
   function trimArtworkCache(): void {
-    let bytes = [...artworkCache.values()].reduce((total, entry) => total + entry.bytes, 0)
-    for (const [key, entry] of [...artworkCache].sort((left, right) => artworkPriority(right[1].request) - artworkPriority(left[1].request) || left[1].used - right[1].used)) {
+    let bytes = [...artworkCache.values()].reduce((total, entry) => total + entry.bytes, detailArtwork?.bytes ?? 0)
+    for (const [key, entry] of [...artworkCache].sort((left, right) => Number(right[1].background === true) - Number(left[1].background === true)
+      || artworkPriority(right[1].request) - artworkPriority(left[1].request) || left[1].used - right[1].used)) {
       if (bytes <= artworkCacheBytes && artworkCache.size <= artworkCacheEntries) break
-      if (entry.state.status !== 'loading') { emitRendererArtwork('ram-evict', traceKey(entry.request), { bytes: entry.bytes, reason: 'evicted' }); artworkCache.delete(key); bytes -= entry.bytes }
+      // 纯后台零字节loading可先撤展示引用；原job/flight继续实读，不能为新后台占位驱逐前台图。
+      if (!entry.promise || entry.background === true && entry.bytes === 0 && entry.state.status === 'loading') {
+        if (entry.promise) entry.backgroundDetached = true
+        emitRendererArtwork('ram-evict', traceKey(entry.request), { bytes: entry.bytes, reason: 'evicted' }); deleteCachedArtwork(key); bytes -= entry.bytes
+      }
     }
   }
   function pumpArtwork(): void {
     while (!disposed && state.active && artworkRunning < artworkConcurrency && artworkQueue.length) {
-      artworkQueue.sort((left, right) => artworkPriority(left.entry.request) - artworkPriority(right.entry.request))
-      const job = artworkQueue.shift()!, entry = job.entry
-      if (job.generation !== artworkGeneration || artworkCache.get(entry.request.albumKey) !== entry) { job.finish(); continue }
+      const priority = (entry: ArtworkEntry): number => artworkPriority(entry.request) + Number(entry.background && artworkPriority(entry.request) === 2)
+      artworkQueue.sort((left, right) => priority(left.entry) - priority(right.entry))
+      // 未准备的原图仅两路；已准备的本地图不被冷读取堵在队头。
+      const next = artworkQueue.findIndex(job => job.prepared || artworkSourceRunning < 2)
+      if (next < 0) break
+      const job = artworkQueue.splice(next, 1)[0]!, entry = job.entry
+      const album = state.selectedAlbum?.id === entry.request.albumKey ? state.selectedAlbum : galleryAlbums.get(entry.request.albumKey)
+      const detachedBackground = entry.background === true && entry.backgroundDetached === true && !artworkCache.has(entry.request.albumKey)
+        && entry.refreshEpoch === artworkRefreshEpoch && !!album && sameArtworkRequest(artworkRequest(album), entry.request)
+      if (job.generation !== artworkGeneration || artworkCache.get(entry.request.albumKey) !== entry && !detachedBackground) { job.finish(); continue }
       artworkRunning++; artworkFlights.set(entry.request.albumKey, job)
+      if (!job.prepared) artworkSourceRunning++
+      logLibraryOperation('ui', 'artwork.queue', 'complete', { queueWaitMs: Math.max(0, performance.now() - job.queuedAtMs), active: artworkRunning, pending: artworkQueue.length })
       const currentFlight = (): boolean => {
         const album = state.selectedAlbum?.id === entry.request.albumKey ? state.selectedAlbum : galleryAlbums.get(entry.request.albumKey)
         return !disposed && state.active && job.generation === artworkGeneration && artworkFlights.get(entry.request.albumKey) === job
           && entry.refreshEpoch === artworkRefreshEpoch && !!album && sameArtworkRequest(artworkRequest(album), entry.request)
       }
       void (async () => {
+        const retained = entry.state.status === 'ready' ? { state: entry.state, bytes: entry.bytes } : undefined
+        const isCurrentDetail = (): boolean => !!options.compactGridArtwork && entry.request.variant !== 'grid' && !!state.selectedAlbum
+          && sameArtworkRequest(artworkRequest(state.selectedAlbum), entry.request)
         try {
           const readStarted = desktopArtworkStarted(); emitRendererArtwork('request', traceKey(entry.request))
           const reply = await options.api.getArtwork(entry.request)
           emitRendererArtwork('reply', traceKey(entry.request), { elapsedMs: desktopArtworkElapsed(readStarted) })
           if (!currentFlight()) { emitRendererArtwork('late', traceKey(entry.request)); return }
           if (!isLocalAlbumArtworkReply(reply, entry.request)) throw new Error('无效封面投影')
-          artworkCache.set(entry.request.albumKey, entry)
-          if (reply.status === 'source-unavailable') { entry.state = unavailableArtwork; entry.bytes = 0; entry.promise = undefined; trimArtworkCache(); publish(); return }
-          const dataUrl = reply.image?.display.dataUrl ?? null
-          const bytes = dataUrl ? dataUrl.length * 2 : 0
+          setCachedArtwork(entry.request.albumKey, entry)
+          if (reply.status === 'source-unavailable') {
+            entry.retry = nextArtworkRetry(entry.retry, false)
+            if (isCurrentDetail()) detailArtwork = { request: entry.request, refreshEpoch: entry.refreshEpoch, state: unavailableArtwork, bytes: 0, retry: entry.retry }
+            entry.state = retained?.state ?? unavailableArtwork; entry.bytes = retained?.bytes ?? 0; entry.promise = undefined; trimArtworkCache(); publish(); return
+          }
+          const grid = reply.grid ? Object.freeze({ ...reply.grid }) : undefined
+          const display = options.compactGridArtwork && grid ? grid : reply.image?.display
+          const dataUrl = display?.dataUrl ?? null
+          // grid与dataUrl指向同一字符串时只计一次；画廊不持有1200大图。
+          const bytes = dataUrl ? dataUrl.length * 2 + (grid && grid.dataUrl !== dataUrl ? grid.dataUrl.length * 2 : 0) : 0
           if (bytes > artworkCacheBytes) throw new Error('封面超过显示缓存预算')
-          entry.state = dataUrl ? Object.freeze({ status: 'ready', dataUrl, error: '', canRetry: false, ...(reply.image ? { display: Object.freeze({ sha256: reply.image.display.sha256, width: reply.image.display.width, height: reply.image.display.height, bytes: reply.image.display.bytes }) } : {}) }) : missingArtwork
-          entry.bytes = bytes; entry.used = ++clock; entry.promise = undefined
+          entry.state = dataUrl ? Object.freeze({ status: 'ready', dataUrl, error: '', canRetry: false, ...(grid ? { grid } : {}), ...(display ? { display: Object.freeze({ sha256: display.sha256, width: display.width, height: display.height, bytes: display.bytes }) } : {}) }) : missingArtwork
+          entry.bytes = bytes; entry.used = ++clock; entry.promise = undefined; entry.retry = undefined
+          if (isCurrentDetail()) {
+            const full = reply.image?.display
+            const detailBytes = full ? full.dataUrl.length * 2 + (grid && grid.dataUrl !== full.dataUrl ? grid.dataUrl.length * 2 : 0) : 0
+            detailArtwork = { request: entry.request, refreshEpoch: entry.refreshEpoch, bytes: detailBytes <= artworkCacheBytes ? detailBytes : 0, state: detailBytes > artworkCacheBytes ? failedArtwork : full ? Object.freeze({
+              status: 'ready', dataUrl: full.dataUrl, error: '', canRetry: false, ...(grid ? { grid } : {}),
+              display: Object.freeze({ sha256: full.sha256, width: full.width, height: full.height, bytes: full.bytes }),
+            }) : missingArtwork }
+          }
           observeArtworkCount(entry.request, dataUrl !== null)
+          completeBackgroundArtwork(entry.request)
           trimArtworkCache(); publish()
-        } catch {
+        } catch (error) {
           if (!currentFlight()) { emitRendererArtwork('late', traceKey(entry.request)); return }
-          artworkCache.set(entry.request.albumKey, entry)
-          entry.state = Object.freeze({ status: 'error', dataUrl: null, error: '封面暂时无法读取，可重试。已保存的封面选择保留。', canRetry: true })
-          entry.bytes = 0; entry.promise = undefined; trimArtworkCache(); publish()
-        } finally { if (artworkFlights.get(entry.request.albumKey) === job) artworkFlights.delete(entry.request.albumKey); artworkRunning--; job.finish(); pumpArtwork() }
+          setCachedArtwork(entry.request.albumKey, entry)
+          const limited = retryLimit(error)
+          entry.retry = limited === undefined ? undefined : nextArtworkRetry(entry.retry, limited)
+          if (isCurrentDetail()) detailArtwork = { request: entry.request, refreshEpoch: entry.refreshEpoch, state: failedArtwork, bytes: 0, retry: entry.retry }
+          entry.state = isCurrentDetail() && retained ? retained.state : failedArtwork
+          entry.bytes = isCurrentDetail() && retained ? retained.bytes : 0; entry.promise = undefined; trimArtworkCache(); publish()
+        } finally { if (artworkFlights.get(entry.request.albumKey) === job) artworkFlights.delete(entry.request.albumKey); artworkRunning--; if (!job.prepared) artworkSourceRunning--; job.finish(); pumpArtwork(); scheduleArtworkRecovery() }
       })()
     }
   }
   function artworkFor(album: LocalAlbumSummary): LocalAlbumArtworkState {
+    if (detailArtwork && state.selectedAlbum && sameArtworkRequest(artworkRequest(state.selectedAlbum), artworkRequest(album))
+      && sameArtworkRequest(detailArtwork.request, artworkRequest(album))) return detailArtwork.state
     const entry = artworkCache.get(album.id)
     if (entry && sameArtworkRequest(entry.request, artworkRequest(album))) return entry.state
     return artworkState(album) === 'missing' ? missingArtwork : artworkState(album) === 'source-unavailable' ? unavailableArtwork : idleArtwork
   }
-  function ensureArtwork(album: LocalAlbumSummary, explicitRetry = false): Promise<void> {
+  function ensureArtwork(album: LocalAlbumSummary, explicitRetry = false, background = false): Promise<void> {
+    return readArtwork(album, explicitRetry, background)
+  }
+  function readArtwork(album: LocalAlbumSummary, explicitRetry = false, background = false, recovering = false): Promise<void> {
     if (!state.active || disposed || !isLocalAlbumSummary(album)) return Promise.resolve()
+    // Renderer后台只读已持久准备的资源；全库源提取继续遵守Core后台队列与播放让行。
+    if (background && album.artworkPrepared !== true) return Promise.resolve()
     const original = artworkRequest(album), cached = artworkCache.get(album.id)
     const current = state.selectedAlbum?.id === album.id ? state.selectedAlbum : galleryAlbums.get(album.id)
     if (!explicitRetry && (!current || !sameArtworkRequest(artworkRequest(current), original))) return Promise.resolve()
     if (!explicitRetry && artworkDetailRefreshPending && state.selectedAlbum?.id === album.id && state.selectedAlbum.rootId === album.rootId) return artworkDetailRefreshPending
-    if (!explicitRetry && artworkPriority(original) === 2) return Promise.resolve()
+    if (!explicitRetry && !background && artworkPriority(original) === 2) return Promise.resolve()
+    const needsDetail = options.compactGridArtwork && !!state.selectedAlbum && sameArtworkRequest(artworkRequest(state.selectedAlbum), original) && !background
     const sameCached = !!cached && sameArtworkRequest(cached.request, original)
+    const previousRetry = needsDetail ? detailArtwork?.retry ?? cached?.retry : cached?.retry
+    if (recovering && previousRetry && (previousRetry.atMs > Date.now() || previousRetry.limited && previousRetry.attempts >= 3)) return Promise.resolve()
     // 既有失败仍走原重试门；刷新代只让未校验的成功/缺图在入窗时获得一次探测资格。
-    const revalidate = explicitRetry || artworkRefreshGeneration === artworkGeneration && artworkRefreshEpoch > 0 && (!sameCached && artworkState(album) === 'missing'
+    const revalidate = explicitRetry || !recovering && !background && artworkRefreshGeneration === artworkGeneration && artworkRefreshEpoch > 0 && (!sameCached && artworkState(album) === 'missing'
       || sameCached && cached.refreshEpoch !== artworkRefreshEpoch && (cached.state.status === 'ready' || cached.state.status === 'missing'))
-    const request: LocalAlbumArtworkRequest = revalidate ? { ...original, refresh: true } : original
+    const request: LocalAlbumArtworkRequest = { ...original, ...(revalidate ? { refresh: true as const } : {}),
+      ...(options.compactGridArtwork && !needsDetail ? { variant: 'grid' as const } : {}) }
     const flight = artworkFlights.get(album.id)
+    if (flight && flight.generation === artworkGeneration && sameArtworkRequest(flight.entry.request, request) && flight.entry.request.variant !== request.variant) {
+      touchArtwork(flight.entry, background)
+      return (flight.entry.promise ?? Promise.resolve()).then(() => readArtwork(album, explicitRetry, background, recovering))
+    }
     if (flight && flight.generation === artworkGeneration && flight.entry.refreshEpoch === artworkRefreshEpoch
       && sameArtworkRequest(flight.entry.request, request) && (!revalidate || flight.entry.request.refresh === true)) {
       emitRendererArtwork('inflight-join', traceKey(request))
-      flight.entry.used = ++clock; artworkCache.set(album.id, flight.entry); trimArtworkCache(); publish()
+      touchArtwork(flight.entry, background)
+      // 同一显示项加入原flight不改变快照，避免ready网格等待高清时与详情监听互相唤醒。
+      if (artworkCache.get(album.id) !== flight.entry) { setCachedArtwork(album.id, flight.entry); trimArtworkCache(); publish() }
       return flight.entry.promise ?? Promise.resolve()
     }
-    if (sameCached && cached.state.status === 'loading' && (!revalidate || cached.request.refresh === true)) {
-      emitRendererArtwork('inflight-join', traceKey(request)); cached.used = ++clock; return cached.promise ?? Promise.resolve()
+    if (sameCached && cached.promise && cached.request.variant === request.variant && (!revalidate || cached.request.refresh === true)) {
+      emitRendererArtwork('inflight-join', traceKey(request)); touchArtwork(cached, background); return cached.promise ?? Promise.resolve()
     }
     // 显式刷新不挂回未经刷新的旧读取；其真实槽位仍由原finally归还。
     if (revalidate && flight) invalidateCachedArtwork(album.id)
-    if (sameCached && !revalidate) { emitRendererArtwork('ram-hit', traceKey(original), { bytes: cached.bytes }); cached.used = ++clock; return cached.promise ?? Promise.resolve() }
-    if (artworkState(album) === 'missing' && !revalidate) {
-      if (cached && sameArtworkRequest(cached.request, request) && cached.state.status === 'missing') return Promise.resolve()
-      artworkCache.set(album.id, { request, state: missingArtwork, bytes: 0, used: ++clock, refreshEpoch: artworkRefreshEpoch }); trimArtworkCache(); publish(); return Promise.resolve()
+    if (sameCached && !revalidate && !recovering && (!needsDetail || detailArtwork && sameArtworkRequest(detailArtwork.request, original))) {
+      emitRendererArtwork('ram-hit', traceKey(original), { bytes: cached.bytes }); touchArtwork(cached, background); return cached.promise ?? Promise.resolve()
     }
-    if (artworkState(album) === 'source-unavailable' && !revalidate) { artworkCache.set(album.id, { request, state: unavailableArtwork, bytes: 0, used: ++clock, refreshEpoch: artworkRefreshEpoch }); trimArtworkCache(); publish(); return Promise.resolve() }
-    if ([...artworkCache.values()].filter(entry => entry.state.status === 'loading').length >= artworkCacheEntries) return Promise.resolve()
+    if (artworkState(album) === 'missing' && !revalidate && !recovering) {
+      if (cached && sameArtworkRequest(cached.request, request) && cached.state.status === 'missing') return Promise.resolve()
+      setCachedArtwork(album.id, { request, state: missingArtwork, bytes: 0, used: ++clock, refreshEpoch: artworkRefreshEpoch, background }); completeBackgroundArtwork(request); trimArtworkCache(); publish(); return Promise.resolve()
+    }
+    if (artworkState(album) === 'source-unavailable' && !revalidate && !recovering) { setCachedArtwork(album.id, { request, state: unavailableArtwork, bytes: 0, used: ++clock, refreshEpoch: artworkRefreshEpoch, background,
+      retry: nextArtworkRetry(previousRetry, false) }); trimArtworkCache(); publish(); return Promise.resolve() }
+    if ([...artworkCache.values()].filter(entry => entry.promise).length >= artworkCacheEntries) return Promise.resolve()
     let finish!: () => void
     const promise = new Promise<void>(resolve => { finish = resolve })
-    const entry: ArtworkEntry = { request, state: Object.freeze({ status: 'loading', dataUrl: null, error: '', canRetry: false }), bytes: 0, used: ++clock, refreshEpoch: artworkRefreshEpoch, promise }
-    emitRendererArtwork('queue', traceKey(request)); artworkCache.set(album.id, entry); artworkQueue.push({ entry, generation: artworkGeneration, finish }); trimArtworkCache(); publish(); pumpArtwork()
+    const retained = sameCached && cached.state.status === 'ready' ? cached : undefined
+    const entry: ArtworkEntry = { request, state: retained?.state ?? Object.freeze({ status: 'loading', dataUrl: null, error: '', canRetry: false }), bytes: retained?.bytes ?? 0, used: ++clock, refreshEpoch: artworkRefreshEpoch, promise, background,
+      ...(!explicitRetry && previousRetry ? { retry: { ...previousRetry, attempts: previousRetry.attempts + Number(recovering) } } : {}) }
+    emitRendererArtwork('queue', traceKey(request)); setCachedArtwork(album.id, entry); artworkQueue.push({ entry, generation: artworkGeneration, queuedAtMs: performance.now(), prepared: album.artworkPrepared === true && !revalidate, finish }); trimArtworkCache(); publish(); pumpArtwork()
     return promise
   }
   async function retryArtwork(album: LocalAlbumSummary): Promise<void> {
     if (disposed) return
     const generation = artworkGeneration
     const sourceWasUnavailable = artworkFor(album) === unavailableArtwork
-    invalidateCachedArtwork(album.id); publish()
+    if (options.compactGridArtwork && state.selectedAlbum && sameArtworkRequest(artworkRequest(state.selectedAlbum), artworkRequest(album))) detailArtwork = undefined
+    else invalidateCachedArtwork(album.id)
+    publish()
     if (sourceWasUnavailable) await Promise.all([refresh(), state.selectedAlbum?.id === album.id ? refreshAlbum() : Promise.resolve()])
     if (disposed || !state.active || generation !== artworkGeneration) return
     const latest = state.selectedAlbum?.id === album.id ? state.selectedAlbum : state.items.find(item => item.id === album.id && item.rootId === album.rootId) ?? album
@@ -547,7 +860,7 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     if (disposed) return
     if (albumKey !== undefined && !opaqueIdentity(albumKey)) return
     if (albumKey) invalidateCachedArtwork(albumKey)
-    else { cancelArtworkRequests(); artworkCache.clear() }
+    else { cancelArtworkRequests(); clearCachedArtwork(); detailArtwork = undefined }
     publish({ artworkInvalidation: Object.freeze({ epoch: ++artworkInvalidationEpoch, albumKey: albumKey ?? null }), stale: state.loaded,
       ...(state.selectedAlbum && (!albumKey || state.selectedAlbum.id === albumKey) ? { detailStale: true } : {}) })
     await Promise.all([refresh(), state.selectedAlbum && (!albumKey || state.selectedAlbum.id === albumKey) ? refreshAlbum() : Promise.resolve()])
@@ -555,21 +868,24 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   async function activate(): Promise<void> {
     if (disposed || state.active) return
     publish({ active: true })
-    await Promise.all([state.loaded ? readGallery('refresh') : readGallery('initial'),
+    await Promise.all([state.loaded && options.reuseLoadedOnActivate && !state.stale ? Promise.resolve() : state.loaded ? readGallery('refresh') : readGallery('initial'),
       state.selectedAlbum && (state.detailStale || state.detailStatus === 'idle') ? readDetail(state.detailStatus === 'idle' ? 'initial' : 'refresh') : Promise.resolve()])
+    scheduleBackground()
   }
   function deactivate(releaseArtwork = false): void {
     if (disposed || !state.active) return
+    cancelGalleryRefreshes()
     galleryGeneration++; detailGeneration++; cancelArtworkRequests()
+    detailArtwork = undefined
     // 独立页面保留浏览位置，离页释放显示图；两页不能各自占用一份完整封面缓存。
-    if (releaseArtwork) artworkCache.clear()
+    if (releaseArtwork) clearCachedArtwork()
     publish({ active: false, initialLoading: false, refreshing: false, loadingMore: false, detailLoading: false, detailRefreshing: false, detailLoadingMore: false,
       stale: state.stale || state.refreshing, detailStale: state.detailStale || state.detailRefreshing,
       status: state.loaded ? state.status : 'idle', detailStatus: state.detailStatus === 'loading' ? 'idle' : state.detailStatus,
       ...(releaseArtwork ? { artworkInvalidation: Object.freeze({ epoch: ++artworkInvalidationEpoch, albumKey: null }) } : {}) })
   }
-  function dispose(): void { if (disposed) return; deactivate(); disposed = true; artworkCache.clear(); publish() }
+  function dispose(): void { if (disposed) return; deactivate(); disposed = true; clearCachedArtwork(); publish() }
   return { getSnapshot: () => state, activate, deactivate, dispose, setScope, search, setFilter, setRoot, refresh, loadMore: () => readGallery('more'),
     openAlbum, openAlbumReference, closeAlbum: () => clearDetail(true), refreshAlbum, loadMoreTracks: () => readDetail('more'), setSelectedAlbums, setScrollTop, artworkFor, setArtworkWindow, ensureArtwork, retryArtwork, invalidateArtwork,
-    getArtworkCacheUsage: () => ({ entries: artworkCache.size, bytes: [...artworkCache.values()].reduce((total, entry) => total + entry.bytes, 0), running: artworkRunning, queued: artworkQueue.length }) }
+    getArtworkCacheUsage: () => ({ entries: artworkCache.size, bytes: [...artworkCache.values()].reduce((total, entry) => total + entry.bytes, detailArtwork?.bytes ?? 0), running: artworkRunning, queued: artworkQueue.length }) }
 }

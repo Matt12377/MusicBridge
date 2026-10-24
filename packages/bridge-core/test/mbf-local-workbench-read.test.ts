@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { DatabaseSync, StatementSync } from 'node:sqlite'
+import { createLocalAlbumOwnerService } from '../src/collection/local-album-browser/owner-port.js'
+import { readLibraryOperationLine, type LibraryOperationEvent } from '../src/shared/library-operation-log.js'
 import { createHash,randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { mkdtemp,mkdir,writeFile,readFile,stat } from 'node:fs/promises'
 import { createCollectionRepository } from '../src/collection/repository.js'
-import { authorizeSourceDirectory } from '../src/recording/source-files.js'
+import { authorizeSourceDirectory, sourceRootAvailability } from '../src/recording/source-files.js'
 import { createCompletedScanSnapshotView } from '../src/collection/local-scan-snapshot-view.js'
-import { localLibraryManagementDigest,createLocalWorkbenchOwnerPersistence,type LocalLibraryManagementOperationRecord,type LocalLibraryManagementBindingRecord,type LocalLibraryManagementJobRecord,type LocalLibraryManagementCaptureRecord } from '../src/collection/local-library-workbench/owner-journal.js'
+import { createLocalLibraryManagementBatchEvents,localLibraryManagementLedgerRow,localLibraryManagementDigest,localWorkbenchJournalCanonical,createLocalWorkbenchOwnerPersistence,type LocalLibraryManagementOperationRecord,type LocalLibraryManagementBindingRecord,type LocalLibraryManagementJobRecord,type LocalLibraryManagementCaptureRecord } from '../src/collection/local-library-workbench/owner-journal.js'
 import { createLocalWorkbenchPlanRegistry } from '../src/collection/local-library-workbench/plan-registry.js'
 import type { ScanPreparedItem } from '../src/collection/local-scan-store.js'
 import { LocalWorkbenchPlanError } from '../src/collection/local-library-workbench/types.js'
@@ -17,6 +20,10 @@ import { parseCueText } from '../src/library/cue-text-reader.js'
 import type { LocalAlbumGroup } from '../src/collection/local-album-browser/types.js'
 import type { ScanReadFacts } from '../src/collection/local-scan-facts.js'
 import { createLocalWorkbenchReadService, type LocalWorkbenchDirectoryFacts, type LocalWorkbenchReadServiceOptions } from '../src/collection/local-library-workbench/read-service.js'
+import { createLocalRelocationCoordinator } from '../src/collection/local-relocation-coordinator.js'
+import { dispatchDatasetCommand } from '../src/collection/dataset-dispatch.js'
+import { createDatasetCommandBoundary } from '../src/recording/dataset-identity.js'
+import { LocalFactsCommitFatal } from '../src/stream/local-source-fence.js'
 
 const digest = (value: string): string => createHash('sha256').update(value).digest('hex')
 const uuid = (index: number): string => '10000000-0000-4000-8000-' + index.toString(16).padStart(12, '0')
@@ -283,7 +290,7 @@ test('封面预览只冻结真实规范副本，无发行先预览；零Track或
 
 
 /** 426仅同一个新鲜合成SQLite和受控文本扫描输入；没有真实音乐、网络或Native许可。 */
-async function runtime426(t:import('node:test').TestContext,{albums=3,rawNames}:{albums?:number;rawNames?:{artist:string;album:string}}={}){
+async function runtime426(t:import('node:test').TestContext,{albums=3,rawNames,legacy=false}:{albums?:number;rawNames?:{artist:string;album:string};legacy?:boolean}={}){
   const setupStartedAt=performance.now()
   assert.ok(process.env.TMPDIR?.startsWith('/Volumes/LifeWeave/Developer/CommandLine/'))
   const directory=await mkdtemp(path.join(process.env.TMPDIR!,'runtime426-'));await mkdir(directory+'/source',{mode:0o700});await mkdir(directory+'/stage',{mode:0o700})
@@ -340,7 +347,7 @@ async function runtime426(t:import('node:test').TestContext,{albums=3,rawNames}:
   const operation:LocalLibraryManagementOperationRecord={schema:1,kind:'operation',datasetId,key:commandId,revision:1,original:{command:'library.import.confirm',request:{commandId,choiceId:'controlled-original-choice',role:'catalog'}},originalSha256:'',receipt:{commandId,kind:'library.import.confirm',state:'succeeded',libraryIds:[root.id],message:null}}
   operation.originalSha256=localLibraryManagementDigest(operation.original)
   const binding:LocalLibraryManagementBindingRecord={schema:1,kind:'binding',datasetId,key:root.id,revision:1,libraryId:root.id,sourceRootId:source.id,rootRevision:root.revision,role:'catalog',name:'原合成库',active:true,watchEnabled:false,operationId:commandId}
-  repository.localCatalog.privateLibraryManagementCompareAndSwap(identity,[{record:binding,expectedRevision:null},{record:operation,expectedRevision:null}])
+  if(!legacy)repository.localCatalog.privateLibraryManagementCompareAndSwap(identity,[{record:binding,expectedRevision:null},{record:operation,expectedRevision:null}])
   async function stop(){await runtime.close();workbench.close();completed.close();if(alive){repository.close();alive=false}}
   async function cold(overrides:Partial<LocalLibraryManagementRuntimeOptions>={}){const startedAt=performance.now();await stop();repository=createCollectionRepository({filePath:file,stagingRoot:directory+'/stage'});alive=true;repository.localCatalog.privateBindWorkbenchDataset(identity);assemble(overrides);console.log(JSON.stringify({diagnostic:'426-cold',albums,durationMs:performance.now()-startedAt}))}
   t.after(async()=>{await stop();for(const value of originals)assert.deepEqual(await readFile(directory+'/source/'+value.relative),value.bytes)})
@@ -413,7 +420,7 @@ test('426真实异步job停止先abort再join，原stop/selection冷恢复，res
   const jobs:LocalLibraryManagementJobPort={async prepare(_input,context){prepares++;entered();context.signal!.addEventListener('abort',()=>{aborted=true},{once:true});await finish;context.signal!.throwIfAborted();return null},async run(){throw new Error('本组无写入')},async readOriginal(){return null},async join(){joins++;await finish}}
   const runtime=createLocalLibraryManagementRuntime({...f.options(),jobs}),albumId=record.original.albumRefs[0]!.albumId,request={commandId:randomUUID(),captureId:capture.captureId,backend:'ollama' as const,selection:'selected' as const,albumIds:[albumId]}
   t.after(()=>runtime.close());assert.equal((await runtime.execute('library.ai.start',request)).state,'queued');await reached
-  let stopped=false;const stopping=runtime.execute('library.job.stop',{jobId:request.commandId}).then(r=>{stopped=true;return r});await new Promise(r=>setImmediate(r));assert.equal(aborted,true);assert.equal(stopped,false);release();assert.equal((await stopping).state,'stopped');assert.equal(joins,1)
+  let stopped=false;const stopping=runtime.execute('library.job.stop',{jobId:request.commandId}).then(r=>{stopped=true;return r});await new Promise(r=>setImmediate(r));assert.equal(aborted,true);assert.equal(stopped,false);release();assert.equal((await stopping).state,'stopped');assert.equal(joins,2);assert.equal(prepares,1)
   const before=f.repository.localCatalog.privateLibraryManagementRead(f.identity,'job',request.commandId)!.record;assert.equal(before.original.start.request.commandId,request.commandId);assert.equal(before.checkpoint.items[0]!.state,'cancelled')
   assert.equal((await runtime.execute('library.job.resume',{jobId:request.commandId})).jobId,request.commandId);await runtime.joinJob(request.commandId);assert.equal(prepares,2)
   const after=f.repository.localCatalog.privateLibraryManagementRead(f.identity,'job',request.commandId)!.record;assert.deepEqual(after.original,before.original);assert.equal(after.checkpoint.items[0]!.state,'review');assert.equal(after.checkpoint.state,'complete')
@@ -709,3 +716,516 @@ test('首次封面C：探测中原身份水位变化拒绝捕获，原读取异�
     finally{await failedService.close();}
   }
 });
+
+test('移除闭环：真实旧库无管理绑定也沿原running与资源join落停用标记，冷开不伪造导入',async t=>{
+  const f=await runtime426(t,{albums:1,legacy:true}),request={commandId:randomUUID(),libraryIds:[f.root.id]}
+  assert.equal(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'binding',f.root.id),null)
+  assert.equal((await f.runtime.execute('library.read',{})).libraries[0]?.libraryId,f.root.id)
+  assert.equal(f.confirms,0)
+  const receipt=await f.runtime.execute('library.remove',request)
+  assert.equal(receipt.state,'succeeded');assert.equal(f.events.filter(value=>value==='remove').length,1)
+  const tombstone=f.repository.localCatalog.privateLibraryManagementRead(f.identity,'binding',f.root.id)!.record
+  assert.equal(tombstone.revision,1);assert.equal(tombstone.active,false);assert.equal(tombstone.watchEnabled,false)
+  assert.equal(tombstone.role,'catalog');assert.equal(tombstone.sourceRootId,f.source.id);assert.equal(tombstone.rootRevision,f.root.revision)
+  assert.equal(tombstone.operationId,request.commandId);assert.equal(f.confirms,0)
+  assert.equal(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'operation',f.commandId),null)
+  await f.cold()
+  assert.deepEqual(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'binding',f.root.id)?.record,tombstone)
+  assert.deepEqual((await f.runtime.execute('library.operation.read',{commandId:request.commandId}))?.state,'succeeded')
+  assert.equal((await f.runtime.execute('library.read',{})).libraries.length,0)
+  assert.equal(f.repository.localCatalog.roots().length,1);assert.deepEqual(f.repository.localCatalog.root(f.root.id),f.root)
+  assert.equal(f.repository.localCatalog.queryTracks({rootId:f.root.id,query:'',offset:0,limit:1}).total,1)
+  assert.deepEqual(await f.runtime.execute('library.remove',request),receipt)
+})
+
+test('移除闭环：旧库资源join未知保留可见根且不写停用标记，也不能借兼容入口改名或监听',async t=>{
+  const f=await runtime426(t,{albums:1,legacy:true})
+  await assert.rejects(f.runtime.execute('library.rename',{commandId:randomUUID(),libraryId:f.root.id,name:'不应授予的改名'}))
+  await assert.rejects(f.runtime.execute('library.watch.set',{commandId:randomUUID(),libraryId:f.root.id,enabled:true}))
+  await f.cold({async removeResources(){throw new Error('合成资源物理关闭未确认')}})
+  const request={commandId:randomUUID(),libraryIds:[f.root.id]},receipt=await f.runtime.execute('library.remove',request)
+  assert.equal(receipt.state,'unknown');assert.equal(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'binding',f.root.id),null)
+  assert.equal(f.repository.localCatalog.privateLibraryManagementRootVisible(f.root.id),true)
+  assert.equal(f.repository.localCatalog.privateLibraryManagementRootAvailable(f.root.id),false)
+  assert.equal((await f.runtime.execute('library.read',{})).libraries[0]?.libraryId,f.root.id)
+  await f.cold();assert.equal((await f.runtime.execute('library.operation.read',{commandId:request.commandId}))?.state,'unknown')
+  assert.equal(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'binding',f.root.id),null)
+})
+
+test('移除闭环：仅公开roots隐藏成功停用根，原coordinator与catalog历史仍完整',async t=>{
+  const f=await runtime426(t,{albums:1}),coordinator=createLocalRelocationCoordinator({repository:f.repository,assertCurrent:()=>f.identity.assertCurrent()})
+  t.after(()=>coordinator.close())
+  await f.runtime.execute('library.remove',{commandId:randomUUID(),libraryIds:[f.root.id]})
+  const request:dto.IpcRequest={version:dto.IPC_VERSION,id:randomUUID(),command:'localRelocation.roots',payload:{},expectedDatasetId:f.identity.datasetId}
+  assert.equal((await coordinator.roots()).length,1)
+  const commandOutbox=createDatasetCommandBoundary({datasetId:f.identity.datasetId,assertCurrent:()=>f.identity.assertCurrent()})
+  assert.deepEqual(await dispatchDatasetCommand({collection:f.repository,localRelocation:coordinator,commandOutbox},request),[])
+  assert.deepEqual(f.repository.localCatalog.roots(),[f.root])
+})
+
+test('移除期限：原signal尚未abort但提交前真实期限失效时只落unknown且不撤绑定',async t=>{
+  const f=await runtime426(t,{albums:1}),request={commandId:randomUUID(),libraryIds:[f.root.id]},controller=new AbortController();let checks=0
+  await f.cold({assertRemoveCurrent(context){assert.equal(context.signal?.aborted,false);if(++checks===2)throw new LocalWorkbenchPlanError('CHANGED','合成原Owner单调期限已到')}})
+  const before=f.repository.localCatalog.privateLibraryManagementRead(f.identity,'binding',f.root.id)!.record
+  const receipt=await f.runtime.execute('library.remove',request,{signal:controller.signal})
+  assert.equal(checks,2);assert.equal(controller.signal.aborted,false);assert.equal(receipt.state,'unknown')
+  assert.deepEqual(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'binding',f.root.id)?.record,before)
+  await f.cold();assert.equal((await f.runtime.execute('library.operation.read',{commandId:request.commandId}))?.state,'unknown')
+})
+
+
+/** 捕获快路Gate：原Repository/Source账本/Scan批；SQL observer只计真正get/all执行，不替换任何返回行。 */
+function captureFastSql(t:import('node:test').TestContext,database:DatabaseSync){
+  const statements=new WeakMap<StatementSync,string>(),executed:{sql:string;method:'get'|'all';bindings:unknown[]}[]=[]
+  const prepare=DatabaseSync.prototype.prepare,get=StatementSync.prototype.get,all=StatementSync.prototype.all
+  t.mock.method(DatabaseSync.prototype,'prepare',function(this:DatabaseSync,sql:string){
+    const statement=prepare.call(this,sql);if(this===database)statements.set(statement,sql.replace(/\s+/gu,' ').trim());return statement
+  })
+  t.mock.method(StatementSync.prototype,'get',function(this:StatementSync,...bindings:unknown[]){
+    const sql=statements.get(this);if(sql)executed.push({sql,method:'get',bindings});return Reflect.apply(get,this,bindings)
+  })
+  t.mock.method(StatementSync.prototype,'all',function(this:StatementSync,...bindings:unknown[]){
+    const sql=statements.get(this);if(sql)executed.push({sql,method:'all',bindings});return Reflect.apply(all,this,bindings)
+  })
+  return {executed,clear(){executed.length=0},ledger(){return executed.filter(v=>v.method==='all'&&v.sql.includes('FROM local_catalog_ledger')&&v.sql.includes("operation='override-metadata'")&&v.sql.includes('max(rowid)'))},
+    tracks(){return executed.filter(v=>v.method==='get'&&v.sql==='SELECT * FROM local_catalog_tracks WHERE id=?').map(v=>v.bindings[0])}}
+}
+function captureFastIds(f:Awaited<ReturnType<typeof runtime426>>,count=3):string[]{
+  return Array.from({length:count},(_,i)=>{const state=f.repository.localScan.privateFileState(f.root.id,'专辑'+i+'/原音轨.flac')!.value;assert.equal(state.outcome,'accepted');assert.ok(state.trackId);return state.trackId})
+}
+function captureFastPoint(database:DatabaseSync){return [database.prepare('SELECT total_changes() n').get()!.n,database.prepare('PRAGMA data_version').get()!.data_version,database.prepare('PRAGMA schema_version').get()!.schema_version]}
+function captureFastLogs(t:import('node:test').TestContext){
+  const events:LibraryOperationEvent[]=[]
+  t.mock.method(console,'info',(...args:unknown[])=>{for(const line of args){if(typeof line!=='string'||!line.startsWith('[MB_LIBRARY_OPERATION] '))continue;const event=readLibraryOperationLine(line);assert.ok(event,'阶段日志必须通过原闭集validator');events.push(event)}})
+  return events
+}
+
+test('捕获快路：无当前override零账本聚合，逐track实读、顺序与只读水位保留，缺失实体仍拒绝',async t=>{
+  const f=await runtime426(t),ids=captureFastIds(f),database=f.repository.localCatalog.privateRead(db=>db),sql=captureFastSql(t,database),events=captureFastLogs(t)
+  const selected=[ids[2]!,ids[0]!],before=captureFastPoint(database);sql.clear()
+  assert.deepEqual(f.repository.localCatalog.privateWorkbenchMetadataProvenance(selected),selected.map(trackId=>({trackId,override:null})))
+  assert.equal(sql.ledger().length,0);assert.deepEqual(sql.tracks(),selected);assert.deepEqual(captureFastPoint(database),before)
+  assert.ok(events.some(e=>e.action==='workbench.provenance.phase'&&e.code==='NO_CURRENT_OVERRIDE'&&e.count===2))
+  assert.throws(()=>f.repository.localCatalog.privateWorkbenchMetadataProvenance([randomUUID()]),error=>error!==null&&typeof error==='object'&&Object.getOwnPropertyDescriptor(error,'code')?.value==='INVENTORY_CONFLICT')
+  assert.equal(sql.ledger().length,0,'缺失track不能借快路变成合法空事实')
+})
+
+test('捕获快路：一个当前override和清空字段override都走原latest与完整receipt，结果保持原作者',async t=>{
+  const f=await runtime426(t),ids=captureFastIds(f),catalog=f.repository.localCatalog,database=catalog.privateRead(db=>db),sql=captureFastSql(t,database)
+  const commandId=randomUUID(),override=catalog.overrideMetadata({commandId,trackId:ids[0]!,expectedRevision:null,fields:{artist:'原人工覆盖'}})
+  const before=captureFastPoint(database);sql.clear()
+  assert.deepEqual(catalog.privateWorkbenchMetadataProvenance(ids),ids.map(trackId=>({trackId,override:trackId===ids[0]?{commandId,revision:override.revision,fields:override.fields}:null})))
+  assert.equal(sql.ledger().length,1);assert.deepEqual(sql.tracks(),ids);assert.deepEqual(captureFastPoint(database),before)
+  const clearedId=randomUUID(),cleared=catalog.overrideMetadata({commandId:clearedId,trackId:ids[0]!,expectedRevision:override.revision,fields:{}});sql.clear()
+  assert.deepEqual(catalog.privateWorkbenchMetadataProvenance([ids[0]!]),[{trackId:ids[0]!,override:{commandId:clearedId,revision:cleared.revision,fields:{}}}])
+  assert.equal(sql.ledger().length,1,'空fields仍是当前override，不能冒充null快路')
+})
+
+test('捕获快路：selected之外的真实override不触发全账本聚合，也不混入本次事实',async t=>{
+  const f=await runtime426(t),ids=captureFastIds(f),catalog=f.repository.localCatalog,database=catalog.privateRead(db=>db)
+  const commandId=randomUUID(),outside=catalog.overrideMetadata({commandId,trackId:ids[2]!,expectedRevision:null,fields:{title:'未选中覆盖'}}),sql=captureFastSql(t,database)
+  const selected=ids.slice(0,2)
+  assert.deepEqual(catalog.privateWorkbenchMetadataProvenance(selected),selected.map(trackId=>({trackId,override:null})))
+  assert.equal(sql.ledger().length,0);assert.deepEqual(sql.tracks(),selected)
+  sql.clear();assert.deepEqual(catalog.privateWorkbenchMetadataProvenance([ids[2]!]),[{trackId:ids[2]!,override:{commandId,revision:outside.revision,fields:outside.fields}}]);assert.equal(sql.ledger().length,1)
+})
+
+test('捕获快路：当前override缺失receipt或字段与receipt不符均原样拒绝，不降为null',async t=>{
+  for(const mode of ['dangling','mismatch'] as const){
+    const f=await runtime426(t,{albums:1}),catalog=f.repository.localCatalog,trackId=captureFastIds(f,1)[0]!,database=catalog.privateRead(db=>db)
+    if(mode==='dangling')database.prepare('INSERT INTO local_catalog_overrides(track_id,data) VALUES(?,?)').run(trackId,JSON.stringify({trackId,revision:'1',fields:{artist:'无原回执字段'}}))
+    else{const current=catalog.overrideMetadata({commandId:randomUUID(),trackId,expectedRevision:null,fields:{artist:'回执原字段'}});database.prepare('UPDATE local_catalog_overrides SET data=? WHERE track_id=?').run(JSON.stringify({...current,fields:{artist:'与回执不符字段'}}),trackId)}
+    // 只改自有连接的合成行；真实生产没有这类旁路写入口。原receipt查询必须亲自发现不一致。
+    const sql=captureFastSql(t,database)
+    assert.throws(()=>catalog.privateWorkbenchMetadataProvenance([trackId]),error=>error!==null&&typeof error==='object'&&Object.getOwnPropertyDescriptor(error,'code')?.value==='INVENTORY_UNAVAILABLE',mode)
+    assert.equal(sql.ledger().length,1,mode+'必须走原账本与codec核验')
+  }
+})
+
+test('捕获快路：真实管理capture复用首group，remember仍独立完整resolve后持久化，闭集阶段不含内容',async t=>{
+  const f=await runtime426(t,{albums:1}),events=captureFastLogs(t),database=f.repository.localCatalog.privateRead(db=>db),sql=captureFastSql(t,database)
+  const page=await f.options().localAlbums.queryAlbums({query:'',rootId:f.root.id,filter:'all',offset:0,limit:1}),album=page.items[0]!
+  const members=t.mock.method(f.repository.localCatalog,'privateAlbumBrowserMembers'),facts=t.mock.method(f.repository.localScan,'privateWorkbenchDirectoryFacts')
+  sql.clear();const readback=await f.runtime.execute('library.album.capture',{albumId:album.id,rootId:album.rootId,revision:album.revision})
+  assert.ok(dto.isLocalWorkbenchReadback(readback));assert.equal(readback.albums.length,1);assert.equal(readback.albums[0]!.album.trackCount,1)
+  assert.equal(members.mock.callCount(),2,'首inspect一次，remember的独立resolve一次；不能重复首inspect或删末复核')
+  assert.equal(facts.mock.callCount(),2);assert.equal(sql.ledger().length,0)
+  const token=readback.albums[0]!.capture.readToken,saved=f.repository.localCatalog.privateLibraryManagementRead(f.identity,'capture',token)
+  assert.ok(saved);assert.equal(saved.record.original.albums[0]!.resolved.capture.members[0]!.trackId,captureFastIds(f,1)[0])
+  const phases=events.filter(e=>e.action==='workbench.capture.phase'&&e.state==='complete').map(e=>e.code)
+  for(const code of ['OWNER_REVISION','TARGET_INSPECT','GROUP_REUSED','DIRECTORY_FACTS','PROVENANCE','MEMBER_FACTS','ROOT_VERIFY','READBACK_VERIFY','REMEMBER_RESOLVE','REMEMBER_COMMIT'])assert.ok(phases.includes(code),code)
+  assert.equal(phases.filter(code=>code==='GROUP_INSPECT').length,1)
+  for(const event of events.filter(e=>e.action.startsWith('workbench.'))){assert.equal(event.id,undefined);assert.equal(Object.keys(event).some(key=>/path|title|album|token|rootId/u.test(key)),false);if(event.state==='complete')assert.ok(typeof event.elapsedMs==='number'&&event.elapsedMs>=0)}
+})
+
+test('捕获快路：首group后实际元数据变化和末await作者失效均拒绝整批，原异常不吞且不发布lease',async t=>{
+  const f=await runtime426(t,{albums:1}),catalog=f.repository.localCatalog,trackId=captureFastIds(f,1)[0]!
+  const roots=async():Promise<dto.LocalRootView[]>=>[{root:catalog.root(f.root.id),label:'自有合成来源',availability:'ONLINE'}]
+  const owner=createLocalAlbumOwnerService({repository:f.repository,assertCurrent:()=>f.identity.assertCurrent(),readRootViews:roots,readArtwork:async()=>({image:null,status:'ready'})})
+  t.after(()=>owner.close())
+  const page=await owner.queryAlbums({query:'',rootId:f.root.id,filter:'all',offset:0,limit:1}),album=page.items[0]!,request={albumId:album.id,rootId:album.rootId,revision:album.revision}
+  let changed=false
+  const changedService=createLocalWorkbenchReadService({datasetId:f.identity.datasetId,repository:f.repository,localAlbums:owner,assertCurrent:()=>f.identity.assertCurrent(),readRootViews:roots,
+    makeReadToken(){if(!changed){changed=true;catalog.overrideMetadata({commandId:randomUUID(),trackId,expectedRevision:null,fields:{title:'首inspect之后的真实字段'}})}return randomUUID()}})
+  try{await assert.rejects(changedService.readAlbumTarget(request),error=>error instanceof LocalWorkbenchPlanError&&error.code==='CHANGED');assert.equal(changedService.inspect().captures,0)}finally{changedService.close()}
+  const fresh=(await owner.queryAlbums({query:'',rootId:f.root.id,filter:'all',offset:0,limit:1})).items[0]!,originalError=new Error('末端受控作者失效');let retired=false
+  const guarded=createLocalWorkbenchReadService({datasetId:f.identity.datasetId,repository:f.repository,localAlbums:owner,assertCurrent(){f.identity.assertCurrent();if(retired)throw originalError},
+    async readRootViews(){const current=await roots();retired=true;return current}})
+  try{await assert.rejects(guarded.readAlbumTarget({albumId:fresh.id,rootId:fresh.rootId,revision:fresh.revision}),error=>error===originalError);assert.equal(guarded.inspect().captures,0)}finally{guarded.close()}
+})
+
+
+/** 真Owner组织/Source作者夹具；旧426的直接SQL端口特意不作为current-scope证据。 */
+function captureBindRole426(f:Awaited<ReturnType<typeof runtime426>>,role:dto.LocalLibraryRole){
+  const catalog=f.repository.localCatalog,old=catalog.privateLibraryManagementRead(f.identity,'binding',f.root.id),commandId=randomUUID()
+  assert.ok(old)
+  const original={command:'library.import.confirm' as const,request:{commandId,choiceId:'controlled-cd01-role-choice',role}}
+  const operation:LocalLibraryManagementOperationRecord={schema:1,kind:'operation',datasetId:f.identity.datasetId,key:commandId,revision:1,
+    original,originalSha256:localLibraryManagementDigest(original),receipt:{commandId,kind:'library.import.confirm',state:'succeeded',libraryIds:[f.root.id],message:null}}
+  const binding:LocalLibraryManagementBindingRecord={...old.record,revision:old.record.revision+1,role,operationId:commandId}
+  // 沿同SQL真实CAS改变组织绑定；不替换Source授权、SELECT结果或源文件读取。
+  catalog.privateLibraryManagementCompareAndSwap(f.identity,[{record:operation,expectedRevision:null},{record:binding,expectedRevision:old.record.revision}])
+  const stored=catalog.privateLibraryManagementRead(f.identity,'binding',f.root.id)
+  assert.ok(stored);assert.equal(stored.record.role,role);assert.equal(stored.record.revision,binding.revision)
+  return stored
+}
+async function captureScoped426(t:import('node:test').TestContext,{names=false,role='catalog',albums=1}:{names?:boolean;role?:dto.LocalLibraryRole;albums?:number}={}){
+  const f=await runtime426(t,{albums});await f.runtime.close()
+  if(role!=='catalog')captureBindRole426(f,role)
+  const catalog=f.repository.localCatalog,database=catalog.privateRead(db=>db)
+  // 原修订语句会被memo；必须在首次真实Owner读取前登记Statement，清空执行记录不能清掉这份识别。
+  const sql=captureFastSql(t,database),events=captureFastLogs(t)
+  const roots=async():Promise<dto.LocalRootView[]>=>{const root=catalog.root(f.root.id),source=f.repository.sources.root(root.sourceRootId);return [{root,label:source.label,availability:await sourceRootAvailability(source)}]}
+  const organizations=()=>catalog.privateLibraryManagementOrganizations(f.identity)
+  const owner=createLocalAlbumOwnerService({repository:f.repository,datasetId:f.identity.datasetId,assertCurrent:()=>f.identity.assertCurrent(),readRootViews:roots,
+    readLibraryOrganizations:organizations,readArtwork:async()=>({image:null,status:'ready'}),
+    ...(names?{nameEnhancements:{revision:()=>digest('真实名称投影作者'),read:()=>[{rootId:f.root.id,directory:'专辑0',revision:'1',state:'not-run' as const}]}}:{})})
+  const workbench=createLocalWorkbenchReadService({datasetId:f.identity.datasetId,repository:f.repository,localAlbums:owner,assertCurrent:()=>f.identity.assertCurrent(),
+    readRootViews:roots,...(role!=='catalog'?{readLibraryOrganizations:organizations}:{}),readAuthorRevision:()=>catalog.privateWorkbenchMBOnlyAuthorRevision(f.identity)})
+  const runtime=createLocalLibraryManagementRuntime(f.options({workbench,localAlbums:owner,readRootViews:roots}))
+  t.after(async()=>{await runtime.close();workbench.close();owner.close()})
+  const album=(await owner.queryAlbums({rootId:f.root.id,query:'',filter:'all',offset:0,limit:1})).items[0]!
+  assert.ok(album);const expected=await owner.inspectAlbum({rootId:album.rootId,albumKey:album.id,revision:album.revision})
+  const writes:LocalLibraryManagementCaptureRecord[]=[]
+  const original=catalog.privateLibraryManagementCompareAndSwap.bind(catalog)
+  t.mock.method(catalog,'privateLibraryManagementCompareAndSwap',(...args:Parameters<typeof original>)=>{for(const write of args[1])if(write.record.kind==='capture')writes.push(structuredClone(write.record));return original(...args)})
+  const request={albumId:album.id,rootId:album.rootId,revision:album.revision}
+  return {f,catalog,database,owner,workbench,runtime,album,expected,writes,sql,events,
+    run:()=>runtime.execute('library.album.capture',request),
+    codes:()=>events.filter(e=>e.action==='workbench.capture.verify'&&e.state==='complete').map(e=>e.code),
+    aggregations:()=>sql.executed.filter(e=>e.sql.startsWith('SELECT count(*) n, coalesce(max(rowid),0) last FROM '))}
+}
+/** 在原BEGIN之前执行一次真实变化；不伪造point、SELECT结果或COMMIT成功。 */
+function captureBeforeBegin(t:import('node:test').TestContext,database:DatabaseSync,change:()=>void){
+  const exec=database.exec.bind(database);let fired=false
+  t.mock.method(database,'exec',(statement:string)=>{if(statement==='BEGIN IMMEDIATE'&&!fired){fired=true;change()}return exec(statement)})
+  return ()=>assert.equal(fired,true,'必须确实经过原BEGIN边界')
+}
+
+test('捕获同域：真实Owner完整捕获在同物理点预核，锁后不重算全库修订且成员与原完整读取相同',async t=>{
+  const x=await captureScoped426(t);x.sql.clear();x.events.length=0
+  const result=await x.run();assert.ok(dto.isLocalWorkbenchReadback(result))
+  assert.deepEqual(x.codes(),['CURRENT_OWNER_SCOPE','LOCKED_POINT_MATCH'])
+  assert.equal(x.aggregations().length,0,'不能在BEGIN后重复全ledger/scan修订聚合')
+  assert.equal(x.events.some(e=>e.action==='albums.members'&&e.code==='DERIVED_MISS'),false)
+  const saved=x.catalog.privateLibraryManagementRead(x.f.identity,'capture',result.albums[0]!.capture.readToken)
+  assert.ok(saved);assert.deepEqual(saved.record.original.albums[0]!.resolved.group,x.expected)
+  assert.equal(saved.record.original.albums[0]!.resolved.directoryFacts.files.length,x.expected.members.length)
+  assert.deepEqual(saved.record.original.albums[0]!.resolved.capture.members.map(m=>m.trackId),x.expected.members.map(m=>m.fact.summary.track.id))
+  const independent=new DatabaseSync(x.f.file)
+  try{assert.ok(Number(independent.prepare("SELECT count(*) n FROM local_catalog_ledger WHERE operation='local-library-management-v1' AND json_extract(request,'$.key')=?").get(saved.record.key)!.n)>=2)}finally{independent.close()}
+})
+
+test('捕获同域：预核后真实未知DML即使同值也必须转回锁内完整核验',async t=>{
+  const x=await captureScoped426(t),state=x.f.repository.localScan.privateFileState(x.f.root.id,'专辑0/原音轨.flac')!
+  const assertFired=captureBeforeBegin(t,x.database,()=>{const before=captureFastPoint(x.database);assert.equal(x.database.prepare('UPDATE local_scan_jobs SET data=data WHERE id=?').run(state.jobId).changes,1);assert.notDeepEqual(captureFastPoint(x.database),before)})
+  x.sql.clear();x.events.length=0;const result=await x.run();assertFired();assert.ok(dto.isLocalWorkbenchReadback(result))
+  assert.deepEqual(x.codes(),['CURRENT_OWNER_SCOPE','LOCKED_ORIGINAL_CHECK']);assert.ok(x.aggregations().length>0)
+  assert.deepEqual(x.catalog.privateLibraryManagementRead(x.f.identity,'capture',result.albums[0]!.capture.readToken)!.record.original.albums[0]!.resolved.group,x.expected)
+})
+
+test('捕获同域：预核后真实metadata提交、Source撤销或Root旧pin变化均拒绝，不能沿旧证明落盘capture',async t=>{
+  for(const mode of ['metadata','source','root'] as const)await t.test(mode,async t=>{
+    const x=await captureScoped426(t),trackId=captureFastIds(x.f,1)[0]!
+    const assertFired=captureBeforeBegin(t,x.database,()=>{
+      if(mode==='metadata')x.catalog.overrideMetadata({commandId:randomUUID(),trackId,expectedRevision:null,fields:{title:'原预核之后变化'}})
+      else if(mode==='source')x.f.repository.sources.revoke({commandId:randomUUID(),id:x.f.source.id})
+      else {const next=x.catalog.relinkRoot({commandId:randomUUID(),rootId:x.f.root.id,expectedRevision:x.f.root.revision,sourceRootId:x.f.source.id,role:'library'});assert.notEqual(next.revision,x.f.root.revision)}
+    })
+    x.events.length=0;await assert.rejects(x.run());assertFired()
+    assert.ok(x.codes().includes('CURRENT_OWNER_SCOPE'));assert.equal(x.codes().includes('LOCKED_POINT_MATCH'),false)
+    assert.equal(x.writes.length,1)
+    const durable=new DatabaseSync(x.f.file,{readOnly:true})
+    try{
+      assert.equal(Number(durable.prepare("SELECT count(*) n FROM local_catalog_ledger WHERE operation='local-library-management-v1' AND json_extract(request,'$.key')=?").get(x.writes[0]!.key)!.n),0,'原变化可持久化，但未确认capture不能留下任一ledger片段')
+      if(mode==='root'){const actual=durable.prepare('SELECT data FROM local_catalog_roots WHERE id=?').get(x.f.root.id);assert.ok(actual);assert.equal(JSON.parse(String(actual.data)).revision,(BigInt(x.f.root.revision)+1n).toString(),'必须是真实Root提交，不能仅靠hook抛错得到拒绝')}
+    }finally{durable.close()}
+  })
+})
+
+test('捕获同域：BEGIN前真实外部schema提交由原guard拒绝，不消费旧同连接预核或留下capture',async t=>{
+  const x=await captureScoped426(t),beforeRows=x.database.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').all()
+  const assertFired=captureBeforeBegin(t,x.database,()=>{const before=captureFastPoint(x.database),other=new DatabaseSync(x.f.file);try{other.exec('CREATE TABLE owned_capture_external(value TEXT) STRICT')}finally{other.close()};const after=captureFastPoint(x.database);assert.notEqual(after[1],before[1]);assert.notEqual(after[2],before[2])})
+  x.sql.clear();x.events.length=0
+  await assert.rejects(x.run(),error=>error!==null&&typeof error==='object'&&Object.getOwnPropertyDescriptor(error,'code')?.value==='INVENTORY_UNAVAILABLE');assertFired()
+  assert.deepEqual(x.codes(),['CURRENT_OWNER_SCOPE']);assert.equal(x.database.isTransaction,false);assert.equal(x.writes.length,1)
+  const durable=new DatabaseSync(x.f.file,{readOnly:true})
+  try{
+    assert.deepEqual(durable.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').all(),beforeRows,'外部DDL不允许本capture追加局部ledger')
+    assert.equal(Number(durable.prepare("SELECT count(*) n FROM local_catalog_ledger WHERE operation='local-library-management-v1' AND json_extract(request,'$.key')=?").get(x.writes[0]!.key)!.n),0)
+  }finally{durable.close()}
+})
+
+test('捕获同域：真实COMMIT失败后ROLLBACK无持久capture，原Repository保持fatal封口',async t=>{
+  const x=await captureScoped426(t),beforeRows=x.database.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').all(),exec=x.database.exec.bind(x.database),failure=new Error('合成capture提交失败');let fired=false
+  t.mock.method(x.database,'exec',(statement:string)=>{if(statement==='COMMIT'&&!fired){fired=true;throw failure}return exec(statement)})
+  x.events.length=0;await assert.rejects(x.run(),error=>error instanceof LocalFactsCommitFatal)
+  assert.equal(fired,true);assert.equal(x.database.isTransaction,false);assert.equal(x.writes.length,1)
+  assert.deepEqual(x.codes(),['CURRENT_OWNER_SCOPE','LOCKED_POINT_MATCH'],'预核成功不能代替真实COMMIT回执')
+  const original=x.writes[0]!,durable=new DatabaseSync(x.f.file,{readOnly:true})
+  try{
+    assert.deepEqual(durable.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').all(),beforeRows,'由独立只读连接核实原ledger完整保留且没有半批写入')
+    assert.equal(Number(durable.prepare("SELECT count(*) n FROM local_catalog_ledger WHERE operation='local-library-management-v1' AND json_extract(request,'$.key')=?").get(original.key)!.n),0)
+  }finally{durable.close()}
+  assert.throws(()=>x.catalog.privateLibraryManagementRead(x.f.identity,'capture',original.key),error=>error instanceof LocalFactsCommitFatal,'不能因已ROLLBACK就恢复未知COMMIT作者')
+  assert.equal(x.writes.length,1,'封口后没有重发CAS或另发metadata写入')
+})
+
+test('捕获同域：已有耐久readback沿原receipt读取不新增CAS，名称投影不合资格仍走原完整路径',async t=>{
+  const x=await captureScoped426(t),readback=await x.run(),key=readback.albums[0]!.capture.readToken,saved=x.catalog.privateLibraryManagementRead(x.f.identity,'capture',key)
+  assert.ok(saved);x.catalog.overrideMetadata({commandId:randomUUID(),trackId:captureFastIds(x.f,1)[0]!,expectedRevision:null,fields:{title:'已捕获之后的新字段'}})
+  const point=captureFastPoint(x.database),writes=x.writes.length;x.events.length=0
+  await x.runtime.rememberAlbumReadback(readback)
+  assert.deepEqual(captureFastPoint(x.database),point);assert.equal(x.writes.length,writes);assert.deepEqual(x.codes(),[])
+  assert.deepEqual(x.catalog.privateLibraryManagementRead(x.f.identity,'capture',key),saved)
+  const fallback=await captureScoped426(t,{names:true});fallback.events.length=0;fallback.sql.clear();await fallback.run()
+  assert.deepEqual(fallback.codes(),['ORIGINAL_FALLBACK','LOCKED_ORIGINAL_CHECK']);assert.ok(fallback.aggregations().length>0)
+})
+
+test('CD01捕获同域：album与artist真实绑定复用当前完整Reader，remember仍独立读取后持久化',async t=>{
+  for(const role of ['album','artist'] as const)await t.test(role,async t=>{
+    const x=await captureScoped426(t,{role,albums:3}),binding=x.catalog.privateLibraryManagementRead(x.f.identity,'binding',x.f.root.id)
+    assert.ok(binding);assert.equal(binding.record.role,role)
+    const organization=x.catalog.privateLibraryManagementOrganizations(x.f.identity).find(value=>value.rootId===x.f.root.id)
+    assert.ok(organization);assert.equal(organization.role,role);assert.equal(organization.bindingRevision,binding.record.revision);assert.equal(organization.recordSha256,binding.recordSha256)
+    const members=t.mock.method(x.catalog,'privateAlbumBrowserMembers'),facts=t.mock.method(x.f.repository.localScan,'privateWorkbenchDirectoryFacts')
+    x.sql.clear();x.events.length=0;const result=await x.run();assert.ok(dto.isLocalWorkbenchReadback(result))
+    assert.deepEqual(x.codes(),['CURRENT_OWNER_SCOPE','LOCKED_POINT_MATCH']);assert.equal(x.aggregations().length,0)
+    assert.equal(members.mock.callCount(),2,'首inspect和remember独立resolve都须实际读取');assert.equal(facts.mock.callCount(),2)
+    const saved=x.catalog.privateLibraryManagementRead(x.f.identity,'capture',result.albums[0]!.capture.readToken)
+    assert.ok(saved);assert.deepEqual(saved.record.original.albums[0]!.resolved.group,x.expected)
+    assert.deepEqual(saved.record.original.albums[0]!.resolved.capture.members.map(value=>value.trackId),x.expected.members.map(value=>value.fact.summary.track.id))
+    assert.equal(saved.record.original.albums[0]!.resolved.directoryFacts.files.length,x.expected.members.length)
+    if(role==='album'){assert.equal(x.expected.directory,'');assert.equal(x.expected.members.length,3)}
+    const durable=new DatabaseSync(x.f.file,{readOnly:true})
+    try{assert.ok(Number(durable.prepare("SELECT count(*) n FROM local_catalog_ledger WHERE operation='local-library-management-v1' AND json_extract(request,'$.key')=?").get(saved.record.key)!.n)>=2)}finally{durable.close()}
+  })
+})
+
+test('CD01捕获同域：结构化角色预核后真实同值DML必须退回锁内完整核验',async t=>{
+  for(const role of ['album','artist'] as const)await t.test(role,async t=>{
+    const x=await captureScoped426(t,{role}),state=x.f.repository.localScan.privateFileState(x.f.root.id,'专辑0/原音轨.flac')!
+    const assertFired=captureBeforeBegin(t,x.database,()=>{const before=captureFastPoint(x.database);assert.equal(x.database.prepare('UPDATE local_scan_jobs SET data=data WHERE id=?').run(state.jobId).changes,1);assert.notDeepEqual(captureFastPoint(x.database),before)})
+    x.sql.clear();x.events.length=0;const result=await x.run();assertFired();assert.ok(dto.isLocalWorkbenchReadback(result))
+    assert.deepEqual(x.codes(),['CURRENT_OWNER_SCOPE','LOCKED_ORIGINAL_CHECK']);assert.ok(x.aggregations().length>0)
+    const saved=x.catalog.privateLibraryManagementRead(x.f.identity,'capture',result.albums[0]!.capture.readToken)
+    assert.ok(saved);assert.deepEqual(saved.record.original.albums[0]!.resolved.group,x.expected)
+  })
+})
+
+test('CD01捕获同域：结构化角色预核后metadata来源根或role真实变化拒绝旧捕获',async t=>{
+  for(const role of ['album','artist'] as const)for(const mode of ['metadata','source','root','role'] as const)await t.test(role+'/'+mode,async t=>{
+    const x=await captureScoped426(t,{role}),trackId=captureFastIds(x.f,1)[0]!
+    const assertFired=captureBeforeBegin(t,x.database,()=>{
+      if(mode==='metadata')x.catalog.overrideMetadata({commandId:randomUUID(),trackId,expectedRevision:null,fields:{title:'CD01预核后的真实覆盖'}})
+      else if(mode==='source')x.f.repository.sources.revoke({commandId:randomUUID(),id:x.f.source.id})
+      else if(mode==='root'){const next=x.catalog.relinkRoot({commandId:randomUUID(),rootId:x.f.root.id,expectedRevision:x.f.root.revision,sourceRootId:x.f.source.id,role:'library'});assert.notEqual(next.revision,x.f.root.revision)}
+      else captureBindRole426(x.f,role==='album'?'artist':'album')
+    })
+    x.events.length=0
+    await assert.rejects(x.run(),error=>{const code=error!==null&&typeof error==='object'?Object.getOwnPropertyDescriptor(error,'code')?.value:undefined;return typeof code==='string'&&['INVENTORY_CONFLICT','INVENTORY_UNAVAILABLE','SNAPSHOT_CHANGED','CHANGED'].includes(code)})
+    assertFired();assert.ok(x.codes().includes('CURRENT_OWNER_SCOPE'));assert.equal(x.codes().includes('LOCKED_POINT_MATCH'),false);assert.equal(x.writes.length,1)
+    const durable=new DatabaseSync(x.f.file,{readOnly:true})
+    try{
+      assert.equal(Number(durable.prepare("SELECT count(*) n FROM local_catalog_ledger WHERE operation='local-library-management-v1' AND json_extract(request,'$.key')=?").get(x.writes[0]!.key)!.n),0)
+      if(mode==='role'){const actual=x.catalog.privateLibraryManagementRead(x.f.identity,'binding',x.f.root.id);assert.ok(actual);assert.equal(actual.record.role,role==='album'?'artist':'album')}
+    }finally{durable.close()}
+  })
+})
+
+test('CD01捕获同域：结构化角色BEGIN前真实外部DDL不得消费旧物理点或留下capture',async t=>{
+  for(const role of ['album','artist'] as const)await t.test(role,async t=>{
+    const x=await captureScoped426(t,{role}),beforeRows=x.database.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').all()
+    const assertFired=captureBeforeBegin(t,x.database,()=>{const before=captureFastPoint(x.database),other=new DatabaseSync(x.f.file);try{other.exec('CREATE TABLE cd01_capture_external(value TEXT) STRICT')}finally{other.close()};const after=captureFastPoint(x.database);assert.notEqual(after[1],before[1]);assert.notEqual(after[2],before[2])})
+    x.events.length=0;await assert.rejects(x.run(),error=>error!==null&&typeof error==='object'&&Object.getOwnPropertyDescriptor(error,'code')?.value==='INVENTORY_UNAVAILABLE');assertFired()
+    assert.deepEqual(x.codes(),['CURRENT_OWNER_SCOPE']);assert.equal(x.database.isTransaction,false);assert.equal(x.writes.length,1)
+    const durable=new DatabaseSync(x.f.file,{readOnly:true})
+    try{assert.deepEqual(durable.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').all(),beforeRows)}finally{durable.close()}
+  })
+})
+
+test('CD01捕获同域：结构化角色的名称增强与container仍沿原完整路径',async t=>{
+  for(const role of ['album','artist'] as const)await t.test(role+'/names',async t=>{
+    const x=await captureScoped426(t,{role,names:true});x.events.length=0;x.sql.clear();await x.run()
+    assert.deepEqual(x.codes(),['ORIGINAL_FALLBACK','LOCKED_ORIGINAL_CHECK']);assert.ok(x.aggregations().length>0)
+  })
+  const x=await captureScoped426(t,{role:'container'});x.events.length=0;x.sql.clear();await x.run()
+  assert.deepEqual(x.codes(),['ORIGINAL_FALLBACK','LOCKED_ORIGINAL_CHECK']);assert.ok(x.aggregations().length>0)
+})
+
+
+/** 只计真实SQLite执行；不替代结果、Source身份或原历史codec。 */
+function captureHistoryQueries(t:import('node:test').TestContext){
+  const statements=new WeakMap<StatementSync,string>(),reads:{sql:string;bindings:unknown[]}[]=[]
+  const prepare=DatabaseSync.prototype.prepare,all=StatementSync.prototype.all
+  t.mock.method(DatabaseSync.prototype,'prepare',function(this:DatabaseSync,sql:string){const statement=prepare.call(this,sql);statements.set(statement,sql.replace(/\s+/gu,' ').trim());return statement})
+  t.mock.method(StatementSync.prototype,'all',function(this:StatementSync,...bindings:unknown[]){
+    const sql=statements.get(this);if(sql?.startsWith('SELECT o.data FROM local_catalog_observations o WHERE o.track_id=?'))reads.push({sql,bindings})
+    return Reflect.apply(all,this,bindings)
+  })
+  return {reads,clear(){reads.length=0},correlated(){return reads.filter(r=>r.sql.includes('EXISTS(SELECT 1 FROM local_catalog_ledger l')&&r.sql.includes('l.rowid<?'))},indexed(){return reads.filter(r=>r.sql.includes('o.rowid IN ('))}}
+}
+function captureHistoryDropUpdate(db:DatabaseSync,name:'local_catalog_observations_no_update'|'local_catalog_ledger_no_update',change:()=>void){
+  const sql=db.prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?").get(name)?.sql;assert.equal(typeof sql,'string')
+  db.exec('DROP TRIGGER '+name)
+  try{change()}finally{db.exec(String(sql))}
+}
+function captureHistoryInsert(db:DatabaseSync,record:LocalLibraryManagementCaptureRecord){
+  // 负例仍使用原codec、规范化、chunk/hash与完整batch；只故意缺少实际历史语义。
+  const events=createLocalLibraryManagementBatchEvents([{record,previous:null}]);assert.ok(events.length>=2)
+  for(const row of events.map(localLibraryManagementLedgerRow))db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(row.command_id!,row.fingerprint!,row.operation!,row.request!,row.result!,row.created_at!)
+}
+function captureHistoryRenamed(record:LocalLibraryManagementCaptureRecord):LocalLibraryManagementCaptureRecord{
+  const next:LocalLibraryManagementCaptureRecord=structuredClone(record);next.key=randomUUID();next.original.captureId=next.key;return next
+}
+function captureHistoryColdRejected(f:Awaited<ReturnType<typeof runtime426>>){
+  assert.throws(()=>{const repository=createCollectionRepository({filePath:f.file,stagingRoot:f.directory+'/stage'});try{repository.localCatalog.privateRead(()=>undefined)}finally{repository.close()}},'原真实冷开必须拒绝历史损坏，不能因有候选索引接受')
+}
+
+test('管理历史观测：多个capture只用当序观察和override，真实冷开无逐曲相关ledger扫描',async t=>{
+  const f=await runtime426(t,{albums:4}),ids=captureFastIds(f,4),first=await original426(f)
+  f.repository.localCatalog.observeMetadata({commandId:randomUUID(),trackId:ids[0]!,source:'synthetic',parserVersion:'history-replay-v1',fields:{title:'第二快照原题名'}})
+  const override=f.repository.localCatalog.overrideMetadata({commandId:randomUUID(),trackId:ids[0]!,expectedRevision:null,fields:{artist:'第二快照人工艺人'}})
+  const second=await original426(f)
+  f.repository.localCatalog.observeMetadata({commandId:randomUUID(),trackId:ids[0]!,source:'synthetic',parserVersion:'history-replay-v1',fields:{title:'快照之后的题名',album:'快照之后的新分组'}})
+  const sql=captureHistoryQueries(t);await f.cold()
+  assert.equal(sql.correlated().length,0,'热候选必须消除原每曲EXISTS相关ledger SQL')
+  assert.ok(sql.indexed().length>=16,'两个真实完整capture的全组和逐成员仍实际读取原观察行')
+  assert.deepEqual(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'capture',first.record.key)!.record,first.record)
+  assert.deepEqual(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'capture',second.record.key)!.record,second.record)
+  const view=f.repository.localCatalog.metadata(ids[0]!);assert.equal(view.raw.title,'快照之后的题名');assert.equal(view.raw.album,'快照之后的新分组');assert.deepEqual(view.override,override)
+  sql.clear();await f.cold();assert.equal(sql.correlated().length,0);assert.ok(sql.indexed().length>=16,'重开必须从原ledger重新建立本次候选，不依赖已关闭连接')
+})
+
+test('管理历史观测：原observation.rowid顺序与ledger顺序相反仍逐字等价，保64位SQLite行号',async t=>{
+  const f=await runtime426(t,{albums:1}),trackId=captureFastIds(f,1)[0]!,initial=f.repository.localCatalog.metadata(trackId).raw
+  for(const title of ['较早ledger观察','较晚ledger观察'])f.repository.localCatalog.observeMetadata({commandId:randomUUID(),trackId,source:'synthetic',parserVersion:'history-replay-v1',fields:{title,album:title}})
+  const db=f.repository.localCatalog.privateRead(value=>value)
+  captureHistoryDropUpdate(db,'local_catalog_observations_no_update',()=>{
+    db.prepare('UPDATE local_catalog_observations SET rowid=-rowid WHERE track_id=?').run(trackId)
+    // 不把SQLite行号转换为JS安全整数；索引只保原ID，排序仍由真实SQLite完成。
+    db.prepare('UPDATE local_catalog_observations SET rowid=9223372036854775807 WHERE id=(SELECT id FROM local_catalog_observations WHERE track_id=? ORDER BY rowid DESC LIMIT 1)').run(trackId)
+  })
+  await f.cold();assert.deepEqual(f.repository.localCatalog.metadata(trackId).raw,initial)
+  const saved=await original426(f),sql=captureHistoryQueries(t);await f.cold()
+  assert.equal(sql.correlated().length,0);assert.ok(sql.indexed().length>=2)
+  assert.deepEqual(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'capture',saved.record.key)!.record,saved.record)
+  assert.deepEqual(f.repository.localCatalog.metadata(trackId).raw,initial)
+})
+
+test('管理历史观测：0及有符号64位两端与ledger逆序仍走真实索引，capture逐字等价',async t=>{
+  const f=await runtime426(t,{albums:1}),catalog=f.repository.localCatalog,relative='行号边界/原注册音轨.flac',bytes=Buffer.from('只属行号边界夹具的合成原件')
+  await mkdir(f.directory+'/source/行号边界',{mode:0o700});await writeFile(f.directory+'/source/'+relative,bytes,{flag:'wx',mode:0o600})
+  const root=catalog.root(f.root.id),asset=catalog.registerAsset({commandId:randomUUID(),libraryRootId:root.id,expectedRootRevision:root.revision,relative,sha256:null,sampleFrames:null,timebaseHz:null})
+  const track=catalog.createTrack({commandId:randomUUID(),assetId:asset.id,segment:null}),first={title:'最早ledger观察',artist:'行号边界艺人',album:'行号边界专辑'}
+  for(const title of [first.title,'中间ledger观察','最晚ledger观察'])catalog.observeMetadata({commandId:randomUUID(),trackId:track.id,source:'synthetic',parserVersion:'history-rowid-boundary-v1',fields:{...first,title}})
+  const db=catalog.privateRead(value=>value),ledger=db.prepare("SELECT o.id FROM local_catalog_observations o JOIN local_catalog_ledger l ON l.operation='observe-metadata' AND json_extract(l.result,'$.id')=o.id WHERE o.track_id=? ORDER BY l.rowid").all(track.id)
+  assert.equal(ledger.length,3)
+  const positions=['9223372036854775807','0','-9223372036854775808']
+  captureHistoryDropUpdate(db,'local_catalog_observations_no_update',()=>{
+    const update=db.prepare('UPDATE local_catalog_observations SET rowid=? WHERE id=?')
+    for(const [index,entry] of ledger.entries())update.run(BigInt(positions[index]!),String(entry.id))
+  })
+  const actual=db.prepare('SELECT id,CAST(rowid AS TEXT) position FROM local_catalog_observations WHERE track_id=? ORDER BY rowid').all(track.id)
+  assert.deepEqual(actual.map(row=>String(row.position)),[...positions].reverse())
+  assert.deepEqual(actual.map(row=>String(row.id)),ledger.map(row=>String(row.id)).reverse(),'真实SQLite行号顺序须与原ledger顺序相反')
+  await f.cold();assert.deepEqual(f.repository.localCatalog.metadata(track.id).raw,first)
+  const saved=await original426(f),capturedBytes=Buffer.from(localWorkbenchJournalCanonical(saved.record)),sql=captureHistoryQueries(t);await f.cold()
+  assert.equal(sql.correlated().length,0);assert.ok(sql.indexed().length>=2)
+  const complete=sql.indexed().filter(read=>read.bindings.length===4);assert.ok(complete.length>=2,'完整三观察必须在原capture全组及成员读取中实际绑定')
+  for(const read of complete)assert.deepEqual(read.bindings.slice(1).map(value=>{assert.equal(typeof value,'bigint');return String(value)}).sort(),[...positions].sort(),'0/MIN/MAX必须以精确SQLite INTEGER绑定，不截断或按文本排序')
+  const restored=f.repository.localCatalog.privateLibraryManagementRead(f.identity,'capture',saved.record.key)!.record
+  assert.deepEqual(restored,saved.record);assert.deepEqual(Buffer.from(localWorkbenchJournalCanonical(restored)),capturedBytes)
+  assert.deepEqual(f.repository.localCatalog.metadata(track.id).raw,first);assert.deepEqual(await readFile(f.directory+'/source/'+relative),bytes)
+})
+
+test('管理历史观测：没有任何观察的实际注册track保空raw，不能从别曲候选借字段',async t=>{
+  const f=await runtime426(t,{albums:1}),relative='无观察目录/原注册音轨.flac',bytes=Buffer.from('只属本夹具的未扫描原件')
+  await mkdir(f.directory+'/source/无观察目录',{mode:0o700});await writeFile(f.directory+'/source/'+relative,bytes,{flag:'wx',mode:0o600})
+  const asset=f.repository.localCatalog.registerAsset({commandId:randomUUID(),libraryRootId:f.root.id,expectedRootRevision:f.root.revision,relative,sha256:null,sampleFrames:null,timebaseHz:null})
+  const track=f.repository.localCatalog.createTrack({commandId:randomUUID(),assetId:asset.id,segment:null}),saved=await original426(f),sql=captureHistoryQueries(t)
+  assert.equal(saved.record.original.albums.flatMap(a=>a.resolved.group.members).length,2)
+  await f.cold();assert.equal(sql.correlated().length,0);assert.deepEqual(f.repository.localCatalog.metadata(track.id),{raw:{},override:null,effective:{}})
+  assert.deepEqual(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'capture',saved.record.key)!.record,saved.record)
+  assert.deepEqual(await readFile(f.directory+'/source/'+relative),bytes)
+})
+
+test('管理历史观测：恰200条仍可capture，202候选整曲回原SQL且不抬201读取拒绝门槛',async t=>{
+  const f=await runtime426(t,{albums:1}),trackId=captureFastIds(f,1)[0]!
+  for(let i=1;i<200;i++)f.repository.localCatalog.observeMetadata({commandId:randomUUID(),trackId,source:'synthetic',parserVersion:'history-replay-v1',fields:{title:'原标题0'}})
+  const db=f.repository.localCatalog.privateRead(value=>value),before=Number(db.prepare('SELECT max(rowid) n FROM local_catalog_ledger').get()!.n)
+  const saved=await original426(f),after=Number(db.prepare('SELECT max(rowid) n FROM local_catalog_ledger').get()!.n),sql=captureHistoryQueries(t)
+  await f.cold();assert.equal(sql.correlated().length,0);assert.ok(sql.indexed().some(q=>q.bindings.length===201),'200个观察ID加trackId仍由真实SQL读取')
+  assert.deepEqual(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'capture',saved.record.key)!.record,saved.record)
+  for(let i=0;i<2;i++)f.repository.localCatalog.observeMetadata({commandId:randomUUID(),trackId,source:'synthetic',parserVersion:'history-replay-v1',fields:{title:'原标题0'}})
+  await f.stop()
+  const changed=new DatabaseSync(f.file)
+  try{
+    const last=Number(changed.prepare('SELECT max(rowid) n FROM local_catalog_ledger').get()!.n)
+    captureHistoryDropUpdate(changed,'local_catalog_ledger_no_update',()=>changed.prepare('UPDATE local_catalog_ledger SET rowid=rowid+? WHERE rowid>? AND rowid<=?').run(last,before,after))
+  }finally{changed.close()}
+  sql.clear();captureHistoryColdRejected(f)
+  assert.ok(sql.correlated().length>=1,'超过201候选必须实际执行原SQL fallback，并由原201行预算拒绝；不能默默截成200')
+})
+
+test('管理历史观测：观察正文遭真实改写仍在原PK/codec对账拒绝，不因索引保ID跳过',async t=>{
+  const f=await runtime426(t,{albums:1}),saved=await original426(f),trackId=captureFastIds(f,1)[0]!
+  await f.stop();const db=new DatabaseSync(f.file)
+  try{
+    const row=db.prepare('SELECT id,data FROM local_catalog_observations WHERE track_id=? ORDER BY rowid LIMIT 1').get(trackId)!,observation=JSON.parse(String(row.data));observation.fields.title='未经原ledger的改写'
+    captureHistoryDropUpdate(db,'local_catalog_observations_no_update',()=>db.prepare('UPDATE local_catalog_observations SET data=? WHERE id=?').run(JSON.stringify(observation),String(row.id)))
+  }finally{db.close()}
+  assert.ok(saved.record.original.albums.length);captureHistoryColdRejected(f)
+})
+
+test('管理历史观测：完整规范codec/hash/chunk也不能让全库capture漏掉实际组成员',async t=>{
+  const f=await runtime426(t,{albums:3}),saved=await original426(f),forged=captureHistoryRenamed(saved.record)
+  forged.original.albums=forged.original.albums.slice(0,-1);forged.original.albumRefs=forged.original.albumRefs.slice(0,-1);forged.originalSha256=localLibraryManagementDigest(forged.original)
+  assert.equal(forged.original.albums.flatMap(a=>a.resolved.group.members).length,2)
+  await f.stop();const db=new DatabaseSync(f.file)
+  try{captureHistoryInsert(db,forged)}finally{db.close()}
+  captureHistoryColdRejected(f)
+})
+
+test('管理历史观测：相同track/asset观察不能借实际另一个Root的合法pin变成该库成员',async t=>{
+  const f=await runtime426(t,{albums:1});await mkdir(f.directory+'/other-source',{mode:0o700})
+  const otherSource=f.repository.sources.authorize(randomUUID(),await authorizeSourceDirectory(f.directory+'/other-source'))
+  const otherRoot=f.repository.localCatalog.registerRoot({commandId:randomUUID(),sourceRootId:otherSource.id,role:'library'}),saved=await original426(f),forged=captureHistoryRenamed(saved.record)
+  forged.original.libraries=[{libraryId:otherRoot.id,sourceRootId:otherRoot.sourceRootId,rootRevision:otherRoot.revision}]
+  assert.equal(forged.original.mode,'library');if(forged.original.mode!=='library')assert.fail('原完整库capture')
+  forged.original.request={libraryIds:[otherRoot.id]}
+  for(const ref of forged.original.albumRefs)ref.rootId=otherRoot.id
+  for(const album of forged.original.albums){
+    album.libraryId=otherRoot.id;album.sourceRootId=otherRoot.sourceRootId;album.rootRevision=otherRoot.revision
+    const r=album.resolved;r.capture.rootId=otherRoot.id;r.group.summary.rootId=otherRoot.id
+    for(const member of r.group.members){member.fact.summary.asset.libraryRootId=otherRoot.id;member.fact.summary.asset.sourceRootId=otherRoot.sourceRootId;member.fact.summary.asset.rootRevision=otherRoot.revision}
+    for(const file of r.directoryFacts.files){file.sourceRootId=otherRoot.sourceRootId;file.rootRevision=otherRoot.revision;file.value.libraryRootId=otherRoot.id}
+    for(const member of r.capture.members){member.rootRevision=otherRoot.revision;const file=r.directoryFacts.files.find(f=>f.currentRelative.endsWith('/'+member.fileName));if(member.scan&&file)member.scan.revision=localLibraryManagementDigest(file)}
+    const directories=[r.group.directory!];r.capture.directoryId='directory-'+localLibraryManagementDigest([otherRoot.id,otherRoot.sourceRootId,directories])
+    r.capture.revision=localLibraryManagementDigest([r.group.summary.revision,otherRoot,r.directoryFacts,r.provenance,r.capture.members,r.capture.nameSources])
+  }
+  forged.originalSha256=localLibraryManagementDigest(forged.original)
+  await f.stop();const db=new DatabaseSync(f.file)
+  try{captureHistoryInsert(db,forged)}finally{db.close()}
+  captureHistoryColdRejected(f)
+})

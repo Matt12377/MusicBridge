@@ -703,8 +703,14 @@ test('真实新Worker共享原SAB先命中Busy，同根未涉FLAC与resolve后�
   assert.deepEqual(await workerRead(f.root,'album/a.flac',physicalResourceLocks.buffer),{status:'ok',sha256:f.input.entry.sha256});
 });
 
-test('新鲜编译真实MetadataReader同SAB拒受影响对象且无lease/worker，未涉FLAC正常解析',async t=>{
+test('新鲜编译真实MetadataReader同SAB拒受影响对象且无lease/解析调用，未涉FLAC正常解析',async t=>{
   const f=await fixture(t),readerModule=await loadFreshMetadataReader();
+  // 鲜编 Reader 的共享池属于本测试进程；Reader 自身关闭后还须归还进程资源。
+  const workers:typeof import('../../src/library/rust-media-worker.js')=await import(new URL('../../dist/library/rust-media-worker.js',import.meta.url).href);
+  t.after(()=>workers.closeRustMediaWorkerPool());
+  const pool=workers.getRustMediaWorkerPool(),readMetadata=pool.readMetadata.bind(pool);let parseCalls=0;
+  // 共享 Rust 池不为每次读取创建 JS Worker；观察真实调用，仍执行原解析与只读 RPC。
+  t.mock.method(pool,'readMetadata',(...args:Parameters<typeof pool.readMetadata>)=>{parseCalls++;return readMetadata(...args);});
   const compiledLocks:typeof import('../../src/stream/physical-resource-locks.js')=await import(new URL('../../dist/stream/physical-resource-locks.js',import.meta.url).href);
   compiledLocks.installPhysicalResourceCoordinator(physicalResourceLocks.buffer);
   const events:string[]=[],reader=readerModule.createMetadataReader({onLifecycle(event){events.push(event.type);}});
@@ -712,11 +718,11 @@ test('新鲜编译真实MetadataReader同SAB拒受影响对象且无lease/worker
   try{
     const failed=await reader.read({root:f.root,relative:'album/a.flac',expectedSignature:signature(await lstat(path.join(f.album,'a.flac'),{bigint:true}))});
     assert.equal(failed.status,'failure');assert.ok(failed.status==='failure');assert.equal(failed.code,'IO_ERROR');assert.equal(failed.readEvidence,null);
-    assert.equal(events.includes('lease-acquired'),false);assert.equal(events.includes('worker-start'),false);
+    assert.equal(events.includes('lease-acquired'),false);assert.equal(parseCalls,0);
     const allowed=await reader.read({root:f.root,relative:'album/b.flac',expectedSignature:signature(await lstat(path.join(f.album,'b.flac'),{bigint:true}))});
     assert.equal(allowed.status,'ok');assert.ok(allowed.status==='ok');assert.equal(allowed.technical.container,'FLAC');
-    assert.ok(events.includes('lease-acquired'));assert.ok(events.includes('worker-start'));assert.ok(events.includes('worker-exit'));assert.ok(events.includes('lease-released'));
+    assert.ok(events.includes('lease-acquired'));assert.equal(parseCalls,1);assert.ok(allowed.readEvidence&&allowed.readEvidence.bytesRead>0);assert.ok(events.includes('lease-released'));
     await resolveSourceNamespaceOrigin(token,[f.a]);
-    const restored=await reader.read({root:f.root,relative:'album/a.flac',expectedSignature:signature(await lstat(path.join(f.album,'a.flac'),{bigint:true}))});assert.equal(restored.status,'ok');
+    const restored=await reader.read({root:f.root,relative:'album/a.flac',expectedSignature:signature(await lstat(path.join(f.album,'a.flac'),{bigint:true}))});assert.equal(restored.status,'ok');assert.equal(parseCalls,2);
   }finally{await reader.close();if(token.state!=='released')await resolveSourceNamespaceOrigin(token,[f.a]);}
 });

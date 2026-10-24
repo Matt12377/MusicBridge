@@ -1,5 +1,6 @@
+import { closeRustMediaWorkerPool } from '../../../packages/bridge-core/src/library/rust-media-worker.js'
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { after } from 'node:test'
 import { captureSourceWriteOriginal, SourceWriteOriginalError } from '../src/main/source-write-original.js'
 import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
@@ -48,3 +49,6 @@ test('输入自定义访问器不被读取，捕获依据原生视图品牌', ()
   Object.defineProperty(input, 'byteLength', { get() { throw new Error('不应访问用户访问器') } })
   assert.deepEqual([...captureSourceWriteOriginal(input)], [1, 2, 3, 4])
 })
+
+// 本测试进程拥有实际图片处理池；用例结束后等待原Rust子进程静止并释放句柄。
+after(async () => { await closeRustMediaWorkerPool() })

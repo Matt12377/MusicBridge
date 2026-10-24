@@ -3,7 +3,7 @@ import { BridgeError } from '../shared/errors.js';
 import type { TrackMetadata } from '../netease/types.js';
 import type { StreamResolver } from './resolver-types.js';
 export type { StreamResolveRequest, StreamResolver } from './resolver-types.js';
-import { LocalFileSourcePool, type AssetLease, type LocalLeaseAuthority } from './local-file-source.js';
+import { LocalFileSourcePool, LocalSourcePrepareInterrupted, type AssetLease, type LocalLeaseAuthority, type LocalSourcePrepareControl } from './local-file-source.js';
 import type { PreparedLocalSource } from '../application/local-source-resolver.js';
 
 export interface StreamRegistration {
@@ -30,13 +30,31 @@ export class StreamRegistry {
   }
 
   /** 仅Core私有调用，能力secret没有公开IPC字段或落盘序列化。 */
-  async registerLocalSource(descriptor: PreparedLocalSource, authority: LocalLeaseAuthority, format?: string): Promise<{ token: string; lease: AssetLease }> {
+  async registerLocalSource(descriptor: PreparedLocalSource, authority: LocalLeaseAuthority, format?: string, control?: LocalSourcePrepareControl): Promise<{ token: string; lease: AssetLease }> {
     if (this.localClosing) throw new BridgeError('STREAM_NOT_FOUND', '本地租约已关闭', { httpStatus: 404 });
     for (const [token, value] of this.localRegistrations) if (value.lease.state === 'CLOSED') this.localRegistrations.delete(token);
     if (this.localRegistrations.size >= 16) throw new BridgeError('BAD_REQUEST', '本地租约容量已满', { httpStatus: 429 });
-    const lease = await this.localSourcePool.prepare(descriptor, authority), token = randomBytes(32).toString('base64url');
-    if (this.localClosing) { await lease.close(); throw new BridgeError('STREAM_NOT_FOUND', '本地租约已关闭', { httpStatus: 404 }); }
-    this.localRegistrations.set(token, { lease, ...(format ? { format } : {}) }); return { token, lease };
+    let finishDecision!: () => void;
+    const decision = new Promise<void>(resolve => { finishDecision = resolve; });
+    let preparingQuiet = Promise.resolve(), abandonedClose = Promise.resolve();
+    const quiet = decision.then(async () => { await preparingQuiet; await abandonedClose; });
+    void quiet.catch(() => undefined);
+    // Pool 返回与 Registry 发布之间也属于准备交接，Stop 不能穿过这个窗口提前释放 ticket。
+    try { control?.onQuiet?.(quiet); } catch { /* 私有观察失败不改变租约责任。 */ }
+    let lease: AssetLease | undefined, published = false;
+    try {
+      lease = await this.localSourcePool.prepare(descriptor, authority, { ...control, onQuiet: value => { preparingQuiet = value; } });
+      if (this.localClosing || control?.signal?.aborted || control?.deadlineAtMs !== undefined && performance.now() >= control.deadlineAtMs || authority.isCurrent() !== true) {
+        if (control?.signal?.aborted) throw new LocalSourcePrepareInterrupted('READ_CANCELLED', quiet);
+        if (control?.deadlineAtMs !== undefined && performance.now() >= control.deadlineAtMs) throw new LocalSourcePrepareInterrupted('READ_DEADLINE', quiet);
+        throw new BridgeError('STREAM_NOT_FOUND', '本地租约已关闭', { httpStatus: 404 });
+      }
+      const token = randomBytes(32).toString('base64url');
+      this.localRegistrations.set(token, { lease, ...(format ? { format } : {}) }); published = true; return { token, lease };
+    } catch (error) {
+      if (lease && !published) { abandonedClose = lease.close(); void abandonedClose.catch(() => undefined); }
+      throw error;
+    } finally { finishDecision(); }
   }
   getLocal(token: string): { lease: AssetLease; format?: string } | undefined { const value = this.localRegistrations.get(token); return value && value.lease.state !== 'CLOSING' && value.lease.state !== 'CLOSED' ? value : undefined; }
   async revokeLocal(token: string): Promise<void> { const registration = this.localRegistrations.get(token); if (registration) { this.localRegistrations.delete(token); await registration.lease.close(); } }

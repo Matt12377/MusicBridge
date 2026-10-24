@@ -1,6 +1,8 @@
+import { createMobileOwnerLoadTraceContext, withMobileOwnerLoadTrace, markMobileOwnerLoadTrace, observeMobileOwnerLoadTrace } from './mobile/owner-load-trace.js';
+import { createMobileRangeWindowCoreReceiver } from './mobile/range-window-observer.js';
 import { captureLocalAlbumContext, withLocalAlbumContext, runLocalAlbumContext, localAlbumPhase, localAlbumMatch, localAlbumReject, localAlbumRejectCode, emitLocalAlbumNodeTrace, type LocalAlbumNodeContext } from './shared/local-album-read-trace-node.js';
 import { isDatasetNameProviderCommand, captureDatasetNameProviderRequest, captureDatasetNameProviderReply, assertDatasetNameProviderReplyForRequest, DatasetNameProviderBridgeError, type DatasetNameProviderCommand, type DatasetNameProviderRequest } from './collection/dataset-owner-protocol.js';
-import { isDatasetWorkbenchNativeConfiguration, captureDatasetWorkbenchNativeConfiguration, type DatasetWorkbenchNativeConfiguration, isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest } from './collection/dataset-owner-protocol.js';
+import { isDatasetWorkbenchNativeConfiguration, captureDatasetWorkbenchNativeConfiguration, type DatasetWorkbenchNativeConfiguration, isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, datasetWorkbenchRequestMs, datasetWorkbenchExecutionDeadline, isDatasetWorkbenchContextKind, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest } from './collection/dataset-owner-protocol.js';
 import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalRelocationCommand, isLocalRelocationInternalCommand } from '@music-bridge/contracts';
 import { isLocalCatalogCommand, isLocalCatalogInternalCommand, isLocalScanCommand, isLocalScanInternalCommand, validateIpcInternalRequest } from '@music-bridge/contracts';
 import { dispatchDatasetCommand, dispatchInternalDatasetCommand } from './collection/dataset-dispatch.js';
@@ -11,11 +13,16 @@ import { isDatasetLyricsProviderCommand, captureDatasetLyricsProviderRequest, ca
 import { randomUUID } from 'node:crypto';
 import { failureForError, responseFailure } from './shared/ipc-failure.js';
 import { isMobileOwnerPrivateResult } from './mobile/owner-protocol.js';
+import { copyCatalogTraceSeed, catalogTraceNonce, withCatalogTrace, withCatalogTraceScope, catalogTraceAsync, catalogTraceEvent } from './mobile/catalog-private-trace.js';
 import { readMobileCorePrivateCallForCapture } from './mobile/owner-boundary-capture.js';
+import { attachMobileSealedCoreReceiver, encodeMobileSealedCoreReply } from './mobile/sealed-request-transport.js';
 import { MobileAuthPersistenceError, MobileServiceError, type MobileOwnerPrivateFailure, type MobileOwnerPrivateResult } from './mobile/types.js';
 import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, mobileContentRpcFailure, MOBILE_CONTENT_RPC_BOUNDS,
-  type MobileContentCoreRequest, type MobileContentCoreResponse } from './mobile/content-rpc.js';
+  mobileContentLateResponseAllowed, type MobileContentCoreRequest, type MobileContentCoreResponse, type MobileContentCoreSettlementObserver } from './mobile/content-rpc.js';
 import { LibraryReadRegistry } from './shared/library-read-registry.js';
+import { runLibraryShutdownStep } from './shared/library-shutdown-log.js';
+import { createCoreShutdownReceipt } from './shared/core-shutdown-receipt.js';
+import { logLibraryOperation } from './shared/library-operation-log.js';
 import { createLibraryReadTraceWriter, emitLibraryReadTrace, isLibraryReadTraceEnabled, libraryReadTraceFailure, type LibraryReadTraceSink } from './shared/library-read-trace.js';
 import { isLibraryReadCommand, isLibraryReadCancel } from '@music-bridge/contracts';
 import { withPerformanceContext } from './diagnostics/performance-trace.js';
@@ -188,7 +195,7 @@ export function createUtilityNameProviderBridge(port:UtilityPort,current:()=>Dat
 
 export type CoreRuntimeForIpc = CoreRuntime & {
   /** 只由可信Main独立信封调用；不扩大通用IPC或旧Control API。 */
-  mobileContentRpc?(request: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse>;
+  mobileContentRpc?(request: MobileContentCoreRequest, signal: AbortSignal, onSettled?: MobileContentCoreSettlementObserver): Promise<MobileContentCoreResponse>;
 };
 
 interface MessageWithPorts {
@@ -316,6 +323,9 @@ async function dispatch(
         (request.payload as { query: string }).query,
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
+    case 'library.searchSuggestions': return runtime.searchSuggestions((request.payload as { query: string }).query);
+    case 'library.artistProfile': return runtime.getArtistProfile((request.payload as { artistId: string }).artistId);
+    case 'library.artistAlbums': return runtime.getArtistAlbums((request.payload as { artistId: string }).artistId, (request.payload as { page: { offset: number; limit: number } }).page);
     case 'library.artist':
       return runtime.getArtist(
         (request.payload as { artistId: string }).artistId,
@@ -518,15 +528,24 @@ export async function attachCoreRuntimePort(
   options: { exitAfterShutdown?: boolean; beforeReady?: () => void | Promise<void>; libraryReadTrace?: LibraryReadTraceSink } = {},
 ): Promise<void> {
   const reads = new LibraryReadRegistry(command => runtime.getLibraryReadScope?.(command) ?? 'runtime', Date.now, 64, 256, options.libraryReadTrace);
+  const rangeWindow = createMobileRangeWindowCoreReceiver({ sink: frame => { port.postMessage(frame); } });
+  const shutdownReceipt = createCoreShutdownReceipt(port, () => {
+    if (!options.exitAfterShutdown) return;
+    setImmediate(() => {
+      if (!shutdownReceipt.isConfirmed()) return;
+      logLibraryOperation('library', 'shutdown.utility-exit', 'progress', { code: 'EXIT_ZERO' });
+      process.exit(0);
+    });
+  });
   let mobileReady = false, mobileClosing = false;
   const mobileFlights = new Set<Promise<void>>();
   const contentFlights = new Map<string, { controller: AbortController; flight: Promise<void> }>();
-  type WorkbenchFlight={meta:DatasetWorkbenchMeta;assembly:ReturnType<typeof createDatasetWorkbenchAssembler>;controller:AbortController;timer:NodeJS.Timeout;running:boolean;expired:boolean;task?:Promise<void>;trace?:LocalAlbumNodeContext|undefined;settledContextEndpoint:DatasetOwnerEndpoint|undefined}
+  type WorkbenchFlight={meta:DatasetWorkbenchMeta;receivedAtMs:number;startedAtMs:number;deadlineAtMs:number;assembly:ReturnType<typeof createDatasetWorkbenchAssembler>;controller:AbortController;timer:NodeJS.Timeout;running:boolean;expired:boolean;task?:Promise<void>;trace?:LocalAlbumNodeContext|undefined;settledContextEndpoint:DatasetOwnerEndpoint|undefined}
   const workbenchFlights=new Map<string,WorkbenchFlight>(),workbenchRetired=new Map<string,DatasetWorkbenchMeta>()
   let workbenchSequence=0
   function wbFailure(item:WorkbenchFlight,code:'INVALID_IPC_REQUEST'|'INVALID_IPC_RESPONSE'|'OUTBOX_SCOPE_MISMATCH'|'NOT_READY'|'TIMEOUT',cause?:{error:unknown}):void{
     if(!item.expired){
-      if(item.meta.kind==='context')try{
+      if(isDatasetWorkbenchContextKind(item.meta.kind))try{
         const record=()=>{if(cause)localAlbumReject(cause.error,code);else localAlbumRejectCode(code,code)};
         if(item.trace)withLocalAlbumContext(item.trace,record);
         else runLocalAlbumContext(item.meta.id,null,'context.utility.receive',record,false,false);
@@ -539,16 +558,18 @@ export async function attachCoreRuntimePort(
     if(workbenchRetired.size>1024)workbenchRetired.delete(workbenchRetired.keys().next().value!)
     if(item.expired)port.postMessage(datasetWorkbenchControl(item.meta,'settled'))
   }
-  async function wbOriginalContext(meta:DatasetWorkbenchMeta,signal:AbortSignal){
+  async function wbOriginalContext(meta:DatasetWorkbenchMeta,signal:AbortSignal,deadlineAtMs:number){
     const endpoint=runtime.datasetOwnerEndpoint
-    if(meta.kind==='context')try{localAlbumPhase(!mobileReady||mobileClosing?'context.utility.ready':'context.utility.endpoint')}catch{}
+    if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase(!mobileReady||mobileClosing?'context.utility.ready':'context.utility.endpoint')}catch{}
     if(!mobileReady||mobileClosing||!endpoint?.workbenchContext||!endpoint.dispatchWorkbench||!endpoint.dispatchWorkbenchOwner||!endpoint.closeWorkbench||!endpoint.joinWorkbench)throw new DatasetWorkbenchWireError('NOT_READY')
-    if(meta.kind==='context')try{localAlbumPhase('context.utility.prepare')}catch{}
+    if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase('context.utility.prepare')}catch{}
     const prepared=await endpoint.prepare()
     if(runtime.datasetOwnerEndpoint!==endpoint||prepared.datasetId!==meta.datasetId||meta.epoch!==null&&meta.epoch!==prepared.epoch)throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
-    if(meta.kind==='context')try{localAlbumPhase('context.utility.owner')}catch{}
-    const identity=await endpoint.workbenchContext({signal,deadlineAtMs:performance.now()+Math.max(0,meta.expiresAtMs-Date.now())})
-    if(meta.kind==='context')try{localAlbumPhase('context.utility.endpoint')}catch{}
+    if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase('context.utility.owner')}catch{}
+    if(meta.kind==='context.identity'&&!endpoint.workbenchReadIdentity)throw new DatasetWorkbenchWireError('NOT_READY')
+    const read={signal,deadlineAtMs}
+    const identity=await (meta.kind==='context.identity'?endpoint.workbenchReadIdentity!(read):endpoint.workbenchContext(read))
+    if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase('context.utility.endpoint')}catch{}
     if(!isDatasetWorkbenchContext(identity)||identity.datasetId!==prepared.datasetId||identity.epoch!==prepared.epoch||runtime.datasetOwnerEndpoint!==endpoint||mobileClosing||signal.aborted)throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
     return {endpoint,identity}
   }
@@ -564,41 +585,46 @@ export async function attachCoreRuntimePort(
     if(raw.part==='begin'){
       if(item||workbenchRetired.has(raw.id)||raw.sequence!==workbenchSequence+1)return
       workbenchSequence=raw.sequence
-      const meta=datasetWorkbenchMeta(raw),controller=new AbortController(),remaining=Math.min(2000,meta.expiresAtMs-Date.now())
-      const flight:WorkbenchFlight={meta,assembly:createDatasetWorkbenchAssembler(meta,'request'),controller,timer:undefined as unknown as NodeJS.Timeout,running:false,expired:false,settledContextEndpoint:undefined}
-      if(meta.kind==='context')try{flight.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
+      const meta=datasetWorkbenchMeta(raw),controller=new AbortController(),receivedAtMs=Date.now(),startedAtMs=performance.now(),remaining=Math.min(DATASET_WORKBENCH_BOUNDS.requestMs,meta.expiresAtMs-receivedAtMs)
+      const flight:WorkbenchFlight={meta,receivedAtMs,startedAtMs,deadlineAtMs:startedAtMs+remaining,assembly:createDatasetWorkbenchAssembler(meta,'request'),controller,timer:undefined as unknown as NodeJS.Timeout,running:false,expired:false,settledContextEndpoint:undefined}
+      if(isDatasetWorkbenchContextKind(meta.kind))try{flight.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
       item=flight;workbenchFlights.set(raw.id,flight)
       flight.timer=setTimeout(()=>{controller.abort();wbFailure(flight,'TIMEOUT');if(!flight.running)wbSettle(flight)},Math.max(1,remaining))
-      if(remaining<=0||workbenchFlights.size>24){if(meta.kind==='context')try{localAlbumPhase('context.utility.budget')}catch{}wbFailure(flight,remaining<=0?'TIMEOUT':'NOT_READY');wbSettle(flight);return}
+      if(remaining<=0||workbenchFlights.size>24){if(isDatasetWorkbenchContextKind(meta.kind))try{localAlbumPhase('context.utility.budget')}catch{}wbFailure(flight,remaining<=0?'TIMEOUT':'NOT_READY');wbSettle(flight);return}
     }
     if(!item||item.running||!sameDatasetWorkbenchMeta(raw,item.meta))return
-    if(item.meta.kind==='context')try{item.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
+    if(isDatasetWorkbenchContextKind(item.meta.kind))try{item.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
     try{
       const body=item.assembly.accept(raw);if(body===undefined)return
-      if(datasetWorkbenchSha(datasetWorkbenchJson(body))!==item.meta.requestSha256||item.meta.kind==='execute'&&!isDatasetWorkbenchRequest(body)||item.meta.kind==='owner'&&!isDatasetWorkbenchOwnerRequest(body)||item.meta.kind==='context'&&(!isRecord(body)||Reflect.ownKeys(body).length!==0))throw new DatasetWorkbenchWireError('INVALID_IPC_REQUEST')
-      const flight=item;flight.running=true
+      if(datasetWorkbenchSha(datasetWorkbenchJson(body))!==item.meta.requestSha256||item.meta.kind==='execute'&&!isDatasetWorkbenchRequest(body)||item.meta.kind==='owner'&&!isDatasetWorkbenchOwnerRequest(body)||isDatasetWorkbenchContextKind(item.meta.kind)&&(!isRecord(body)||Reflect.ownKeys(body).length!==0))throw new DatasetWorkbenchWireError('INVALID_IPC_REQUEST')
+      const flight=item;flight.deadlineAtMs=datasetWorkbenchExecutionDeadline(item.meta,body,item.receivedAtMs,item.startedAtMs);flight.running=true
+      // 空正文身份读通过原闭集和首次时钟核验后，只切换到原expiry的剩余时间；未组装帧仍限2秒。
+      if(flight.meta.kind==='context.identity'||flight.meta.kind==='execute'&&datasetWorkbenchRequestMs(body)===DATASET_WORKBENCH_BOUNDS.libraryRemoveMs){
+        clearTimeout(flight.timer)
+        flight.timer=setTimeout(()=>{flight.controller.abort();wbFailure(flight,'TIMEOUT')},Math.max(1,flight.deadlineAtMs-performance.now()))
+      }
       const task:Promise<void>=Promise.resolve().then(async()=>{
-        const bound=await wbOriginalContext(flight.meta,flight.controller.signal)
+        const bound=await wbOriginalContext(flight.meta,flight.controller.signal,flight.deadlineAtMs)
         let result:unknown=bound.identity
         if(flight.meta.kind==='owner'){
           if(!isDatasetWorkbenchOwnerRequest(body)||!isDatasetWorkbenchOwnerScope(body,bound.identity.datasetId))throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
-          result=await bound.endpoint.dispatchWorkbenchOwner!(structuredClone(body),{identity:{epoch:bound.identity.epoch,datasetId:bound.identity.datasetId},signal:flight.controller.signal,deadlineAtMs:performance.now()+Math.max(0,flight.meta.expiresAtMs-Date.now())})
-          const fresh=await wbOriginalContext(flight.meta,flight.controller.signal)
+          result=await bound.endpoint.dispatchWorkbenchOwner!(structuredClone(body),{identity:{epoch:bound.identity.epoch,datasetId:bound.identity.datasetId},signal:flight.controller.signal,deadlineAtMs:flight.deadlineAtMs})
+          const fresh=await wbOriginalContext(flight.meta,flight.controller.signal,flight.deadlineAtMs)
           if(fresh.endpoint!==bound.endpoint||fresh.identity.epoch!==bound.identity.epoch||!isDatasetWorkbenchOwnerResult(body.command,result,body.payload,bound.identity.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
         }else if(flight.meta.kind==='execute'){
           const request=body as DatasetWorkbenchRequest
-          result=await bound.endpoint.dispatchWorkbench!(structuredClone(request),{identity:{epoch:bound.identity.epoch,datasetId:bound.identity.datasetId},signal:flight.controller.signal,deadlineAtMs:performance.now()+Math.max(0,flight.meta.expiresAtMs-Date.now())})
-          const fresh=await wbOriginalContext(flight.meta,flight.controller.signal)
+          result=await bound.endpoint.dispatchWorkbench!(structuredClone(request),{identity:{epoch:bound.identity.epoch,datasetId:bound.identity.datasetId},signal:flight.controller.signal,deadlineAtMs:flight.deadlineAtMs})
+          const fresh=await wbOriginalContext(flight.meta,flight.controller.signal,flight.deadlineAtMs)
           if(fresh.endpoint!==bound.endpoint||fresh.identity.epoch!==bound.identity.epoch||!isDatasetWorkbenchResult(request,result,bound.identity.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
         }
-        if(flight.expired||flight.controller.signal.aborted||mobileClosing||Date.now()>=flight.meta.expiresAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
+        if(flight.expired||flight.controller.signal.aborted||mobileClosing||Date.now()>=flight.meta.expiresAtMs||performance.now()>=flight.deadlineAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
         for(const frame of datasetWorkbenchFrames(flight.meta,'response',result))port.postMessage(frame)
         // context生产Promise已等待本次settled及Client cleanup；全部成功响应帧发完才保存端点。
-        if(flight.meta.kind==='context')flight.settledContextEndpoint=bound.endpoint
+        if(isDatasetWorkbenchContextKind(flight.meta.kind))flight.settledContextEndpoint=bound.endpoint
       }).catch(error=>{wbFailure(flight,error instanceof DatasetWorkbenchWireError?error.code:'NOT_READY',{error})}).finally(async()=>{
         // 原Owner RPC超时只撤回响应；仍等其真实settled帧，不能提前声称底层已join。
         try{
-          const contextSucceeded=flight.meta.kind==='context'&&flight.settledContextEndpoint!==undefined
+          const contextSucceeded=isDatasetWorkbenchContextKind(flight.meta.kind)&&flight.settledContextEndpoint!==undefined
             &&runtime.datasetOwnerEndpoint===flight.settledContextEndpoint&&mobileReady&&!mobileClosing
             &&!flight.expired&&!flight.controller.signal.aborted&&Date.now()<flight.meta.expiresAtMs;
           if(!contextSucceeded)await runtime.datasetOwnerEndpoint?.joinWorkbench?.();
@@ -607,7 +633,7 @@ export async function attachCoreRuntimePort(
       flight.task=task;void task.catch(()=>{})
     }catch(error){wbFailure(item,error instanceof DatasetWorkbenchWireError?error.code:'INVALID_IPC_REQUEST',{error});wbSettle(item)}
     };
-    if(raw.kind==='context')runLocalAlbumContext(raw.id,null,'context.utility.receive',receive,false,false);else receive();
+    if(isDatasetWorkbenchContextKind(raw.kind))runLocalAlbumContext(raw.id,null,'context.utility.receive',receive,false,false);else receive();
   }
   async function closeWorkbenchFlights():Promise<void>{
     for(const item of workbenchFlights.values()){item.controller.abort();wbFailure(item,'NOT_READY');if(!item.running)wbSettle(item)}
@@ -622,7 +648,8 @@ export async function attachCoreRuntimePort(
       void quiet.then(() => { clearTimeout(timer); resolve(); }, () => { clearTimeout(timer); reject(new MobileAuthPersistenceError('unknown')); });
     });
   };
-  port.on('message', (event) => {
+  attachMobileSealedCoreReceiver(port, (event) => {
+    if (shutdownReceipt.receive(port, event.data)) return;
     if(isRecord(event.data)&&(Object.getOwnPropertyDescriptor(event.data,'type')?.value==='musicbridge.lyrics.provider-reply'||Object.getOwnPropertyDescriptor(event.data,'type')?.value==='musicbridge.name.provider-reply'))return;
     if(isRecord(event.data)&&Object.getOwnPropertyDescriptor(event.data,'type')?.value==='musicbridge.workbench.frame'){wbReceive(event.data);return;}
     if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'local-album-main-request') {
@@ -650,6 +677,9 @@ export async function attachCoreRuntimePort(
       const pending = runLocalAlbumContext(call.id, null, 'utility.receive', operation); mobileFlights.add(pending);
       void pending.finally(() => mobileFlights.delete(pending)).catch(() => {}); return;
     }
+    if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-range-window-seed') {
+      rangeWindow.acceptSeed(event.data); return;
+    }
     if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-content-core-request') {
       let call: MobileContentCoreRequest;
       try { call = captureMobileContentCoreRequest(event.data); } catch { return; }
@@ -660,13 +690,38 @@ export async function attachCoreRuntimePort(
         if (call.action === 'initialize') call.key.fill(0); return;
       }
       const controller = new AbortController(), timer = setTimeout(() => controller.abort(new MobileAuthPersistenceError('unknown')), MOBILE_CONTENT_RPC_BOUNDS.requestMs);
+      let firstPostAttempted = false, firstUnknown = false, observedSettlement = false, latePostAttempted = false;
+      let settledResponse: MobileContentCoreResponse | undefined;
+      const flushSettlement = () => {
+        if (!firstPostAttempted || !firstUnknown || latePostAttempted || settledResponse === undefined) return;
+        const response = settledResponse; settledResponse = undefined; latePostAttempted = true;
+        if (!mobileReady || mobileClosing) return;
+        try { port.postMessage(response); } catch { /* 晚结算旁注失败不重放业务或冒充quiet。 */ }
+      };
+      const onSettled: MobileContentCoreSettlementObserver = raw => {
+        if (observedSettlement) return; observedSettlement = true;
+        try {
+          if (firstPostAttempted && !firstUnknown) return;
+          const response = captureMobileContentCoreResponse(raw, call);
+          if (!mobileContentLateResponseAllowed(call, response)) return;
+          settledResponse = response; flushSettlement();
+        } catch { /* 原nonce/闭集不匹配不能成为Main的收槽证明。 */ }
+      };
       const pending = Promise.resolve().then(async () => {
         let response: MobileContentCoreResponse;
         try {
-          response = captureMobileContentCoreResponse(await runtime.mobileContentRpc!(call, controller.signal), call);
+          response = captureMobileContentCoreResponse(await rangeWindow.run(call.id, call.action === 'source' ? call.request.operation : undefined,
+            () => runtime.mobileContentRpc!(call, controller.signal, onSettled)), call);
           if (mobileClosing || controller.signal.aborted) throw new MobileAuthPersistenceError('unknown');
         } catch (error) { response = mobileContentRpcFailure(call, error); }
-        port.postMessage(response);
+        firstUnknown = 'kind' in response && response.kind === 'error' && response.outcome === 'unknown';
+        // first必须先实际尝试发送；一个原调用至多补送一次已校验晚确定终态，不新增wire或时钟。
+        try { port.postMessage(response); }
+        finally {
+          firstPostAttempted = true;
+          if (!firstUnknown) settledResponse = undefined;
+          else flushSettlement();
+        }
       });
       contentFlights.set(call.id, { controller, flight: pending });
       const quiet = () => { clearTimeout(timer); contentFlights.delete(call.id); if (call.action === 'initialize') call.key.fill(0); };
@@ -676,24 +731,35 @@ export async function attachCoreRuntimePort(
       const boundary = readMobileCorePrivateCallForCapture(event.data);
       if (!boundary) return;
       const call = boundary.value;
+      const trace = call.ownerLoadTrace === undefined ? undefined : createMobileOwnerLoadTraceContext(call.ownerLoadTrace, event => {
+        try { port.postMessage({ type: 'mobile-owner-load-trace', event }); } catch { /* 旁注失败不替换原业务。 */ }
+      });
       const operation = async () => {
+        markMobileOwnerLoadTrace('core', 'core.receive', 'ok');
         let result: MobileOwnerPrivateResult;
         try {
           const endpoint = runtime.datasetOwnerEndpoint;
           if (!mobileReady || mobileClosing || mobileFlights.size >= 32 || !endpoint?.mobileMain) throw new MobileAuthPersistenceError('not-sent');
           let captured: typeof call;
-          try { captured = boundary.capture(); }
+          try { captured = observeMobileOwnerLoadTrace('core', 'core.capture', () => boundary.capture()); }
           catch { throw new MobileAuthPersistenceError('not-sent'); }
-          result = await endpoint.mobileMain(captured.request);
-          if (mobileClosing || !isMobileOwnerPrivateResult(result, call.request)) throw new MobileAuthPersistenceError('unknown');
+          result = await catalogTraceAsync('core.owner-await', () => observeMobileOwnerLoadTrace('core', 'core.owner', () => endpoint.mobileMain!(captured.request)));
+          const valid = observeMobileOwnerLoadTrace('core', 'core.result', () => !mobileClosing && isMobileOwnerPrivateResult(result, call.request));
+          if (!valid) { markMobileOwnerLoadTrace('core', 'core.result', 'invalid'); throw new MobileAuthPersistenceError('unknown'); }
+          if ('kind' in result && result.kind === 'mobile-error') catalogTraceEvent('core.result','reject',{error:{code:result.code},matched:false});
+          else catalogTraceEvent('core.result','ok',{matched:true});
         } catch (error) {
           result = { kind: 'mobile-error', status: error instanceof MobileServiceError ? error.status : 503,
             code: error instanceof MobileServiceError ? error.code : 'BUSY', retryable: false,
             outcome: error instanceof MobileAuthPersistenceError || error instanceof DatasetOwnerTransportError ? error.outcome : null } satisfies MobileOwnerPrivateFailure;
         }
-        port.postMessage({ type: 'mobile-main-response', id: call.id, result });
+        try { observeMobileOwnerLoadTrace('core', 'core.post', () => port.postMessage(encodeMobileSealedCoreReply({ type: 'mobile-main-response', id: call.id, result }, call))); }
+        catch (error) { markMobileOwnerLoadTrace('core', 'core.post', 'post-failed'); throw error; }
       };
-      const pending = operation(); mobileFlights.add(pending);
+      const seed = copyCatalogTraceSeed(call.catalogTrace);
+      const validSeed = seed && seed.nonceSha256 === catalogTraceNonce(call.id) && call.request.kind === 'catalog' && call.request.request.operation === 'listTracks'
+        && seed.offset === call.request.request.offset && seed.limit === call.request.request.limit ? seed : undefined;
+      const pending = withCatalogTraceScope(validSeed, 'core', () => catalogTraceAsync('core.receive', () => withMobileOwnerLoadTrace(trace, operation))); mobileFlights.add(pending);
       void pending.finally(() => mobileFlights.delete(pending)).catch(() => {}); return;
     }
     if (isLibraryReadCancel(event.data)) { reads.cancel(event.data.id); return; }
@@ -714,13 +780,14 @@ export async function attachCoreRuntimePort(
           const operation = () => recorder ? withPerformanceContext(recorder, span?.context, () => dispatch(runtime, parsed.value)) : dispatch(runtime, parsed.value);
           if (parsed.value.command === 'core.shutdown') {
             mobileClosing = true; reads.cancelAll('shutdown');
-            await closeContentFlights();
-            try { await closeWorkbenchFlights(); } catch (error) { workbenchCloseFailure = error; }
-            await Promise.allSettled([...mobileFlights]);
+            await runLibraryShutdownStep('utility.content', () => closeContentFlights());
+            try { await runLibraryShutdownStep('utility.workbench', () => closeWorkbenchFlights()); } catch (error) { workbenchCloseFailure = error; }
+            await runLibraryShutdownStep('utility.mobile', () => Promise.allSettled([...mobileFlights]));
           }
           if (['auth.setCredential', 'auth.clearCredential', 'auth.logout'].includes(parsed.value.command)) reads.cancelWhere(command => command.startsWith('library.'), 'credential-changed');
           if (parsed.value.command === 'roon.selectZone') reads.cancelWhere(command => !command.startsWith('library.') || command === 'library.match' || command === 'library.aggregateSearch', 'zone-changed');
-          result = await (isLibraryReadCommand(parsed.value.command) ? reads.read(parsed.value, operation) : operation());
+          result = await (parsed.value.command === 'core.shutdown' ? runLibraryShutdownStep('utility.dispatch', operation)
+            : isLibraryReadCommand(parsed.value.command) ? reads.read(parsed.value, operation) : operation());
           if (workbenchCloseFailure !== undefined) throw workbenchCloseFailure;
           span?.end('ok');
         } catch (error) { span?.end('error'); throw error; }
@@ -736,12 +803,15 @@ export async function attachCoreRuntimePort(
           throw new Error('Core播放流回执无效');
         }
         if (isLibraryReadCommand(parsed.value.command)) emitLibraryReadTrace(options.libraryReadTrace, { stage: 'core.return', coreReadId: parsed.value.id, command: parsed.value.command, outcome: 'ok' });
-        port.postMessage(response);
+        if (parsed.value.command === 'core.shutdown') shutdownReceipt.postSuccess(parsed.value.id, response);
+        else port.postMessage(response);
+        if (parsed.value.command === 'core.shutdown') logLibraryOperation('library', 'shutdown.utility-response', 'complete', { code: 'RESPONSE_POSTED' });
         recorder?.mark('ipc', 'response-sent', span?.context, {}, { command: parsed.value.command });
-        if (parsed.value.command === 'core.shutdown' && options.exitAfterShutdown) {
-          setImmediate(() => process.exit(0));
-        }
       } catch (error) {
+        if (parsed.value.command === 'core.shutdown') {
+          shutdownReceipt.cancel(parsed.value.id);
+          logLibraryOperation('library', 'shutdown.utility-response', 'error', { code: 'SHUTDOWN_REPLY_FAILED' });
+        }
         if (isLibraryReadCommand(parsed.value.command)) emitLibraryReadTrace(options.libraryReadTrace, { stage: 'core.return', coreReadId: parsed.value.id, command: parsed.value.command, ...libraryReadTraceFailure(error) });
         port.postMessage(error instanceof DatasetOwnerDispatchError
           ? { ...error.failure, id: parsed.value.id }
@@ -1021,12 +1091,13 @@ export async function runCoreUtilityProcess(
             if(command==='normalizeLocalAlbumArtwork')return albumArtworkBridge!.call(payload as DatasetProjectionCommandPayloads['normalizeLocalAlbumArtwork'],context);
             if(isDatasetNameProviderCommand(command))return nameProviderBridge!.call(command,payload as DatasetProjectionCommandPayloads[typeof command],context);
             if(isDatasetLyricsProviderCommand(command))return lyricsProviderBridge!.call(command,payload as DatasetProjectionCommandPayloads[typeof command],context);
-            if (command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+            if (command === 'scanReadStatus' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
               if (!isDatasetProjectionPayload(command, payload) || !ownerIdentity || context.epoch !== ownerIdentity.epoch
                 || context.datasetId !== ownerIdentity.datasetId) throw new DatasetOwnerDispatchError(responseFailure(context.epoch, 'NOT_READY', '扫描读取私有来源已失效。'));
               const admission = runtime?.getDatasetScanReadAdmission?.();
               if (!admission || context.datasetId === undefined) throw new DatasetOwnerDispatchError(responseFailure(context.epoch, 'NOT_READY', '扫描读取准入尚未就绪。'));
               const scope = { epoch: context.epoch, datasetId: context.datasetId };
+              if (command === 'scanReadStatus') return admission.status(scope);
               if (command === 'scanReadAcquire') return admission.acquire(scope, Object.getOwnPropertyDescriptor(payload, 'purpose')?.value as 'local-album-display' | undefined);
               const permitId = (payload as { permitId: string }).permitId;
               return command === 'scanReadWatchRevocation' ? admission.watchRevocation(scope, permitId) : admission.release(scope, permitId);
@@ -1075,12 +1146,14 @@ export async function runCoreUtilityProcess(
               dispatchInternal: (request: IpcRequest) => client.dispatchInternal!(request),
             }),
             ...(source.mobileMain ? { mobileMain: (request: import('./mobile/types.js').MobileOwnerPrivateRequest) => source.mobileMain!(request) } : {}),
+            ...(source.workbenchReadIdentity ? { workbenchReadIdentity: (read?:{signal?:AbortSignal;deadlineAtMs?:number})=>source.workbenchReadIdentity!(read) } : {}),
             ...(source.workbenchContext && source.dispatchWorkbench && source.dispatchWorkbenchOwner && source.closeWorkbench && source.joinWorkbench ? {workbenchContext: (read?:{signal?:AbortSignal;deadlineAtMs?:number})=>source.workbenchContext!(read),dispatchWorkbench: (request:import('./collection/dataset-owner-protocol.js').DatasetWorkbenchRequest,context:{identity:DatasetOwnerIdentity;signal?:AbortSignal;deadlineAtMs?:number})=>source.dispatchWorkbench!(request,context),dispatchWorkbenchOwner:(request:DatasetWorkbenchOwnerRequest,context:{identity:DatasetOwnerIdentity;signal?:AbortSignal;deadlineAtMs?:number})=>source.dispatchWorkbenchOwner!(request,context),closeWorkbench:()=>source.closeWorkbench!(),joinWorkbench:()=>source.joinWorkbench!()} : {}),
             ...(source.readLocalAlbum ? { readLocalAlbum: (request: import('./collection/local-album-browser/owner-protocol.js').LocalAlbumOwnerReadRequest) => source.readLocalAlbum!(request) } : {}),
             ...(client.materializeMBEdition?{materializeMBEdition:(request:import('@music-bridge/contracts').MBEditionQueueRequest)=>client.materializeMBEdition!(request)}:{}),
             ...(client.loadMBQueue ? { loadMBQueue: () => client.loadMBQueue!() } : {}),
             ...(client.saveMBQueue ? { saveMBQueue: (request: import('@music-bridge/contracts').MBQueueSaveRequest) => client.saveMBQueue!(request) } : {}),
             ...(client.captureLocalSource?{captureLocalSource: (selection:import('@music-bridge/contracts').LocalPlayRequest)=>client.captureLocalSource!(selection)}:{}),
+            ...(client.readLocalSourceLyrics?{readLocalSourceLyrics:(ticket:string)=>client.readLocalSourceLyrics!(ticket)}:{}),
             ...(client.revalidateLocalSource?{revalidateLocalSource:(ticket:string)=>client.revalidateLocalSource!(ticket)}:{}),
             ...(client.releaseLocalSource?{releaseLocalSource:(ticket:string)=>client.releaseLocalSource!(ticket)}:{}),
             ...(client.sealLocalSources?{sealLocalSources:()=>client.sealLocalSources!()}:{}),
@@ -1106,11 +1179,11 @@ export async function runCoreUtilityProcess(
           const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
           const onRoonImageShape = createRoonImageShapeRecorder(env);
           runtime = env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
-            ? createTestBridgeRuntime({ ...playbackOptions, onEvent, datasetOwnerEndpoint,
+            ? createTestBridgeRuntime({ ...playbackOptions, onEvent, datasetOwnerEndpoint, localScanReadProfile: 'bulk-v2',
                 ...(env.MUSIC_BRIDGE_UI_E2E === '1' && env.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY === '1' ? { roonLibrary: createSyntheticRoonLibrary() } : {}),
                 authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
                 ...(env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'profile-unavailable' || env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'expired' ? { accountMode: env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE } : {}) })
-            : createBridgeRuntime({ ...playbackOptions, onEvent, datasetOwnerEndpoint,
+            : createBridgeRuntime({ ...playbackOptions, onEvent, datasetOwnerEndpoint, localScanReadProfile: 'bulk-v2',
                 lyricsMatchRepository: createLyricsMatchRepository({ filePath: path.join(dataDirectory, 'lyrics-matches.v1.json') }),
                 ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
                 ...(onRoonBrowseShape ? { onRoonBrowseShape } : {}),

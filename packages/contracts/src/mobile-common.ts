@@ -193,7 +193,7 @@ export interface MobileSessionScope { serverId: MobileId; deviceId: MobileId; se
 export interface MobileResourceContextBasis { capabilitySnapshotIdentity: MobileId; responseOrigin: string; now: string }
 export interface MobileResourceCodecContext extends MobileResourceContextBasis { scope: MobileSessionScope; resourceFormatBitDepth: boolean; resourceDsdToPcm?: boolean; capabilityVersion: 'base' | '1.0.0' }
 /** 公共 Error.code 是 string；此处只允许服务端明确映射的安全故障。 */
-export const MOBILE_SAFE_ERROR_CODES = ['INVALID_REQUEST','UNAUTHORIZED','SOURCE_CHANGED','CURSOR_INVALID','REVISION_CONFLICT','IDEMPOTENCY_CONFLICT','UNSUPPORTED_FORMAT','BUSY','CONTENT_LIMIT_EXCEEDED','SESSION_EXPIRED','SESSION_CLOSED','RESOURCE_EXPIRED','RESOURCE_RELEASED','RESOURCE_REVOKED','DEVICE_REVOKED','TICKET_EXPIRED','TICKET_INVALID','TICKET_REVOKED','SERVICE_RESTARTED','RESOURCE_BUSY'] as const;
+export const MOBILE_SAFE_ERROR_CODES = ['INVALID_REQUEST','UNAUTHORIZED','SOURCE_CHANGED','CURSOR_INVALID','REVISION_CONFLICT','IDEMPOTENCY_CONFLICT','UNSUPPORTED_FORMAT','BUSY','ARTIST_INDEX_PREPARING','CONTENT_LIMIT_EXCEEDED','SESSION_EXPIRED','SESSION_CLOSED','RESOURCE_EXPIRED','RESOURCE_RELEASED','RESOURCE_REVOKED','DEVICE_REVOKED','TICKET_EXPIRED','TICKET_INVALID','TICKET_REVOKED','SERVICE_RESTARTED','RESOURCE_BUSY'] as const;
 export interface MobileSafeErrorFacts { code: typeof MOBILE_SAFE_ERROR_CODES[number]; requestId: string; retryable: boolean; retryAfterMs?: number }
 export const MOBILE_ID_SCHEMA: MobileSchema = { type:'string', minLength:1, maxLength:160, pattern:'^[A-Za-z0-9_.:-]+(?![\\s\\S])' };
 export const MOBILE_COMMON_SCHEMAS: MobileSchemaRegistry = {
@@ -218,14 +218,14 @@ export const isMobileProcessing = (raw: unknown): raw is MobileProcessing => mob
 export const isMobileErrorEnvelope = (raw: unknown): raw is MobileErrorEnvelope => mobileCommonResponseSnapshot('error',raw).ok;
 export function normalizeMobileRetryHint(raw: unknown): number | null { return mobileInteger(raw) ? Math.min(raw,MOBILE_RETRY_HINT_MAX_MS) : null; }
 export function mapMobileSafeError(facts: MobileSafeErrorFacts): MobileDecodeResult<MobileErrorEnvelope> {
-  const messages: Record<MobileSafeErrorFacts['code'],string> = {INVALID_REQUEST:'请求无法识别。',UNAUTHORIZED:'设备认证已失效。',SOURCE_CHANGED:'来源内容已变化，请刷新。',CURSOR_INVALID:'分页快照已失效，请刷新。',REVISION_CONFLICT:'内容已被更新，请刷新。',IDEMPOTENCY_CONFLICT:'原操作身份不一致。',UNSUPPORTED_FORMAT:'当前设备不支持此格式。',BUSY:'服务忙，请稍后重试。',CONTENT_LIMIT_EXCEEDED:'完整内容超过传输上限。',SESSION_EXPIRED:'播放会话已到期。',SESSION_CLOSED:'播放会话已关闭。',RESOURCE_EXPIRED:'播放资源已到期。',RESOURCE_RELEASED:'播放资源已释放。',RESOURCE_REVOKED:'播放资源已撤销。',DEVICE_REVOKED:'设备权限已撤销。',TICKET_EXPIRED:'媒体票据已到期。',TICKET_INVALID:'媒体票据无效。',TICKET_REVOKED:'媒体票据已撤销。',SERVICE_RESTARTED:'播放服务已重启，请恢复会话。',RESOURCE_BUSY:'播放资源正在释放或达到容量。'};
+  const messages: Record<MobileSafeErrorFacts['code'],string> = {INVALID_REQUEST:'请求无法识别。',UNAUTHORIZED:'设备认证已失效。',SOURCE_CHANGED:'来源内容已变化，请刷新。',CURSOR_INVALID:'分页快照已失效，请刷新。',REVISION_CONFLICT:'内容已被更新，请刷新。',IDEMPOTENCY_CONFLICT:'原操作身份不一致。',UNSUPPORTED_FORMAT:'当前设备不支持此格式。',BUSY:'服务忙，请稍后重试。',ARTIST_INDEX_PREPARING:'正在准备本地艺术家与搜索，请稍候。',CONTENT_LIMIT_EXCEEDED:'完整内容超过传输上限。',SESSION_EXPIRED:'播放会话已到期。',SESSION_CLOSED:'播放会话已关闭。',RESOURCE_EXPIRED:'播放资源已到期。',RESOURCE_RELEASED:'播放资源已释放。',RESOURCE_REVOKED:'播放资源已撤销。',DEVICE_REVOKED:'设备权限已撤销。',TICKET_EXPIRED:'媒体票据已到期。',TICKET_INVALID:'媒体票据无效。',TICKET_REVOKED:'媒体票据已撤销。',SERVICE_RESTARTED:'播放服务已重启，请恢复会话。',RESOURCE_BUSY:'播放资源正在释放或达到容量。'};
   if (!Object.hasOwn(messages,facts.code) || !/^[A-Za-z0-9_.-]{1,128}$/u.test(facts.requestId) || typeof facts.retryable !== 'boolean' || facts.retryAfterMs !== undefined && !mobileInteger(facts.retryAfterMs)) return mobileFailure('INVALID_RESPONSE','error');
   return mobileOk({error:{code:facts.code,message:messages[facts.code],requestId:facts.requestId,retryable:facts.retryable,...(facts.retryAfterMs === undefined ? {} : {retryAfterMs:normalizeMobileRetryHint(facts.retryAfterMs)!})}});
 }
 export function mapMobileFileAudioParameters(raw: FileAudioParameters): MobileDecodeResult<MobileAudioInfo> {
   const captured = mobileDataSnapshot(raw); if (!captured.ok || !mobileRecord(captured.value)) return mobileFailure('INVALID_RESPONSE','sourceAudio'); raw = captured.value as unknown as FileAudioParameters;
   if (['DSF','DFF'].includes(raw.container) && !isFileAudioParameters(raw)) return mobileFailure('INVALID_RESPONSE','sourceAudio');
-  const containers: Record<FileAudioParameters['container'],string> = {FLAC:'flac',MPEG:'mp3',MP4:'m4a',WAVE:'wav',AIFF:'aiff',DSF:'dsf',DFF:'dff'};
+  const containers: Record<FileAudioParameters['container'],string> = {FLAC:'flac',MPEG:'mp3',MP4:'m4a',WAVE:'wav',AIFF:'aiff',DSF:'dsf',DFF:'dff',APE:'ape'};
   if (typeof raw.codec !== 'string') return mobileFailure('INVALID_RESPONSE','sourceAudio');
   let codec = raw.codec.toLowerCase();
   // 解析词汇统一成移动格式标签；未知技术轴保持未知，真实可播放资格仍由Owner核FD。

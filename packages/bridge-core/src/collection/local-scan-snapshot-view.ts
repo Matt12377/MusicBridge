@@ -44,7 +44,7 @@ const same = (a: unknown, b: unknown): boolean => completedScanCanonical(a) === 
 function frozen(value: unknown): value is LocalScanFrozenSettings {
   return object(value, ['jobId', 'settingsRevision', 'albumConcurrency', 'readerConcurrency']) && dto.isCollectionId(value.jobId)
     && dto.isLocalCatalogRevision(value.settingsRevision) && Number.isSafeInteger(value.albumConcurrency)
-    && Number(value.albumConcurrency) >= 1 && Number(value.albumConcurrency) <= 24 && value.readerConcurrency === 1;
+    && Number(value.albumConcurrency) >= 1 && Number(value.albumConcurrency) <= 24 && (value.readerConcurrency === 1 || value.readerConcurrency === 2 || value.readerConcurrency === 8);
 }
 export interface CompletedScanMember {
   asset: dto.AudioAsset; track: dto.LocalTrack; rawMetadata: dto.LocalMetadata; effectiveMetadata: dto.LocalMetadata;

@@ -23,18 +23,17 @@ function copyDetailEnvelope(value: unknown, requestedPhysicalId: string): value 
     && (value.copyIndex === undefined || Number.isSafeInteger(value.copyIndex) && Number(value.copyIndex) >= 0)
 }
 
-/** 读取与写入共用预加载时确定的工作库；激活另一工作库后旧窗口必须重载。 */
+/** 读取与写入共用本窗口首次确认的工作库；激活另一工作库后旧窗口必须重载。 */
 export function createRecordingWorkspaceClient(
   invoke: (channel: string, value?: unknown) => Promise<unknown>,
   put: RecordingWorkspacePublicApi['putRecordingWorkspaceContext'],
   getDatasetId: DatasetScope = createCommandOutboxDatasetScope(invoke),
 ): RecordingWorkspacePublicApi & Pick<CollectionPublicApi, 'getCollectionCopy'> {
   const failure = () => new Error('[OUTBOX_SCOPE_MISMATCH] 工作库身份未获确认，请重新加载录音窗口。')
-  const scope = getDatasetId().catch(() => { throw failure() })
-  void scope.catch(() => undefined)
+  const scope = () => getDatasetId().catch(() => { throw failure() })
   return {
     async getRecordingWorkspaceContext(draftId) {
-      const result = await invoke('recordingWorkspace:get', { datasetId: await scope, payload: { draftId } })
+      const result = await invoke('recordingWorkspace:get', { datasetId: await scope(), payload: { draftId } })
       if (!record(result) || Object.keys(result).length !== 1 || !('context' in result)
         || result.context !== null && !workspaceContextEnvelope(result.context, draftId)) {
         throw new Error('[INVALID_IPC_RESPONSE] 工作台读取结果无效，请重新加载当前工作库。')
@@ -43,7 +42,7 @@ export function createRecordingWorkspaceClient(
     },
     async getCollectionCopy(physicalId) {
       if (!physicalId || !/^MB-[CD]-\d{5,9}$/u.test(physicalId)) throw new Error('[INVALID_IPC_REQUEST] 实体副本编号无效。')
-      const result = await invoke('collection:copy', { datasetId: await scope, payload: { physicalId } })
+      const result = await invoke('collection:copy', { datasetId: await scope(), payload: { physicalId } })
       if (!copyDetailEnvelope(result, physicalId)) {
         throw new Error('[INVALID_IPC_RESPONSE] 实体副本读取结果无效，请重新加载当前工作库。')
       }

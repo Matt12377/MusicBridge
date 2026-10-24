@@ -1,3 +1,4 @@
+import { LOCAL_ARTIST_COMMANDS } from './artist-catalog-api.js';
 import { LOCAL_ARTWORK_COMMANDS } from './local-artwork.js';
 import { LOCAL_SOURCE_WRITES_COMMANDS } from './local-source-writes.js';
 import { LOCAL_RELOCATION_PLAN_COMMANDS } from './local-relocation-plan.js';
@@ -7,6 +8,7 @@ import { LOCAL_SCAN_COMMANDS } from './local-scan.js';
 import { LOCAL_CATALOG_COMMANDS, LOCAL_LIBRARY_READ_COMMANDS } from './local-catalog.js';
 // IPC 名称白名单独立于业务结果与诊断合同，避免互相依赖。
 export const IPC_COMMANDS = [
+  ...LOCAL_ARTIST_COMMANDS,
   ...LOCAL_SOURCE_WRITES_COMMANDS,
   ...LOCAL_RELOCATION_PLAN_COMMANDS,
   ...LOCAL_LEGACY_LINKS_COMMANDS,
@@ -71,6 +73,9 @@ export const IPC_COMMANDS = [
   'auth.logout',
   'account.getState',
   'account.refresh',
+  'library.searchSuggestions',
+  'library.artistProfile',
+  'library.artistAlbums',
   'library.search',
   'library.searchArtists',
   'library.searchAlbums',

@@ -284,7 +284,7 @@ test('010同名CAA多发行保留独立候选与日期国家来源，不自动�
 })
 test('010CAA审核与核心元数据CC0不冒充封面许可，审核变化不改变权利未核实记录', () => {
   const image = musicCandidate(); assert.equal(isLocalArtworkCandidate(image), true); const source = image.remoteSource; assert.ok(isCoverArtArchiveSource(source))
-  const approved = localArtworkCandidatePresentation(image); assert.match(approved.fields.find(f => f.label === 'CAA 审核')!.text, /已审核.*不代表图片许可/u); assert.match(approved.notice, /权利状态未核实.*仅用于 MusicBridge 显示.*独立整理计划/u)
+  const approved = localArtworkCandidatePresentation(image); assert.match(approved.fields.find(f => f.label === 'CAA 审核')!.text, /已审核.*不代表图片许可/u); assert.match(approved.notice, /权利状态未核实.*仅用于 Mousa 显示.*独立整理计划/u)
   assert.equal(image.license, 'rights-unverified'); assert.equal(source.musicBrainzMetadataLicense, 'CC0-core'); assert.equal(source.imageRights, 'unverified')
   source.approved = false; const unchecked = localArtworkCandidatePresentation(image); assert.match(unchecked.fields.find(f => f.label === 'CAA 审核')!.text, /尚未审核/u); assert.equal(unchecked.notice, approved.notice)
 })

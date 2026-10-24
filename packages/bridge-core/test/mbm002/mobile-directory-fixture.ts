@@ -162,7 +162,7 @@ export async function directoryFixture(t: TestContext, options: { allowEditionRe
     }
     if (activeScanner) {
       const turn = activeScanner.privateReaderTurn();
-      assert.equal(turn.occupied, false); assert.equal(turn.waiting, 0); assert.equal(turn.readerConcurrency, 1);
+      assert.equal(turn.occupied, false); assert.equal(turn.waiting, 0); assert.equal(turn.readerConcurrency, 2);
     }
     assert.equal(lifecycle.filter(event => event === 'worker-start').length, lifecycle.filter(event => event === 'worker-exit').length);
     assert.equal(lifecycle.filter(event => event === 'lease-acquired').length, lifecycle.filter(event => event === 'lease-released').length);

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "prebuild": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
-    "build": "tsc -p tsconfig.json && node scripts/build-metadata-reader-worker.mjs",
+    "build": "node ../../native/media-worker/scripts/build.mjs && tsc -p tsconfig.json && node scripts/build-metadata-reader-worker.mjs",
     "pretypecheck": "corepack pnpm@10.17.1 run build",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "pretest": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
@@ -21,8 +21,8 @@
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",
     "@neteasecloudmusicapienhanced/api": "4.40.1",
+    "fast-srp-hap": "2.0.4",
     "music-metadata": "11.15.0",
-    "strtok3": "10.3.5",
     "node-roon-api": "github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8",
     "node-roon-api-audioinput": "github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f",
     "node-roon-api-browse": "github:RoonLabs/node-roon-api-browse#98adcbaba3a30fd6ce109c1f04cd361536143222",
@@ -30,16 +30,18 @@
     "node-roon-api-settings": "github:RoonLabs/node-roon-api-settings#67cd8ca156c5bcd01ea63833ceaaec6d6a79654d",
     "node-roon-api-status": "github:RoonLabs/node-roon-api-status#504c918d6da267e03fbb4337befa71ca3d3c7526",
     "node-roon-api-transport": "github:RoonLabs/node-roon-api-transport#2ee60008a4cdb90c34ff3de58bb4b949067f1d20",
+    "pinyin-pro": "3.29.5",
+    "strtok3": "10.3.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yauzl": "3.4.0",
-    "yazl": "3.3.1",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "yazl": "3.3.1"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
     "@types/yauzl": "3.4.0",
     "@types/yazl": "3.3.1",
-    "tsx": "4.23.12",
     "esbuild": "0.28.2",
+    "tsx": "4.23.12",
     "typescript": "5.9.3"
   }
 }

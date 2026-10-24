@@ -44,6 +44,8 @@ export interface PageJourneyOptions {
   onClearActionError: () => void
   canLeaveRecording?: () => boolean
   canLeaveCollection?: () => boolean
+  /** 本地艺术家页独立加载；Roon目录等到用户切换来源后读取。 */
+  localArtistsEnabled?: boolean
   /** 所有侧栏、设置、搜索与播放页出入共用原工作台离开门禁。 */
   beforeLeave?: (destination: ViewId, resume: () => void) => boolean
 }
@@ -218,7 +220,7 @@ export function usePageJourney(options: PageJourneyOptions) {
     if (source.type === 'roon-albums') {
       if (!browse.roonAlbumsInitialLoading.value && (!browse.roonAlbumsPage.value.items.length || browse.roonAlbumsError.value)) void browse.loadRoonAlbums()
     }
-    if (source.type === 'roon-artists') {
+    if (source.type === 'roon-artists' && !options.localArtistsEnabled) {
       if (!browse.roonArtistsInitialLoading.value && (!browse.roonArtistsPage.value.items.length || browse.roonArtistsError.value)) void browse.loadRoonArtists()
     }
     if (source.type === 'roon-genres') {

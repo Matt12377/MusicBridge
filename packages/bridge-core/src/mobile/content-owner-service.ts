@@ -35,6 +35,7 @@ import {
   type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult,
 } from './types.js';
 import { mobileCapabilitySync, mobileCapabilityReject } from './capability-trace.js';
+import { parseMobileTrackId } from './local-album-identity.js';
 
 export const MOBILE_CONTENT_OWNER_SNAPSHOT_LIMIT = 16;
 export const MOBILE_CONTENT_OWNER_SNAPSHOT_TTL_MS = 15_000;
@@ -75,8 +76,12 @@ interface HeldPlan {
 }
 export interface MobileContentOwnerServiceOptions {
   collection: CollectionRepository; datasetId: string; ownerEpoch: string; assertCurrent(): void;
-  /** 原唯一 Owner 的目录投影；复用同一个连接与许可，不创建第二目录作者。 */
-  catalog: { dispatch(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult };
+  /** 原唯一 Owner 的目录投影；结构读取沿原隔离端口，提交围栏仍同步核同一修订作者。 */
+  catalog: {
+    dispatch(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult | Promise<MobileOwnerPrivateResult>;
+    catalogRevision(catalogPlaybackEnabled?: boolean): string;
+    refresh?(): Promise<void>;
+  };
   limits: MobileContentStateLimits; now?: () => number;
 }
 
@@ -93,6 +98,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
   const invalidProviders = new Set<string>();
   const snapshots = new Map<string, HeldSnapshot>(), plans = new Map<string, HeldPlan>();
   const active = new Set<Promise<MobileContentOwnerResult>>(), controllers = new Set<AbortController>();
+  let catalogReads = 0;
   let pending: { commitId: string; input: MobileContentMutationInput } | undefined;
   function clock(): number { const v = now(); if (!mobileInteger(v)) return unavailable(); return v; }
   function current(): void { if (closed) return unavailable(); assertCurrent(); }
@@ -108,7 +114,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
     for (const [id, v] of snapshots) if (v.expiresAt <= t) snapshots.delete(id);
     for (const [id, v] of plans) if (v.expiresAt <= t) plans.delete(id);
   }
-  function reserveSlot(): void { prune(); if (snapshots.size + plans.size + controllers.size >= MOBILE_CONTENT_OWNER_SNAPSHOT_LIMIT) return unavailable(); }
+  function reserveSlot(): void { prune(); if (snapshots.size + plans.size + controllers.size + catalogReads >= MOBILE_CONTENT_OWNER_SNAPSHOT_LIMIT) return unavailable(); }
   function updateScope(raw: Readonly<MobileContentScope>): Readonly<MobileContentScope> {
     initialized(); const s = captureMobileContentScope(raw);
     if (s.serverId !== serverId || s.datasetId !== datasetId || s.ownerEpoch !== ownerEpoch) return changed();
@@ -170,35 +176,41 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
       return { kind: 'content-initialized', serverId: req.serverId, datasetId, ownerEpoch };
     } finally { req.key.fill(0); }
   }
-  function catalogRead(request: Omit<MobileOwnerCatalogRequest, 'serverId' | 'catalogPlaybackEnabled'>): MobileOwnerCatalogSnapshot {
-    initialized();
-    const result = catalog.dispatch({ kind: 'catalog', datasetId,
-      request: { ...request, serverId: serverId!, catalogPlaybackEnabled: true } });
-    if ('kind' in result) {
-      if (result.kind === 'mobile-error') throw new MobileServiceError(result.status, result.code, result.retryable);
-      return unavailable();
-    }
-    if (!('operation' in result) || result.datasetId !== datasetId || result.ownerEpoch !== ownerEpoch) return unavailable();
-    return result;
+  async function catalogRead(request: Omit<MobileOwnerCatalogRequest, 'serverId' | 'catalogPlaybackEnabled'>,
+    scope: Readonly<MobileContentScope>): Promise<MobileOwnerCatalogSnapshot> {
+    checkScope(scope); reserveSlot(); catalogReads++;
+    try {
+      const result = await catalog.dispatch({ kind: 'catalog', datasetId,
+        request: { ...request, serverId: serverId!, catalogPlaybackEnabled: true } });
+      checkScope(scope);
+      if ('kind' in result) {
+        if (result.kind === 'mobile-error') throw new MobileServiceError(result.status, result.code, result.retryable);
+        return unavailable();
+      }
+      if (!('operation' in result) || result.datasetId !== datasetId || result.ownerEpoch !== ownerEpoch) return unavailable();
+      if (libraryRevision() !== result.libraryRevision) return changed();
+      return result;
+    } finally { catalogReads--; }
   }
   function libraryRevision(): string {
-    return catalogRead({ operation: 'listAlbums', offset: 0, limit: 1, q: '', albumId: null, itemId: null, expectedRevision: null }).libraryRevision;
+    initialized(); const revision = catalog.catalogRevision(true); current();
+    if (!isMobileId(revision)) return unavailable(); return revision;
   }
-  function localAlbum(id: string): { album: MobileUIAlbumRecord; revision: string } {
-    const result = catalogRead({ operation: 'getAlbum', offset: 0, limit: 1, q: '', albumId: null, itemId: id, expectedRevision: null });
+  async function localAlbum(id: string, scope: Readonly<MobileContentScope>): Promise<{ album: MobileUIAlbumRecord; revision: string }> {
+    const result = await catalogRead({ operation: 'getAlbum', offset: 0, limit: 1, q: '', albumId: null, itemId: id, expectedRevision: null }, scope);
     const found = mobileContentResponseSnapshot('uiAlbum', result.items[0]);
     if (!found.ok || found.value.source !== 'local' || found.value.id !== id) return changed();
     return { album: found.value, revision: result.libraryRevision };
   }
-  function localTrack(selected: MobileTrackSelection): { track: MobileTrack; detail: LocalLibraryTrackDetail; revision: string } {
+  async function localTrack(selected: MobileTrackSelection, scope: Readonly<MobileContentScope>): Promise<{ track: MobileTrack; detail: LocalLibraryTrackDetail; revision: string }> {
     if (selected.source !== 'local') return changed();
-    const result = catalogRead({ operation: 'getTrack', offset: 0, limit: 1, q: '', albumId: null,
-      itemId: selected.trackId, expectedRevision: null });
+    const result = await catalogRead({ operation: 'getTrack', offset: 0, limit: 1, q: '', albumId: null,
+      itemId: selected.trackId, expectedRevision: null }, scope);
     const parsed = mobileCatalogResponseSnapshot('track', result.items[0]);
     if (!parsed.ok || !mobileTrackSelectionEquals(pick(parsed.value), selected)) return changed();
-    const parts = selected.trackId.split(':');
-    if (parts.length !== 4 || parts[0] !== 'lt' || parts[1] !== datasetId) return changed();
-    const original = collection.localCatalog.trackDetail(parts[2]!);
+    const identity = parseMobileTrackId(selected.trackId, datasetId); if (!identity) return changed();
+    // 上述原目录已核组hash、唯一成员及旧发行关系；解析地址本身不授予事实资格。
+    const original = collection.localCatalog.trackDetail(identity.trackId);
     const detail = { ...original, fileParameters: collection.localScan.privateDisplayFileParameters(original.track.id, original.asset, 'mobile-catalog') };
     current(); if (libraryRevision() !== result.libraryRevision) return changed();
     return { track: parsed.value, detail, revision: result.libraryRevision };
@@ -258,7 +270,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
   function requestHash(req: { scope: Readonly<MobileContentScope>; operation: string; request: unknown }): string {
     return hash([req.scope, req.operation, req.request]);
   }
-  function factsFor(req: MobileContentOwnerDispatch): MobileContentMutationFacts {
+  async function factsFor(req: MobileContentOwnerDispatch): Promise<MobileContentMutationFacts> {
     const body = req.request.body as unknown as { source?: 'local' | 'netease'; albumId?: string;
       versionId?: string; contentRevision?: string; selection?: MobileTrackSelection; initialTrack?: MobileTrackSelection | null };
     let albumId: string | undefined, selection: MobileTrackSelection | undefined;
@@ -276,8 +288,8 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
     if (source === 'local') {
       if (req.providerFacts !== undefined) return invalid();
       const facts: MobileContentMutationFacts = {};
-      if (albumId) facts.album = localAlbum(albumId).album;
-      if (selection) facts.track = localTrack(selection).track;
+      if (albumId) facts.album = (await localAlbum(albumId, req.scope)).album;
+      if (selection) facts.track = (await localTrack(selection, req.scope)).track;
       return facts;
     }
     if (req.scope.providerEpoch === null || !req.providerFacts) return unavailable();
@@ -298,7 +310,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
     if (req.operation === 'addPersonalPlaylistTrack') result.selection = (req.request.body as unknown as { selection: MobileTrackSelection }).selection;
     return result;
   }
-  function mutate(req: MobileContentOwnerDispatch): MobileContentOwnerSnapshot {
+  async function mutate(req: MobileContentOwnerDispatch): Promise<MobileContentOwnerSnapshot> {
     if (!isMobileContentMutation(req.operation) || req.providerPage) return invalid();
     reserveSlot();
     const { loaded } = domain(req.scope);
@@ -306,7 +318,8 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
       request: req.request as MobileRequestMap[MobileContentMutationOperation], scope: req.scope };
     const receipt = lookupMobileContentReceipt(loaded.state, input, limits);
     if (receipt) return snapshot(req, receipt, mutationContext(req, receipt), { domainRevision: null, libraryRevision: null }, input);
-    const library = libraryRevision(), facts = factsFor(req);
+    const library = libraryRevision(), facts = await factsFor(req);
+    checkScope(req.scope); if (libraryRevision() !== library) return changed();
     const result = applyMobileContentMutation(loaded.state, input, facts, { limits,
       ...(req.operation === 'createPersonalPlaylist' ? { newPlaylistId: randomUUID() } : {}) });
     const commitId = randomUUID();
@@ -328,17 +341,25 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
     // 只读原回执，不读取最新 Provider 元数据、不比较当前 CAS，也不调用 save。
     return snapshot(dispatch, receipt, mutationContext(dispatch, receipt), { domainRevision: null, libraryRevision: null }, input);
   }
-  function recentlyAdded(req: MobileContentOwnerDispatch): MobileContentOwnerSnapshot {
+  async function recentlyAdded(req: MobileContentOwnerDispatch): Promise<MobileContentOwnerSnapshot> {
     const revision = libraryRevision(), query = pageQuery(req.operation, req.request, req.scope);
     const offset = pageOffset(query, fields(req.request).cursor, revision);
     if (!collection.privateMobileCatalogAccess) return unavailable();
     // 入库时间取原 create-edition 账本，不猜文件时间、扫描完成时间或手机 lastSeen。
     const ordered = collection.privateMobileCatalogAccess(db => {
-      const candidates = db.prepare("SELECT id FROM local_catalog_editions ORDER BY id").iterate();
+      const visibleRoots = collection.localCatalog.roots()
+        .filter(root => root.role === 'library' && collection.localCatalog.privateLibraryManagementRootVisible(root.id)).map(root => root.id);
+      // 旧发行账本仍保留；只按当前目录相同的Root可见性筛成员，不逐项重投影整份目录。
+      const candidates = db.prepare(`SELECT e.id,EXISTS(SELECT 1 FROM local_catalog_edition_tracks l
+        JOIN local_catalog_tracks t ON t.id=l.track_id JOIN local_catalog_assets a ON a.id=t.asset_id
+        WHERE l.edition_id=e.id AND json_extract(l.data,'$.active')=1
+          AND a.root_id IN(SELECT value FROM json_each(?))) visible FROM local_catalog_editions e ORDER BY e.id`).iterate(JSON.stringify(visibleRoots));
       const rows: { id: string; addedAt: string }[] = [];
       let visited = 0;
       for (const row of candidates) {
         if (++visited > 300000 || typeof row.id !== 'string') return limited();
+        if (row.visible === 0) continue;
+        if (row.visible !== 1) return unavailable();
         const available = collection.localCatalog.privateMobileCandidates({ kind: 'tracks', offset: 0, limit: 1,
           query: '', editionId: row.id, trackId: null });
         if (!available.total) continue;
@@ -348,9 +369,10 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
       }
       return rows.sort((a, b) => b.addedAt.localeCompare(a.addedAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     });
-    const items: MobileAddedAlbumRecord[] = ordered.slice(offset, offset + query.limit).map(row => ({
-      ...localAlbum(`la:${datasetId}:${row.id}`).album, source: 'local', addedAt: row.addedAt,
-    }));
+    const items: MobileAddedAlbumRecord[] = [];
+    for (const row of ordered.slice(offset, offset + query.limit)) items.push({
+      ...(await localAlbum(`la:${datasetId}:${row.id}`, req.scope)).album, source: 'local', addedAt: row.addedAt,
+    });
     if (libraryRevision() !== revision) return changed();
     return snapshot(req, { status: 200, category: 'success', body: { items, libraryRevision: revision,
       nextCursor: nextCursor(query, offset, items.length, ordered.length, revision) } },
@@ -393,7 +415,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
       items: page.items, nextCursor: next } }, pageContext(req.scope, held.query, value.favoritesRevision,
       page.offset, fields(req.request).cursor), { domainRevision: value.favoritesRevision, libraryRevision: library });
   }
-  function read(req: MobileContentOwnerDispatch): MobileContentOwnerSnapshot {
+  async function read(req: MobileContentOwnerDispatch): Promise<MobileContentOwnerSnapshot> {
     checkScope(req.scope); assertAccount(req); if (req.providerFacts) return invalid();
     if (req.operation === 'listRecentlyAddedAlbums') { if (req.providerPage) return invalid(); return recentlyAdded(req); }
     const { value } = domain(req.scope), library = libraryRevision();
@@ -416,14 +438,16 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
       const offset = pageOffset(query, fields(req.request).cursor, cursorRevision);
       let items: MobileTrack[], total: number;
       if (f?.albumFavorite) {
-        const page = catalogRead({ operation: 'listTracks', offset, limit: query.limit, q: '', albumId,
-          itemId: null, expectedRevision: library });
+        const page = await catalogRead({ operation: 'listTracks', offset, limit: query.limit, q: '', albumId,
+          itemId: null, expectedRevision: library }, req.scope);
         items = page.items.map(item => { const result = mobileCatalogResponseSnapshot('track', item); if (!result.ok) return unavailable(); return result.value; }); total = page.total;
       } else {
         const favorites = f?.favoriteTracks ?? []; total = favorites.length;
-        items = favorites.slice(offset, offset + query.limit).map(selection => localTrack(selection).track);
+        items = [];
+        for (const selection of favorites.slice(offset, offset + query.limit)) items.push((await localTrack(selection, req.scope)).track);
       }
       if (libraryRevision() !== library) return changed();
+      if (domain(req.scope).value.favoritesRevision !== value.favoritesRevision) return changed();
       return snapshot(req, { status: 200, category: 'success', body: { accountDomain: req.scope.accountDomain,
         favoritesRevision: value.favoritesRevision, identity: { source: 'local', albumId }, favorite: f,
         items, nextCursor: nextCursor(query, offset, items.length, total, cursorRevision) } },
@@ -454,8 +478,13 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
       if (fields(req.request).playlistRevision !== p.playlist.playlistRevision) return changed();
       const cursorRevision = `mp:${hash([p.playlist.playlistRevision, library])}`;
       const offset = pageOffset(query, fields(req.request).cursor, cursorRevision);
-      const items = p.tracks.slice(offset, offset + query.limit).map(t => t.source === 'local' ? localTrack(pick(t)).track : t);
+      const items: MobileTrack[] = [];
+      for (const track of p.tracks.slice(offset, offset + query.limit)) {
+        items.push(track.source === 'local' ? (await localTrack(pick(track), req.scope)).track : track);
+      }
       if (libraryRevision() !== library) return changed();
+      if (domain(req.scope).value.playlists.find(current => current.playlist.playlistId === p.playlist.playlistId)
+        ?.playlist.playlistRevision !== p.playlist.playlistRevision) return changed();
       return snapshot(req, { status: 200, category: 'success', body: { accountDomain: req.scope.accountDomain,
         playlist: p.playlist, items, nextCursor: nextCursor(query, offset, items.length, p.tracks.length, cursorRevision) } },
       { ...pageContext(req.scope, query, p.playlist.playlistRevision, offset, fields(req.request).cursor),
@@ -484,6 +513,10 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
     }
     prune(); const held = snapshots.get(req.snapshotId);
     if (!held || !same(held.scope, req.scope)) return changed();
+    if (!held.mutation && held.libraryRevision !== null && catalog.refresh) {
+      await catalog.refresh(); checkScope(req.scope); prune();
+      if (snapshots.get(req.snapshotId) !== held) return changed();
+    }
     if (held.mutation) {
       const loaded = initialized().load(), receipt = lookupMobileContentReceipt(loaded.state, held.mutation, limits);
       if (!receipt || !('reply' in held.result) || !same(held.result.reply, receipt)) return changed();
@@ -503,7 +536,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
   }
   async function lyrics(req: Extract<MobileContentOwnerRequest, { action: 'local-lyrics' }>): Promise<MobileContentOwnerResult> {
     checkScope(req.scope); reserveSlot();
-    const selected = localTrack(req.selection), revision = selected.revision;
+    const selected = await localTrack(req.selection, req.scope), revision = selected.revision;
     const controller = new AbortController(); controllers.add(controller);
     try {
       const reader = createMobileContentLocalLyrics({ collection, datasetId, assertCurrent: () => checkScope(req.scope) });
@@ -520,7 +553,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
       return result;
     } finally { controllers.delete(controller); }
   }
-  function sync(req: MobileContentOwnerRequest): MobileContentOwnerResult {
+  async function execute(req: MobileContentOwnerRequest): Promise<MobileContentOwnerResult> {
     current();
     if (req.action === 'initialize') return mobileCapabilitySync('owner.content.initialize', () => initialize(req));
     initialized();
@@ -534,11 +567,11 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
     if (req.action === 'lookup-receipt') return lookupReceipt(req);
     if (req.action === 'plan-read') return planRead(req);
     if (req.action === 'local-track') {
-      const selected = localTrack(req.selection); checkScope(req.scope);
+      const selected = await localTrack(req.selection, req.scope); checkScope(req.scope);
       return { kind: 'content-track', datasetId, ownerEpoch, libraryRevision: selected.revision, track: selected.track, detail: selected.detail };
     }
     if (req.action === 'local-album') {
-      const selected = localAlbum(req.albumId); checkScope(req.scope);
+      const selected = await localAlbum(req.albumId, req.scope); checkScope(req.scope);
       return { kind: 'content-album', datasetId, ownerEpoch, libraryRevision: selected.revision, album: selected.album };
     }
     if (req.action !== 'dispatch') return invalid();
@@ -557,13 +590,29 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
         let req: MobileContentOwnerRequest;
         try {
           req = captureMobileContentOwnerRequest(raw); current();
-          const result = req.action === 'local-lyrics' ? await lyrics(req)
-            : req.action === 'revalidate' ? await revalidate(req) : sync(req);
+          let result: MobileContentOwnerResult | undefined;
+          if (catalog.refresh && (req.action === 'context' || req.action === 'dispatch' || req.action === 'local-track'
+            || req.action === 'local-album' || req.action === 'local-lyrics')) {
+            initialized();
+            if (req.action === 'context') { if (req.serverId !== serverId) return changed(); }
+            else checkScope(req.scope);
+            if (req.action === 'dispatch' && isMobileContentMutation(req.operation)) {
+              if (req.providerPage) return invalid();
+              // 已提交回执优先于新目录/Provider事实；未知提交仍沿原load/resolve确认，不重写。
+              const receipt = lookupReceipt({ action: 'lookup-receipt', scope: req.scope, operation: req.operation,
+                request: req.request as MobileRequestMap[MobileContentMutationOperation] });
+              if (receipt.kind !== 'content-receipt-not-found') result = receipt;
+            }
+            if (!result) { await catalog.refresh(); current(); if (req.action !== 'context') checkScope(req.scope); }
+          }
+          result ??= req.action === 'local-lyrics' ? await lyrics(req)
+            : req.action === 'revalidate' ? await revalidate(req) : await execute(req);
+          if ('scope' in req) checkScope(req.scope);
           current(); if (!isMobileContentOwnerResult(result, req)) return unavailable();
           return result;
         } catch (error) { mobileCapabilityReject('owner.rpc.failure', error); return failure(error); }
       };
-      // 同步 mutation 到 rename/fsync 不 yield；仅真正侧车读取和 beforeSend 可以等待。
+      // 目录事实先沿原异步端口取得；apply/save 到 rename/fsync 不 yield，回执重放不读取新目录。
       flight = run(); active.add(flight); void flight.finally(() => active.delete(flight)); return flight;
     },
     async close(): Promise<void> {

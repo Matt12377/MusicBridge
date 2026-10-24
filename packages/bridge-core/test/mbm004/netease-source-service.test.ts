@@ -3,6 +3,7 @@ import test, { type TestContext } from 'node:test';
 import type { MobileTrack } from '@music-bridge/contracts';
 import { createMobileNeteaseSourceService } from '../../src/mobile/netease-source-service.js';
 import { MobilePlaybackError } from '../../src/mobile/playback-types.js';
+import { createMobileCapabilityContext, withMobileCapabilityContext, closeMobileCapabilityContext, copyMobileCapabilityTraceRecord, mobileCapabilityReject, MOBILE_CAPABILITY_TRACE_PREFIX } from '../../src/mobile/capability-trace.js';
 import type { MobileContentScope } from '../../src/mobile/content-types.js';
 import type { MobileNeteaseStreamLease, MobileNeteaseSourceLimits } from '../../src/mobile/netease-source-types.js';
 import type { MobilePlaybackSourceRequest } from '../../src/mobile/source-types.js';
@@ -26,12 +27,83 @@ function fixture(t:TestContext,qualified=true,limits?:Partial<MobileNeteaseSourc
   leases.push(lease);if(openGate)await openGate.promise;return lease;
  }};
  const track:MobileTrack={id:'track-1',source:'netease',sourceItemId:'song-1',albumId:'album-1',title:'合成曲',artists:['合成艺人'],versionId:'version-1',contentRevision:'content-1',editionLabel:'原发行',durationMs:1000,audio:{codec:'flac',container:'flac',sampleRateHz:192000,bitsPerSample:24,channels:2},availability:'available'};
+ const catalog={async resolveTrack(_s:MobileContentScope,selection:{trackId:string}){return{...track,id:selection.trackId,versionId:version};},async resolveAlbum(){throw new Error('本用例不请求专辑');}};
  const service=createMobileNeteaseSourceService({account:{async current(){return{accountDomain:'account-1',providerEpoch:'provider-1'};}},
-  catalog:{async resolveTrack(_s,selection){return{...track,id:selection.trackId,versionId:version};},async resolveAlbum(){throw new Error('本用例不请求专辑');}},streams:stream,
+  catalog,streams:stream,
   async assertCurrent(s,stage){if(!active||s.providerEpoch!=='provider-1')throw new MobilePlaybackError(409,'SOURCE_CHANGED');if(s.deviceId==='device-1'&&s.deviceEpoch!==1)throw new MobilePlaybackError(403,'DEVICE_REVOKED');if(stage==='acquire'&&s.accessGeneration!==generation)throw new MobilePlaybackError(401,'UNAUTHORIZED');},isQualified:()=>qualified,nowMs:()=>clock,...(limits?{limits}:{})});
  t.after(async()=>{openGate?.resolve();readGate?.resolve();releaseGate?.resolve();if(!closeFail&&!service.resourceSnapshot().fatal){await service.close();assert.equal(service.resourceSnapshot().live,0);assert.equal(readNames.size,0);}});
- return{service,port:service.bind(scope),data,leases,released,readNames,opens:()=>opens,change:()=>{active=false;},version:()=>{version='version-2';},advance:(n:number)=>{clock+=n;},refresh:()=>{generation++;},openGate:()=>{openGate=deferred<void>();return openGate;},readGate:()=>{readGate=deferred<void>();return readGate;},failClose:()=>{closeFail=true;},restoreClose:()=>{closeFail=false;readCloseFail=false;},failReadClose:()=>{readCloseFail=true;},releaseGate:()=>{releaseGate=deferred<void>();return releaseGate;}};
+ return{service,port:service.bind(scope),data,leases,released,readNames,track,catalog,stream,opens:()=>opens,change:()=>{active=false;},version:()=>{version='version-2';},advance:(n:number)=>{clock+=n;},refresh:()=>{generation++;},openGate:()=>{openGate=deferred<void>();return openGate;},readGate:()=>{readGate=deferred<void>();return readGate;},failClose:()=>{closeFail=true;},restoreClose:()=>{closeFail=false;readCloseFail=false;},failReadClose:()=>{readCloseFail=true;},releaseGate:()=>{releaseGate=deferred<void>();return releaseGate;}};
 }
+
+async function sourcePrepareDiagnostic(work:()=>Promise<unknown>,privateContext=true,alreadyRejected=false){
+ const lines:string[]=[],context=createMobileCapabilityContext('00000000-0000-4000-8000-000000000999','core','content',null,new AbortController().signal,line=>lines.push(line));
+ assert.ok(context);if(privateContext)context.privateContentDiagnostic=true;
+ try{await withMobileCapabilityContext(context,async()=>{
+  if(alreadyRejected)mobileCapabilityReject('provider.artwork.url-changed',new MobilePlaybackError(409,'SOURCE_CHANGED'));
+  await assert.rejects(work(),(e:unknown)=>e instanceof MobilePlaybackError&&e.status===409&&e.code==='SOURCE_CHANGED');
+ });}finally{closeMobileCapabilityContext(context);}
+ const records=lines.map(line=>copyMobileCapabilityTraceRecord(JSON.parse(line.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length))));assert.ok(records.every(row=>row!==null));
+ assert.doesNotMatch(lines.join(''),/synthetic|https?:|headerSha|message|stack/u);
+ return records.filter(row=>row!.phase==='reject');
+}
+test('M35未知时长不得进入Provider播放资源：null在open前拒绝，不补零且不创建lease',async t=>{
+ const f=fixture(t);f.track.durationMs=null;
+ await assert.rejects(f.port.prepare(request,new AbortController().signal),e=>e instanceof MobilePlaybackError&&e.status===409&&e.code==='SOURCE_CHANGED');
+ assert.equal(f.opens(),0);assert.equal(f.leases.length,0);assert.equal(f.service.resourceSnapshot().live,0);
+});
+test('R15_SOURCE_DIAGNOSTICS 原prepare各端口拒绝归位且不覆盖已有首拒',async t=>{
+ for(const phase of ['scope','catalog','catalog-facts','current','open','capture-lease','verify-before','audio-read','verify-after','replay'] as const)await t.test(phase,async child=>{
+  const f=fixture(child),changed=()=>{throw new MobilePlaybackError(409,'SOURCE_CHANGED');};
+  if(phase==='scope')f.change();
+  else if(phase==='catalog')child.mock.method(f.catalog,'resolveTrack',async()=>changed());
+  else if(phase==='catalog-facts')f.track.availability='unavailable';
+  else if(phase==='current'){const original=f.catalog.resolveTrack;child.mock.method(f.catalog,'resolveTrack',async(...args:Parameters<typeof original>)=>{const value=await original(...args);f.change();return value;});}
+  else if(phase==='open')child.mock.method(f.stream,'open',async()=>changed());
+  else if(phase==='replay'){await f.port.prepare(request,new AbortController().signal);f.version();}
+  else{const original=f.stream.open;child.mock.method(f.stream,'open',async(...args:Parameters<typeof original>)=>{
+    const lease=await original(...args);
+    if(phase==='capture-lease')Object.defineProperty(lease,'size',{value:0});
+    else if(phase==='audio-read')lease.read=async()=>changed();
+    else{let n=0;lease.verify=async()=>{n++;if(phase==='verify-before'||n===2)changed();};}
+    return lease;
+  });}
+  const records=await sourcePrepareDiagnostic(()=>f.port.prepare(request,new AbortController().signal));
+  assert.deepEqual(records.map(row=>row!.stage),['provider.source.prepare.'+phase]);
+  assert.equal(Object.keys(records[0]!).length,15);
+  if(f.opens()===0)assert.equal(f.leases.length,0);
+ });
+ for(const [privateContext,alreadyRejected] of [[false,false],[true,true]] as const)await t.test('gated-'+privateContext+'-'+alreadyRejected,async child=>{
+  const f=fixture(child);f.version();
+  const records=await sourcePrepareDiagnostic(()=>f.port.prepare(request,new AbortController().signal),privateContext,alreadyRejected);
+  assert.deepEqual(records.map(row=>row!.stage),alreadyRejected?['provider.artwork.url-changed']:[]);
+ });
+});
+test('R15_SOURCE_DIAGNOSTICS 实际音频轴及duration只作闭集首因，原不一致仍409且lease释放',async t=>{
+ for(const field of ['codec','container','sample-rate','bits','channels','duration'] as const)await t.test(field,async child=>{
+  const f=fixture(child);
+  if(field==='codec')f.track.audio={...f.track.audio,codec:'alac',container:'m4a'};
+  else if(field==='container')f.track.audio={...f.track.audio,container:'m4a'};
+  else if(field==='sample-rate')f.track.audio={...f.track.audio,sampleRateHz:96000};
+  else if(field==='bits')f.track.audio={...f.track.audio,bitsPerSample:16};
+  else if(field==='channels')f.track.audio={...f.track.audio,channels:1};
+  else { assert.ok(typeof f.track.durationMs==='number'); f.track.durationMs+=1001; }
+  const records=await sourcePrepareDiagnostic(()=>f.port.prepare(request,new AbortController().signal));
+  assert.deepEqual(records.map(row=>row!.stage),['provider.source.prepare.audio-facts.'+field]);
+  await f.service.close();assert.equal(f.service.resourceSnapshot().live,0);assert.equal(f.released.size,1);assert.equal(f.readNames.size,0);
+ });
+});
+test('R15_SOURCE_DIAGNOSTICS 关闭诊断或Proxy端口异常均不触碰descriptor trap且原样抛出',async t=>{
+ for(const privateContext of [false,true])await t.test('private-'+privateContext,async child=>{
+  const f=fixture(child);let traps=0;
+  const failure=new Proxy(new MobilePlaybackError(409,'SOURCE_CHANGED'),{getOwnPropertyDescriptor(target,key){traps++;return Reflect.getOwnPropertyDescriptor(target,key);}});
+  child.mock.method(f.catalog,'resolveTrack',async()=>{throw failure;});
+  const records=await sourcePrepareDiagnostic(async()=>{
+   try{return await f.port.prepare(request,new AbortController().signal);}
+   catch(error){assert.equal(error,failure);throw error;}
+  },privateContext);
+  assert.equal(traps,0);assert.equal(records.length,0);assert.equal(f.opens(),0);
+ });
+});
 test('真实 FLAC 头与精确目录一致后才 ready，Range 随机起点及连续块有界',async t=>{
  const f=fixture(t),p=await f.port.prepare(request,new AbortController().signal);assert.ok(!('preparing' in p));assert.equal(p.sourceAudio.sampleRateHz,192000);assert.equal(p.actualAudio.bitsPerSample,24);assert.equal(p.size,f.data.length);assert.equal(p.seekable,true);
  const bytes=await f.port.read(p.handle,READ1,100,65536,new AbortController().signal);assert.deepEqual(bytes,new Uint8Array(f.data.slice(100,65636)));

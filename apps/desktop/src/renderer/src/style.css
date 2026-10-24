@@ -644,7 +644,7 @@ img[hidden] { display: none; }
   body { min-width: 0; }
   .music-sidebar, .music-sidebar.is-collapsed { flex-basis: 64px; }
   .music-sidebar .sidebar-brand { font-size: 0; }
-  .music-sidebar .sidebar-brand::after { content: 'MB'; font-size: 14px; }
+  .music-sidebar .sidebar-brand::after { content: 'M'; font-size: 14px; }
   .music-sidebar .sidebar-collapse-button { opacity: 0; }
   .music-sidebar:hover .sidebar-collapse-button, .music-sidebar .sidebar-collapse-button:focus-visible { opacity: 1; }
   .music-sidebar .sidebar-search-field, .music-sidebar .sidebar-section-title, .music-sidebar .sidebar-row-label, .music-sidebar .sidebar-playlist-name { display: none; }

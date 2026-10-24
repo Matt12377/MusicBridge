@@ -7,14 +7,20 @@ import {
   isMobileResource, isMobileUIContentCapabilities, mobileCanonicalJson, mobileDataSnapshot, mobileSchemaSnapshot,
   type MobileContentReadContext, type MobileDecodedRequest, type MobileHeaderPairs, type MobileOperationId,
   type MobileReplyMap, type MobileResourceRequest, type MobileSession, type MobileWireCodecContext,
+  type MobileTrack,
 } from '@music-bridge/contracts';
 import { createMobileBackend } from '../src/main/mobile-backend.js';
-import { createMainMobileContentPort } from '../src/main/mobile-content-port.js';
+import { createTestMobilePlaybackHistoryOwner } from './mobile-test-playback-history-owner.js';
+import { installTestMobilePlaybackCodecWorker } from './mobile-test-playback-codec-worker.js';
+import { createMainMobileContentPort, type MobileContentCancelRecheck } from '../src/main/mobile-content-port.js';
 import type { MobileContentBackendReply } from '../src/main/mobile-content-backend.js';
 import { CoreSupervisor, CoreIpcError, type CoreChildProcess, type CoreMessagePort } from '../src/main/core-supervisor.js';
 import { safeMobilePlaybackFailure } from '../src/main/mobile-playback-backend.js';
 import { BridgeError } from '../../../packages/bridge-core/src/shared/errors.js';
-import { createMobileCapabilityContext, withMobileCapabilityContext, closeMobileCapabilityContext, MOBILE_CAPABILITY_TRACE_PREFIX } from '../../../packages/bridge-core/src/mobile/capability-trace.js';
+import { createMobileCapabilityContext, createMobilePreparationProbe, copyMobilePreparationSnapshot, mobileCapabilitySync, mobileCapabilityReject,
+  withMobileCapabilityContext, closeMobileCapabilityContext, MOBILE_CAPABILITY_TRACE_PREFIX,
+  createMobileContentSampleSelector, createMobileCapabilityTraceCollector, copyMobileCapabilityTraceRecord,
+  mobileCapabilityRequestSha, snapshotMobileCapabilityTrace, selectMobileCapabilityTraceBranchDetails } from '../../../packages/bridge-core/src/mobile/capability-trace.js';
 import { createMobileContentRpcPort } from '../../../packages/bridge-core/src/mobile/content-rpc-port.js';
 import { mobileContentRpcFailure, type MobileContentCoreRequest,
   type MobileContentMainPrincipal } from '../../../packages/bridge-core/src/mobile/content-rpc.js';
@@ -26,6 +32,8 @@ import { isMobileOwnerPrivateRequest, isMobileOwnerPrivateResult } from '../../.
 import { MobileAuthPersistenceError, MobileServiceError, type MobileOwnerPrivateRequest,
   type MobileOwnerPrivateResult, type MobileSealedState } from '../../../packages/bridge-core/src/mobile/types.js';
 import type { Mobile002BackendReply, Mobile002Operation } from '../src/main/mobile-playback-backend.js';
+
+installTestMobilePlaybackCodecWorker();
 
 const SERVER = 'server.fixture.1', DATASET = 'dataset.fixture.1', ORIGIN = 'https://127.0.0.1:9443';
 const ACCOUNT = 'account.fixture.1';
@@ -69,9 +77,33 @@ function refuses(promise: Promise<unknown>, status: number, code: string, outcom
   });
 }
 
-/** 真Main/auth/actor/私有RPC/完整codec；Owner持久化与来源事实为受控内存端口，不声称FD或Provider。 */
+test('Main内容初始化：私有Provider诊断仅在明确开启时透传原Core协议，默认关闭且复用初始化', async () => {
+  const scope: MobileContentScope = { serverId: SERVER, datasetId: DATASET, deviceId: 'diagnostic.init.device', deviceEpoch: 1,
+    accessGeneration: 1, ownerEpoch: 'diagnostic.init.owner', accountDomain: ACCOUNT, providerEpoch: null };
+  const principal: MobileContentMainPrincipal = { serverId: SERVER, datasetId: DATASET, deviceId: scope.deviceId, deviceEpoch: 1, accessGeneration: 1 };
+  for (const enabled of [undefined, false, true]) {
+    const requests: MobileContentCoreRequest[] = [], initialized: (true | undefined)[] = [];
+    const rpc = createMobileContentRpcPort({ initialize: async input => { initialized.push(input.privateProviderDiagnostics); },
+      resolveScope: async () => scope, assertScope() {}, invalidateDevice: async () => {},
+      source: async () => { throw new Error('初始化诊断测试不能请求媒体。'); },
+      content: { async dispatch() { throw new Error('初始化诊断测试不能派发内容。'); } } });
+    const main = createMainMobileContentPort({ serverId: SERVER, datasetId: DATASET, key: new Uint8Array(32).fill(47), assertCurrent() {},
+      ...(enabled === undefined ? {} : { privateProviderDiagnostics: enabled }),
+      requestRpc: async (request, parent) => { requests.push(request); return rpc.request(request, parent); } });
+    try {
+      assert.equal(canonical((await main.scopeForIdentity(principal, signal())).scope), canonical(scope));
+      assert.equal(canonical((await main.scopeForIdentity(principal, signal())).scope), canonical(scope));
+      const calls = requests.filter(request => request.action === 'initialize'); assert.equal(calls.length, 1);
+      assert.equal(Object.hasOwn(calls[0]!, 'privateProviderDiagnostics'), enabled === true);
+      assert.deepEqual(initialized, [enabled === true ? true : undefined]);
+    } finally { await main.close(); await rpc.close(); }
+  }
+});
+
+/** 真Main/auth/actor/私有RPC/完整codec；Auth与来源事实受控，history沿外置合成Owner，不声称真实曲库、FD或Provider。 */
 async function fixture(t: TestContext, enableContent = true, privateDiagnostics = false) {
   const key = new Uint8Array(32).fill(73), keys: Uint8Array[] = [], rpcCalls: MobileContentCoreRequest[] = [];
+  const historyOwner = createTestMobilePlaybackHistoryOwner(DATASET);
   const scopes = new Map<string, Readonly<MobileContentScope>>(), revoked = new Map<string, number>();
   const stored: { auth: MobileSealedState; playback: MobileSealedState } = {
     auth: { kind: 'missing', datasetId: DATASET, revision: 0 }, playback: { kind: 'missing', datasetId: DATASET, revision: 0 } };
@@ -79,6 +111,10 @@ async function fixture(t: TestContext, enableContent = true, privateDiagnostics 
     qualified: true, initCalls: 0, dispatches: 0, verifies: 0, begins: 0, releases: 0,
     scopeError: undefined as MobileServiceError | undefined, artworkRevision: 'nar:fixture', imageReads: 0, imageValidates: 0,
     imageError: undefined as MobileServiceError | undefined, catalogError: undefined as Error | undefined, catalogReads: 0,
+    trackReads: 0, trackError: undefined as MobileServiceError | undefined,
+    observedTrack: { id: 'nt:fixture:1', source: 'netease', sourceItemId: '1', albumId: 'na:fixture:5', title: '合成已探测曲目', artists: ['合成艺人'],
+      versionId: 'nv:fixture', contentRevision: 'nr:fixture', editionLabel: '', durationMs: 1000,
+      audio: { codec: 'flac', container: 'flac', sampleRateHz: 192000, bitsPerSample: 24, channels: 2 }, availability: 'available' } as MobileTrack,
     resized: new Uint8Array([255,216,1,2,3,4,255,217]),
     effect: undefined as ((input: MobileContentServiceInput) => void | Promise<void>) | undefined,
     invalidationWait: undefined as Promise<void> | undefined };
@@ -103,6 +139,7 @@ async function fixture(t: TestContext, enableContent = true, privateDiagnostics 
     readArtwork: async (_scope, artworkId) => { state.imageReads++; if (state.imageError) throw state.imageError; return { artworkId, revision: state.artworkRevision,
       contentType: 'image/jpeg', bytes: new Uint8Array([255,216,1,2,3,4,255,217]) }; },
     assertArtwork: async () => { state.imageValidates++; return state.artworkRevision; },
+    readTrack: async () => { state.trackReads++; if (state.trackError) throw state.trackError; return structuredClone(state.observedTrack); },
     source: async (scope, request) => {
       sourceScopes.push(scope);
       if (request.operation === 'prepare') { state.begins++; return { source: 'netease', result: { kind: 'mobile-source-prepared', source: {
@@ -124,11 +161,14 @@ async function fixture(t: TestContext, enableContent = true, privateDiagnostics 
       else { stored[name] = { kind: 'sealed', datasetId: DATASET, revision: prior.revision + 1,
         commitId: request.request.commitId, sealed: new Uint8Array(request.request.sealed) };
         reply = { kind: 'saved', datasetId: DATASET, revision: prior.revision + 1, commitId: request.request.commitId }; }
-    } else if(request.kind==='catalog'&&request.request.operation==='listTracks'){
+    } else if (request.kind === 'playback-history') reply = historyOwner.dispatch(request.request);
+    else if(request.kind==='catalog'&&(request.request.operation==='listTracks'||request.request.operation==='getTrack')){
       state.catalogReads++;if(state.catalogError)throw state.catalogError;
       // 001目录Owner使用UUID；004 scope的合成MobileId不能代替它。
-      reply={datasetId:DATASET,ownerEpoch:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',libraryRevision:'library.fixture.1',operation:'listTracks',
-        offset:request.request.offset,limit:request.request.limit,total:0,items:[]};
+      const detail=request.request.operation==='getTrack';
+      if(detail&&request.request.itemId!.startsWith('nt:'))throw new MobileServiceError(404,'SOURCE_CHANGED');
+      reply={datasetId:DATASET,ownerEpoch:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',libraryRevision:'library.fixture.1',operation:request.request.operation,
+        offset:request.request.offset,limit:request.request.limit,total:detail?1:0,items:detail?[{...state.observedTrack,id:request.request.itemId!,source:'local',albumId:'la:fixture:1'}]:[]};
     } else throw new MobileServiceError(409, 'UNSUPPORTED_FORMAT');
     assert.equal(isMobileOwnerPrivateResult(reply, request), true); return reply;
   }
@@ -143,8 +183,15 @@ async function fixture(t: TestContext, enableContent = true, privateDiagnostics 
   service.activatePlayback(ORIGIN);
   const permit = await service.auth.issuePairing(), pair = await service.auth.claim({ pairingSecret: permit.pairingSecret,
     installationId: 'installation.rpc-main', deviceName: '合成设备' }, 'claim.rpc-main');
-  t.after(async () => { for (const release of releaseHooks) release(); await service.close(); await rpc.close(); key.fill(0);
-    for (const value of Object.values(stored)) if (value.kind === 'sealed') value.sealed.fill(0); });
+  t.after(async () => {
+    for (const release of releaseHooks) release();
+    const failures: unknown[] = [];
+    for (const close of [() => service.close(), () => rpc.close(), () => historyOwner.close()]) {
+      try { await close(); } catch (error) { failures.push(error); }
+    }
+    key.fill(0); for (const value of Object.values(stored)) if (value.kind === 'sealed') value.sealed.fill(0);
+    if (failures.length) throw new AggregateError(failures, '合成Main内容与history Owner未完整关闭。');
+  });
   const currentScope = async (token = pair.accessToken): Promise<Readonly<MobileContentScope>> => {
     const p = await service.auth.authenticate(token); return { serverId: p.serverId, datasetId: p.datasetId, deviceId: p.deviceId,
       deviceEpoch: p.deviceEpoch, accessGeneration: p.generation, ownerEpoch: state.ownerEpoch,
@@ -202,6 +249,44 @@ test('私有Main内容RPC诊断：真实dispatch明确action且Core安全BUSY不
   assert.equal(h.state.dispatches,1);assert.doesNotMatch(lines.join(''),/禁止的Provider正文/u);
 });
 
+test('R18_COLLECTION_DETAILS 原Main和Core dispatch首拒沿原请求连回HTTP，时间相同的无父链错误不加入', async t => {
+  const h = await fixture(t, true, true), selector = createMobileContentSampleSelector(), lines: string[] = [];
+  const original = new MobileServiceError(409, 'SOURCE_CHANGED');
+  h.state.effect = input => { assert.equal(input.operation, 'getNeteaseDiscoveryCollectionTracks');
+    mobileCapabilityReject('provider.content.stream.item-status', original); throw original; };
+  const input = await h.input('getNeteaseDiscoveryCollectionTracks');
+  const sample = selector.claim(input.operation); assert.ok(sample);
+  const context = createMobileCapabilityContext(randomUUID(), 'main', 'http', null, input.signal, line => lines.push(line)); assert.ok(context);
+  context.deferredRecords = []; context.httpTerminalReserve = true; context.privateContentDiagnostic = true;
+  try {
+    await withMobileCapabilityContext(context, async () => {
+      mobileCapabilitySync('http.receive', () => undefined);
+      try { await h.service.contentBackend!.dispatch(input); assert.fail('原Core拒绝不能变成目录成功。'); }
+      catch (error) { assert.ok(error instanceof MobileServiceError); assert.equal(error.status, 409); assert.equal(error.code, 'SOURCE_CHANGED');
+        mobileCapabilityReject('http.failure', error); }
+      mobileCapabilitySync('http.status.409', () => undefined); mobileCapabilitySync('http.send', () => undefined);
+    });
+    sample.finish(context, 409, true, true);
+  } finally { closeMobileCapabilityContext(context); }
+  const dispatches = h.rpcCalls.filter(request => request.action === 'dispatch' && request.operation === input.operation);
+  assert.equal(dispatches.length, 1); assert.equal(h.state.dispatches, 1); assert.equal(h.state.begins, 0);
+  const childSha = mobileCapabilityRequestSha('content', dispatches[0]!.id); assert.ok(childSha);
+  const first = snapshotMobileCapabilityTrace().firstBusinessFailures.find(row => row.component === 'core' && row.requestSha256 === childSha);
+  assert.ok(first); assert.equal(first.stage, 'provider.content.stream.item-status'); assert.equal(first.code, 'SOURCE_CHANGED');
+  const collector = createMobileCapabilityTraceCollector();
+  for (const line of lines) { const row = copyMobileCapabilityTraceRecord(JSON.parse(line.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length))); assert.ok(row); collector.record(row); }
+  collector.record(first);
+  collector.record({ ...first, requestSha256: 'f'.repeat(64), parentSha256: null, relatedSha256: null });
+  const selected = selectMobileCapabilityTraceBranchDetails(collector.snapshot(), context.requestSha256).records;
+  assert.ok(selected.some(row => row.component === 'main' && row.requestSha256 === childSha && row.parentSha256 === context.requestSha256
+    && row.stage === 'content.rpc.dispatch' && row.phase === 'reject'));
+  assert.ok(selected.some(row => row.component === 'core' && row.requestSha256 === childSha && row.stage === first.stage));
+  assert.ok(selected.some(row => row.requestSha256 === context.requestSha256 && row.stage === 'http.discovery.collection-tracks.409'));
+  assert.equal(selected.some(row => row.requestSha256 === 'f'.repeat(64)), false);
+  assert.ok(selected.filter(row => row.requestSha256 === context.requestSha256).length <= 64);
+  assert.doesNotMatch(lines.join(''), /collectionId|sourceItemId|credential|cookie|message|stack|https?:/iu);
+});
+
 test('手机发现能力：BUSY只降unavailable，已确认未登录用loginRequired，真正mobile401不吞', async t => {
   const h = await fixture(t), path = '/mobile/v1/ui/capabilities';
   const input = { operation: 'getUIContentCapabilities' as const, request: await h.request('getUIContentCapabilities', path),
@@ -233,6 +318,22 @@ test('手机发现发送前：账号scope改变/临时503仍拒旧ready，不伪
   assert.ok(await h.service.auth.authenticate(h.pair.accessToken));
 });
 
+test('手机展示缓存只接收本次Provider scope的账号域，失效能力不携带旧域', async t => {
+  const h = await fixture(t), path = '/mobile/v1/ui/capabilities';
+  const input = { operation: 'getUIContentCapabilities' as const,
+    request: await h.request('getUIContentCapabilities', path), accessToken: h.pair.accessToken, signal: signal(), origin: ORIGIN };
+  const ready = await h.service.dsdBackend!.dispatch(input); await ready.beforeSend!();
+  const body = JSON.parse(new TextDecoder().decode(ready.body)) as Record<string, unknown>;
+  assert.equal(body.neteaseAccountDomain, ACCOUNT);
+  assert.notEqual(body.neteaseAccountDomain, (await h.service.auth.authenticate(h.pair.accessToken)).accountDomain);
+  h.state.providerEpoch = null; h.state.accountDomain = `local:${DATASET}`;
+  const missing = await h.service.dsdBackend!.dispatch(input); await missing.beforeSend!();
+  assert.equal(Object.hasOwn(JSON.parse(new TextDecoder().decode(missing.body)) as object, 'neteaseAccountDomain'), false);
+  h.state.scopeError = new MobileServiceError(503, 'BUSY');
+  const unavailable = await h.service.dsdBackend!.dispatch(input); await unavailable.beforeSend!();
+  assert.equal(Object.hasOwn(JSON.parse(new TextDecoder().decode(unavailable.body)) as object, 'neteaseAccountDomain'), false);
+});
+
 test('手机图片认证链：现有getArtwork实际Main到Core读取再验证，限制1MiB且拒旧scope/修订', async t => {
   const h = await fixture(t), path = '/mobile/v1/artwork/naw%3Amain.fixture';
   const input = { operation: 'getArtwork' as const, request: await h.request('getArtwork', path),
@@ -261,6 +362,36 @@ function decode<O extends MobileOperationId>(operation: O, path: string, reply: 
       ...(reply.contentContext ? { content: reply.contentContext } : {}) }); assert.ok(result.ok); return result.value;
 }
 function buffered(reply: Mobile002BackendReply): asserts reply is Extract<Mobile002BackendReply, { kind: 'buffered' }> { assert.equal(reply.kind, 'buffered'); }
+
+test('R10_TRACK 公开nt详情沿同鉴权私有RPC读取真实audio，发送前原selection重验且不创建资源', async t => {
+  const h=await fixture(t), path='/mobile/v1/tracks/'+h.state.observedTrack.id;
+  const input={operation:'getTrack' as const,request:await h.request('getTrack',path),accessToken:h.pair.accessToken,signal:signal(),origin:ORIGIN};
+  const reply=await h.service.backend.dispatch(input);assert.equal(reply.status,200);await reply.beforeSend!();
+  const result=decode('getTrack',path,reply);assert.ok(result.body&&'audio'in result.body);assert.equal(result.body.audio.codec,'flac');assert.equal(result.body.source,'netease');
+  assert.equal(h.state.catalogReads,0);assert.equal(h.state.trackReads,2);assert.equal(h.state.begins,0);assert.equal(h.state.releases,0);
+  assert.deepEqual(h.rpcCalls.filter(row=>row.action==='track').map(row=>row.operation),['read','revalidate']);
+  assert.doesNotMatch(new TextDecoder().decode(reply.body),/cookie|credential|https?:|sourceIdentity/u);
+  const localPath='/mobile/v1/tracks/lt:fixture:1:1';
+  const local=await h.service.backend.dispatch({...input,request:await h.request('getTrack',localPath)});await local.beforeSend!();
+  assert.equal(h.state.catalogReads,2);assert.equal(h.state.trackReads,2);
+});
+
+test('R10_TRACK 发送前账户scope、精确selection或完整DTO变化均拒绝，关闭内容不回落本地',async t=>{
+  for(const change of ['scope','selection','metadata','abort','revoke'] as const)await t.test(change,async child=>{
+    const h=await fixture(child),path='/mobile/v1/tracks/'+h.state.observedTrack.id,controller=new AbortController();
+    const input={operation:'getTrack' as const,request:await h.request('getTrack',path),accessToken:h.pair.accessToken,signal:controller.signal,origin:ORIGIN};
+    const reply=await h.service.backend.dispatch(input);
+    if(change==='scope')h.state.providerEpoch='provider.changed';
+    if(change==='selection')h.state.observedTrack.versionId='nv:changed';
+    if(change==='metadata')h.state.observedTrack.title='合成变化';
+    if(change==='abort')controller.abort();
+    if(change==='revoke')await h.service.auth.revokeDevice(h.pair.deviceId);
+    await assert.rejects(reply.beforeSend!());assert.equal(h.state.begins,0);assert.equal(h.state.catalogReads,0);
+  });
+  const off=await fixture(t,false),path='/mobile/v1/tracks/nt:fixture:1';
+  await refuses(off.service.backend.dispatch({operation:'getTrack',request:await off.request('getTrack',path),accessToken:off.pair.accessToken,signal:signal()}),404,'RESOURCE_REVOKED');
+  assert.equal(off.rpcCalls.length,0);assert.equal(off.state.catalogReads,0);
+});
 
 test('显式004装载同原Auth并仅初始化一次；十九whole HTTP经真实RPC及发送前重验，旧组合不挂内容', async t => {
   const legacy = await fixture(t, false); assert.equal(legacy.service.contentBackend, undefined); assert.equal(legacy.rpcCalls.length, 0);
@@ -389,9 +520,45 @@ class Port implements CoreMessagePort {
 }
 class Child implements CoreChildProcess {
   readonly exits: ((code: number) => void)[] = [];
+  readonly stdout = {
+    listeners: [] as ((chunk: { toString(): string }) => void)[],
+    on(_event: 'data', listener: (chunk: { toString(): string }) => void) { this.listeners.push(listener); },
+    send(text: string) { for (const listener of this.listeners) listener({ toString: () => text }); },
+  };
   postMessage(): void {} once(_event: 'exit', callback: (code: number) => void): void { this.exits.push(callback); }
   kill(): boolean { this.exit(0); return true; } exit(code: number): void { for (const listener of this.exits.splice(0)) listener(code); }
 }
+test('Supervisor仅将当前Core闭集记录交独立resource槽；毒字段、旧child及回调异常不改变收发', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const channels: { port1: Port; port2: Port }[] = [], children: Child[] = [], rows: string[] = [];
+  const probe = createMobilePreparationProbe({ enabled: true }); probe.arm();
+  const resource = probe.claim('createResource', randomUUID(), signal()); assert.ok(resource);
+  const id = randomUUID(), main = createMobileCapabilityContext(id, 'main', 'content', resource.requestSha256, signal(), resource.sink); assert.ok(main);
+  withMobileCapabilityContext(main, () => mobileCapabilitySync('content.rpc.source', () => undefined));
+  const core = createMobileCapabilityContext(id, 'core', 'content', null, signal(), line => rows.push(line)); assert.ok(core);
+  withMobileCapabilityContext(core, () => mobileCapabilityReject('provider.source.prepare.catalog', new MobileServiceError(409, 'SOURCE_CHANGED')));
+  withMobileCapabilityContext(core, () => mobileCapabilityReject('provider.source.prepare.audio-read', new MobileServiceError(409, 'SOURCE_CHANGED')));
+  let callbacks = 0;
+  const supervisor = new CoreSupervisor({ entryPath: '/Volumes/LifeWeave/Developer/CommandLine/tmp/mobile-resource-core-fixture.js',
+    cwd: '/Volumes/LifeWeave/Developer/CommandLine/tmp', startupTimeoutMs: 20,
+    onMobileCapabilityTrace(record) { callbacks++; probe.acceptCoreTrace(record); if (callbacks === 1) throw new Error('合成旁注接收故障'); },
+    dependencies: { createChannel: () => { const channel = { port1: new Port(), port2: new Port() }; channels.push(channel); return channel; },
+      fork: () => { const child = new Child(); children.push(child); return child; } } });
+  t.after(async () => { t.mock.timers.reset(); await supervisor.shutdown(); });
+  const ready = () => channels.at(-1)!.port2.receive({ version: IPC_VERSION, event: 'core.ready', payload: { state: {
+    runtime: 'ready', roon: 'disconnected', provider: 'missing', activeStreamCount: 0, activePlaybackPresent: false } } });
+  const starting = supervisor.start(); ready(); await starting;
+  const raw = JSON.parse(rows[0]!.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length));
+  children[0]!.stdout.send(MOBILE_CAPABILITY_TRACE_PREFIX + JSON.stringify({ ...raw, unknownPayload: '私密正文' }) + '\n'); assert.equal(callbacks, 0);
+  children[0]!.stdout.send(rows.join('')); assert.equal(callbacks, 2); assert.equal(supervisor.status, 'ready');
+  const first = probe.snapshot().resourceScopes[0]!.trace.firstBusinessFailures.find(row => row.component === 'core');
+  assert.equal(first?.stage, 'provider.source.prepare.catalog'); assert.equal(first?.code, 'SOURCE_CHANGED');
+  children[0]!.exit(1); await new Promise<void>(resolve => setImmediate(resolve)); ready(); await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(children.length, 2); assert.equal(supervisor.status, 'ready');
+  children[0]!.stdout.send(rows.join('')); assert.equal(callbacks, 2);
+  children[1]!.stdout.send(rows.join('')); assert.equal(callbacks, 4);
+  assert.ok(copyMobilePreparationSnapshot(probe.snapshot()));
+});
 test('实际Supervisor只按原id/action/generation回应；UNKNOWN占位直至原quiet ACK，不继承重启nonce', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] }); const channels: { port1: Port; port2: Port }[] = [], children: Child[] = [];
   const supervisor = new CoreSupervisor({ entryPath: '/Volumes/LifeWeave/Developer/CommandLine/tmp/mobile-content-fixture-entry.js',
@@ -418,4 +585,82 @@ test('实际Supervisor只按原id/action/generation回应；UNKNOWN占位直至�
   await new Promise<void>(resolve => setImmediate(resolve)); ready(); await new Promise<void>(resolve => setImmediate(resolve));
   assert.equal(supervisor.status, 'ready'); assert.equal(channels.length, 2); assert.equal(channels[1]!.port2.sent.length, 0);
   port.receive(mobileContentRpcFailure(next, new MobileAuthPersistenceError('not-sent'))); assert.equal(channels[1]!.port2.sent.length, 0);
+});
+
+test('关闭复核的Supervisor守卫：同代原cancel nonce与目标全同才可发送，换代或错目标不发送', async t => {
+  const turn = () => new Promise<void>(resolve => setImmediate(resolve));
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const channels: { port1: Port; port2: Port }[] = [], children: Child[] = [];
+  const supervisor = new CoreSupervisor({ entryPath: '/Volumes/LifeWeave/Developer/CommandLine/tmp/mobile-close-recheck-fixture.js',
+    cwd: '/Volumes/LifeWeave/Developer/CommandLine/tmp', dependencies: {
+      createChannel: () => { const value = { port1: new Port(), port2: new Port() }; channels.push(value); return value; },
+      fork: () => { const value = new Child(); children.push(value); return value; } } });
+  t.after(async () => { t.mock.timers.reset(); await supervisor.shutdown(); });
+  const ready = () => channels.at(-1)!.port2.receive({ version: IPC_VERSION, event: 'core.ready', payload: { state: {
+    runtime: 'ready', roon: 'disconnected', provider: 'missing', activeStreamCount: 0, activePlaybackPresent: false } } });
+  const starting = supervisor.start(); ready(); await starting;
+  const port = channels[0]!.port2;
+  const original: MobileContentCoreRequest = { ...base(), action: 'scope', principal: {
+    serverId: SERVER, datasetId: DATASET, deviceId: 'quiet.original.device', deviceEpoch: 1, accessGeneration: 1 } };
+  const first = supervisor.requestMobileContentMain(original, signal());
+  port.receive(mobileContentRpcFailure(original, new MobileAuthPersistenceError('unknown'))); await first;
+  const cancel: Extract<MobileContentCoreRequest, { action: 'cancel' }> = { ...base(), action: 'cancel', requestId: original.id, snapshotId: null, scope: null };
+  const pending = supervisor.requestMobileContentMain(cancel, signal());
+  port.receive(mobileContentRpcFailure(cancel, new MobileAuthPersistenceError('unknown'))); await pending;
+  const metadata = { previousCancelId: cancel.id };
+  // UNKNOWN占位不能让调用者换目标；拒绝必须发生在postMessage之前。
+  const wrong = { ...cancel, id: randomUUID(), requestId: randomUUID() };
+  let sentBefore = port.sent.length;
+  const wrongAttempt = supervisor.requestMobileContentMain(wrong, signal(), metadata);
+  port.receive({ type: 'mobile-content-core-response', id: wrong.id, action: 'cancel', kind: 'cancelled', requestId: wrong.requestId, snapshotId: null, quiet: true });
+  await assert.rejects(wrongAttempt, MobileAuthPersistenceError);
+  assert.equal(port.sent.length, sentBefore);
+  const recheck = { ...cancel, id: randomUUID() };
+  const checking = supervisor.requestMobileContentMain(recheck, signal(), metadata);
+  port.receive({ type: 'mobile-content-core-response', id: recheck.id, action: 'cancel', kind: 'cancelled',
+    requestId: original.id, snapshotId: null, quiet: true });
+  assert.equal((await checking).action, 'cancel');
+  children[0]!.exit(1); await turn(); ready(); await turn();
+  assert.equal(supervisor.status, 'ready');
+  const nextPort = channels[1]!.port2; sentBefore = nextPort.sent.length;
+  const stale = { ...cancel, id: randomUUID() }, staleAttempt = supervisor.requestMobileContentMain(stale, signal(), metadata);
+  nextPort.receive({ type: 'mobile-content-core-response', id: stale.id, action: 'cancel', kind: 'cancelled', requestId: stale.requestId, snapshotId: null, quiet: true });
+  await assert.rejects(staleAttempt, MobileAuthPersistenceError);
+  assert.equal(nextPort.sent.length, sentBefore, '新Core对空nonce的ACK不能证明旧Core已quiet。');
+});
+
+test('关闭复核：迟到snapshot独立保留原绑定，等待两类取消目标真实ACK且不再dispatch', async t => {
+  const scope: Readonly<MobileContentScope> = { serverId: SERVER, datasetId: DATASET, deviceId: 'late.snapshot.device', deviceEpoch: 1,
+    accessGeneration: 1, ownerEpoch: 'late.snapshot.owner', accountDomain: ACCOUNT, providerEpoch: null };
+  const operation = 'listRecentlyAddedAlbums' as const, facts = contentFixture(operation, scope);
+  const entered = deferred(), release = deferred(), controller = new AbortController(), snapshotId = randomUUID();
+  const calls: { request: MobileContentCoreRequest; recheck: MobileContentCancelRecheck | undefined }[] = [];
+  const main = createMainMobileContentPort({ serverId: SERVER, datasetId: DATASET, key: new Uint8Array(32).fill(41), assertCurrent() {},
+    requestRpc: async (request, _signal, recheck) => {
+      calls.push({ request, recheck });
+      if (request.action === 'initialize') return { type: 'mobile-content-core-response', id: request.id, action: 'initialize', ok: true };
+      if (request.action === 'dispatch') {
+        entered.resolve(); await release.promise;
+        return { type: 'mobile-content-core-response', id: request.id, action: 'dispatch', kind: 'snapshot',
+          operation, scope, snapshotId, reply: facts.reply, context: facts.context };
+      }
+      if (request.action !== 'cancel') throw new Error('本例不再发送业务请求。');
+      if (!recheck) return mobileContentRpcFailure(request, new MobileAuthPersistenceError('unknown'));
+      const previous = calls.find(value => value.request.id === recheck.previousCancelId)?.request;
+      assert.ok(previous?.action === 'cancel'); assert.equal(previous.requestId, request.requestId);
+      assert.equal(previous.snapshotId, request.snapshotId); assert.deepEqual(previous.scope, request.scope);
+      return { type: 'mobile-content-core-response', id: request.id, action: 'cancel', kind: 'cancelled',
+        requestId: request.requestId, snapshotId: request.snapshotId, quiet: true };
+    } });
+  t.after(() => release.resolve());
+  const pending = main.content.dispatch({ operation, scope, request: facts.request, signal: controller.signal });
+  await entered.promise; controller.abort(); await refuses(pending, 503, 'BUSY', 'unknown');
+  const closing = main.close(); release.resolve(); await closing;
+  assert.equal(calls.filter(value => value.request.action === 'dispatch').length, 1);
+  const cancellations = calls.filter(value => value.request.action === 'cancel');
+  assert.equal(cancellations.length, 4);
+  assert.equal(cancellations.filter(value => value.request.action === 'cancel' && value.request.snapshotId === snapshotId).length, 2);
+  assert.equal(cancellations.filter(value => value.recheck !== undefined).length, 2);
+  await refuses(pending, 503, 'BUSY', 'unknown');
+  assert.equal(main.close(), closing);
 });

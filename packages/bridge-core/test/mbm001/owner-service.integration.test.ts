@@ -251,7 +251,7 @@ function ownerAuth(f: Fixture, o: Owner, serverId: string, key: Uint8Array) {
     },
     async save(request) {
       saves++; const result = await invoke({ kind: 'save', datasetId: o.identity().datasetId, request });
-      assert.ok('kind' in result && (result.kind === 'saved' || result.kind === 'conflict')); return result;
+      assert.ok('kind' in result && (result.kind === 'saved' || result.kind === 'conflict' && 'currentRevision' in result)); return result;
     },
   };
   const auth = f.modules.auth.createMobileAuthService({ persistence, crypto: f.modules.crypto.createMobileAuthCrypto(key),

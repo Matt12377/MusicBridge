@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import type { MobilePlaybackPreparedSource, MobilePlaybackSourceRequest } from '../../src/mobile/playback-types.js';
 import type { MobileOwnerSourceRequest, MobileOwnerSourceResult } from '../../src/mobile/source-protocol.js';
 import type { MobileOwnerCatalogRequest, MobileOwnerCatalogSnapshot, MobileOwnerPrivateFailure, MobileOwnerPrivateRequest } from '../../src/mobile/types.js';
-import type { MobileTrack } from '@music-bridge/contracts';
+import { isFileAudioParameters, type MobileTrack } from '@music-bridge/contracts';
 import type { DatasetProjectionPort, DatasetProjectionCommand, DatasetProjectionCommandPayloads, DatasetProjectionCommandResults } from '../../src/collection/dataset-owner-protocol.js';
 import { audioFixture, loadFreshMetadataReader, coreAudioIds } from '../helpers/mbrs003-audio-fixtures.js';
 
@@ -326,18 +326,31 @@ async function assertCatalogRevoked(t: TestContext) {
   safeFailure(await f.dispatch({ operation: 'prepare', selection: selected }), 404, 'INVALID_REQUEST'); assertQuiet(f.service);
 }
 
-async function assertCatalogUnsupportedFormat(f: Fixture) {
+async function assertCatalogUnsupportedFormat(t: TestContext, f: Fixture) {
   const wav = f.selection('core-wav'), unsupported = f.selection('core-m4a-aac');
   const original = f.repository.localCatalog.trackDetail(unsupported.trackId.split(':')[2]!);
   const scanner = f.repository.localScan.privateCurrentFileState(f.root.id, f.relative('core-m4a-aac'));
   assert.ok(scanner?.value.readFacts); assert.equal(scanner.value.outcome, 'accepted');
-  assert.equal(scanner.value.readFacts.technical.codec, 'MPEG-4/AAC', '消费固定Reader实际原词汇，不向Scanner注入移动标签。');
+  assert.equal(scanner.value.readFacts.technical.codec, 'AAC', '消费固定Reader实际原词汇，不向Scanner注入移动标签。');
   const scannerBefore = valueHash(scanner);
-  assert.equal(f.repository.localScan.privateDisplayFileParameters(original.track.id, original.asset), null, '普通解析参数接点保持原闭集，不因移动投影改变。');
+  const parametersBefore = f.repository.localScan.privateDisplayFileParameters(original.track.id, original.asset);
+  assert.ok(isFileAudioParameters(parametersBefore)); assert.equal(parametersBefore.codec, 'AAC');
   const stamp = f.repository.readonlySnapshotStamp(), resources = f.service.resourceSnapshot();
   const readonlyRequest = { operation: 'getTrack' as const, limit: 1, itemId: unsupported.trackId };
-  safeFailure(f.catalogDispatch(readonlyRequest) as MobileOwnerPrivateFailure, 503, 'BUSY');
-  safeFailure(f.catalogDispatch({ ...readonlyRequest, catalogPlaybackEnabled: false }) as MobileOwnerPrivateFailure, 503, 'BUSY');
+  // 真实AAC已是合法展示参数；用精确单曲的非法codec继续覆盖原DTO拒绝，不污染Scanner事实。
+  const invalidParameters = { ...parametersBefore, codec: 'invalid/codec' };
+  assert.equal(isFileAudioParameters(invalidParameters), false);
+  const displayParameters = f.repository.localScan.privateDisplayFileParameters;
+  const invalidDisplay = t.mock.method(f.repository.localScan, 'privateDisplayFileParameters',
+    (...args: Parameters<typeof displayParameters>) => args[0] === original.track.id ? invalidParameters : displayParameters(...args));
+  try {
+    safeFailure(f.catalogDispatch(readonlyRequest) as MobileOwnerPrivateFailure, 503, 'BUSY');
+    safeFailure(f.catalogDispatch({ ...readonlyRequest, catalogPlaybackEnabled: false }) as MobileOwnerPrivateFailure, 503, 'BUSY');
+    safeFailure(f.catalogDispatch({ ...readonlyRequest, catalogPlaybackEnabled: true }) as MobileOwnerPrivateFailure, 503, 'BUSY');
+  } finally { invalidDisplay.mock.restore(); }
+  for (const catalogPlaybackEnabled of [false, true]) {
+    assert.equal(catalogTrack(f.catalogTracks({ ...readonlyRequest, catalogPlaybackEnabled }), unsupported.trackId).availability, 'unavailable');
+  }
   const page = f.catalogTracks({ catalogPlaybackEnabled: true });
   assert.equal(catalogTrack(page, wav.trackId).availability, 'available');
   const unavailable = catalogTrack(page, unsupported.trackId);
@@ -345,7 +358,7 @@ async function assertCatalogUnsupportedFormat(f: Fixture) {
   assert.equal(unavailable.audio.codec, 'aac'); assert.equal(unavailable.audio.container, 'm4a');
   assert.equal(catalogTrack(f.catalogTracks({ operation: 'getTrack', limit: 1, itemId: unsupported.trackId, catalogPlaybackEnabled: true }), unsupported.trackId).availability, 'unavailable');
   assert.equal(valueHash(f.repository.localScan.privateCurrentFileState(f.root.id, f.relative('core-m4a-aac'))), scannerBefore, '整个Scanner原状态及技术事实必须在目录查询前后完全不变。');
-  assert.equal(f.repository.localScan.privateDisplayFileParameters(original.track.id, original.asset), null, '可信移动投影不能污染默认接点或缓存。');
+  assert.deepEqual(f.repository.localScan.privateDisplayFileParameters(original.track.id, original.asset), parametersBefore, '可信移动投影不能污染默认接点或缓存。');
   assert.deepEqual(f.repository.readonlySnapshotStamp(), stamp); assert.deepEqual(f.service.resourceSnapshot(), resources); assert.equal(f.tickets.size, 0);
   safeFailure(await f.dispatch({ operation: 'prepare', selection: unsupported }), 409, 'UNSUPPORTED_FORMAT'); assertQuiet(f.service);
 }
@@ -387,7 +400,7 @@ test('MBM002 真 Scanner 的 WAV 原件按完整字节与独立 Range 读取，�
 
 test('MBM002 五个可直接读取格式保真实参数与源字节，实际 AAC 显式不支持而不伪造转码', async t => {
   const f = await fixture(t, coreAudioIds);
-  await assertCatalogUnsupportedFormat(f);
+  await assertCatalogUnsupportedFormat(t, f);
   for (const [id, contentType] of [['core-flac', 'audio/flac'], ['core-mp3', 'audio/mpeg'], ['core-m4a-alac', 'audio/mp4'], ['core-wav', 'audio/wav'], ['core-aiff', 'audio/aiff']] as const) {
     const selected = f.selection(id), stamp = f.repository.readonlySnapshotStamp(), resources = f.service.resourceSnapshot();
     const listed = catalogTrack(f.catalogTracks({ catalogPlaybackEnabled: true }), selected.trackId);

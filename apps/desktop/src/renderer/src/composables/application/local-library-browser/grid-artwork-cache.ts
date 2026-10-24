@@ -56,7 +56,7 @@ export function createGridArtworkCache(options: {
   const createUrl = options.createUrl ?? (blob => URL.createObjectURL(blob)), revokeUrl = options.revokeUrl ?? (url => URL.revokeObjectURL(url))
   const cache = new Map<string, Thumbnail>(), desired = new Map<string, Candidate>(), queue = new Map<string, Candidate>(), failed = new Set<string>()
   const leases = new Map<string, { key: string; url: string; decoded: number }>(), active = new Map<string, Job>()
-  let bytes = 0, decoded = 0, disposed = false
+  let bytes = 0, decoded = 0, windowDecodedBudget = maxDecoded, disposed = false
   const notify = (): void => { if (!disposed) options.onChange?.() }
   function release(identity: string): void {
     const lease = leases.get(identity); if (!lease) return
@@ -74,14 +74,17 @@ export function createGridArtworkCache(options: {
   function bind(): void {
     // 可见项总在近邻之前；先释放全部旧引用再绑定，近邻不能挤占新可见项的预算。
     for (const [identity, lease] of leases) if (desired.get(identity)?.key !== lease.key) release(identity)
+    // 与持久grid共用一份窗口预算；预算缩小时先保可见，再保较早绑定的引用。
+    for (const identity of [...leases.keys()].reverse()) if (decoded > windowDecodedBudget && !desired.get(identity)?.source.visible) release(identity)
+    for (const identity of [...leases.keys()].reverse()) if (decoded > windowDecodedBudget) release(identity)
     let needed = 0
     for (const candidate of desired.values()) if (candidate.source.visible && !leases.has(candidate.source.identity)) { const item = cache.get(candidate.key); if (item) needed += item.width * item.height * 4 }
-    for (const [identity] of leases) if (decoded + needed > maxDecoded && !desired.get(identity)?.source.visible) release(identity)
+    for (const [identity] of leases) if (decoded + needed > windowDecodedBudget && !desired.get(identity)?.source.visible) release(identity)
     for (const candidate of desired.values()) {
       if (leases.has(candidate.source.identity)) continue
       const thumbnail = cache.get(candidate.key); if (!thumbnail) continue
       const weight = thumbnail.width * thumbnail.height * 4
-      if (decoded + weight > maxDecoded) continue
+      if (decoded + weight > windowDecodedBudget) continue
       try { const url = createUrl(thumbnail.blob); leases.set(candidate.source.identity, { key: candidate.key, url, decoded: weight }); decoded += weight }
       catch { failed.add(candidate.key) }
     }
@@ -114,11 +117,12 @@ export function createGridArtworkCache(options: {
       }
     })()
   }
-  function setWindow(sources: readonly GridArtworkSource[], requestedDimension = 512, visibleSlots = sources.filter(source => source.visible).length): void {
+  function setWindow(sources: readonly GridArtworkSource[], requestedDimension = 512, visibleSlots = sources.filter(source => source.visible).length, remainingDecodedBytes = maxDecoded): void {
     if (disposed) return
     const old = new Map(desired), ordered = sources.slice(0, maxEntries).sort((left, right) => Number(right.visible) - Number(left.visible))
+    windowDecodedBudget = Number.isSafeInteger(remainingDecodedBytes) && remainingDecodedBytes >= 0 && remainingDecodedBytes <= maxDecoded ? remainingDecodedBytes : maxDecoded
     const visible = Math.max(1, visibleSlots)
-    const dimension = [512, 384, 256, 128].find(size => size <= requestedDimension && size * size * 4 * visible <= maxDecoded) ?? 128
+    const dimension = [512, 384, 256, 128].find(size => size <= requestedDimension && size * size * 4 * visible <= windowDecodedBudget) ?? 128
     desired.clear()
     for (const source of ordered) {
       if (!source.identity || source.identity.length > 4096 || !/^[0-9a-f]{64}$/u.test(source.display.sha256) || !source.dataUrl.startsWith('data:image/jpeg;base64,')

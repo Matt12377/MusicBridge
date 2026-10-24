@@ -2,12 +2,15 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url), vue = require('vue') as typeof import('vue')
-const { useGridWindow } = require('../src/renderer/src/composables/useGridWindow.ts') as typeof import('../src/renderer/src/composables/useGridWindow.js')
+const { useGridWindow, waitForGridWindowLayout } = require('../src/renderer/src/composables/useGridWindow.ts') as typeof import('../src/renderer/src/composables/useGridWindow.js')
 const turn = async () => { await vue.nextTick(); await new Promise<void>(done => setImmediate(done)); await vue.nextTick() }
 function mount(t: test.TestContext, setup: () => void) {
   type H = { parent: H | null; children: H[] }
   const renderer = vue.createRenderer<H, H>({ createElement: () => ({ parent: null, children: [] }), createText: () => ({ parent: null, children: [] }), createComment: () => ({ parent: null, children: [] }), setText() {}, setElementText() {}, patchProp() {}, insert(n, p) { n.parent = p; p.children.push(n) }, remove() {}, parentNode: n => n.parent, nextSibling: () => null })
-  const app = renderer.createApp({ setup() { setup(); return () => null } }); app.mount({ parent: null, children: [] }); t.after(() => app.unmount())
+  const app = renderer.createApp({ setup() { setup(); return () => null } }); app.mount({ parent: null, children: [] })
+  let active = true
+  const unmount = () => { if (active) { active = false; app.unmount() } }
+  t.after(unmount); return unmount
 }
 function fakeGeometry(t: test.TestContext) {
   const old = Object.getOwnPropertyDescriptor(globalThis, 'getComputedStyle')
@@ -18,6 +21,29 @@ function fakeGeometry(t: test.TestContext) {
   const element = { getBoundingClientRect: () => ({ width: 600, top: -port.scrollTop }), closest: () => port, querySelector: () => null, querySelectorAll: () => [], parentElement: null } as unknown as HTMLElement
   return { element, port, scroll: () => scroll?.(), detached: () => detach }
 }
+for (const departure of ['unmount', 'replace'] as const) test(`4.1 ${departure} 结束尚未取得卡片几何的等待，并解除旧DOM登记`, async t => {
+  const fake = fakeGeometry(t), element = vue.markRaw(fake.element)
+  let root!: import('vue').Ref<HTMLElement | null>
+  const unmount = mount(t, () => { root = vue.ref(element); useGridWindow(vue.ref([{ id: 1 }]), root) })
+  const container = { querySelectorAll: () => [element] } as unknown as HTMLElement
+  let completed = false
+  const waiting = waitForGridWindowLayout(container).then(ready => { completed = true; return ready })
+  await turn(); assert.equal(completed, false, '没有卡片probe，默认几何不能当成准备完成')
+  if (departure === 'unmount') unmount()
+  else root.value = null
+  assert.equal(await waiting, false, '不需要等待另一个测量帧或超时才能结束')
+  assert.equal(await waitForGridWindowLayout(container), false, '旧DOM实例已不再登记')
+})
+test('4.1 旧实例迟到卸载不能解除同一DOM当前实例的布局等待', async t => {
+  const fake = fakeGeometry(t), element = vue.markRaw(fake.element)
+  const first = mount(t, () => { useGridWindow(vue.ref([{ id: 1 }]), vue.ref(element)) })
+  const second = mount(t, () => { useGridWindow(vue.ref([{ id: 2 }]), vue.ref(element)) })
+  first()
+  let completed = false
+  const waiting = waitForGridWindowLayout({ querySelectorAll: () => [element] } as unknown as HTMLElement).then(ready => { completed = true; return ready })
+  await turn(); assert.equal(completed, false, '当前实例仍登记，不能因旧清理被当成不存在')
+  second(); assert.equal(await waiting, false)
+})
 test('007 条件挂载/替换root自动测量并解除旧滚动监听', async t => {
   const fake = fakeGeometry(t); let root!: import('vue').Ref<HTMLElement | null>, grid!: ReturnType<typeof useGridWindow<{ id: number }>>
   mount(t, () => { root = vue.ref(null); grid = useGridWindow(vue.ref(Array.from({ length: 50 }, (_, id) => ({ id }))), root) })

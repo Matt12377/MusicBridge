@@ -1,4 +1,5 @@
 import type { DatasetIdentity } from '../../recording/dataset-identity.js'
+import { logLibraryOperation, traceLibraryRemoval } from '../../shared/library-operation-log.js'
 import { captureLocalLibraryManagementRecord, localLibraryManagementDigest,
   LOCAL_LIBRARY_MANAGEMENT_BYTES, LOCAL_LIBRARY_MANAGEMENT_RESOURCES,
   type LocalLibraryManagementBindingRecord, type LocalLibraryManagementOperationRecord,
@@ -21,6 +22,15 @@ import { isScanFileState, type LocalScanStore } from '../local-scan-store.js'
 import type { ScanFileState } from '../local-scan-facts.js'
 import { isLocalAlbumPrivateRelative } from '../local-album-browser/grouping.js'
 import type { LocalAlbumGroup, LocalAlbumInspectRequest } from '../local-album-browser/types.js'
+
+type WorkbenchCapturePhase = 'OWNER_REVISION' | 'TARGET_INSPECT' | 'GROUP_INSPECT' | 'GROUP_REUSED' | 'DIRECTORY_FACTS'
+  | 'PROVENANCE' | 'MEMBER_FACTS' | 'ROOT_VERIFY' | 'ARTWORK' | 'SETTINGS' | 'READBACK_VERIFY' | 'REMEMBER_RESOLVE' | 'REMEMBER_COMMIT'
+/** 捕获诊断只含固定阶段与耗时；不记录路径、名称、读取引用或异常正文。 */
+function startWorkbenchCapturePhase(code: WorkbenchCapturePhase, count?: number): () => void {
+  const started = performance.now(), metrics = { code, ...(count === undefined ? {} : { count }) }
+  logLibraryOperation('library', 'workbench.capture.phase', 'start', metrics)
+  return () => logLibraryOperation('library', 'workbench.capture.phase', 'complete', { ...metrics, elapsedMs: Math.max(0, performance.now() - started) })
+}
 
 function sourceSearchNames(capture:LocalWorkbenchAlbumCapture,directoryFallback?:{artist:string;title:string}):NonNullable<dto.LocalWorkbenchAlbumSnapshot['searchNames']>{
   const originalArtists=[...new Set(capture.members.map(member=>member.artist).filter((value):value is string=>value!==null&&!!value.trim()))];
@@ -126,7 +136,7 @@ const changed = (): never => { throw new LocalWorkbenchPlanError('CHANGED', '专
 const invalid = (message = '整理读取没有完整、可信的原作者事实。'): never => { throw new LocalWorkbenchPlanError('INVALID_CAPTURE', message) }
 const limit = (): never => invalid('明确选择的完整整理范围超过预算；本次未返回截断结果。')
 function metadata(value: unknown): value is dto.LocalMetadata {
-  return isLocalWorkbenchDataRecord(value, [], ['title', 'artist', 'album', 'disc', 'track', 'year']) && dto.isLocalMetadata(value)
+  return isLocalWorkbenchDataRecord(value, [], ['title', 'artist', 'album', 'disc', 'track', 'year', 'albumArtist', 'artists', 'albumArtists']) && dto.isLocalMetadata(value)
 }
 function validateDirectoryFacts(value: unknown, request: LocalWorkbenchDirectoryFactsRequest): value is LocalWorkbenchDirectoryFacts {
   if (!isLocalWorkbenchDataRecord(value, ['revision', 'files', 'cues']) || value.revision !== request.expectedRevision
@@ -225,7 +235,9 @@ export function createLocalWorkbenchReadService(options: LocalWorkbenchReadServi
   async function captureAlbum(ref: dto.LocalWorkbenchAlbumRef, readToken: string, datasetRevision: string, context: LocalWorkbenchReadContext, inspectedGroup?:LocalAlbumGroup): Promise<Lease> {
     check(context)
     if (!ref.rootId || !dto.isLocalWorkbenchIdentity(readToken)) return invalid('专辑缺少原来源根或作者读取引用。')
+    const finishInspect = startWorkbenchCapturePhase(inspectedGroup ? 'GROUP_REUSED' : 'GROUP_INSPECT')
     const group = inspectedGroup??await options.localAlbums.inspectAlbum({ albumKey: ref.albumId, rootId: ref.rootId })
+    finishInspect()
     check(context)
     if (!dto.isLocalAlbumSummary(group.summary) || group.summary.id !== ref.albumId || group.summary.rootId !== ref.rootId
       || !isLocalWorkbenchDenseArray(group.members, MAX_MEMBERS) || !sameIds(group.members.map(member => member.fact.summary.track.id), ref.trackIds)
@@ -242,15 +254,20 @@ export function createLocalWorkbenchReadService(options: LocalWorkbenchReadServi
       ...group.issues.flatMap(issue=>issue.kind==='cue'?[parent(issue.relative)]:[]),
     ] : group.directory !== null ? [group.directory] : group.members.map(member => parent(member.fact.relative)))]
     if (!directories.length || directories.length > 100) return limit()
+    const finishDirectoryFacts = startWorkbenchCapturePhase('DIRECTORY_FACTS', directories.length)
     const request: LocalWorkbenchDirectoryFactsRequest = { expectedRevision: scan.privateAlbumBrowserRevision(), libraryRootId: root.id,
       directories, maxFiles: MAX_MEMBERS, maxBytes }
     const facts = scan.privateWorkbenchDirectoryFacts(request)
     if (!validateDirectoryFacts(facts, request) || facts.files.some(file => file.rootRevision !== root.revision || file.sourceRootId !== root.sourceRootId)) return invalid()
+    finishDirectoryFacts()
     const byRelative = new Map(facts.files.map(file => [file.currentRelative, file]))
+    const finishProvenance = startWorkbenchCapturePhase('PROVENANCE', group.members.length)
     const trackIds = group.members.map(member => member.fact.summary.track.id), provenance = catalog.privateWorkbenchMetadataProvenance(trackIds)
     if (!validateProvenance(provenance, trackIds)) return invalid('名称覆盖的原命令事实不完整，未准备模型输入。')
+    finishProvenance()
     const byTrack = new Map(provenance.map(fact => [fact.trackId, fact])), artistSources: LocalWorkbenchNameSource[] = [], albumSources: LocalWorkbenchNameSource[] = []
     const members: LocalWorkbenchMemberCapture[] = [], includedRelatives = new Set<string>(), effectiveAlbums: string[] = [], effectiveArtists: string[] = []
+    const finishMemberFacts = startWorkbenchCapturePhase('MEMBER_FACTS', group.members.length)
     for (const member of group.members) {
       check(context)
       const fact = member.fact, selected = catalog.track(fact.summary.track.id), located = catalog.privateAssetLocator(fact.summary.asset.id), view = catalog.metadata(selected.id)
@@ -286,6 +303,7 @@ export function createLocalWorkbenchReadService(options: LocalWorkbenchReadServi
         locationRevision: located.asset.locationRevision, metadataRevision: hash(view), ...(scanFact ? { scan: scanFact } : {}) })
       includedRelatives.add(located.relative)
     }
+    finishMemberFacts()
     // 新inspect明确分配全部rejected；不能根据某类issue推断或随意扩大到同目录另一个专辑。
     const inspected = group as LocalAlbumGroup & { rejectedFiles?: readonly { relative: string; revision: string }[] }
     let rejectedRelatives: readonly string[]
@@ -319,11 +337,13 @@ export function createLocalWorkbenchReadService(options: LocalWorkbenchReadServi
       artistName, albumName, directoryName: directories.length === 1 ? basename(directories[0]!) : '',
       manualLocks: { artistName: nameSources.artistName === 'manual', albumName: nameSources.albumName === 'manual' }, nameSources, members }
     if (!isLocalWorkbenchAlbumCapture(capture)) return invalid('专辑没有可捕获的真实音频文件事实，未生成读取引用。')
+    const finishRootVerify = startWorkbenchCapturePhase('ROOT_VERIFY')
     const roots = await options.readRootViews()
     check(context)
     if (!isLocalWorkbenchDenseArray(roots, 100) || !roots.every(dto.isLocalRootView) || new Set(roots.map(view => view.root.id)).size !== roots.length) return invalid()
     const currentRoot = roots.find(view => view.root.id === root.id)
     if (!currentRoot || !same(currentRoot.root, root) || ownerRevision() !== datasetRevision) return changed()
+    finishRootVerify()
     const availability: dto.LocalWorkbenchAlbumSnapshot['availability'] = currentRoot.availability === 'ONLINE' ? 'online' : currentRoot.availability === 'SOURCE_ROOT_OFFLINE' ? 'offline' : 'unavailable'
     const value: LocalWorkbenchResolvedReadCapture = { datasetId: options.datasetId, datasetRevision, capture, group: structuredClone(group),
       directoryFacts: structuredClone(facts), provenance: structuredClone(provenance), availability }
@@ -372,7 +392,9 @@ export function createLocalWorkbenchReadService(options: LocalWorkbenchReadServi
       fresh.push(lease)
     }
     if (leases.size + fresh.length > maxCaptures || [...leases.values(), ...fresh].reduce((bytes, lease) => bytes + lease.bytes, 0) > maxBytes) return limit()
+    const finishSettings = startWorkbenchCapturePhase('SETTINGS')
     const settings = options.readSettings ? await options.readSettings() : undefined
+    finishSettings()
     check(context)
     if (ownerRevision() !== revision) return changed()
     const result: dto.LocalWorkbenchReadback = { datasetId: options.datasetId, snapshotId: hash([revision, fresh.map(lease => lease.capture)]), albums: snapshots,
@@ -407,9 +429,13 @@ export function createLocalWorkbenchReadService(options: LocalWorkbenchReadServi
   async function readAlbumTargets(request: dto.LocalLibraryManagementPayloads['library.albums.capture'], context: LocalWorkbenchReadContext = {}): Promise<dto.LocalWorkbenchReadback> {
     check(context); prune()
     if (!dto.isLocalLibraryManagementPayload('library.albums.capture', request)) return invalid('请重新选择当前专辑。')
+    const finishOwnerRevision = startWorkbenchCapturePhase('OWNER_REVISION')
     const revision = ownerRevision(), fresh: Lease[] = [], snapshots: dto.LocalWorkbenchAlbumSnapshot[] = []
+    finishOwnerRevision()
     for (const target of request.albums) {
+    const finishTargetInspect = startWorkbenchCapturePhase('TARGET_INSPECT')
     const group = await options.localAlbums.inspectAlbum({ albumKey: target.albumId, rootId: target.rootId, revision: target.revision })
+    finishTargetInspect()
     check(context)
     if (group.summary.id !== target.albumId || group.summary.rootId !== target.rootId || group.summary.revision !== target.revision) return changed()
     const readToken = token()
@@ -417,13 +443,15 @@ export function createLocalWorkbenchReadService(options: LocalWorkbenchReadServi
     const fullRef: dto.LocalWorkbenchAlbumRef = { albumId: group.summary.id, rootId: group.summary.rootId,
       title: group.summary.title, artist: group.summary.artists.join(' / '),
       ...(group.summary.editionId ? { editionId: group.summary.editionId } : {}), trackIds: group.members.map(member => member.fact.summary.track.id) }
-    const lease = await captureAlbum(fullRef, readToken, revision, context)
+    const lease = await captureAlbum(fullRef, readToken, revision, context, group)
     fresh.push(lease)
     if (leases.size + fresh.length > maxCaptures || [...leases.values(), ...fresh].reduce((bytes, item) => bytes + item.bytes, 0) > maxBytes) return limit()
     let artwork: dto.LocalArtworkImage | null = null
     if (options.readCurrentArtwork && lease.availability === 'online') {
+      const finishArtwork = startWorkbenchCapturePhase('ARTWORK')
       artwork = await options.readCurrentArtwork(lease.group, context); check(context)
       if (artwork !== null && !dto.isLocalArtworkImage(artwork)) return invalid('封面展示副本未取得归一化资格。')
+      finishArtwork()
     }
     const summary = lease.group.summary
     const snapshot: dto.LocalWorkbenchAlbumSnapshot = { album: { albumId: summary.id, title: summary.title, artist: lease.capture.artistName,
@@ -435,13 +463,17 @@ export function createLocalWorkbenchReadService(options: LocalWorkbenchReadServi
         ...(!cueEligible(lease, cue) ? { reason: 'CUE来源未就绪、修订已变化或已为实际独立分轨文件。' } : {}) })) }
     snapshots.push(snapshot)
     }
+    const finishSettings = startWorkbenchCapturePhase('SETTINGS')
     const settings = options.readSettings ? await options.readSettings() : undefined
+    finishSettings()
     const result: dto.LocalWorkbenchReadback = { datasetId: options.datasetId, snapshotId: hash([revision, fresh.map(lease => lease.capture)]), albums: snapshots,
       ...(settings ? { settings: structuredClone(settings) } : {}) }
     if (Buffer.byteLength(JSON.stringify(result), 'utf8') > 128 * 1024) snapshots.forEach(snapshot => { if (snapshot.currentArtwork) snapshot.currentArtwork.previewUrl = null })
+    const finishReadbackVerify = startWorkbenchCapturePhase('READBACK_VERIFY')
     check(context)
     if (ownerRevision() !== revision) return changed()
     if (!dto.isLocalWorkbenchReadback(result) || Buffer.byteLength(JSON.stringify(result), 'utf8') > 128 * 1024) return limit()
+    finishReadbackVerify()
     fresh.forEach(lease => leases.set(lease.capture.readToken, lease))
     return freezeLocalWorkbenchValue(structuredClone(result))
   }
@@ -631,7 +663,9 @@ export interface LocalLibraryManagementRuntimeOptions {
   /** 已完成快照只恢复派生视图，不改媒体或重新扫描。必须由原实际scan/view作者消费。 */
   activateSnapshot?(libraryId:string,snapshot:NonNullable<CompletedScanSnapshotLoad['lastSuccess']>,original:LocalLibraryManagementOriginalOperation,context:LocalWorkbenchReadContext):Promise<void>
   /** 实际Root按原库/原命令收口全部原资源；缺少作者不得撤绑定或返回清理成功。 */
-  removeResources?(libraryId:string,context:LocalWorkbenchReadContext,removingLibraries:readonly string[],original:Readonly<{commandId:string;originalSha256:string}>):Promise<void>
+  removeResources?(libraryId:string,context:LocalWorkbenchReadContext,removingLibraries:readonly string[],original:Readonly<{commandId:string;originalSha256:string}>,pin:Readonly<{libraryId:string;sourceRootId:string;rootRevision:string;bindingSha256:string|null}>):Promise<void>
+  /** 仅原remove提交前重核Domain品牌context的真实期限；signal回调尚未运行也不能迟到开CAS。 */
+  assertRemoveCurrent?(context:LocalWorkbenchReadContext):void
   beforeSnapshotRetry?(libraryId:string,jobId:string,context:LocalWorkbenchReadContext):Promise<void>
   /** 只关联原导入命令的持久扫描；已存在job不借此自动恢复或重新扫描。 */
   startInitialScan?(commandId:string,root:Readonly<dto.LibraryRoot>,context:LocalWorkbenchReadContext):Promise<void>
@@ -683,6 +717,14 @@ export function createLocalLibraryManagementRuntime(options:LocalLibraryManageme
     const root=catalog.root(id)
     if(root.role!=='library'||root.sourceRootId!==stored.record.sourceRootId||root.revision!==stored.record.rootRevision)return changed()
     return stored
+  }
+  /** 旧目录只取得原remove的关闭资格；不补导入回执，也不先创建active绑定。 */
+  function removalTarget(id:string) {
+    const stored=catalog.privateLibraryManagementRead(identity,'binding',id)
+    if(stored){const binding=activeBinding(id);return {root:catalog.root(id),binding}}
+    const root=catalog.root(id)
+    if(root.role!=='library'||!catalog.privateLibraryManagementRootAvailable(id))return invalid('原旧库不存在、不是音乐库或原撤销尚未收口。')
+    return {root,binding:null}
   }
   function captureRecord(id:string):Readonly<LocalLibraryManagementCaptureRecord> {
     const stored=catalog.privateLibraryManagementRead(identity,'capture',id)
@@ -769,7 +811,9 @@ export function createLocalLibraryManagementRuntime(options:LocalLibraryManageme
       if(old){const stored=old.record.original.albums
         if(old.record.original.mode!=='albums'||stored.length!==1||stored[0]!.resolved.capture.albumId!==album.album.albumId||stored[0]!.resolved.capture.rootId!==album.album.rootId)return changed()
         originalsRead.push(stored[0]!.resolved);continue}
+      const finishResolve=startWorkbenchCapturePhase('REMEMBER_RESOLVE')
       const resolved=await workbench.resolveCapture({datasetId,capture:album.capture},context);check(context)
+      finishResolve()
       if(resolved.capture.albumId!==album.album.albumId||resolved.capture.rootId!==album.album.rootId)return changed()
       fresh.push(resolved);originalsRead.push(resolved)
     }
@@ -780,7 +824,9 @@ export function createLocalLibraryManagementRuntime(options:LocalLibraryManageme
       const pin={libraryId:root.id,sourceRootId:root.sourceRootId,rootRevision:root.revision},ref={albumId:resolved.capture.albumId,rootId:root.id,revision:resolved.group.summary.revision}
       const original:LocalLibraryManagementCaptureRecord['original']={mode:'albums',request:{albums:[ref]},captureId,watermark:resolved.datasetRevision,catalogRevision,scanRevision,libraries:[pin],albumRefs:[ref],albums:[{...pin,resolved:structuredClone(resolved)}]}
       return {record:{schema:1,kind:'capture',datasetId,key:captureId,revision:1,original,originalSha256:localLibraryManagementDigest(original)},expectedRevision:null}})
+    const finishCommit=startWorkbenchCapturePhase('REMEMBER_COMMIT',writes.length)
     catalog.privateLibraryManagementCompareAndSwap(identity,writes);check(context)
+    finishCommit()
   }
   async function readFrozenAlbum(scope:dto.LocalLyricsScope):Promise<LocalLibraryManagementFrozenAlbum> {
     check();if(!dto.isLocalLyricsScope(scope)||scope.datasetId!==datasetId)return invalid('原歌词范围不属于此工作库。')
@@ -867,9 +913,9 @@ export function createLocalLibraryManagementRuntime(options:LocalLibraryManageme
     const accepted=await exclusively(()=>{check(context);const known=knownOperation(original);if(known)return {kind:'known' as const,known};
       if(!options.removeResources)return invalid('本库的实际资源join作者未装配，未撤绑定或清缓存。');
       if(catalog.privateLibraryManagementRead(identity,'job',request.commandId))return invalid('原任务编号不能改作撤销命令。');
-      const bindings=request.libraryIds.map(activeBinding),operation=newOperation(original,request.libraryIds,'running');write(operation,null);return {kind:'new' as const,bindings,operation};});
+      const targets=request.libraryIds.map(removalTarget),operation=newOperation(original,request.libraryIds,'running');write(operation,null);return {kind:'new' as const,targets,operation};});
     if(accepted.kind==='known')return accepted.known.receipt;
-    const {bindings,operation}=accepted;
+    const {targets,operation}=accepted;
     try{
       // 释放管理serial再stop/join；原job最终checkpoint仍需要同一队列，不能在队列内等待自身。
       const ids=new Set(request.libraryIds);
@@ -880,14 +926,18 @@ export function createLocalLibraryManagementRuntime(options:LocalLibraryManageme
         await options.jobs.join(jobRecord(job.key));const actual=jobRecord(job.key);
         if(actual.checkpoint.state==='unknown'||actual.checkpoint.items.some(item=>['running','unknown'].includes(item.state)))return invalid('原AI/CUE物理结果未确认，不能撤绑定。');
       }
-      for(const id of request.libraryIds){await options.removeResources!(id,context,request.libraryIds,{commandId:operation.key,originalSha256:operation.originalSha256});check(context);}
-      return await exclusively(()=>{check(context);const actual=operationRecord(request.commandId);
+      for(const target of targets){const root=target.root;await traceLibraryRemoval('owner.execute',operation.key,()=>options.removeResources!(root.id,context,request.libraryIds,{commandId:operation.key,originalSha256:operation.originalSha256},
+        {libraryId:root.id,sourceRootId:root.sourceRootId,rootRevision:root.revision,bindingSha256:target.binding?.recordSha256??null}));check(context);}
+      return await traceLibraryRemoval('owner.commit',operation.key,()=>exclusively(()=>{check(context);options.assertRemoveCurrent?.(context);const actual=operationRecord(request.commandId);
         if(!actual||actual.record.originalSha256!==operation.originalSha256||actual.record.revision!==1)return changed();
-        const writes:LocalLibraryManagementWrite[]=bindings.map(binding=>{const current=catalog.privateLibraryManagementRead(identity,'binding',binding.record.key);
-          if(!current||current.recordSha256!==binding.recordSha256)return changed();
-          return {record:{...structuredClone(binding.record),revision:binding.record.revision+1,operationId:request.commandId,active:false,watchEnabled:false},expectedRevision:binding.record.revision};});
+        const writes:LocalLibraryManagementWrite[]=targets.map(target=>{const root=target.root,binding=target.binding,current=catalog.privateLibraryManagementRead(identity,'binding',root.id);
+          if(!same(catalog.root(root.id),root)||(binding?(!current||current.recordSha256!==binding.recordSha256):current!==null))return changed();
+          if(binding)return {record:{...structuredClone(binding.record),revision:binding.record.revision+1,operationId:request.commandId,active:false,watchEnabled:false},expectedRevision:binding.record.revision};
+          const tombstone:LocalLibraryManagementBindingRecord={schema:1,kind:'binding',datasetId,key:root.id,revision:1,libraryId:root.id,sourceRootId:root.sourceRootId,rootRevision:root.revision,
+            role:'catalog',name:'本地库',active:false,watchEnabled:false,operationId:request.commandId};
+          return {record:tombstone,expectedRevision:null};});
         const finished:LocalLibraryManagementOperationRecord={...operation,revision:2,receipt:{...operation.receipt,state:'succeeded',message:'原本库资源已join；专属未引用封面staging已清理，音乐、保存封面/LRC、他库及不可变历史保留。'}};
-        writes.push({record:finished,expectedRevision:1});catalog.privateLibraryManagementCompareAndSwap(identity,writes);check(context);return finished.receipt;});
+        writes.push({record:finished,expectedRevision:1});options.assertRemoveCurrent?.(context);catalog.privateLibraryManagementCompareAndSwap(identity,writes);check(context);return finished.receipt;}));
     }catch{return exclusively(()=>{check();const actual=operationRecord(request.commandId);if(!actual)return invalid();
       if(actual.record.receipt.state==='succeeded')return actual.record.receipt;
       if(actual.record.revision===1)write({...structuredClone(actual.record),revision:2,receipt:{...actual.record.receipt,state:'unknown',message:'原本库资源join或同SQL清理尚未确认；绑定与未清材料保留，只查询原命令。'}},1);

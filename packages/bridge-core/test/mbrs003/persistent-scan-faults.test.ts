@@ -111,12 +111,23 @@ test('MBRS003 faults：真实SourceStore撤销拒绝新start且旧曲目/raw/手
 test('MBRS003 faults：发现后真实文件消失仍提交另一可读项，不伪造missing签名',{timeout:60_000},async t=>{
   let f!:Awaited<ReturnType<typeof fixture>>,movedRelative:string|undefined,controlled=false;let observe!:(event:MetadataReaderLifecycle)=>void;
   const isolated=()=>path.join(path.dirname(f.directory),'discovered-missing-quarantine.wav');
-  f=await fixture(t,['core-wav','core-mp3'],{onLifecycle:e=>observe?.(e),async beforeRead(input){if(controlled)return;controlled=true;
-    // Walk已发现同批两relative；透明port只变自有FS，实际结果全部来自compiled Reader。
-    movedRelative=[...f.copies.keys()].find(relative=>relative!==input.relative);assert(movedRelative);renameSync(path.join(f.directory,movedRelative),isolated());
-    await assert.rejects(readonlySourceCandidateMetadata(input.root,movedRelative),{code:'MISSING'});}});observe=f.observeClose;
+  f=await fixture(t,['core-wav','core-mp3'],{onLifecycle:e=>observe?.(e)});observe=f.observeClose;
+  const discover=f.repository.localScan.privateRecordDiscovery;
+  t.mock.method(f.repository.localScan,'privateRecordDiscovery',(request:Parameters<typeof discover>[0])=>{
+    const result=discover(request);
+    if(!controlled&&!request.discovery.cueMode&&request.discovery.entries.length){
+      // 原发现已实际落盘；同步返回前尚未调度任何item/stat，不依赖目录枚举或并发抵达顺序。
+      assert.equal(request.discovery.entries.length,2);assert.equal(f.results.length,0);
+      assert(request.discovery.entries.every(entry=>f.copies.has(entry.relative)));
+      movedRelative=request.discovery.entries[1]!.relative;
+      controlled=true;renameSync(path.join(f.directory,movedRelative),isolated());
+    }
+    return result;
+  });
   let retainedTrackId:string|undefined;
-  try{const job=await f.scan();assert.equal(controlled,true);assert.equal(f.results.length,1);assert.equal(f.results[0]!.result.status,'ok');
+  try{const job=await f.scan();assert.equal(controlled,true);
+    await assert.rejects(readonlySourceCandidateMetadata(f.cap,movedRelative!),{code:'MISSING'});
+    assert.equal(f.results.length,1);assert.notEqual(f.results[0]!.relative,movedRelative);assert.equal(f.results[0]!.result.status,'ok');
     assert.equal(job.phase,'completed','单文件MISSING不能使其它有效项整批丢弃');
     same(job.progress,{visited:'1',accepted:'1',rejected:'0'});assert.equal(f.repository.localCatalog.pageTracks({offset:0,limit:200}).total,1);
     assert.equal(f.repository.localScan.privateFileState(f.root.id,movedRelative!),null,'未取得stat不持久化虚构signature/asset');retainedTrackId=f.repository.localCatalog.pageTracks({offset:0,limit:1}).items[0]!.id;f.quiet();
@@ -125,12 +136,31 @@ test('MBRS003 faults：发现后真实文件消失仍提交另一可读项，不
   const tracks=f.repository.localCatalog.pageTracks({offset:0,limit:200});assert.equal(tracks.total,2);assert(tracks.items.some(track=>track.id===retainedTrackId));f.quiet();await f.byteHold();
 });
 
-test('MBRS003 faults：实际Worker启动后合法音频改变先CONTENT_CHANGED再重读，稳定ID/manual保持',{timeout:60_000},async t=>{
+test('MBRS003 faults：真实Rust解析完成且Source末核前改变合法音频，先CONTENT_CHANGED再重读且稳定ID/manual保持',{timeout:60_000},async t=>{
   let f!:Awaited<ReturnType<typeof seeded>>,armed=false,changed=false;let observationError:unknown;let observe!:(event:MetadataReaderLifecycle)=>void;let replacement!:Buffer;
-  f=await seeded(t,{onLifecycle(event){try{observe?.(event);if(armed&&!changed&&event.type==='worker-start'){changed=true;writeFileSync(path.join(f.directory,path.basename(f.entry('core-flac').file)),replacement);}}catch(error){observationError??=error;}}});observe=f.observeClose;
+  let changedAt=-1,changedFd:number|undefined,changedReadId:string|undefined;
+  f=await seeded(t,{onLifecycle(event){try{
+    observe?.(event);
+    if(armed&&!changed&&event.type==='metadata-phase'&&event.backend==='rust-media-worker'&&event.stage==='parse'&&event.state==='complete'){
+      // 常驻Rust不会逐项发旧JS worker-start/exit；真实解析已settled，但原Source末核/FD关闭尚未执行。
+      const lease=[...f.events].reverse().find(value=>value.type==='lease-acquired'||value.type==='lease-released');
+      assert(lease&&lease.type==='lease-acquired');assert.equal(fstatSync(lease.fd).isFile(),true);
+      changedAt=f.events.indexOf(event);changedFd=lease.fd;changedReadId=event.readId;
+      changed=true;writeFileSync(path.join(f.directory,path.basename(f.entry('core-flac').file)),replacement);
+    }
+  }catch(error){observationError??=error;}}});observe=f.observeClose;
   const relative=path.basename(f.entry('core-flac').file),target=path.join(f.directory,relative),original=await readFile(target);replacement=await f.bytes('core-mp3');
+  const reads=f.results.length;
   try{const stat=await lstat(target);await utimes(target,stat.atime,new Date(stat.mtimeMs+2000));armed=true;
     const job=await f.scan();if(observationError)throw observationError;assert.equal(changed,true);assert.equal(job.phase,'completed');same(job.progress,{visited:'1',accepted:'1',rejected:'0'});
+    const started=f.events.findIndex(event=>event.type==='metadata-phase'&&event.readId===changedReadId&&event.stage==='parse'&&event.state==='start');
+    assert(started>=0&&changedAt>started);
+    const released=f.events.findIndex((event,index)=>index>changedAt&&event.type==='lease-released'&&event.fd===changedFd);
+    const completed=f.events.findIndex((event,index)=>index>released&&event.type==='read-complete');
+    assert(released>changedAt&&completed>released);const completion=f.events[completed];assert(completion&&completion.type==='read-complete');assert.equal(completion.status,'failure');
+    const first=f.results[reads];assert(first);assert.equal(first.relative,relative);
+    assert.equal(first.result.status,'failure');if(first.result.status!=='failure')throw new Error('末次Source身份改变必须拒绝已解析旧结果。');
+    assert.equal(first.result.code,'CONTENT_CHANGED');
     assert(f.results.some(r=>r.relative===relative&&r.result.status==='failure'&&r.result.code==='CONTENT_CHANGED'));
     const state=f.repository.localScan.privateFileState(f.root.id,relative)!.value;assert.equal(state.outcome,'accepted');assert.equal(state.trackId,f.track.id);assert.equal(state.assetId,f.track.assetId);
     assert.equal(f.repository.localCatalog.pageTracks({offset:0,limit:200}).total,1);const metadata=f.repository.localCatalog.metadata(f.track.id);

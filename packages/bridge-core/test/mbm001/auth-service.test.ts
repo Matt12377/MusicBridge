@@ -71,7 +71,7 @@ function fixture(t: TestContext) {
     },
   };
   let stored: MobileSealedState = { kind: 'missing', datasetId: DATASET, revision: 0 };
-  let clock = START, fault: Fault | undefined;
+  let clock = START, fault: Fault | undefined, loadFault: unknown;
   let saveGate: ReturnType<typeof barrier> | undefined, loadGate: ReturnType<typeof barrier> | undefined;
   const releases = new Set<() => void>(), services: MobileAuthService[] = [];
   const counts = { loads: 0, attempts: 0, commits: 0, random: 0 };
@@ -86,6 +86,8 @@ function fixture(t: TestContext) {
       assert.equal(datasetId, DATASET); counts.loads++;
       const held = loadGate; loadGate = undefined;
       if (held) { held.markEntered(); await held.wait; }
+      const effect = loadFault; loadFault = undefined;
+      if (effect !== undefined) throw effect;
       return cloneState(stored);
     },
     async save(request) {
@@ -142,6 +144,7 @@ function fixture(t: TestContext) {
     setClock: (milliseconds: number) => { clock = milliseconds; },
     snapshot: () => cloneState(stored), restore: (state: MobileSealedState) => { stored = cloneState(state); },
     failNext: (next: Fault) => { fault = next; },
+    failNextLoad: (error: unknown) => { loadFault = error; },
     blockSave: () => { const held = barrier(); saveGate = held; return held; },
     blockLoad: () => { const held = barrier(); loadGate = held; return held; },
   };
@@ -152,6 +155,60 @@ async function pair(f: Fixture, installationId = 'installation-one', service = f
   const body: MobilePairingClaim = { pairingSecret: permit.pairingSecret, installationId, deviceName: '自有设备' };
   return { body, key: claimKey, tokenPair: await service.claim(body, claimKey) };
 }
+
+test('只读Owner load的明确暂错只拒绝本次，下一请求完整重读且保留原身份和token', async t => {
+  const f = fixture(t), paired = await pair(f), principal = await f.auth.authenticate(paired.tokenPair.accessToken);
+  const stored = f.snapshot(), attempts = f.counts.attempts, random = f.counts.random;
+  for (const error of [new MobileAuthPersistenceError('unknown'), new MobileAuthPersistenceError('not-sent'), new MobileServiceError(503, 'BUSY')]) {
+    const loads = f.counts.loads; f.failNextLoad(error);
+    await refuses(f.auth.serverInfo(), 503, 'BUSY'); assert.equal(f.counts.loads, loads + 1);
+    assert.equal((await f.auth.serverInfo()).serverId, SERVER);
+    assert.equal(f.counts.loads, loads + 2, '暂错后必须实际fresh load，不能返回旧状态或永久锁死');
+    const current = await f.auth.authenticate(paired.tokenPair.accessToken);
+    assert.equal(current.deviceId, principal.deviceId); assert.equal(current.deviceEpoch, principal.deviceEpoch);
+    await f.auth.assertCurrent(principal);
+    assert.deepEqual(f.snapshot(), stored); assert.equal(f.counts.attempts, attempts); assert.equal(f.counts.random, random);
+  }
+});
+
+test('只读暂错后的坏密文和未知load异常仍锁闭，不借下一份有效记录掩盖校验失败', async t => {
+  const f = fixture(t); await pair(f); const valid = f.snapshot();
+  f.failNextLoad(new MobileAuthPersistenceError('unknown')); await refuses(f.auth.serverInfo(), 503, 'BUSY');
+  const corrupt = f.sealed(); corrupt.sealed[28] = (corrupt.sealed[28] ?? 0) ^ 1; f.restore(corrupt);
+  await refuses(f.auth.serverInfo(), 503, 'BUSY');
+  const loads = f.counts.loads; f.restore(valid);
+  await refuses(f.auth.serverInfo(), 503, 'BUSY'); assert.equal(f.counts.loads, loads, '已返回原状态的校验失败仍是fatal');
+  const other = f.open(); f.failNextLoad(new Error('合成未知端口异常'));
+  await refuses(other.serverInfo(), 503, 'BUSY'); const afterUnknown = f.counts.loads;
+  await refuses(other.serverInfo(), 503, 'BUSY'); assert.equal(f.counts.loads, afterUnknown);
+});
+
+test('refresh未提交UNKNOWN遇到只读暂错仍保持pending，不续用旧token或自动重签补写', async t => {
+  const f = fixture(t), first = await pair(f), body = { refreshToken: first.tokenPair.refreshToken };
+  f.failNext('unknown-before'); await refuses(f.auth.refresh(body, 'uncommitted-refresh'), 503, 'BUSY');
+  const stored = f.snapshot(), attempts = f.counts.attempts, random = f.counts.random;
+  f.failNextLoad(new MobileAuthPersistenceError('unknown')); await refuses(f.auth.serverInfo(), 503, 'BUSY');
+  await refuses(f.auth.refresh(body, 'uncommitted-refresh'), 503, 'BUSY');
+  await refuses(f.auth.refresh(body, 'new-refresh-intent'), 503, 'BUSY');
+  await refuses(f.auth.authenticate(first.tokenPair.accessToken), 503, 'BUSY');
+  await refuses(f.auth.issuePairing(), 503, 'BUSY');
+  assert.deepEqual(f.snapshot(), stored); assert.equal(f.counts.attempts, attempts); assert.equal(f.counts.random, random);
+});
+
+test('refresh已提交UNKNOWN在读暂错后仍只认同commit的完整原记录，回读不增加提交或mint', async t => {
+  const f = fixture(t), first = await pair(f), body = { refreshToken: first.tokenPair.refreshToken };
+  f.failNext('unknown-after'); await refuses(f.auth.refresh(body, 'committed-refresh'), 503, 'BUSY');
+  const committed = f.snapshot(), attempts = f.counts.attempts, random = f.counts.random;
+  f.failNextLoad(new MobileServiceError(503, 'BUSY')); await refuses(f.auth.serverInfo(), 503, 'BUSY');
+  f.edit(state => { object(array(state, 'devices')[0]).deviceName = '同commit的另一份合法内容'; });
+  await refuses(f.auth.refresh(body, 'committed-refresh'), 503, 'BUSY');
+  assert.equal(f.counts.attempts, attempts); assert.equal(f.counts.random, random);
+  f.restore(committed); const rotated = await f.auth.refresh(body, 'committed-refresh');
+  assert.deepEqual(await f.auth.refresh(body, 'committed-refresh'), rotated);
+  await refuses(f.auth.authenticate(first.tokenPair.accessToken), 401, 'UNAUTHORIZED');
+  await f.auth.authenticate(rotated.accessToken);
+  assert.deepEqual(f.snapshot(), committed); assert.equal(f.counts.attempts, attempts); assert.equal(f.counts.random, random);
+});
 
 test('匿名服务身份只读，非法闭集或可执行请求不会产生许可和回执', async t => {
   const f = fixture(t);

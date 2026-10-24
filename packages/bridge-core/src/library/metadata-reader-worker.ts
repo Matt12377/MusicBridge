@@ -612,7 +612,7 @@ async function run(): Promise<MetadataReadResult> {
   const metadata = await parse(tokenizer, { duration: false, skipCovers: false, includeChapters: false });
   checkTime();
   phase = 'output-check';
-  // 整体原始文本与条目数也有限；输出只取六字段，不把未请求标签克隆给owner。
+  // 整体原始文本与条目数也有限；只输出已声明字段，不把未请求标签克隆给owner。
   let totalText = 0, entries = 0, coverTotal = 0;
   const inspect = (v: unknown, depth = 0): void => {
     checkTime(); if (++entries > 16_384 || depth > 16) fail('BUDGET_EXCEEDED');
@@ -624,10 +624,15 @@ async function run(): Promise<MetadataReadResult> {
   inspect(metadata.native); inspect(metadata.common);
   const common = metadata.common, fields: MetadataRawFields = {};
   for (const key of ['title','artist','album'] as const) if (common[key] !== undefined) fields[key] = common[key];
+  if (common.albumartist !== undefined) fields.albumArtist = common.albumartist;
+  fields.artists = [...new Set(common.artists ?? (common.artist ? [common.artist] : []))];
+  fields.albumArtists = [...new Set(common.albumartists ?? (common.albumartist ? [common.albumartist] : []))];
   if (common.year !== undefined) fields.year = String(common.year);
   if (common.disk.no !== null) fields.disc = String(common.disk.no);
   if (common.track.no !== null) fields.track = String(common.track.no);
-  for (const value of Object.values(fields)) if (Buffer.byteLength(value, 'utf8') > budget.textFieldBytes) fail('BUDGET_EXCEEDED');
+  for (const value of Object.values(fields)) for (const text of Array.isArray(value) ? value : [value])
+    if (Buffer.byteLength(text, 'utf8') > budget.textFieldBytes) fail('BUDGET_EXCEEDED');
+  if ((fields.artists?.length ?? 0) > 64 || (fields.albumArtists?.length ?? 0) > 64) fail('BUDGET_EXCEEDED');
   const format = metadata.format, codec = dsd ? dsd.codec : wave?.codec ?? cue?.codec
     ?? (container === 'WAVPACK' && (head[24]! & 0x80) ? 'IEEE_FLOAT' : format.codec);
   const sampleRateHz = cue?.sampleRateHz ?? format.sampleRate, channels = cue?.channels ?? format.numberOfChannels;

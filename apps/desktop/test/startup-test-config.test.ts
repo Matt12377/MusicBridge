@@ -73,7 +73,7 @@ function mainStartupHost(environment: NodeJS.ProcessEnv, options: {
       },
       setAboutPanelOptions() {}, setActivationPolicy() {},
     },
-    path, currentDirectory: '/synthetic/main', APPLICATION_NAME: 'Synthetic',
+    path, currentDirectory: '/synthetic/main', APPLICATION_NAME: 'Synthetic', DISPLAY_NAME: 'Mousa', performance,
     RENDERER_SCHEME: 'musicbridge', realpath: async (value: string) => value,
     protocol: { handle: () => session.defaultSession.protocol.handle() }, session,
     buildContentSecurityPolicy: () => 'default-src none',

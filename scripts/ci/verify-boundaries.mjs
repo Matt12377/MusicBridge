@@ -81,7 +81,11 @@ for (const file of productFiles) {
     const ownFixedPolicy = relative === 'packages/bridge-core/src/recording/bundled-converter.ts' && match[1] === './ffmpeg-build-policy.js'
       || (relative === 'packages/bridge-core/src/mobile/dsd-converter.ts' || relative === 'packages/bridge-core/src/mobile/prepared-cache.ts')
         && match[1] === './mobile-ffmpeg-policy.js'
-    if (!ownFixedPolicy) {
+    // CUE独立输出仅准入三对内部固定策略路径；不按目录、名称或任意ffmpeg依赖放行。
+    const ownCueFixedPolicy = relative === 'packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts' && match[1] === '../../library/cue-ffmpeg-build-policy.js'
+      || relative === 'packages/bridge-core/src/library/bundled-cue-converter.ts' && match[1] === './cue-ffmpeg-build-policy.js'
+      || relative === 'packages/bridge-core/src/library/local-cue-format-qualification.ts' && match[1] === './cue-ffmpeg-build-policy.js'
+    if (!ownFixedPolicy && !ownCueFixedPolicy) {
       fail(`audio-boundary:${relative}`)
     }
   }

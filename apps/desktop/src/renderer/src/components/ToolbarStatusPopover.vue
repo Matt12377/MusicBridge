@@ -59,7 +59,7 @@ onUnmounted(() => document.removeEventListener('mousedown', closeOnOutside))
     <div v-if="open" class="toolbar-status-popover" role="dialog" aria-label="连接状态" @keydown.esc="close">
       <div class="popover-heading"><strong>连接状态</strong><button type="button" class="popover-close" aria-label="关闭连接状态" @click="close">×</button></div>
       <dl class="toolbar-status-list">
-        <div><dt>Music Bridge Core</dt><dd><i class="status-led" :class="coreState?.runtime ?? 'starting'"></i>{{ statusLabel(coreState?.runtime) }}</dd></div>
+        <div><dt>Mousa Core</dt><dd><i class="status-led" :class="coreState?.runtime ?? 'starting'"></i>{{ statusLabel(coreState?.runtime) }}</dd></div>
         <div><dt>Roon</dt><dd><i class="status-led" :class="coreState?.roon ?? 'disconnected'"></i>{{ coreState?.roon === 'ready' ? '已连接' : statusLabel(coreState?.roon) }}</dd></div>
         <div><dt>网易云</dt><dd><i class="status-led" :class="coreState?.provider === 'configured' ? 'authorized' : 'missing'"></i>{{ coreState?.provider === 'configured' ? '已登录' : '未登录' }}</dd></div>
         <div><dt>当前播放设备</dt><dd>{{ selectedZone?.displayName ?? '未选择' }}</dd></div>

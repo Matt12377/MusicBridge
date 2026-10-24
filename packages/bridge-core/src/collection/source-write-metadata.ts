@@ -23,6 +23,9 @@ export async function readSourceFullRaw(observation:SourceWriteFileObservation,o
   const parsed=await parseBuffer(observation.prefix,{mimeType:observation.profile==='NATIVE_FLAC_FIXED_TAG_REGION_V1'?'audio/flac':'audio/mpeg',size:observation.bytes},{duration:false,skipCovers:false});
   const c=parsed.common,fullRaw:dto.LocalMetadata={};
   for(const key of ['title','artist','album'] as const)if(c[key]!==undefined)fullRaw[key]=c[key];
+  if(c.albumartist!==undefined)fullRaw.albumArtist=c.albumartist;
+  fullRaw.albumArtists=[...new Set(c.albumartists??(c.albumartist?[c.albumartist]:[]))];
+  fullRaw.artists=[...new Set(c.artists??(c.artist?[c.artist]:[]))];
   if(c.year!==undefined)fullRaw.year=String(c.year);if(c.disk.no!==null)fullRaw.disc=String(c.disk.no);if(c.track.no!==null)fullRaw.track=String(c.track.no);
   // 第三方 common 的 no=0 会归一化为 null，year也会丢前导零。完整前区的原值是新源事实，不能伪称删除。
   const actual=sourceWriteFieldValues(observation);

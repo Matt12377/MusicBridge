@@ -41,7 +41,7 @@ const playlistCoverTracks = computed(() => props.playlistTracks)
   <section class="view home-view" aria-labelledby="home-heading">
     <header class="home-browse-header">
       <div>
-        <p class="section-kicker">Music Bridge</p>
+        <p class="section-kicker">Mousa</p>
         <h2 id="home-heading">{{ props.greeting }}</h2>
         <p class="lede">让音乐，为此刻添一点颜色。</p>
       </div>

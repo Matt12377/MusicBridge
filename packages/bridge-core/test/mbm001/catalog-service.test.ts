@@ -189,11 +189,13 @@ test('001库修订工作库或Owner世代变化使旧页失效，原cursor不重
   }
 });
 
-test('001refresh或撤销在读取前后生效，新授权不能借用旧世代cursor', async () => {
+test('001refresh或撤销在读取前后生效，仅当前新授权可继续同设备mc2游标', async () => {
   const f = fixture(), first = await f.service.listTracks({ limit: 100 }, f.principal); assert.ok(first.nextCursor);
   f.state.generation = 2;
   await assert.rejects(f.service.listTracks({ limit: 100, cursor: first.nextCursor }, f.principal), safeError(401, 'UNAUTHORIZED'));
-  await assert.rejects(f.service.listTracks({ limit: 100, cursor: first.nextCursor }, { ...f.principal, generation: 2 }), safeError(409, 'CURSOR_INVALID'));
+  const continued = await f.service.listTracks({ limit: 100, cursor: first.nextCursor }, { ...f.principal, generation: 2 });
+  assert.equal(continued.items[0]!.id, 'lt.fixture.100');
+  assert.deepEqual(f.requests.map(value => value.offset), [0, 100]);
   const revoked = fixture(1); revoked.state.afterRead = () => { revoked.state.revoked = true; };
   await assert.rejects(revoked.service.getTrack('lt.fixture.0', revoked.principal), safeError(401, 'UNAUTHORIZED'));
   assert.equal(revoked.requests.length, 1); assert.ok(revoked.state.authChecks >= 2);
@@ -232,8 +234,11 @@ test('001无发行音频或segment轴缺证整项报有限错误，不猜整文�
     facts => { facts.binding.editionRevision = '2'; }, facts => { facts.detail.fileParameters!.bitsPerSample = null; },
   ];
   for (const fault of faults) { const facts = projectionFacts(); fault(facts); assert.throws(() => projectMobileOwnerLocalTrack(facts), safeError(503, 'BUSY')); }
-  const whole = projectionFacts(false); whole.detail.fileParameters!.durationMs = null;
+  const whole = projectionFacts(false); whole.detail.fileParameters!.durationMs = -1;
   assert.throws(() => projectMobileOwnerLocalTrack(whole), safeError(503, 'BUSY'));
+  const unknown = projectionFacts(false); unknown.detail.fileParameters!.durationMs = null;
+  const unavailable = projectMobileOwnerLocalTrack(unknown);
+  assert.equal(unavailable.durationMs, null); assert.equal(unavailable.availability, 'unavailable');
 });
 
 test('001纯位置根修订不重造内容身份，同曲链接另一发行保留独立条目', () => {

@@ -78,6 +78,29 @@ test('本地专辑显示缓存：真实JPEG以BLOB持久化，重开复用SHA且
   f.unchanged()
 })
 
+test('本地专辑显示缓存：详情与Rust网格副本同条持久化，重开不需要重新编码', t => {
+  const f = fixture(t), cache = f.open(), expected = { ...record(11, 32), grid: record(12, 16).image.display }
+  cache.put(key(11), rootA, expected)
+  assertImage(cache.get(key(11), rootA), expected)
+  const inspect = f.sql(f.file, true)
+  const row = inspect.db.prepare('SELECT payload_bytes,length(jpeg) bytes,metadata FROM local_album_display_cache WHERE cache_key=?').get(key(11))!
+  assert.equal(row.payload_bytes, expected.image.display.bytes + expected.grid.bytes)
+  assert.equal(row.bytes, row.payload_bytes)
+  assert.equal(String(row.metadata).includes('data:image'), false)
+  inspect.close(); cache.close()
+  assertImage(f.open().get(key(11), rootA), expected)
+  f.unchanged()
+})
+
+test('本地专辑显示缓存：网格SHA不符只拒绝该次写入，合法邻项与源库保留', t => {
+  const f = fixture(t), cache = f.open(), first = record(21), grid = record(22).image.display
+  cache.put(key(21), rootA, first)
+  cache.put(key(22), rootA, { ...record(22), grid: { ...grid, sha256: '0'.repeat(64) } })
+  assert.equal(cache.get(key(22), rootA), null)
+  assertImage(cache.get(key(21), rootA), first)
+  f.unchanged()
+})
+
 test('本地专辑显示缓存：内存命中不逐图落盘，LRU字节条数受限且撤根拒迟到写', t => {
   const f = fixture(t), a = record(1), b = record(2), c = record(3), payload = a.image.display.bytes
   const cache = f.open({ maxEntries: 2, maxBytes: payload * 2 })

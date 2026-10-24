@@ -1,6 +1,8 @@
 import type {MBQueueLoadResult} from './mb-queue-owner-types.js';
 import type { DatabaseSync } from 'node:sqlite';
 import { isMBQueueRecord, isMBQueueSaveRequest, type MBQueueRecord, type MBQueueSaveRequest } from '@music-bridge/contracts';
+import { captureScanOriginQueueWrite } from './local-scan-origin-index.js';
+import { captureLocalAlbumQueueWrite } from './local-album-browser/scan-delta.js';
 
 const table = 'CREATE TABLE mb_playback_queue(slot INTEGER PRIMARY KEY CHECK(slot=1),dataset_id TEXT NOT NULL,queue_id TEXT NOT NULL,revision TEXT NOT NULL,data TEXT NOT NULL) STRICT';
 export const mbQueueMigration = table + '; PRAGMA user_version=33;';
@@ -30,13 +32,16 @@ export function createMBQueueStore(options: { read: <T>(fn: (db: DatabaseSync) =
     save(request) {
       if (!isMBQueueSaveRequest(request)) throw new MBQueueStoreError('QUEUE_INVALID');
       return options.read(db => {
+        const originWrite = captureScanOriginQueueWrite(db), queueData = JSON.stringify(request.queue);
+        const albumWrite = captureLocalAlbumQueueWrite(db, { datasetId: request.queue.datasetId,
+          queueId: request.queue.queueId, revision: request.queue.revision, data: queueData });
         db.exec('BEGIN IMMEDIATE'); let committing = false;
         try {
           const old = readQueue(db);
           if ((old?.revision ?? '0') !== request.expectedRevision || old && (old.datasetId !== request.queue.datasetId && old.queueId === request.queue.queueId)) throw new MBQueueStoreError('QUEUE_CONFLICT');
-          db.prepare('INSERT INTO mb_playback_queue(slot,dataset_id,queue_id,revision,data) VALUES(1,?,?,?,?) ON CONFLICT(slot) DO UPDATE SET dataset_id=excluded.dataset_id,queue_id=excluded.queue_id,revision=excluded.revision,data=excluded.data')
-            .run(request.queue.datasetId, request.queue.queueId, request.queue.revision, JSON.stringify(request.queue));
-          options.beforeCommit?.('save-mb-queue'); committing = true; db.exec('COMMIT');
+          const write = db.prepare('INSERT INTO mb_playback_queue(slot,dataset_id,queue_id,revision,data) VALUES(1,?,?,?,?) ON CONFLICT(slot) DO UPDATE SET dataset_id=excluded.dataset_id,queue_id=excluded.queue_id,revision=excluded.revision,data=excluded.data')
+            .run(request.queue.datasetId, request.queue.queueId, request.queue.revision, queueData);
+          options.beforeCommit?.('save-mb-queue'); originWrite.approve(); albumWrite.approve(write.changes); committing = true; db.exec('COMMIT'); originWrite.publish(); albumWrite.publish();
           return structuredClone(request.queue);
         } catch (error) {
           try { db.exec('ROLLBACK'); } catch { options.onFatal(); throw new MBQueueStoreError('QUEUE_COMMIT_UNKNOWN'); }

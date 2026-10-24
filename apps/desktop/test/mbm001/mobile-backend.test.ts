@@ -45,10 +45,10 @@ function track(index: number): MobileTrack {
 function failure(status: MobileServiceError['status'], code: MobileServiceError['code']): MobileOwnerPrivateFailure {
   return { kind: 'mobile-error', status, code, retryable: false, outcome: null };
 }
-function safeError(status: MobileServiceError['status'], code: MobileServiceError['code']) {
+function safeError(status: MobileServiceError['status'], code: MobileServiceError['code'], retryable = false) {
   return (error: unknown): boolean => {
     assert.ok(error instanceof MobileServiceError);
-    assert.equal(error.status, status); assert.equal(error.code, code); assert.equal(error.retryable, false);
+    assert.equal(error.status, status); assert.equal(error.code, code); assert.equal(error.retryable, retryable);
     assert.equal(error.message, '移动服务当前无法完成请求。'); assert.equal(Object.hasOwn(error, 'cause'), false);
     return true;
   };
@@ -77,10 +77,11 @@ function fixture(t: TestContext, count = 3) {
     afterResize: (() => void) | null;
     malformedCatalog: ((value: MobileOwnerCatalogSnapshot) => MobileOwnerPrivateResult) | null;
     unavailableTracks: Set<string>;
+    loadFailure: MobileAuthPersistenceError | MobileServiceError | null;
   } = { datasetId: IDS.dataset, ownerEpoch: IDS.owner, revision: 'mr:fixture.1', hostCurrent: true,
     stored: { kind: 'missing', datasetId: IDS.dataset, revision: 0 }, saves: 0, selected: true,
     selectionRevision: 'selection.1', selectedBytes: new Uint8Array([0xff, 0xd8, 17, 0xff, 0xd9]),
-    afterResize: null, malformedCatalog: null, unavailableTracks: new Set() };
+    afterResize: null, malformedCatalog: null, unavailableTracks: new Set(), loadFailure: null };
 
   async function requestOwner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
     assert.equal(isMobileOwnerPrivateRequest(request), true, '正常端口请求必须属于实际私有闭集。');
@@ -88,7 +89,15 @@ function fixture(t: TestContext, count = 3) {
     calls.push(structuredClone(request));
     let result: MobileOwnerPrivateResult;
     if (request.datasetId !== state.datasetId) result = failure(503, 'BUSY');
-    else if (request.kind === 'load') result = copyState(state.stored);
+    else if (request.kind === 'load') {
+      const error = state.loadFailure; state.loadFailure = null;
+      if (error) throw error;
+      result = copyState(state.stored);
+    }
+    else if (request.kind === 'playback-load') {
+      // 激活时预热独立的空播放账本，不与认证存储共用夹具状态。
+      result = { kind: 'missing', datasetId: request.datasetId, revision: 0 };
+    }
     else if (request.kind === 'save') {
       if (request.request.expectedRevision !== state.stored.revision) {
         result = { kind: 'conflict', datasetId: request.datasetId, currentRevision: state.stored.revision };
@@ -204,6 +213,23 @@ async function refreshed(f: Fixture, tokens: MobileTokenPair, key = 'refresh.ori
 }
 const dispatch = (f: Fixture, operation: Mobile001Operation, options: RequestOptions = {}) => f.handle.backend.dispatch(prepare(operation, options));
 const catalogCalls = (f: Fixture) => f.calls.filter(value => value.kind === 'catalog');
+
+test('匿名server在Owner只读暂错后允许完整重读恢复，原Main门禁与配对身份保持有效', async t => {
+  const f = fixture(t), first = await paired(f), stored = copyState(f.state.stored), saves = f.state.saves;
+  for (const failure of [new MobileAuthPersistenceError('unknown'), new MobileServiceError(503, 'BUSY')]) {
+    const loads = f.calls.filter(call => call.kind === 'load').length; f.state.loadFailure = failure;
+    await assert.rejects(dispatch(f, 'getServer'), safeError(503, 'BUSY', true));
+    assert.equal(f.calls.filter(call => call.kind === 'load').length, loads + 1);
+    f.state.hostCurrent = false; const calls = f.calls.length;
+    await assert.rejects(dispatch(f, 'getServer'), safeError(503, 'BUSY')); assert.equal(f.calls.length, calls);
+    f.state.hostCurrent = true;
+    const reply = await dispatch(f, 'getServer'); await beforeSend(reply);
+    assert.equal(reply.status, 200); assert.equal(readBody('getServer', reply).serverId, IDS.server);
+    assert.equal(f.calls.filter(call => call.kind === 'load').length, loads + 3, '恢复仍须auth读取和beforeSend原Owner末核');
+    await f.handle.auth.authenticate(first.tokens.accessToken);
+    assert.deepEqual(f.state.stored, stored); assert.equal(f.state.saves, saves);
+  }
+});
 
 /** 延续原001用例覆盖002激活接线，不改变冻结用例清单或把受控端口写成真文件证据。 */
 async function assertPlaybackCatalogGating(f: Fixture, tokens: MobileTokenPair): Promise<void> {

@@ -201,6 +201,105 @@ function tracedShutdown(recorder: MainDiagnosticRecorder, groups: readonly Local
   })
 }
 
+test('退出阶段私有旁注：艺术家目录关闭等待和失败可见，保留真实关闭屏障', async t => {
+  const f = shutdownTraceFixture(); let reject!: (error: unknown) => void, ownerCalls = 0
+  const failure = new Error('合成目录关闭原因不能写入日志')
+  const held = new Promise<void>((_, fail) => { reject = fail })
+  const coordinator = tracedShutdown(f.recorder, [{ steps: [['close_artist_catalog', () => held]] },
+    { requiresPreviousSuccess: true, steps: [['owner_shutdown', () => { ownerCalls++ }]] }])
+  const flight = coordinator.request()!
+  t.after(async () => { reject(failure); await Promise.allSettled([flight]) })
+  await shutdownTick()
+  assert.equal(coordinator.pending, true)
+  assert.deepEqual(f.rows().at(-1)?.pending, ['close_artist_catalog'])
+  assert.equal(ownerCalls, 0)
+  f.advance(30); reject(failure)
+  await assert.rejects(flight)
+  const last = f.rows().at(-1)!
+  assert.deepEqual(last.failed, ['close_artist_catalog'])
+  assert.deepEqual(last.pending, [])
+  assert.deepEqual(last.firstFailure, { phase: 'close_artist_catalog', code: 'INTERNAL_ERROR' })
+  assert.equal(coordinator.confirmed, false)
+  assert.equal(ownerCalls, 0)
+  assert.doesNotMatch(f.lines.join(''), /合成目录关闭原因/u)
+})
+
+test('退出阶段私有旁注：媒体池原关闭在途可见pending，真实完成后才记成功', async t => {
+  const f = shutdownTraceFixture(); let release!: () => void, mediaCalls = 0, ownerCalls = 0
+  const held = new Promise<void>(resolve => { release = resolve })
+  const coordinator = tracedShutdown(f.recorder, [{ steps: [['prepare_media_worker', () => { mediaCalls++; return held }]] },
+    { steps: [['owner_shutdown', () => { ownerCalls++ }]] }])
+  const flight = coordinator.request()!
+  t.after(async () => { release(); await Promise.allSettled([flight]) })
+  await shutdownTick()
+  assert.equal(coordinator.pending, true); assert.equal(coordinator.confirmed, false)
+  assert.equal(coordinator.request(), undefined); assert.equal(mediaCalls, 1); assert.equal(ownerCalls, 0)
+  const pending = f.rows()
+  assert.equal(pending.length, 1)
+  assert.deepEqual(pending[0], {
+    schema: 'musicbridge.shutdown-stage.v1', component: 'main', at: '2026-10-15T07:00:00.000Z',
+    event: 'local_workbench_shutdown_phase_start', phase: 'prepare_media_worker', status: 'pending', elapsedMs: 0,
+    code: null, failureKind: null, pending: ['prepare_media_worker'], completed: [], failed: [], firstFailure: null, cleanupFailures: [],
+  })
+  f.advance(19); release(); await flight
+  assert.equal(coordinator.confirmed, true); assert.equal(mediaCalls, 1); assert.equal(ownerCalls, 1)
+  const media = f.rows().filter(row => row.phase === 'prepare_media_worker')
+  assert.deepEqual(media.map(row => [row.event, row.status, row.elapsedMs]), [
+    ['local_workbench_shutdown_phase_start', 'pending', 0], ['local_workbench_shutdown_phase_settled', 'completed', 19],
+  ])
+  assert.deepEqual(media[1]?.pending, []); assert.deepEqual(media[1]?.completed, ['prepare_media_worker'])
+  assert.deepEqual(f.rows().at(-1)?.completed, ['prepare_media_worker', 'owner_shutdown'])
+})
+
+test('退出阶段私有旁注：媒体池关闭首错保持原拒绝且进入首错收据', async () => {
+  const f = shutdownTraceFixture(), first = new Error('合成媒体关闭秘密不得进入日志')
+  let joins = 0, gated = 0
+  const coordinator = tracedShutdown(f.recorder, [
+    { steps: [['prepare_media_worker', () => { f.advance(7); throw first }]] },
+    { steps: [['join_readers', () => { joins++ }]] },
+    { requiresPreviousSuccess: true, steps: [['revoke_author', () => { gated++ }]] },
+  ], new Map([[first, 'INTERNAL_ERROR']]))
+  await assert.rejects(coordinator.request()!, error => error === first)
+  assert.equal(coordinator.firstFailure?.reason, first); assert.equal(coordinator.confirmed, false)
+  assert.equal(coordinator.pending, false); assert.equal(joins, 1); assert.equal(gated, 0)
+  f.recorder.recordLifecycle('local_workbench_shutdown_not_verified', 'error', { code: 'INTERNAL_ERROR' })
+  const media = f.rows().filter(row => row.phase === 'prepare_media_worker'), tail = f.rows().at(-1)!
+  assert.deepEqual(media.map(row => [row.event, row.status, row.failureKind, row.code]), [
+    ['local_workbench_shutdown_phase_start', 'pending', null, null],
+    ['local_workbench_shutdown_failure', 'failed', 'first', 'INTERNAL_ERROR'],
+  ])
+  assert.deepEqual(tail.firstFailure, { phase: 'prepare_media_worker', code: 'INTERNAL_ERROR' })
+  assert.deepEqual(tail.failed, ['prepare_media_worker']); assert.deepEqual(tail.cleanupFailures, [])
+  assert.deepEqual(tail.pending, []); assert.deepEqual(tail.completed, ['join_readers'])
+  assert.doesNotMatch(f.lines.join(''), /合成媒体关闭秘密/u)
+})
+
+test('退出阶段私有旁注：媒体池后续清理拒绝单独保留，不覆盖原准备首错', async t => {
+  const f = shutdownTraceFixture(), first = new Error('合成准备秘密不得进入日志'), cleanup = new Error('合成媒体清理秘密不得进入日志')
+  let release!: () => void, ownerCalls = 0, gated = 0
+  const held = new Promise<void>(resolve => { release = resolve })
+  const coordinator = tracedShutdown(f.recorder, [{ steps: [
+    ['prepare_reads', () => { f.advance(1); throw first }],
+    ['prepare_media_worker', async () => { await held; f.advance(9); throw cleanup }],
+  ] }, { steps: [['owner_shutdown', () => { ownerCalls++ }]] },
+  { requiresPreviousSuccess: true, steps: [['revoke_author', () => { gated++ }]] }], new Map([[first, 'CHANGED'], [cleanup, 'TIMEOUT']]))
+  const flight = coordinator.request()!, rejected = assert.rejects(flight, error => error === first)
+  t.after(async () => { release(); await Promise.allSettled([flight, rejected]) })
+  await shutdownTick()
+  assert.equal(coordinator.firstFailure?.reason, first); assert.equal(ownerCalls, 0)
+  assert.deepEqual(f.rows().at(-1)?.pending, ['prepare_media_worker'])
+  release(); await rejected
+  assert.equal(coordinator.confirmed, false); assert.equal(ownerCalls, 1); assert.equal(gated, 0)
+  f.recorder.recordLifecycle('local_workbench_shutdown_not_verified', 'error', { code: 'CHANGED' })
+  const media = f.rows().filter(row => row.phase === 'prepare_media_worker'), tail = f.rows().at(-1)!
+  assert.equal(media.length, 2); assert.equal(media[1]?.event, 'local_workbench_shutdown_cleanup_failure')
+  assert.equal(media[1]?.failureKind, 'cleanup'); assert.equal(media[1]?.code, 'TIMEOUT'); assert.equal(media[1]?.elapsedMs, 9)
+  assert.deepEqual(tail.firstFailure, { phase: 'prepare_reads', code: 'CHANGED' })
+  assert.deepEqual(tail.cleanupFailures, [{ phase: 'prepare_media_worker', code: 'TIMEOUT' }])
+  assert.deepEqual(tail.failed, ['prepare_reads', 'prepare_media_worker']); assert.deepEqual(tail.completed, ['owner_shutdown'])
+  assert.deepEqual(tail.pending, []); assert.doesNotMatch(f.lines.join(''), /合成准备秘密|合成媒体清理秘密/u)
+})
+
 test('退出阶段私有旁注：Core缺席时仍记录原coordinator成功与UTC耗时，公开报告字段保持', async () => {
   const f = shutdownTraceFixture(), calls: string[] = []
   const coordinator = tracedShutdown(f.recorder, [{ steps: [

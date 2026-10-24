@@ -4,7 +4,7 @@ import * as dto from '@music-bridge/contracts';
 import type { CollectionRepository } from './repository.js';
 import type { DatasetProjectionPort } from './dataset-owner-protocol.js';
 import { readonlySourceCandidateMetadata, sourceRootAvailability, withCheckedReadonlyMetadataSource, MetadataLeaseReleaseError, SourceFileError } from '../recording/source-files.js';
-import { readLocalEmbeddedArtwork } from '../library/local-artwork-embedded-reader.js';
+import { readRustEmbeddedArtwork } from '../library/rust-embedded-artwork-reader.js';
 import { readonlyLocalArtworkCandidateNames } from '../library/local-artwork-directory-candidates.js';
 
 const hash = (v: string | Uint8Array): string => createHash('sha256').update(v).digest('hex');
@@ -37,14 +37,15 @@ export function createLocalArtworkService(options: { repository: CollectionRepos
   async function read(target: dto.LocalArtworkTarget, signal: AbortSignal): Promise<dto.LocalArtworkSourceCopies> {
     const projection = options.projection;
     if (!projection) return { status: 'source-unavailable', items: [] };
-    const acquired = await projection.call('scanReadAcquire', {});
+    const readDeadlineAtMs = performance.now() + 10_000;
+    const acquired = await projection.call('scanReadAcquire', {}, { signal, deadlineAtMs: readDeadlineAtMs });
     if (acquired.status !== 'granted') return { status: 'source-unavailable', items: [] };
     const abort = new AbortController(), forward = () => abort.abort(); signal.addEventListener('abort', forward, { once: true }); if (signal.aborted) abort.abort();
     let leaseFailed = false, watchFailed = false, finished = false;
     const watch = (async () => { while (!finished) { const v = await projection.call('scanReadWatchRevocation', { permitId: acquired.permitId }); if (v.reason === 'renew') continue; if (v.reason !== 'permit-released') abort.abort(); break; } })().catch(() => { watchFailed = true; abort.abort(); });
     const items: dto.LocalArtworkSourceCopies['items'] = [];
     try {
-      const value = locator(target), deadline = Date.now() + 10_000;
+      const value = locator(target), deadline = Date.now() + Math.max(0, readDeadlineAtMs - performance.now());
       const alive = (): void => { check(); store.assertTarget(target); if (abort.signal.aborted || Date.now() > deadline) throw new Error('封面查找已取消或达到时限。'); };
       if (await sourceRootAvailability(value.capability) !== 'ONLINE') return { status: 'source-unavailable', items: [] };
       const audioObserved = await readonlySourceCandidateMetadata(value.capability,value.relative); alive();
@@ -79,7 +80,7 @@ export function createLocalArtworkService(options: { repository: CollectionRepos
         const observed = audioObserved; alive();
         try {
           const pictures = await withCheckedReadonlyMetadataSource(value.capability, value.relative, observed.signature, abort.signal,
-            (fd,size) => readLocalEmbeddedArtwork(fd,size,abort.signal), alive);
+            (fd,size) => readRustEmbeddedArtwork(fd,size,abort.signal), alive);
           embeddedConfirmed = true;
           for (const picture of pictures) remember(picture.bytes, value.relative, observed.signature, 'embedded', `内嵌图片 ${picture.pictureIndex + 1}`, picture.pictureIndex);
         } catch (error) { if (error instanceof MetadataLeaseReleaseError || abort.signal.aborted) throw error; /* 不支持/坏标签不妨碍已读取的独立图与手选。 */ }

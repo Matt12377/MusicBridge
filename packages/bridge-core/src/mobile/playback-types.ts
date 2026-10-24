@@ -3,6 +3,7 @@ import type {
   MobileObservationReceipt, MobileResource, MobileResourceSemanticContext, MobileSession,
 } from '@music-bridge/contracts';
 import type { MobileAuthCrypto, MobileAuthPersistence, MobilePrincipal } from './types.js';
+import type { MobilePlaybackHistoryPort } from './playback-history-types.js';
 import type { PlaybackState } from './playback-state.js';
 import type { DecodedPlaybackStorage, EncodedPlaybackStorage } from './playback-state-codec.js';
 import type { MobilePlaybackSourcePort } from './source-types.js';
@@ -32,6 +33,15 @@ export interface MobilePlaybackAuthPort {
   /** access refresh 不改变该授权；撤销或重新配对改变 deviceEpoch。 */
   assertDeviceCurrent(deviceId: string, deviceEpoch: number): Promise<void>;
 }
+/** 仅同进程可信Main组合；不进入HTTP、来源IPC或持久格式。 */
+export interface MobilePlaybackReadRequest {
+  readonly serverId: string; readonly datasetId: string; readonly deviceId: string; readonly deviceEpoch: number;
+  readonly handle: string; readonly readId: string; readonly start: number; readonly maxBytes: number; readonly signal: AbortSignal;
+}
+export interface MobilePlaybackReadBoundaries { before(): Promise<void>; after(): Promise<void> }
+export type MobilePlaybackReadComposer = (request: Readonly<MobilePlaybackReadRequest>, boundaries: Readonly<MobilePlaybackReadBoundaries>) => Promise<Uint8Array>;
+declare const privateReadComposition: unique symbol;
+export interface MobilePlaybackReadComposition { readonly [privateReadComposition]: true }
 export interface MobilePlaybackLimits {
   sessionTtlMs: number; resourceTtlMs: number; ticketTtlMs: number; maximumResourceLifetimeMs: number;
   orphanResourceMs: number; prepareTimeoutMs: number; readyWaitMs: number;
@@ -43,26 +53,44 @@ export interface MobilePlaybackLimits {
 }
 export const MOBILE_PLAYBACK_DEFAULT_LIMITS: Readonly<MobilePlaybackLimits> = Object.freeze({
   sessionTtlMs: 1_800_000, resourceTtlMs: 300_000, ticketTtlMs: 60_000, maximumResourceLifetimeMs: 43_200_000,
-  orphanResourceMs: 300_000, prepareTimeoutMs: 10_000, readyWaitMs: 25,
+  orphanResourceMs: 300_000, prepareTimeoutMs: 10_000, readyWaitMs: 150,
   mediaEstablishmentMs: 10_000, mediaIdleMs: 5_000, releaseConfirmationMs: 10_000,
   maxSessionsPerDevice: 2, maxLiveSessions: 64, maxLiveResources: 8, maxReads: 32, maxReadsPerResource: 4,
   maxStoredSessions: 512, maxStoredResources: 2_048, maxReceipts: 4_096,
   stateBytes: 2 * 1024 * 1024, sealedBytes: 4 * 1024 * 1024,
 });
+/** 非direct来源仍沿原短窗口；调用方更小的readyWaitMs继续收紧两条路径。 */
+export const MOBILE_PLAYBACK_NON_DIRECT_READY_WAIT_MS = 25;
+/** 私有账本逐引用展开的节点预算；Main复制、Worker校验及终态预留共用，不影响HTTP或物理存储预算。 */
+export const MOBILE_PLAYBACK_STATE_LOGICAL_NODE_LIMIT = 1_000_000;
+export interface MobilePlaybackTerminalFailureBudget {
+  codeJsonBytes: number; messageJsonBytes: number; requestIdJsonBytes: number; retryAfterJsonBytes: number;
+}
+/** JSON编码后的UTF-8字节：原18种安全码/消息最大值、UUID双引号及安全整数最大宽度。 */
+export const MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET: Readonly<MobilePlaybackTerminalFailureBudget> = Object.freeze({
+  codeJsonBytes: 22, messageJsonBytes: 56, requestIdJsonBytes: 38, retryAfterJsonBytes: 16,
+});
 /** 内部纯计算口；钥匙、Owner调用和持久化决策不跨此边界。 */
 export interface MobilePlaybackStateCodecContext {
   serverId: string; datasetId: string; responseOrigin: string; generation: string;
   revision: number; commitId: string | null; limits: Readonly<MobilePlaybackLimits>;
+  terminalFailureBudget?: Readonly<MobilePlaybackTerminalFailureBudget>;
 }
 export interface MobilePlaybackStateCodecPort {
   encode(state: PlaybackState, context: MobilePlaybackStateCodecContext): Promise<EncodedPlaybackStorage>;
   decode(plain: Uint8Array, context: MobilePlaybackStateCodecContext): Promise<DecodedPlaybackStorage>;
+  /** 只读历史投影不得替换现有hot actor base或重新出版历史资源。 */
+  readHistory?(plain: Uint8Array, context: MobilePlaybackStateCodecContext, sessionId: string): Promise<PlaybackState>;
   close(): Promise<void>;
 }
 export interface MobilePlaybackServiceOptions {
   serverId: string; datasetId: string; responseOrigin: string;
   auth: MobilePlaybackAuthPort; persistence: MobileAuthPersistence; crypto: MobileAuthCrypto;
+  /** Desktop生产由原Owner提供；缺省仍是已有纯Core单快照组合。 */
+  history?: MobilePlaybackHistoryPort;
   sourcePort: MobilePlaybackSourcePort;
+  /** 必须由私有工厂绑定同一auth/sourcePort；未知或错配资格沿原完整读路径。 */
+  readComposition?: MobilePlaybackReadComposition;
   /** Desktop生产组合必须提供独立CPU Worker；旧纯Core组合保留同步实现。 */
   stateCodec?: MobilePlaybackStateCodecPort;
   nowMs?: () => number; randomToken?: () => string;
@@ -95,6 +123,8 @@ export interface MobilePlaybackSnapshot {
   releasing: number; receipts: number; pendingPersistence: boolean; closing: boolean;
 }
 export interface MobilePlaybackService {
+  /** 私有启动预热；复用原串行冷恢复及ACK，不创建业务意图。 */
+  initialize(): Promise<void>;
   control(operation: MobilePlaybackControlOperation, request: MobileDecodedRequest<unknown>, principal: MobilePrincipal,
     signal: AbortSignal): Promise<MobilePlaybackControlReply>;
   openMedia(operation: MobilePlaybackMediaOperation, request: MobileDecodedRequest<unknown>, signal: AbortSignal,

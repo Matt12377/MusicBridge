@@ -1,4 +1,6 @@
+import { observeMobileOwnerLoadTrace } from './owner-load-trace.js';
 import { createHash } from 'node:crypto';
+import { localMetadataArtists } from '../library/local-artist-fields.js';
 import { isLocalArtworkSelection, isMobileId, isMobileDsdSourceAudio, type LocalArtworkSelection, type LocalLibraryTrackDetail, type MobileAlbum, type MobileTrack } from '@music-bridge/contracts';
 import { captureLocalFactsByIdentityReadonly } from '../application/local-source-resolver.js';
 import type { CollectionRepository } from '../collection/repository.js';
@@ -6,6 +8,8 @@ import { readonlySourceCatalogFileAvailable, SourceCatalogReleaseError } from '.
 import { mobileOwnerDirectPlaybackKind, projectMobileOwnerLocalTrack } from './catalog-service.js';
 import { isMobileOwnerPrivateRequest, isMobileOwnerPrivateResult } from './owner-protocol.js';
 import { createMobileSealedStateStore } from './sealed-state-store.js';
+import { createMobilePlaybackHistoryOwnerStore } from './playback-history-owner-store.js';
+import { catalogTraceStep, catalogTraceAsync, catalogTraceEvent } from './catalog-private-trace.js';
 import { createMobileLocalAlbumProjection, type MobileLocalAlbums } from './local-album-projection.js';
 import { MobileAuthPersistenceError, MobileServiceError, type MobileOwnerArtworkSnapshot, type MobileOwnerCatalogRequest, type MobileOwnerCatalogSnapshot, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult } from './types.js';
 
@@ -18,11 +22,17 @@ interface MobileOwnerServiceOptions {
   collection: CollectionRepository; datasetId: string; ownerEpoch: string; assertCurrent(): void;
   /** 原 Owner 的同一真实缓存资格；不能由 Renderer 或请求 bool 授予。 */
   dsdToPcmAvailable?: () => boolean;
+  /** 仅同Owner RAM调度提示，不代表读取许可。 */
+  isPlaybackBusy?: () => boolean;
 }
 export interface MobileOwnerLegacyService {
   dispatch(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult;
   dispatchLegacy(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult;
   dispatchMobile(input: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
+  catalogRevision(catalogPlaybackEnabled?: boolean): string;
+  refreshCatalog(): Promise<void>;
+  dispatchCurrentCatalog(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult;
+  close(): void;
 }
 export interface MobileOwnerDirectoryService extends Omit<MobileOwnerLegacyService, 'dispatch'> {
   dispatch(input: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
@@ -34,6 +44,7 @@ export function createMobileOwnerService(options: MobileOwnerServiceOptions & { 
   const { collection, datasetId, ownerEpoch } = options;
   let state: ReturnType<typeof createMobileSealedStateStore> | undefined;
   let playbackState: ReturnType<typeof createMobileSealedStateStore> | undefined;
+  let playbackHistory: ReturnType<typeof createMobilePlaybackHistoryOwnerStore> | undefined;
   const current = (): void => options.assertCurrent();
   const revision = (catalogPlaybackEnabled = false): string => { current(); const stamp = collection.readonlySnapshotStamp(); current(); return 'mr:' + digest([datasetId, ownerEpoch, stamp.dataVersion, stamp.totalChanges, catalogPlaybackEnabled, ...(options.dsdToPcmAvailable?.() === true ? ['MBM003_DSD_AVAILABLE'] : [])]); };
   function identifiers(id: string, kind: 'la' | 'lt' | 'aw', count: number): string[] {
@@ -75,7 +86,11 @@ export function createMobileOwnerService(options: MobileOwnerServiceOptions & { 
       const after = captureLocalFactsByIdentityReadonly(selected, collection);
       current(); return JSON.stringify(before) === JSON.stringify(after);
     } catch (error) {
-      if (error instanceof SourceCatalogReleaseError) throw new MobileServiceError(503, 'BUSY');
+      if (error instanceof SourceCatalogReleaseError) {
+        const busy = new MobileServiceError(503, 'BUSY');
+        catalogTraceEvent('owner.item.close-proof','reject',{error:busy,role:'cleanup',matched:false});
+        throw busy;
+      }
       return false;
     }
   }
@@ -97,7 +112,7 @@ export function createMobileOwnerService(options: MobileOwnerServiceOptions & { 
       editionId, editionRevision: edition.revision, trackId: `lt:${datasetId}:${trackId}:${editionId}`,
       sourceItemId: `ls:${datasetId}:${detail.asset.id}`, albumId: `la:${datasetId}:${editionId}`,
       versionId: 'lv:' + digest(identity), contentRevision: 'lc:' + digest(identity),
-    }, projection: { title: detail.metadata.effective.title, artists: detail.metadata.effective.artist ? [detail.metadata.effective.artist] : [],
+    }, projection: { title: detail.metadata.effective.title, artists: localMetadataArtists(detail.metadata.effective),
       // 001 保持只读；002 开启只允许真实当前资格投影，不提前签发媒体读取资源。
       editionLabel: edition.edition, availability: catalogPlaybackEnabled && playbackAvailable(detail) ? 'available' : 'unavailable', ...(cover ? { artworkId: cover } : {}) } });
   }
@@ -106,7 +121,8 @@ export function createMobileOwnerService(options: MobileOwnerServiceOptions & { 
     const tracks = collection.localCatalog.privateMobileCandidates({ kind: 'tracks', offset: 0, limit: 1, query: '', editionId, trackId: null });
     if (tracks.total > 300000) throw new MobileServiceError(503, 'CONTENT_LIMIT_EXCEEDED');
     const cover = artworkId(selection(editionId));
-    return { id: `la:${datasetId}:${editionId}`, title: edition.title, artists: detail.metadata.effective.artist ? [detail.metadata.effective.artist] : [],
+    return { id: `la:${datasetId}:${editionId}`, title: edition.title, artists: localMetadataArtists(detail.metadata.effective,'album').length
+      ? localMetadataArtists(detail.metadata.effective,'album') : localMetadataArtists(detail.metadata.effective),
       source: 'local', editionLabel: edition.edition, trackCount: tracks.total, ...(cover ? { artworkId: cover } : {}) };
   }
   function read(request: MobileOwnerCatalogRequest): MobileOwnerCatalogSnapshot {
@@ -143,6 +159,7 @@ export function createMobileOwnerService(options: MobileOwnerServiceOptions & { 
   }
   const directory = options.localAlbums ? createMobileLocalAlbumProjection({ ...options, localAlbums: options.localAlbums, playbackAvailable }) : undefined;
   function reject(error: unknown): MobileOwnerPrivateResult {
+    catalogTraceEvent('owner.reply','reject',{error});
     return { kind: 'mobile-error', status: error instanceof MobileServiceError ? error.status : 503,
       code: error instanceof MobileServiceError ? error.code : 'BUSY', retryable: false,
       outcome: error instanceof MobileAuthPersistenceError ? error.outcome : null };
@@ -153,28 +170,66 @@ export function createMobileOwnerService(options: MobileOwnerServiceOptions & { 
         let result: MobileOwnerPrivateResult;
         if (input.kind === 'catalog') result = read(input.request);
         else if (input.kind === 'artwork') result = artwork(input.request);
+        else if (input.kind === 'playback-history') {
+          const directory = collection.privateMobileDataDirectory?.(); if (!directory) throw new MobileAuthPersistenceError('not-sent');
+          playbackHistory ??= createMobilePlaybackHistoryOwnerStore({ directory, datasetId, assertCurrent: current });
+          result = playbackHistory.dispatch(input.request);
+        }
         else if (input.kind === 'load' || input.kind === 'save' || input.kind === 'playback-load' || input.kind === 'playback-save') {
           const directory = collection.privateMobileDataDirectory?.(); if (!directory) throw new MobileAuthPersistenceError('not-sent');
           const isPlayback = input.kind.startsWith('playback-');
           const store = isPlayback ? (playbackState ??= createMobileSealedStateStore({ directory, datasetId, assertCurrent: current, namespace: 'playback' }))
             : (state ??= createMobileSealedStateStore({ directory, datasetId, assertCurrent: current }));
-          result = input.kind === 'load' || input.kind === 'playback-load' ? store.load(datasetId) : store.save(input.request);
+          result = input.kind === 'load' || input.kind === 'playback-load'
+            ? observeMobileOwnerLoadTrace('owner', 'owner.load', () => store.load(datasetId)) : store.save(input.request);
         } else throw new MobileServiceError(400, 'INVALID_REQUEST');
         current(); if (!isMobileOwnerPrivateResult(result, input)) throw new MobileAuthPersistenceError('unknown'); return result;
       } catch (error) { return reject(error); }
+  }
+  async function refreshCatalog(): Promise<void> {
+    current(); if (directory) await catalogTraceAsync('owner.refresh', () => directory.refresh()); current();
+  }
+  function catalogRevision(catalogPlaybackEnabled = false): string {
+    current();
+    const result = directory ? directory.catalogRevision(catalogPlaybackEnabled) : revision(catalogPlaybackEnabled);
+    current(); return result;
+  }
+  /** 保留旧同步目录入口；current 仍核原 scope 与事实屏障。 */
+  function dispatchCurrentCatalog(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult {
+    try {
+      current(); if (!isMobileOwnerPrivateRequest(input) || input.datasetId !== datasetId || input.kind !== 'catalog') throw new MobileServiceError(400, 'INVALID_REQUEST');
+      const result = directory ? directory.catalog(input.request) : read(input.request);
+      catalogTraceStep('owner.result-boundary', () => { current(); if (!isMobileOwnerPrivateResult(result, input)) throw new MobileAuthPersistenceError('unknown'); });
+      catalogTraceEvent('owner.reply','ok'); return result;
+    } catch (error) { return reject(error); }
   }
   async function dispatchMobile(input: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
     if (!directory) return dispatchLegacy(input);
     try {
       current(); if (!isMobileOwnerPrivateRequest(input) || input.datasetId !== datasetId) throw new MobileAuthPersistenceError('not-sent');
       let result: MobileOwnerPrivateResult;
-      if (input.kind === 'catalog') { await directory.refresh(); result = directory.catalog(input.request); }
+      if (input.kind === 'catalog') {
+        await refreshCatalog();
+        if (input.request.operation === 'listTracks' || options.localAlbums?.privateMobile.structure) {
+          current(); if (!isMobileOwnerPrivateRequest(input) || input.datasetId !== datasetId) throw new MobileServiceError(400, 'INVALID_REQUEST');
+          result = await directory.catalogAsync(input.request);
+          catalogTraceStep('owner.result-boundary', () => { current(); if (!isMobileOwnerPrivateResult(result, input)) throw new MobileAuthPersistenceError('unknown'); });
+          catalogTraceEvent('owner.reply','ok');
+        } else result = dispatchCurrentCatalog(input);
+      }
+      else if (input.kind === 'catalog-selected') {
+        // refresh前捕获私有请求，防止等待期间原引用被修改。
+        const request = { ...input.request, ids: [...input.request.ids] };
+        await refreshCatalog();
+        result = await directory.selected(request);
+      }
       else if (input.kind === 'artwork' && input.request.artworkId.startsWith('mw:')) result = await directory.artwork(input.request);
       else if (input.kind === 'artwork') { await directory.refresh(); result = artwork(input.request, true); }
       else return dispatchLegacy(input);
       current(); if (!isMobileOwnerPrivateResult(result, input)) throw new MobileAuthPersistenceError('unknown'); return result;
     } catch (error) { return reject(error); }
   }
-  if (directory) return { dispatch: dispatchMobile, dispatchLegacy, dispatchMobile };
-  return { dispatch: dispatchLegacy, dispatchLegacy, dispatchMobile };
+  const close = (): void => { playbackHistory?.close(); };
+  if (directory) return { dispatch: dispatchMobile, dispatchLegacy, dispatchMobile, catalogRevision, refreshCatalog, dispatchCurrentCatalog, close };
+  return { dispatch: dispatchLegacy, dispatchLegacy, dispatchMobile, catalogRevision, refreshCatalog, dispatchCurrentCatalog, close };
 }

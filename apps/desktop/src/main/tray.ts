@@ -1,13 +1,13 @@
 import type { PlaybackSnapshot, PublicBridgeState } from '@music-bridge/contracts'
 
 export const TRAY_ACTION_LABELS = [
-  'Open Music Bridge',
+  '打开 Mousa',
   'Previous',
   'Next',
   'Stop',
   'Show Queue',
   'Export Diagnostics',
-  'Quit Music Bridge',
+  '退出 Mousa',
 ] as const
 
 export interface TraySnapshot {

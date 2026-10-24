@@ -5,9 +5,21 @@ import { isIP } from 'node:net';
 import { checkServerIdentity } from 'node:tls';
 import type { GatewayFetch } from '../stream/upstream-policy.js';
 import { MobileServiceError } from '../mobile/types.js';
+import { captureMobileCapabilityContext, mobileCapabilityReject, type MobileCapabilityStage } from '../mobile/capability-trace.js';
 
 const unavailable = () => new MobileServiceError(503, 'BUSY', true, 1000);
 const MAX_BYTES = 4 * 1024 * 1024;
+type TransportFailure = 'dns-failure' | 'dns-answer' | 'dns-address' | 'dns-empty' | 'http-status'
+  | 'tls' | 'connection' | 'body' | 'headers' | 'request';
+/** 仅旁注原失败的闭集阶段；不输出地址、响应头或底层错误文本。 */
+function transportFailure(stage: TransportFailure, error = unavailable()): MobileServiceError {
+  try {
+    const context = captureMobileCapabilityContext();
+    if (context?.privateContentDiagnostic === true && !context.closed && !context.firstBusiness)
+      mobileCapabilityReject(`provider.artwork.transport.${stage}` as MobileCapabilityStage, error);
+  } catch { /* 诊断失败不替换原传输错误。 */ }
+  return error;
+}
 export interface MobileArtworkResolver {
   resolve4(host: string): Promise<string[]>;
   resolve6(host: string): Promise<string[]>;
@@ -54,17 +66,17 @@ async function resolveAddress(host: string, signal: AbortSignal, create: () => M
     for (const [index, answer] of result.entries()) {
       if (answer.status === 'rejected') {
         const code = answer.reason && typeof answer.reason === 'object' ? Object.getOwnPropertyDescriptor(answer.reason, 'code')?.value : undefined;
-        if (code !== 'ENODATA' && code !== 'ENOTFOUND') throw unavailable();
+        if (code !== 'ENODATA' && code !== 'ENOTFOUND') throw transportFailure('dns-failure');
         continue;
       }
-      if (!Array.isArray(answer.value) || answer.value.length > 32) throw unavailable();
+      if (!Array.isArray(answer.value) || answer.value.length > 32) throw transportFailure('dns-answer');
       const family = index === 0 ? 4 : 6;
       for (const address of answer.value) {
-        if (!mobileArtworkPublicAddress(address, family)) throw unavailable();
+        if (!mobileArtworkPublicAddress(address, family)) throw transportFailure('dns-address');
         addresses.push({ address, family });
       }
     }
-    if (!addresses.length) throw unavailable();
+    if (!addresses.length) throw transportFailure('dns-empty');
     return addresses[0]!;
   } finally { signal.removeEventListener('abort', abort); abort(); }
 }
@@ -74,6 +86,7 @@ function pinnedResponse(url: URL, address: { address: string; family: 4 | 6 }, s
   signal.throwIfAborted();
   return new Promise<Response>((resolve, reject) => {
     let outgoing: ClientRequest | undefined, incoming: IncomingMessage | undefined, responded = false;
+    let failureStage: TransportFailure = 'connection';
     let markRequestClosed!: () => void, markResponseClosed: (() => void) | undefined;
     const requestClosed = new Promise<void>(done => { markRequestClosed = done; });
     let responseClosed = Promise.resolve();
@@ -94,7 +107,9 @@ function pinnedResponse(url: URL, address: { address: string; family: 4 | 6 }, s
         message.once('close', () => markResponseClosed?.());
         message.on('error', () => {}); // 实际失败由异步迭代器及close收口，不把原错误写入日志。
         const status = message.statusCode ?? 0;
-        if (![200,301,302,303,307,308,404].includes(status) || signal.aborted) { abort(); return; }
+        if (![200,301,302,303,307,308,404].includes(status) || signal.aborted) {
+          if (!signal.aborted) failureStage = 'http-status'; abort(); return;
+        }
         try {
           const headers = new Headers();
           for (let index = 0; index < message.rawHeaders.length; index += 2) headers.append(message.rawHeaders[index]!, message.rawHeaders[index + 1]!);
@@ -110,24 +125,30 @@ function pinnedResponse(url: URL, address: { address: string; family: 4 | 6 }, s
                 controller.enqueue(Uint8Array.from(item.value));
               } catch (error) {
                 abort(); await quiet();
-                controller.error(error instanceof MobileServiceError ? error : unavailable());
+                controller.error(transportFailure('body', error instanceof MobileServiceError ? error : unavailable()));
               }
             },
             async cancel() { abort(); await quiet(); },
           });
           const result = new Response(body, { status, headers }); responded = true; resolve(result);
-        } catch { abort(); }
+        } catch { failureStage = 'headers'; abort(); }
       });
       outgoing.maxHeadersCount = 64;
-      outgoing.on('error', () => { incoming?.destroy(unavailable()); });
+      outgoing.on('error', error => {
+        const code = error && typeof error === 'object' ? Object.getOwnPropertyDescriptor(error, 'code')?.value : undefined;
+        if (['ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT',
+          'SELF_SIGNED_CERT_IN_CHAIN', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'CERT_NOT_YET_VALID',
+          'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'].includes(code)) failureStage = 'tls';
+        incoming?.destroy(unavailable());
+      });
       outgoing.once('close', () => {
         markRequestClosed();
-        if (!responded) void quiet().then(() => reject(unavailable()));
+        if (!responded) void quiet().then(() => reject(transportFailure(failureStage)));
       });
       if (signal.aborted) abort(); else outgoing.end();
     } catch {
-      if (outgoing) { outgoing.destroy(); void quiet().then(() => reject(unavailable())); }
-      else { markRequestClosed(); cleanup(); reject(unavailable()); }
+      if (outgoing) { outgoing.destroy(); void quiet().then(() => reject(transportFailure('request'))); }
+      else { markRequestClosed(); cleanup(); reject(transportFailure('request')); }
     }
   });
 }

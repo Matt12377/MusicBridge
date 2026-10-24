@@ -29,7 +29,7 @@ const { root, open, toggle, close, selectZone } = useZoneSelection((zoneId) => e
       :aria-label="selectedZone?.displayName ?? '选择播放设备'"
       @click="toggle"
     >
-      <SidebarIcon name="speaker" :size="15" />
+      <slot name="icon"><SidebarIcon name="speaker" :size="15" /></slot>
       <span><strong>{{ selectedZone?.displayName ?? '选择播放设备' }}</strong><small>{{ zoneLifecycleLabel(zoneStatus) }}</small></span>
       <SidebarIcon name="chevron-down" :size="13" />
     </button>

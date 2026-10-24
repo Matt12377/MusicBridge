@@ -11,10 +11,11 @@ import { createMobileAuthCrypto } from '../../../../packages/bridge-core/src/mob
 import { createMobileAuthService } from '../../../../packages/bridge-core/src/mobile/auth-service.js';
 import { capturePlaybackState, playbackCanonical, playbackCopy, type PlaybackState, type StoredPlaybackReceipt } from '../../../../packages/bridge-core/src/mobile/playback-state.js';
 import { encodePlaybackStorage, decodePlaybackStorage } from '../../../../packages/bridge-core/src/mobile/playback-state-codec.js';
-import { MOBILE_PLAYBACK_DEFAULT_LIMITS, MobilePlaybackError, type MobilePlaybackAuthPort, type MobilePlaybackStateCodecContext, type MobilePlaybackStateCodecPort, type MobilePlaybackSourcePort } from '../../../../packages/bridge-core/src/mobile/playback-types.js';
+import { MOBILE_PLAYBACK_DEFAULT_LIMITS, MOBILE_PLAYBACK_STATE_LOGICAL_NODE_LIMIT, MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET, MobilePlaybackError, type MobilePlaybackAuthPort, type MobilePlaybackStateCodecContext, type MobilePlaybackStateCodecPort, type MobilePlaybackSourcePort } from '../../../../packages/bridge-core/src/mobile/playback-types.js';
 import { MobileAuthPersistenceError, type MobileAuthPersistence, type MobileSealedState, type MobilePrincipal, type MobileAuthCrypto } from '../../../../packages/bridge-core/src/mobile/types.js';
 import { createMobilePlaybackStateCodec } from '../../src/main/mobile-playback-state-codec-client.js';
-import { PLAYBACK_CODEC_PROTOCOL } from '../../src/main/mobile-playback-state-codec-protocol.js';
+import { createMobileCapabilityContext, createMobileCapabilityTraceReader, withMobileCapabilityContext, type MobileCapabilityTraceRecord } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
+import { PLAYBACK_CODEC_PROTOCOL, PLAYBACK_CODEC_REJECTION_BOUNDARIES, readCodecRejectionBoundary } from '../../src/main/mobile-playback-state-codec-protocol.js';
 
 // Root先编译真实生产entry；不准以旧Core dist或同步口补位。材料全为内存合成数据。
 const SERVER = 'budget.synthetic.server', DATASET = '30000000-0000-4000-8000-000000000001';
@@ -190,7 +191,7 @@ test('播放Worker：原编解码字节状态等价且传输所有权和各层�
   assert.throws(() => decodePlaybackStorage(raw, SERVER, DATASET, ORIGIN, limits), errorCode('BUSY'));
   await assert.rejects(port.decode(raw, context(state)), errorCode('BUSY'));
   await assert.rejects(port.decode(new Uint8Array(limits.stateBytes + 1), context(state)), errorCode('BUSY'));
-  // 逻辑节点按每次共享引用累计：Main raw guard与Worker原展开预算都必须守住。
+  // 保留原200k边界夹具，迁移后共享引用仍完整往返；新1m拒绝由容量回归另行覆盖。
   const expanded = playbackCopy(state), resource = expanded.resources[0]!;
   resource.request.formats = Array.from({ length: 20 }, () => playbackCopy(resource.request.formats[0]!));
   for (const r of expanded.receipts) if (r.resourceId === resource.id) {
@@ -198,7 +199,7 @@ test('播放Worker：原编解码字节状态等价且传输所有权和各层�
     if (r.operation === 'createResource') { r.request.body = playbackCopy(resource.request); r.fingerprint = digest('request', [r.scopeHash, r.request.body]); }
   }
   const template = playbackCopy(expanded.receipts.find(r => r.operation === 'createResource')!);
-  template.state = 'UNKNOWN'; template.reply = null; template.resourceContext = null;
+  // 精确当前节点预算使用已记录回执；UNKNOWN还要为未来终态保留节点。
   const count = Math.floor((200_000 - nodes(expanded)) / nodes(template));
   const make = (i: number) => { const r = playbackCopy(template); r.id = `node.receipt.${i}`; r.request.idempotencyKey = `node.key.${i}`;
     r.keyHash = digest('key', [r.deviceId, r.deviceEpoch, r.request.idempotencyKey]); r.request.body = template.request.body; return r; };
@@ -206,19 +207,49 @@ test('播放Worker：原编解码字节状态等价且传输所有权和各层�
   expanded.revision += count;
   const inside = await port.encode(expanded, context(expanded)); assert.ok(nodes(expanded) <= 200_000);
   const extra = make(count); expanded.receipts.push(extra); expanded.revision++;
-  assert.throws(() => encodePlaybackStorage(expanded, SERVER, DATASET, ORIGIN, limits), errorCode('RESOURCE_BUSY'));
-  await assert.rejects(port.encode(expanded, context(expanded)), errorCode('RESOURCE_BUSY'));
+  assert.ok(nodes(expanded) > 200_000);
+  const beyondOld = await port.encode(expanded, context(expanded));
+  assert.deepEqual(beyondOld.state, expanded); beyondOld.bytes.fill(0);
   const fanout = JSON.parse(inside.canonical), last = playbackCopy(fanout.receipts.at(-1));
   assert.ok(Number.isInteger(last.request.template));
   last.id = extra.id; last.request.idempotencyKey = extra.request.idempotencyKey; last.keyHash = extra.keyHash; fanout.receipts.push(last); fanout.revision++;
   const fanoutBytes = new Uint8Array(Buffer.from(canonical(fanout)));
-  assert.throws(() => decodePlaybackStorage(fanoutBytes, SERVER, DATASET, ORIGIN, limits), errorCode('BUSY'));
-  await assert.rejects(port.decode(fanoutBytes, context(expanded)), errorCode('BUSY'));
+  assert.deepEqual(decodePlaybackStorage(fanoutBytes, SERVER, DATASET, ORIGIN, limits).state, expanded);
+  assert.deepEqual((await port.decode(fanoutBytes, context(expanded))).state, expanded);
+  // 真正超过新逻辑上限，仍须在Main复制及Worker原始校验阶段拒绝，不能只测旧200k。
+  const excessive = playbackCopy(state); excessive.receipts[0]!.request.body = new Array(MOBILE_PLAYBACK_STATE_LOGICAL_NODE_LIMIT).fill(null);
+  assert.throws(() => encodePlaybackStorage(excessive, SERVER, DATASET, ORIGIN, limits), errorCode('RESOURCE_BUSY'));
+  await assert.rejects(port.encode(excessive, context(excessive)), errorCode('RESOURCE_BUSY'));
   inside.bytes.fill(0); packed.bytes.fill(0); raw.fill(0); fanoutBytes.fill(0);
   const draining = realCodec(), late = draining.encode(state, context(state));
   const rejected = assert.rejects(late, errorCode('BUSY')), closed = draining.close();
   await rejected; await closed;
   await assert.rejects(draining.encode(state, context(state)), errorCode('BUSY'));
+});
+
+test('播放Worker：近满旧账本迁v3字节一致、预算闭集与自然关闭保持', { timeout: 60_000 }, async t => {
+  const base = await seed(t), state = playbackCopy(base), template = state.receipts.find(r => r.operation === 'renewResource')!;
+  for (let i = 0; i < 1230; i++) {
+    const row = playbackCopy(template); row.id = `dense.worker.receipt.${i}`; row.request.idempotencyKey = `dense.worker.key.${i}`;
+    row.keyHash = digest('key', [row.deviceId, row.deviceEpoch, row.request.idempotencyKey]);
+    (row.reply!.body as MobileReadyResource).media.url = `${ORIGIN}/mobile/v1/media/${row.resourceId}/source?ticket=${i.toString(16).padStart(64, 'a')}`;
+    row.resourceContext!.now = new Date(NOW + i).toISOString(); state.receipts.push(row);
+  }
+  const expected = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, limits); assert.equal(expected.format, 'v3');
+  const port = realCodec(); t.after(() => port.close());
+  const encoded = await port.encode(state, { ...context(state), terminalFailureBudget: MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET });
+  assert.equal(encoded.format, 'v3'); assert.equal(encoded.canonical, expected.canonical); assert.deepEqual(encoded.bytes, expected.bytes);
+  const decoded = await port.decode(encoded.bytes, context(state)); assert.equal(decoded.canonical, expected.canonical); assert.deepEqual(decoded.state, state);
+  for (const field of Object.keys(MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET)) {
+    const budget = { ...MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET, [field]: 0 };
+    await assert.rejects(port.encode(state, { ...context(state), terminalFailureBudget: budget }), errorCode('BUSY'));
+  }
+  let called = 0;
+  const getter = Object.defineProperty({ ...MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET }, 'messageJsonBytes', { enumerable: true, get() { called++; return 56; } });
+  await assert.rejects(port.encode(state, { ...context(state), terminalFailureBudget: getter }), errorCode('BUSY')); assert.equal(called, 0);
+  const after = await port.encode(empty(), context(empty())); assert.equal(after.format, 'v1');
+  await port.close(); await assert.rejects(port.encode(empty(), context(empty())), errorCode('BUSY'));
+  expected.bytes.fill(0); encoded.bytes.fill(0); after.bytes.fill(0);
 });
 
 class FakeWorker extends EventEmitter {
@@ -271,21 +302,22 @@ test('播放Worker：有界队列错包错误超时重复及关闭迟到结果�
   }
 });
 
-test('播放Worker：异步口保留三或自然四保存历史冷启UNKNOWN及关闭撤销fence', { timeout: 60_000 }, async t => {
+test('播放Worker：异步口保留二或自然三保存历史冷启UNKNOWN及关闭撤销fence', { timeout: 60_000 }, async t => {
   const initial = history(await seed(t)), historyText = canonical(initial.receipts), f = fixture(t, initial);
   const session = (await f.service.control('createSession', sessionRequest(), currentPrincipal, signal())).body as MobileSession;
   const before = f.store.writes.length, encodedBefore = f.encoded.length, request = resourceRequest(session.id);
   const settled = await readyIntent(f, request, currentPrincipal), ready = settled.current; await ready.beforeSend();
-  const count = f.store.writes.length - before; assert.ok(count === 3 || count === 4);
+  // 来源事实与202或ready终态共一次ACK；外部prepare之前的UNKNOWN仍独立durable。
+  const count = f.store.writes.length - before; assert.ok(count === 2 || count === 3);
   const phases = f.encoded.slice(encodedBefore).map(s => {
     const r = s.resources.find(r => r.sessionId === session.id)!, receipt = s.receipts.find(v => v.operation === 'createResource' && v.resourceId === r.id)!;
     return [r.state, r.source === null, receipt.state, receipt.reply?.status ?? null];
   });
   assert.equal(phases.length, count);
-  assert.deepEqual(phases.slice(0, 2), [['preparing', true, 'UNKNOWN', null], ['preparing', false, 'UNKNOWN', null]]);
-  if (count === 4) assert.deepEqual(phases[2], ['preparing', false, 'RECORDED', 202]);
-  assert.deepEqual(phases.at(-1), ['ready', false, 'RECORDED', count === 3 ? 201 : 202]);
-  assert.equal(settled.original.status, count === 3 ? 201 : 202);
+  assert.deepEqual(phases[0], ['preparing', true, 'UNKNOWN', null]);
+  if (count === 3) assert.deepEqual(phases[1], ['preparing', false, 'RECORDED', 202]);
+  assert.deepEqual(phases.at(-1), ['ready', false, 'RECORDED', count === 2 ? 201 : 202]);
+  assert.equal(settled.original.status, count === 2 ? 201 : 202);
   const resource = ready.body as MobileReadyResource; assert.equal(resource.media.actualAudio.sampleRateHz, 192_000); assert.equal(resource.media.actualAudio.bitsPerSample, 24);
   const state = f.store.snapshot(); assert.equal(canonical(state.receipts.slice(0, initial.receipts.length)), historyText);
   await f.service.close();
@@ -304,7 +336,7 @@ test('播放Worker：异步口保留三或自然四保存历史冷启UNKNOWN及�
   const preparingResource = preparing.body as { id: string };
   const observed = await natural.service.control('getResource', { path: `/mobile/v1/sessions/${naturalSession.id}/resources/${preparingResource.id}`,
     pathParameters: { sessionId: naturalSession.id, resourceId: preparingResource.id }, query: {}, body: null }, currentPrincipal, signal());
-  assert.equal((observed.body as MobileReadyResource).state, 'ready'); assert.equal(natural.store.writes.length - savedBefore, 4);
+  assert.equal((observed.body as MobileReadyResource).state, 'ready'); assert.equal(natural.store.writes.length - savedBefore, 3);
   assert.deepEqual((await natural.service.control('createResource', naturalRequest, currentPrincipal, signal())).body, preparing.body);
   await natural.service.close();
 
@@ -392,7 +424,7 @@ test('播放Worker：近六百历史正常预取时Main事件循环已有reader�
   assert.ok(authorityFinishedDuringCompute && authorityLoads > loadsBefore, '原AuthService及Owner内存load必须在Worker计算期间完成真实权威校验');
   assert.ok(markerMs < wallMs); assert.ok(readMs < wallMs);
   assert.equal(f.source.prepares(), 2); assert.equal(f.source.reads(), 1);
-  assert.equal(f.store.writes.length - writesBefore, response.status === 201 ? 3 : 4);
+  assert.equal(f.store.writes.length - writesBefore, response.status === 201 ? 2 : 3);
   // 所有重校验与历史解密在计时结束之后；不在Owner保存回调中做同步observer。
   assert.equal(canonical(f.store.snapshot().receipts.slice(0, initial.receipts.length)), historyText);
   console.log(JSON.stringify({ kind: 'playback-worker-responsive', historicalReceipts: initial.receipts.length,
@@ -494,4 +526,114 @@ test('播放Worker R2：关闭双失败保首因和次错快照并等待真实Wo
       : [{ stage: 'codec-close', status: 503, code: 'BUSY' }]);
     for (const fact of facts) assert.deepEqual(Object.keys(fact).sort(), ['code', 'stage', 'status']);
   }
+});
+
+
+function denseDefaultHistory(base: PlaybackState, number: number): PlaybackState {
+  const state = playbackCopy(base), template = state.receipts.find(r => r.operation === 'renewResource')!;
+  for (let i = 0; i < number; i++) {
+    const row = playbackCopy(template); row.id = `dense.synthetic.receipt.${i.toString().padStart(4, '0')}`;
+    row.request.idempotencyKey = `dense.synthetic.key.${i.toString().padStart(4, '0')}`;
+    row.keyHash = digest('key', [row.deviceId, row.deviceEpoch, row.request.idempotencyKey]);
+    (row.reply!.body as MobileReadyResource).media.url = `${ORIGIN}/mobile/v1/media/${row.resourceId}/source?ticket=${i.toString(16).padStart(64, 'a')}`;
+    row.resourceContext!.now = new Date(NOW + i).toISOString(); state.receipts.push(row);
+  }
+  return state;
+}
+
+test('默认预算近满v3：shape编号预留不误拒，真实Worker保留source失败及原键回执', { timeout: 60_000 }, async t => {
+  const state = denseDefaultHistory(await seed(t), 1590);
+  assert.equal(limits.stateBytes, 2_097_152); assert.ok(nodes(state) < 200_000);
+  const before = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, limits);
+  assert.equal(before.format, 'v3'); assert.ok(before.bytes.length > limits.stateBytes * 0.99); before.bytes.fill(0);
+  const f = fixture(t, state), prepare = f.source.port.prepare;
+  f.source.port.prepare = async (selection, abort) => {
+    const value = await prepare(selection, abort); await f.source.port.release(value.handle);
+    throw new MobilePlaybackError(409, 'SOURCE_CHANGED', false);
+  };
+  const session = await f.service.control('createSession', sessionRequest(), currentPrincipal, signal());
+  assert.equal(session.status, 201);
+  const request = resourceRequest((session.body as MobileSession).id);
+  const failed = await f.service.control('createResource', request, currentPrincipal, signal());
+  assert.equal(failed.status, 409); assert.equal(f.source.prepares(), 1);
+  const saved = f.store.snapshot(), receipt = saved.receipts.find(r => r.request.idempotencyKey === request.idempotencyKey)!;
+  assert.equal(receipt.state, 'RECORDED'); assert.equal(receipt.reply!.status, 409); assert.equal(saved.receipts.some(r => r.state === 'UNKNOWN'), false);
+  assert.deepEqual(saved.receipts.slice(0, state.receipts.length), state.receipts);
+  const writes = f.store.writes.length, replay = await f.service.control('createResource', request, currentPrincipal, signal());
+  assert.equal(replay.status, 409); assert.deepEqual(replay.body, receipt.reply!.body);
+  assert.equal(f.source.prepares(), 1); assert.equal(f.store.writes.length, writes);
+});
+
+
+test('默认预算v3物理满后v4：真实Worker继续ready201，旧回执及原键保全', { timeout: 120_000 }, async t => {
+  const base = await seed(t);
+  for (const count of [1590, 1595]) {
+    const state = denseDefaultHistory(base, count), f = fixture(t, state);
+    const session = await f.service.control('createSession', sessionRequest(), currentPrincipal, signal()); assert.equal(session.status, 201);
+    const request = resourceRequest((session.body as MobileSession).id);
+    const made = await readyIntent(f, request, currentPrincipal); assert.equal(made.original.status, 201); await made.current.beforeSend();
+    assert.equal(f.source.prepares(), 1); const saved = f.store.snapshot();
+    assert.deepEqual(saved.receipts.slice(0, state.receipts.length), state.receipts);
+    assert.equal(saved.resources.at(-1)!.state, 'ready'); assert.equal(saved.receipts.some(r => r.state === 'UNKNOWN'), false);
+    const afterWrites = f.store.writes.length, replay = await f.service.control('createResource', request, currentPrincipal, signal());
+    assert.equal(replay.status, 201); assert.deepEqual(replay.body, made.original.body); assert.equal(f.source.prepares(), 1); assert.equal(f.store.writes.length, afterWrites);
+    if (count === 1595) {
+      const port = realCodec(); t.after(() => port.close());
+      const packed = await port.encode(saved, context(saved)); assert.equal(packed.format, 'v5');
+      const decoded = await port.decode(packed.bytes, context(saved)); assert.equal(decoded.format, 'v5'); assert.deepEqual(decoded.state, saved);
+    }
+    await f.service.close();
+  }
+});
+
+test('播放Worker预算诊断v4：最终物理及终态reserve拒绝映射真实stage，后续及关闭正常', async t => {
+  const port = realCodec(); t.after(() => port.close());
+  const state = await seed(t), template = state.receipts.find(r => r.operation === 'createResource')!;
+  for (let i = 0; i < 8; i++) {
+    const r = playbackCopy(template); r.id = `worker-reserve.unknown.${i}`; r.request.idempotencyKey = `worker-reserve.key.${i}`;
+    r.keyHash = digest('key', [r.deviceId, r.deviceEpoch, r.request.idempotencyKey]);
+    r.state = 'UNKNOWN'; r.reply = null; r.resourceContext = null; state.receipts.push(r);
+  }
+  let low = 1, high = limits.stateBytes;
+  while (low < high) { const middle = Math.floor((low + high) / 2);
+    try { encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, { ...limits, stateBytes: middle }); high = middle; }
+    catch (error) { assert.ok(errorCode('RESOURCE_BUSY')(error)); low = middle + 1; }
+  }
+  const admitted = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, { ...limits, stateBytes: low });
+  assert.equal(admitted.format, 'v5'); assert.ok(admitted.bytes.length <= low - 1);
+  for (const [input, stateBytes, boundary] of [[empty(), 128, 'v4-physical'], [state, low - 1, 'terminal-v4-reserve']] as const) {
+    const records: MobileCapabilityTraceRecord[] = [], reader = createMobileCapabilityTraceReader(record => records.push(record));
+    const diagnostic = createMobileCapabilityContext('40000000-0000-4000-8000-000000000001', 'main', 'http', null, signal(), reader)!;
+    diagnostic.preparation = true; diagnostic.preparationLimit = 192; diagnostic.resourcePreparation = true; diagnostic.privateContentDiagnostic = true;
+    await assert.rejects(withMobileCapabilityContext(diagnostic, () => port.encode(input, { ...context(input), limits: { ...limits, stateBytes } })), error =>
+      errorCode('RESOURCE_BUSY')(error) && readCodecRejectionBoundary(error) === boundary);
+    const first = records.find(row => row.phase === 'reject' && row.role === 'business');
+    assert.equal(first?.stage, `preparation.playback.codec.${boundary}`); assert.equal(first?.code, 'RESOURCE_BUSY');
+    assert.ok(records.every(row => Object.keys(row).length === 15)); assert.equal(JSON.stringify(records).includes(ORIGIN), false);
+  }
+  assert.equal((await port.encode(empty(), context(empty()))).format, 'v1');
+});
+
+test('播放Worker预算诊断：严格闭集、不可信错包不入trace、Main准入先于post且默认关闭', async () => {
+  for (const boundary of [...PLAYBACK_CODEC_REJECTION_BOUNDARIES, 'unknown', null]) {
+    const fake = new FakeWorker(), port = createMobilePlaybackStateCodec({ workerFactory: () => fake as unknown as Worker });
+    const flight = port.encode(empty(), context(empty())), job = fake.jobs.at(-1);
+    const valid = boundary !== 'unknown' && boundary !== null;
+    const rejected = assert.rejects(flight, error => errorCode(valid ? 'RESOURCE_BUSY' : 'BUSY')(error)
+      && readCodecRejectionBoundary(error) === (valid ? boundary : null));
+    fake.emit('message', { protocol: PLAYBACK_CODEC_PROTOCOL, kind: 'failure', id: job.id, operation: job.operation, binding: job.binding,
+      error: { status: 429, code: 'RESOURCE_BUSY', retryable: true, retryAfterMs: 1_000, budgetBoundary: boundary } });
+    await rejected;
+    if (valid) await port.close(); else await assert.rejects(port.close(), errorCode('BUSY'));
+  }
+  const fake = new FakeWorker(), port = createMobilePlaybackStateCodec({ workerFactory: () => fake as unknown as Worker });
+  const oversized = empty(); (oversized as any).receipts = [{ request: { body: 'x'.repeat(limits.stateBytes + limits.maxReceipts * 8192 + 1) } }];
+  const records: MobileCapabilityTraceRecord[] = [], reader = createMobileCapabilityTraceReader(record => records.push(record));
+  const diagnostic = createMobileCapabilityContext('40000000-0000-4000-8000-000000000002', 'main', 'http', null, signal(), reader)!;
+  // 普通能力上下文没有preparation授权，不出现新增准备旁注。
+  await assert.rejects(withMobileCapabilityContext(diagnostic, () => port.encode(oversized, context(empty()))), errorCode('RESOURCE_BUSY'));
+  assert.equal(records.length, 0); diagnostic.preparation = true;
+  await assert.rejects(withMobileCapabilityContext(diagnostic, () => port.encode(oversized, context(empty()))), errorCode('RESOURCE_BUSY'));
+  assert.equal(records.find(row => row.phase === 'reject')?.stage, 'preparation.playback.codec.main-capture');
+  assert.equal(fake.jobs.length, 0); await port.close();
 });

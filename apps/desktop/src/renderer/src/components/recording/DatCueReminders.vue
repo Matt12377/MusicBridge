@@ -11,7 +11,7 @@ const clock = (ms: number): string => `${Math.floor(ms / 60000)}:${String(Math.f
 <template>
   <section v-if="state" class="dat-cues" aria-labelledby="dat-cue-title">
     <h4 id="dat-cue-title">DAT 人工 Cue 提醒</h4>
-    <p>仅供人工操作参考；MusicBridge 不写入 DAT Track ID，也不以提示代替正式输出或实体确认。</p>
+    <p>仅供人工操作参考；Mousa 不写入 DAT Track ID，也不以提示代替正式输出或实体确认。</p>
     <p v-if="state.basis === 'planned-only'">当前显示冻结布局的规划起点；没有可核对的实际音频段时基，不推算当前曲目。</p>
     <p v-else-if="state.basis === 'render-marker-derived'">当前显示冻结 Render 的人工 Marker 起点；执行音频经过采样率转换，位置仅作 Render 参考，不动态高亮。</p>
     <p v-else-if="state.basis === 'render-marker'">当前显示冻结 Render 的人工 Marker 起点，包括已接受的时间差异。</p>

@@ -19,6 +19,16 @@ config.json
 diagnostics/
 !packages/bridge-core/src/diagnostics/
 !packages/bridge-core/src/diagnostics/*.ts
+# 移动目录测试依赖的纯解析器是源码；诊断输出仍保持忽略。
+!scripts/diagnostics/
+scripts/diagnostics/*
+!scripts/diagnostics/mobile/
+scripts/diagnostics/mobile/*
+!scripts/diagnostics/mobile/catalog-http-sidecar-reader.mjs
+!scripts/diagnostics/mobile/catalog-http-sidecar-reader-legacy-v28.mjs
+!scripts/diagnostics/mobile/catalog-private-flow-reader.mjs
+!scripts/diagnostics/mobile/catalog-private-record-guard.mjs
+!scripts/diagnostics/mobile/catalog-private-record-legacy-v26.mjs
 apps/desktop/out/
 apps/desktop/release/
 apps/desktop/native/ffmpeg/
@@ -32,3 +42,4 @@ apps/desktop/native/mobile-ffmpeg/
 apps/desktop/native/cue-ffmpeg/
 apps/desktop/native/local-audio-tags/
 apps/desktop/native/library-watch/
+apps/desktop/native/media-worker/

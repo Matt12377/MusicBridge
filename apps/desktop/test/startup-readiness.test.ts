@@ -59,7 +59,7 @@ test('a restarted Core starts a fresh authorized library load instead of preserv
 
   assert.match(
     listener,
-    /if \(event\.event === 'core\.ready'\) \{\s*resetAuthorizedLoadStarted\(\)\s*loadAuthorizedLibraryWhenReady\(\)\s*\}/u,
+    /if \(event\.event === 'core\.ready'\) \{\s*resetAuthorizedLoadStarted\(\)\s*loadAuthorizedLibraryWhenReady\(\)/u,
   )
   assert.match(reset, /authorizedLibraryLoadStarted = false/u)
   assert.match(loader, /if \(authorizedLibraryLoadStarted \|\| !canLoadPrivate\(\)\) return[\s\S]*?authorizedLibraryLoadStarted = true/u)

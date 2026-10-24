@@ -12,6 +12,7 @@ export interface LocalAlbumArtworkState {
   canRetry: boolean
   /** 仅Renderer私有展示元数据；来源仍由原Owner读取校验，详情保留原display。 */
   display?: Readonly<{ sha256: string; width: number; height: number; bytes: number }>
+  grid?: Readonly<import('@music-bridge/contracts').LocalAlbumArtworkGrid>
 }
 export interface LocalAlbumReturnTarget {
   albumKey: string
@@ -67,6 +68,8 @@ export interface LocalAlbumBrowserSnapshot {
   artwork: Readonly<Record<string, LocalAlbumArtworkState>>
   /** 可选以兼容既有快照；普通 LRU 淘汰不改变此信号。 */
   artworkInvalidation?: Readonly<LocalAlbumArtworkInvalidation>
+  /** 当前目录中已完成后台尝试的项数；包含缺图和失败，不等于已有封面数。 */
+  backgroundArtwork?: Readonly<{ completed: number; total: number; running: boolean }>
 }
 export interface LocalAlbumBrowserOptions {
   api: Readonly<LocalAlbumBrowserApi>
@@ -75,5 +78,13 @@ export interface LocalAlbumBrowserOptions {
   artworkConcurrency?: number
   artworkCacheBytes?: number
   artworkCacheEntries?: number
+  /** 首屏提交后持续分批读取目录；RAM预热由独立开关控制。 */
+  backgroundLoading?: boolean
+  /** 仅控制Renderer逐项RAM预热；自动分页、Core持久补齐与前台兴趣读取独立。 */
+  backgroundArtworkLoading?: boolean
+  /** 画廊只保留持久网格图；所选详情单独按需保留一个高清副本。 */
+  compactGridArtwork?: boolean
+  /** 普通切页保留已确认目录；失效、范围变更及明确刷新仍走真实读口。 */
+  reuseLoadedOnActivate?: boolean
   onChange?: (snapshot: LocalAlbumBrowserSnapshot) => void
 }

@@ -17,6 +17,7 @@ import { MobileDsdError, type MobilePreparedCache, type MobileDsdSourceAccess } 
 import { MobileServiceError, type MobileOwnerPrivateFailure } from './types.js';
 import { createMobileLocalAlbumProjection, type MobileLocalAlbums } from './local-album-projection.js';
 import { mobileLocalContentDigest } from './local-album-identity.js';
+import { allocateOwnedSourceBytes } from './owned-source-bytes.js';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u;
 const MAX_RECORDS = 2048, MAX_READ_IDS = 4096, MAX_READERS = 32, MAX_RESOURCE_READERS = 4;
@@ -39,7 +40,7 @@ interface ReadRecord {
   handle: string; readId: string; controller: AbortController; closed: boolean;
   nextOffset: number | null; pending: Promise<Uint8Array> | null;
   last: { start: number; maxBytes: number; bytes: Uint8Array | null } | null;
-  closing: Promise<void> | null;
+  closing: Promise<void> | null; releaseActivity?: () => void;
 }
 interface SourceRecord {
   handle: string; selection: MobilePlaybackSourceRequest | null; fingerprint: string | null;
@@ -49,7 +50,7 @@ interface SourceRecord {
   releaseHold: (() => void) | null; lease: AssetLease | null;
   prepared: MobilePlaybackPreparedSource | MobilePlaybackPreparingSource | null; dsd: MobileDsdSourceAccess | null; cached: boolean; failure: SourceFailure | null;
   preparation: Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource> | null; closing: Promise<void> | null;
-  readers: Set<ReadRecord>;
+  readers: Set<ReadRecord>; releasePreparationActivity?: () => void;
 }
 
 /** 仅转换原 Scanner 真正报告的编码词汇；扩展名不创造音频参数。 */
@@ -83,6 +84,8 @@ export function createMobileOwnerSourceService(options: {
   collection: CollectionRepository; tickets: ReturnType<typeof createLocalSourceTickets>;
   datasetId: string; ownerEpoch: string; assertCurrent(): void; preparedCache?: MobilePreparedCache;
   localAlbums?: MobileLocalAlbums;
+  /** 同Owner内的调度提示；不能进入RPC或替代任何原授权。 */
+  beginActivity?: () => () => void;
 }) {
   const { collection, tickets, datasetId, ownerEpoch } = options;
   if (!UUID.test(datasetId) || !UUID.test(ownerEpoch)) throw new Error('手机源服务需要原 Owner 的完整工作库身份。');
@@ -124,7 +127,7 @@ export function createMobileOwnerSourceService(options: {
     ownerCurrent();
     const detail = (() => {
       if (directory) {
-        try { return directory.resolveTrack(selection.trackId).detail; }
+        try { return directory.resolveSourceTrack(selection.trackId).detail; }
         catch (error) { if (error instanceof MobileServiceError) return fail(error.status, error.code); throw error; }
       }
       const pieces = selection.trackId.split(':');
@@ -149,7 +152,7 @@ export function createMobileOwnerSourceService(options: {
     }
     ownerCurrent();
     if (!record.lane || record.lane.record !== record || record.lane.attempt !== record.attempt) return fail(409, 'SOURCE_CHANGED');
-    if (!record.capture || !record.fence?.current || !tickets.revalidate(record.capture.ticketId)) return fail(409, 'SOURCE_CHANGED');
+    if (!record.capture || !record.fence?.current || !mobileRangeWindowCoreFacts(() => tickets.revalidate(record.capture!.ticketId))) return fail(409, 'SOURCE_CHANGED');
     try { selected(record.selection!); }
     catch (error) { if (error instanceof SourceError && error.failure.status === 404) return fail(409, 'SOURCE_CHANGED'); throw error; }
   }
@@ -165,6 +168,7 @@ export function createMobileOwnerSourceService(options: {
     read.closing = (async () => {
       if (read.pending) await Promise.allSettled([read.pending]);
       read.last = null; record?.readers.delete(read);
+      read.releaseActivity?.(); delete read.releaseActivity;
     })();
     return read.closing;
   }
@@ -187,6 +191,8 @@ export function createMobileOwnerSourceService(options: {
       record.capture = null; record.fence = null;
       if (record.lane?.record === record) record.lane.record = null;
       record.lane = null; record.lease = null; record.prepared = null; record.state = 'released';
+      // 失败prepare直到原真实FD/claims全部收口才让后台取得新准入。
+      record.releasePreparationActivity?.(); delete record.releasePreparationActivity;
     })();
     return record.closing;
   }
@@ -220,7 +226,7 @@ export function createMobileOwnerSourceService(options: {
           assertCurrent(){ownerCurrent();const latest=selected(record.selection!);if(JSON.stringify(latest.track)!==JSON.stringify(captured.facts.track)
             || JSON.stringify(latest.asset)!==JSON.stringify(captured.facts.asset))return fail(409,'SOURCE_CHANGED');}},record.controller.signal);
         record.dsd = access; current(record,true);
-        const source = await options.preparedCache.begin({resourceId:record.handle,source:access,window:record.selection!.preparationWindow},record.controller.signal);
+        const source = await options.preparedCache.begin({resourceId:record.handle,source:access,window:record.selection!.preparationWindow,...(options.beginActivity ? { beginActivity: options.beginActivity } : {})},record.controller.signal);
         record.cached = true; record.prepared = source;
         if (!('preparing' in source)) record.state='active';
         current(record,true);return source;
@@ -269,7 +275,11 @@ export function createMobileOwnerSourceService(options: {
       record = makeRecord(selection.resourceId); record.selection = selection; record.fingerprint = fingerprint(selection);
       record.state = 'preparing'; record.explicitRelease = false; record.lane = lane; record.attempt = ++lane.attempt; lane.record = record;
       // 先登记原 id/promise，再允许异步打开；release-before-prepare 有真实 tombstone。
-      record.preparation = Promise.resolve().then(() => prepareRecord(record!));
+      if (options.beginActivity) record.releasePreparationActivity = options.beginActivity();
+      record.preparation = Promise.resolve().then(() => prepareRecord(record!)).then(source => {
+        record!.releasePreparationActivity?.(); delete record!.releasePreparationActivity;
+        return source;
+      });
     }
     try {
       const source = await record.preparation;
@@ -304,6 +314,8 @@ export function createMobileOwnerSourceService(options: {
     if (reads.size >= MAX_READ_IDS || countReaders() >= MAX_READERS || record.readers.size >= MAX_RESOURCE_READERS) return busy();
     const read: ReadRecord = { handle: record.handle, readId, controller: new AbortController(), closed: false,
       nextOffset: null, pending: null, last: null, closing: null };
+    // 依原32个活reader预算持有，跨块间隙不伪装quiet，closeReader只归还本项。
+    if (options.beginActivity) read.releaseActivity = options.beginActivity();
     reads.set(readId, read); record.readers.add(read); return read;
   }
   async function readSource(request: Extract<MobileOwnerSourceRequest, { operation: 'read' }>): Promise<MobileOwnerSourceResult> {
@@ -348,7 +360,9 @@ export function createMobileOwnerSourceService(options: {
         try { bytes = await pending; } finally { if (read.pending === pending) read.pending = null; }
       }
       current(record); if (read.closed || read.controller.signal.aborted) return released();
-      return { kind: 'mobile-source-read', handle: request.handle, readId: request.readId, start: request.start, bytes: new Uint8Array(bytes) };
+      // 仍复制原内部字节；资格只属于这个新建、不可扩展的fixed副本，不携带授权或内容证明。
+      const outgoing = allocateOwnedSourceBytes(bytes.byteLength); Uint8Array.prototype.set.call(outgoing, bytes);
+      return { kind: 'mobile-source-read', handle: request.handle, readId: request.readId, start: request.start, bytes: outgoing };
     } catch (error) {
       // lease 的真实验证错误先同步 abort；自动退休关闭 reader 不能遮掉随后返回的 SOURCE_CHANGED。
       // 显式资源 release 和仅关闭原 HTTP readId 仍返回原释放语义。
@@ -421,3 +435,4 @@ export function createMobileOwnerSourceService(options: {
   }
   return { dispatch, close, resourceSnapshot };
 }
+import { mobileRangeWindowCoreFacts } from './range-window-observer.js';

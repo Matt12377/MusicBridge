@@ -61,7 +61,7 @@ test('v1升级v3保持已有授权、任务、不可变命令回执；冷开不�
   } finally { store.close(); }
   const db = new DatabaseSync(f.filePath);
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 3);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 4);
     assert.deepEqual(db.prepare('SELECT * FROM backup_commands ORDER BY command_id').all(), f.receipts);
     assert.throws(() => db.exec('DELETE FROM backup_commands'));
     assert.throws(() => db.exec("UPDATE backup_commands SET action='activate'"));
@@ -79,7 +79,7 @@ test('v1聚合index只补缺失说明，不伪造对象明细，原命令回执�
   finally { store.close(); }
   const db = new DatabaseSync(f.filePath);
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 3);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 4);
     assert.deepEqual(db.prepare('SELECT * FROM backup_commands ORDER BY command_id').all(), f.receipts);
     assert.deepEqual(JSON.parse(String(db.prepare('SELECT data FROM backup_jobs WHERE id=?').get(f.view.id)?.data)), { request: f.request, view: expected });
   } finally { db.close(); }
@@ -103,7 +103,7 @@ test('固定v2结构升级v3保留激活指针与回执，新增身份表不重�
     assert.deepEqual(store.startJob(f.request), f.view);
   } finally { store.close(); }
   const inspected = new DatabaseSync(f.filePath);
-  try { assert.equal(inspected.prepare('PRAGMA user_version').get()?.user_version, 3); assert.equal(inspected.prepare('SELECT count(*) n FROM dataset_identities').get()?.n, 0); }
+  try { assert.equal(inspected.prepare('PRAGMA user_version').get()?.user_version, 4); assert.equal(inspected.prepare('SELECT count(*) n FROM dataset_identities').get()?.n, 0); }
   finally { inspected.close(); }
 });
 
@@ -148,7 +148,7 @@ for (const mutation of ['extra-object', 'future-version', 'invalid-legacy-index'
     const f = await versionOne(t, mutation === 'invalid-legacy-index'), db = new DatabaseSync(f.filePath);
     try {
       if (mutation === 'extra-object') db.exec('CREATE TABLE sqliteX_user(value TEXT)');
-      else if (mutation === 'future-version') db.exec('PRAGMA user_version=4');
+      else if (mutation === 'future-version') db.exec('PRAGMA user_version=5');
       else {
         assert.ok('index' in f.view);
         db.prepare('UPDATE backup_jobs SET data=? WHERE id=?').run(JSON.stringify({ request: f.request, view: { ...f.view, index: { ...f.view.index, privatePath: '/private/unknown' } } }), f.view.id);

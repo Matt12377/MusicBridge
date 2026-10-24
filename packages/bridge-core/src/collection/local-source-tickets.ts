@@ -1,3 +1,7 @@
+import type { LyricsSnapshot } from '@music-bridge/contracts';
+import { emptyLyricsSnapshot } from '../netease/lyrics.js';
+import { readLocalPlaybackLyrics } from '../library/local-playback-lyrics.js';
+import { MetadataLeaseReleaseError } from '../recording/source-files.js';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { isFileAudioParameters, type LocalPlayRequest } from '@music-bridge/contracts';
@@ -10,6 +14,8 @@ import { isLocalSourceCaptureResult, type LocalSourceCaptureResult } from './loc
 export function createLocalSourceTickets(repository: CollectionRepository, epoch: string, datasetId: string, assertOpen: () => void) {
   type Selection = { kind: 'roon'; value: LocalPlayRequest } | { kind: 'mobile'; value: LocalFactSelection };
   const tickets = new Map<string, { selection: Selection; result: LocalSourceCaptureResult; fence: LocalSourceFence }>();
+  const lyricReads = new Map<string, { controller: AbortController; promise: Promise<LyricsSnapshot> }>();
+  let lyricCloseFailure: MetadataLeaseReleaseError | undefined;
   let closed = false;
   const same = (a: unknown,b: unknown) => JSON.stringify(a) === JSON.stringify(b);
   const read = (selection: Selection) => selection.kind === 'roon' ? captureLocalFactsReadonly(selection.value,repository)
@@ -52,8 +58,23 @@ export function createLocalSourceTickets(repository: CollectionRepository, epoch
       assertOpen(); const ticket = tickets.get(ticketId); if (!ticket || closed || !ticket.fence.current) return false;
       if (!matches(ticket)) ticket.fence.revoke(); return ticket.fence.current;
     },
+    readLyrics(ticketId: string): Promise<LyricsSnapshot> {
+      const existing = lyricReads.get(ticketId); if (existing) return existing.promise;
+      assertOpen(); const ticket = tickets.get(ticketId);
+      if (closed || lyricCloseFailure || !ticket || ticket.selection.kind !== 'roon' || !ticket.fence.current || !matches(ticket) || lyricReads.size >= 2)
+        return Promise.resolve(emptyLyricsSnapshot('unavailable'));
+      const release = ticket.fence.retain(), controller = new AbortController();
+      const current = (): void => { assertOpen(); if (closed || controller.signal.aborted || tickets.get(ticketId) !== ticket || !ticket.fence.current || !matches(ticket)) throw new Error('原播放歌词ticket已失效。'); };
+      let quiet = true;
+      const promise = Promise.resolve().then(() => readLocalPlaybackLyrics(ticket.result.facts, controller.signal, current)).catch(error => {
+        if (error instanceof MetadataLeaseReleaseError) { quiet = false; lyricCloseFailure = error; }
+        throw error;
+      }).finally(() => { lyricReads.delete(ticketId); if (quiet) release(); });
+      lyricReads.set(ticketId, { controller, promise }); return promise;
+    },
+    async joinLyrics(): Promise<void> { await Promise.allSettled([...lyricReads.values()].map(read => read.promise)); if (lyricCloseFailure) throw lyricCloseFailure; },
     release(ticketId: string): void { const ticket = tickets.get(ticketId); if (!ticket) return; ticket.fence.revoke(); ticket.fence.assertQuiet(); tickets.delete(ticketId); },
-    seal(): void { closed = true; for (const ticket of tickets.values()) ticket.fence.revoke(); },
+    seal(): void { closed = true; for (const ticket of tickets.values()) ticket.fence.revoke(); for (const read of lyricReads.values()) read.controller.abort(); },
     get size() { return tickets.size; },
   };
 }

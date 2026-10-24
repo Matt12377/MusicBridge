@@ -6,7 +6,10 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { createCollectionRepository, CollectionError } from '../src/collection/repository.js'
 import { verifyLocalCatalogDatabase } from '../src/collection/local-catalog-store.js'
-import { albumCatalogRevision } from '../src/collection/local-album-browser/owner-store.js'
+import { albumCatalogRevision, albumScanRevision } from '../src/collection/local-album-browser/owner-store.js'
+import { localAlbumScanPath, localAlbumScanPoint } from '../src/collection/local-album-browser/scan-delta.js'
+import { METADATA_PARSER_VERSION } from '../src/library/metadata-reader-types.js'
+import type { MBQueueRecord } from '@music-bridge/contracts'
 import { createLocalAlbumOwnerService } from '../src/collection/local-album-browser/owner-port.js'
 import { createLocalWorkbenchReadService, createLocalLibraryManagementRuntime } from '../src/collection/local-library-workbench/read-service.js'
 import { createCompletedScanSnapshotView } from '../src/collection/local-scan-snapshot-view.js'
@@ -17,12 +20,12 @@ import { assertLocalWorkbenchJournalComplete, createLocalWorkbenchSnapshotEvents
 import { authorizeSourceDirectory } from '../src/recording/source-files.js'
 import type { ScanPreparedBatch, ScanPreparedItem } from '../src/collection/local-scan-store.js'
 
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, beforeCommit?: (action: string) => void) {
   const temporary = process.env.TMPDIR
   if (!temporary?.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/')) throw new Error('修订验证必须采用外置任务临时目录')
   const directory = await mkdtemp(path.join(temporary, 'mbf-album-revision-')), media = path.join(directory, 'media'), file = path.join(directory, 'work.sqlite')
   await mkdir(media)
-  const repository = createCollectionRepository({ filePath: file })
+  const repository = createCollectionRepository({ filePath: file, ...(beforeCommit ? { beforeCommit } : {}) })
   const source = repository.sources.authorize(randomUUID(), await authorizeSourceDirectory(media))
   const root = repository.localCatalog.registerRoot({ commandId: randomUUID(), sourceRootId: source.id, role: 'library' })
   const asset = repository.localCatalog.registerAsset({ commandId: randomUUID(), libraryRootId: root.id, expectedRootRevision: root.revision,
@@ -234,4 +237,188 @@ test('专辑水位缓存：非事务命中仍核SQL屏障，事务/写入/外部
     assert.equal(albumCatalogRevision(db), revision)
   } finally { external.close(); db.close() }
   assert.throws(() => albumCatalogRevision(db))
+})
+
+
+type RevisionPair = { catalog: string; scan: string }
+const queueRevisionPoint = (db: DatabaseSync) => { const value = localAlbumScanPoint(db); assert.ok(value); return value }
+const emptyQueueRevisionPath = { directories: [], cues: [] }
+function queueRevisionRecord(datasetId = randomUUID()): MBQueueRecord {
+  return { schemaVersion: '1.2', datasetId, queueId: randomUUID(), revision: '1', currentEntryId: null,
+    restartPolicy: { reResolve: true, autoplay: false },
+    entries: [{ entryId: randomUUID(), entryRevision: '1', source: { kind: 'netease', trackId: '123' }, quality: 'auto' }] }
+}
+function coldRevisionPair(file: string): RevisionPair {
+  const db = new DatabaseSync(file)
+  try { return { catalog: albumCatalogRevision(db), scan: albumScanRevision(db) } } finally { db.close() }
+}
+function queueRevisionProbe(f: Awaited<ReturnType<typeof fixture>>) {
+  const db = f.repository.localCatalog.privateRead(value => value)
+  const calls = { catalog: 0, scan: 0, barrier: 0 }
+  let afterNextSchemaRead: (() => void) | undefined
+  const prepare = db.prepare.bind(db)
+  Object.defineProperty(db, 'prepare', { configurable: true, value(sql: string) {
+    const statement = prepare(sql)
+    const aggregate = sql.startsWith('SELECT count(*) n, coalesce(max(rowid),0) last FROM ')
+    const barrier = sql === 'SELECT total_changes() n' || sql === 'PRAGMA data_version' || sql === 'PRAGMA schema_version'
+    if (aggregate || barrier) {
+      const get = statement.get.bind(statement)
+      Object.defineProperty(statement, 'get', { value(...args: Parameters<typeof get>) {
+        if (aggregate) calls[/FROM (?:local_scan_|local_cue_sources)/u.test(sql) ? 'scan' : 'catalog']++
+        if (barrier) calls.barrier++
+        const value = get(...args)
+        if (sql === 'PRAGMA schema_version' && afterNextSchemaRead) {
+          const change = afterNextSchemaRead; afterNextSchemaRead = undefined; change()
+        }
+        return value
+      } })
+    }
+    return statement
+  } })
+  return {
+    db, calls, snapshot: () => ({ ...calls }),
+    read: (): RevisionPair => ({ catalog: albumCatalogRevision(db), scan: albumScanRevision(db) }),
+    guarded: (): RevisionPair => ({ catalog: f.repository.localCatalog.privateAlbumBrowserRevision(), scan: f.repository.localScan.privateAlbumBrowserRevision() }),
+    afterNextSchemaRead(change: () => void) { afterNextSchemaRead = change },
+  }
+}
+function assertRevisionRecomputed(probe: ReturnType<typeof queueRevisionProbe>, before: { catalog: number; scan: number }) {
+  assert.ok(probe.calls.catalog > before.catalog, 'catalog必须重新执行原实际聚合')
+  assert.ok(probe.calls.scan > before.scan, 'scan必须重新执行原实际聚合')
+}
+function assertRevisionNotRecomputed(probe: ReturnType<typeof queueRevisionProbe>, before: { catalog: number; scan: number; barrier: number }) {
+  assert.equal(probe.calls.catalog, before.catalog, '原队列精确提交不重算catalog聚合')
+  assert.equal(probe.calls.scan, before.scan, '原队列精确提交不重算scan聚合')
+  assert.ok(probe.calls.barrier > before.barrier, '命中仍执行实际SQL首末屏障')
+}
+
+test('队列修订续用：真实Repository连续CAS保catalog与scan原值和零聚合重算，每次仍有真实屏障', async t => {
+  const f = await fixture(t), probe = queueRevisionProbe(f), baseline = probe.guarded(), initial = queueRevisionRecord()
+  assert.ok(probe.calls.catalog > 0); assert.ok(probe.calls.scan > 0)
+  for (let index = 0; index < 3; index++) {
+    const before = queueRevisionPoint(probe.db), value = { ...initial, revision: String(index + 1) }
+    assert.deepEqual(f.repository.mbQueue.save({ expectedRevision: String(index), queue: value }), value)
+    const after = queueRevisionPoint(probe.db), calls = probe.snapshot()
+    assert.equal(after.changes, before.changes + 1)
+    assert.deepEqual(localAlbumScanPath(probe.db, before, after, { queueOnly: true }), emptyQueueRevisionPath)
+    assert.deepEqual(probe.guarded(), baseline)
+    assertRevisionNotRecomputed(probe, calls)
+    assert.deepEqual(queueRevisionPoint(probe.db), after, '读取两个修订不得写入主库')
+  }
+  assert.deepEqual(coldRevisionPair(f.file), baseline, '独立冷连接必须得到相同两个修订')
+})
+
+test('队列修订续用：未知前置写及同事务附加写均缺完整queue链并重算，后续新精确CAS可恢复命中', async t => {
+  for (const mode of ['before', 'inside'] as const) {
+    let injected: (() => void) | undefined
+    const f = await fixture(t, action => { if (action === 'save-mb-queue') injected?.() })
+    const probe = queueRevisionProbe(f)
+    probe.db.exec('CREATE TABLE queue_revision_noise(n INTEGER NOT NULL); INSERT INTO queue_revision_noise VALUES(0)')
+    const baseline = probe.guarded(), initial = queueRevisionRecord(), before = queueRevisionPoint(probe.db)
+    const change = () => { probe.db.exec('UPDATE queue_revision_noise SET n=n+1') }
+    if (mode === 'before') change(); else injected = change
+    f.repository.mbQueue.save({ expectedRevision: '0', queue: initial }); injected = undefined
+    const after = queueRevisionPoint(probe.db), calls = probe.snapshot()
+    assert.equal(after.changes, before.changes + 2)
+    assert.equal(localAlbumScanPath(probe.db, before, after, { queueOnly: true }), null)
+    assert.deepEqual(probe.guarded(), baseline); assertRevisionRecomputed(probe, calls)
+    assert.deepEqual(coldRevisionPair(f.file), baseline)
+    const restored = queueRevisionPoint(probe.db)
+    f.repository.mbQueue.save({ expectedRevision: '1', queue: { ...initial, revision: '2' } })
+    const nextCalls = probe.snapshot()
+    assert.deepEqual(localAlbumScanPath(probe.db, restored, queueRevisionPoint(probe.db), { queueOnly: true }), emptyQueueRevisionPath)
+    assert.deepEqual(probe.guarded(), baseline); assertRevisionNotRecomputed(probe, nextCalls)
+  }
+})
+
+test('队列修订续用：真实空扫描commit虽无dirty目录仍推进scan修订，不可借普通空span续用', async t => {
+  const f = await fixture(t), scan = f.repository.localScan, probe = queueRevisionProbe(f)
+  const started = scan.start({ commandId: randomUUID(), datasetId: randomUUID(), libraryRootId: f.root.id,
+    expectedRootRevision: f.root.revision, parserVersion: METADATA_PARSER_VERSION }).job
+  const running = scan.resume({ commandId: randomUUID(), jobId: started.jobId, expectedRevision: started.jobRevision })
+  const batch: ScanPreparedBatch = { batchId: randomUUID(), jobId: running.jobId, expectedJobRevision: running.jobRevision,
+    checkpointBefore: running.checkpointRef, items: [], frontier: [], completed: true }
+  scan.privatePrepareBatch({ commandId: randomUUID(), jobId: running.jobId, batch })
+  const baseline = probe.guarded(), before = queueRevisionPoint(probe.db)
+  const committed = scan.privateCommitBatch({ commandId: randomUUID(), jobId: running.jobId, batchId: batch.batchId, expectedRevision: running.jobRevision })
+  assert.equal(committed.phase, 'completed')
+  const after = queueRevisionPoint(probe.db), calls = probe.snapshot()
+  assert.ok(after.changes > before.changes)
+  assert.deepEqual(localAlbumScanPath(probe.db, before, after), emptyQueueRevisionPath, '原Compact语义的空目录证明仍成立')
+  assert.equal(localAlbumScanPath(probe.db, before, after, { queueOnly: true }), null, '普通scan空span不具备queue-only资格')
+  const current = probe.guarded()
+  assert.equal(current.catalog, baseline.catalog); assert.notEqual(current.scan, baseline.scan)
+  assertRevisionRecomputed(probe, calls); assert.deepEqual(current, coldRevisionPair(f.file))
+})
+
+test('队列修订续用：真实回滚不发布queue-only段，回滚写仍使旧物理起点失效', async t => {
+  let fail = false
+  const f = await fixture(t, action => { if (action === 'save-mb-queue' && fail) throw new CollectionError('INVENTORY_CONFLICT', '合成队列提交前故障') })
+  const probe = queueRevisionProbe(f), initial = queueRevisionRecord()
+  f.repository.mbQueue.save({ expectedRevision: '0', queue: initial })
+  const baseline = probe.guarded(), before = queueRevisionPoint(probe.db)
+  fail = true
+  assert.throws(() => f.repository.mbQueue.save({ expectedRevision: '1', queue: { ...initial, revision: '2' } }),
+    error => error instanceof CollectionError && error.code === 'INVENTORY_CONFLICT')
+  fail = false
+  const after = queueRevisionPoint(probe.db), calls = probe.snapshot()
+  assert.equal(after.changes, before.changes + 1, 'SQLite回滚不撤销total_changes累计值')
+  assert.deepEqual(f.repository.mbQueue.load(initial.datasetId), initial, '原队列仍完整保留')
+  assert.equal(localAlbumScanPath(probe.db, before, after, { queueOnly: true }), null)
+  assert.deepEqual(probe.guarded(), baseline); assertRevisionRecomputed(probe, calls)
+  assert.deepEqual(coldRevisionPair(f.file), baseline)
+})
+
+test('队列修订续用：显式事务内每次重算且不发布，事务外回到原冷算点', async t => {
+  const f = await fixture(t), probe = queueRevisionProbe(f), baseline = probe.guarded(), initial = queueRevisionRecord()
+  f.repository.mbQueue.save({ expectedRevision: '0', queue: initial })
+  probe.db.exec('BEGIN')
+  try {
+    let calls = probe.snapshot(); assert.deepEqual(probe.guarded(), baseline); assertRevisionRecomputed(probe, calls)
+    calls = probe.snapshot(); assert.deepEqual(probe.guarded(), baseline); assertRevisionRecomputed(probe, calls)
+  } finally { probe.db.exec('ROLLBACK') }
+  const calls = probe.snapshot(); assert.deepEqual(probe.guarded(), baseline); assertRevisionRecomputed(probe, calls)
+})
+
+test('队列修订续用：另一连接真实内容提交及schema变化仍使原hash缓存重算', async t => {
+  for (const mode of ['external', 'schema'] as const) {
+    const f = await fixture(t), probe = queueRevisionProbe(f)
+    probe.db.exec('CREATE TABLE queue_revision_external(n INTEGER NOT NULL); INSERT INTO queue_revision_external VALUES(0)')
+    const baseline = probe.read(), before = queueRevisionPoint(probe.db)
+    if (mode === 'external') {
+      const external = new DatabaseSync(f.file)
+      try { external.exec('UPDATE queue_revision_external SET n=n+1') } finally { external.close() }
+      assert.notEqual(queueRevisionPoint(probe.db).version, before.version, '必须是真实data_version前推')
+    } else {
+      probe.db.exec('CREATE TABLE queue_revision_schema(value TEXT)')
+      assert.notEqual(queueRevisionPoint(probe.db).schema, before.schema, '必须是真实schema_version前推')
+    }
+    // 本项隔离owner-store纯hash；公开catalog原certificate对外部库变化的拒绝由原Gate保留。
+    const calls = probe.snapshot(); assert.deepEqual(probe.read(), baseline); assertRevisionRecomputed(probe, calls)
+    assert.deepEqual(coldRevisionPair(f.file), baseline)
+  }
+})
+
+test('队列修订续用：129次不消费逐出起点必须重算，近期逐次consumer跨窗仍无聚合重算', async t => {
+  const f = await fixture(t), probe = queueRevisionProbe(f), baseline = probe.guarded(), initial = queueRevisionRecord()
+  const before = queueRevisionPoint(probe.db)
+  for (let index = 0; index < 129; index++) f.repository.mbQueue.save({ expectedRevision: String(index), queue: { ...initial, revision: String(index + 1) } })
+  assert.equal(localAlbumScanPath(probe.db, before, queueRevisionPoint(probe.db), { queueOnly: true }), null)
+  let calls = probe.snapshot(); assert.deepEqual(probe.guarded(), baseline); assertRevisionRecomputed(probe, calls)
+  for (let index = 129; index < 269; index++) {
+    f.repository.mbQueue.save({ expectedRevision: String(index), queue: { ...initial, revision: String(index + 1) } })
+    calls = probe.snapshot(); assert.deepEqual(probe.guarded(), baseline); assertRevisionNotRecomputed(probe, calls)
+  }
+  assert.deepEqual(coldRevisionPair(f.file), baseline)
+})
+
+test('队列修订续用：可命中queue链时首屏障末端发生真实DML仍由末屏障拒绝，失败不得发布', async t => {
+  const f = await fixture(t), probe = queueRevisionProbe(f), initial = queueRevisionRecord()
+  probe.db.exec('CREATE TABLE queue_revision_midread(n INTEGER NOT NULL); INSERT INTO queue_revision_midread VALUES(0)')
+  const baseline = probe.guarded()
+  f.repository.mbQueue.save({ expectedRevision: '0', queue: initial })
+  probe.afterNextSchemaRead(() => { probe.db.exec('UPDATE queue_revision_midread SET n=n+1') })
+  assert.throws(() => probe.read(), /读取期间SQL已变化/u)
+  const calls = probe.snapshot(); assert.deepEqual(probe.guarded(), baseline); assertRevisionRecomputed(probe, calls)
+  assert.deepEqual(coldRevisionPair(f.file), baseline)
 })

@@ -60,7 +60,7 @@ onUnmounted(() => { reset(); if (timer) clearInterval(timer); document.removeEve
 </script>
 <template>
  <div ref="root" class="player-volume" @keydown.esc.stop="close">
-  <button ref="trigger" type="button" class="player-inspector-button" aria-label="调节音量" aria-haspopup="dialog" :aria-expanded="open" :disabled="!zoneId" @click="open = !open"><SidebarIcon name="volume" :size="20" /></button>
+  <button ref="trigger" type="button" class="player-inspector-button" aria-label="调节音量" aria-haspopup="dialog" :aria-expanded="open" :disabled="!zoneId" @click="open = !open"><slot name="icon"><SidebarIcon name="volume" :size="20" /></slot></button>
   <div v-if="open" class="player-volume-panel" role="dialog" aria-label="播放设备音量">
    <strong>播放设备音量</strong>
    <p v-if="error" role="status">{{ error }}</p>

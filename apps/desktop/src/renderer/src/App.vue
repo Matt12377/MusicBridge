@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { LOCAL_ALBUM_TRACE_PREFIX, readLocalAlbumSafeMarker, copyLocalAlbumSafeTrace } from '../../shared/library-read-trace.js'
+import { logLibraryOperation } from '../../../../../packages/bridge-core/src/shared/library-operation-log.js'
 
 import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, shallowReactive, shallowRef, toRaw, watch } from 'vue'
 import { restoreRemoteTarget, reconnectRemoteTarget } from './remote-core-preferences.js'
@@ -11,6 +12,7 @@ import type {
   RoonLibraryItem,
   RemoteCoreTunnelState,
   TrackSummary,
+  LocalPlayAction, LocalPlayRequest, ArtistCatalogPlayRequest,
 } from '@music-bridge/contracts'
 import * as localWorkbenchDto from '@music-bridge/contracts'
 import type { AppInfo } from '../../preload/api.js'
@@ -24,6 +26,14 @@ import SettingsView from './components/settings/SettingsView.vue'
 import PlaybackInspector from './components/inspector/PlaybackInspector.vue'
 import TrackTable from './components/media/TrackTable.vue'
 import SearchEntities from './components/SearchEntities.vue'
+import CatalogWorkspace from './components/catalog/CatalogWorkspace.vue'
+import type { SidebarSearchSuggestion } from './components/sidebar/sidebar-search-model.js'
+import { createCatalogDataAdapter } from './composables/catalog/catalog-data-adapter.js'
+import { useCatalogExperience } from './composables/catalog/useCatalogExperience.js'
+import { useCatalogAlbumNavigation } from './composables/catalog/useCatalogAlbumNavigation.js'
+import type { CatalogItem, CatalogSource } from './composables/catalog/catalog-presentation.js'
+import { readCatalogPlaybackPrefix, readCatalogRoonPlaybackPrefix } from './composables/catalog/catalog-playback-selection.js'
+import { useCatalogPlaybackRecovery } from './composables/catalog/useCatalogPlaybackRecovery.js'
 import LibraryRefreshNotice from './components/LibraryRefreshNotice.vue'
 import { createLibraryPageCache } from './composables/libraryPageCache.js'
 import { createPlaylistSnapshotLoader } from './composables/playlistSnapshotPagination.js'
@@ -47,6 +57,7 @@ import { roonArtworkCache } from './roon-artwork-cache.js'
 import type { SidebarSource } from './components/navigation.js'
 import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
 import { usePlaybackSession, type RoonPlaybackContext } from './composables/application/usePlaybackSession.js'
+import { useLocalPlaybackArtwork } from './composables/application/useLocalPlaybackArtwork.js'
 import { useAggregatedSearch } from './composables/application/useAggregatedSearch.js'
 import { useRoonBrowse } from './composables/application/useRoonBrowse.js'
 import { usePageJourney } from './composables/application/usePageJourney.js'
@@ -83,6 +94,10 @@ const coreState = ref<PublicBridgeState | null>(null)
 const coreError = ref(false)
 const playback = usePlaybackSession({
   api: window.musicBridge,
+  playLocalCatalogSelection: request => {
+    if (!window.musicBridgeCatalog) return Promise.reject(Object.assign(new Error('本地艺术家播放入口尚未就绪。'), { outcome: 'not-sent' as const }))
+    return window.musicBridgeCatalog.playLocalSelection(request)
+  },
   getSelectedZone: () => selectedZone.value,
   getZoneLifecycleStatus: () => zoneLifecycleStatus.value,
   getSelectedQuality: () => selectedQuality.value,
@@ -101,7 +116,7 @@ const {
   playbackViewState: playbackState, playbackStartPending, playbackSource, nativeRoonHasNeteaseMatch,
   playbackSyncStatus, playbackClockIdentity,
   lyricsSnapshot, localLyricsMatchState, localLyricsMatchBusy, localLyricsMatchError,
-  trackLikeState, localTrackFavoriteDescriptor, currentTrack, recentTracks,
+  trackLikeState, localTrackFavoriteDescriptor, currentTrack: sourceCurrentTrack, recentTracks,
   refreshPlayback, selectLocalLyricsMatch, revokeLocalLyricsMatch,
   toggleTrackLike, playTrack, playRoonLibraryTrack, queueRoonLibraryTrack,
   appendTrack, insertTrackNext, replaceAndPlayCollection, appendCollection,
@@ -124,9 +139,73 @@ async function readLocalAlbumWithSafeTrace<T>(action: () => Promise<T>): Promise
     throw error
   }
 }
-const { localLibrary: albumBrowser, coverDrop: coverDropBrowser } = useLocalAlbumBrowserPages({ api: { queryAlbums: request => readLocalAlbumWithSafeTrace(() => window.musicBridge.queryLocalAlbums(request)), queryAlbumTracks: request => readLocalAlbumWithSafeTrace(() => window.musicBridge.getLocalAlbumTracks(request)), getArtwork: request => readLocalAlbumWithSafeTrace(() => window.musicBridge.getLocalAlbumArtwork(request)) } })
+async function queryLocalAlbumsWithFlow(request: localWorkbenchDto.LocalAlbumQuery): Promise<localWorkbenchDto.LocalAlbumPage> {
+  const started = performance.now()
+  logLibraryOperation('ui', 'albums.page', 'start', { offset: request.offset })
+  const entry = captureLocalAlbumPageEntry(request)
+  try {
+    if (!entry) throw new Error('原专辑页面读取已结束。')
+    for (;;) {
+      // 这里只等Renderer实际就绪，不发送IPC、不续后端期限，也不消费读取失败重试预算。
+      await waitLocalAlbumPageReady(entry)
+      if (!localAlbumPageEntryCurrent(entry)) throw new Error('原专辑页面读取已结束。')
+      if (!localAlbumPageRuntimeReady()) continue
+      const generation = localAlbumRecoveryGeneration, contextRead = captureInitialAlbumContextPage(request)
+      let page: localWorkbenchDto.LocalAlbumPage
+      try { page = await readLocalAlbumWithSafeTrace(() => window.musicBridge.queryLocalAlbums(request)) }
+      catch (cause) {
+        if (!localAlbumPageEntryCurrent(entry)) throw cause
+        // 只舍弃真实换代/切换期间的旧纯读；同代就绪后的原失败仍直接交给model显示。
+        if (generation !== localAlbumRecoveryGeneration || !localAlbumPageRuntimeReady()) continue
+        throw cause
+      }
+      if (!localAlbumPageEntryCurrent(entry)) throw new Error('原专辑页面读取已结束。')
+      if (generation !== localAlbumRecoveryGeneration || !localAlbumPageRuntimeReady()) continue
+      acceptInitialAlbumContextPage(contextRead, request, page)
+      logLibraryOperation('ui', 'albums.page', 'complete', { offset: request.offset, count: page.items.length, total: page.total, elapsedMs: Math.max(0, performance.now() - started) })
+      return page
+    }
+  } catch (cause) {
+    if (!entry || localAlbumPageEntryCurrent(entry)) logLibraryOperation('ui', 'albums.page', 'error', { offset: request.offset, elapsedMs: Math.max(0, performance.now() - started) })
+    throw cause
+  }
+}
+async function readLocalArtworkWithFlow(request: localWorkbenchDto.LocalAlbumArtworkRequest): Promise<localWorkbenchDto.LocalAlbumArtworkReply> {
+  const started = performance.now()
+  logLibraryOperation('ui', 'artwork.read', 'start')
+  try {
+    const reply = await readLocalAlbumWithSafeTrace(() => window.musicBridge.getLocalAlbumArtwork(request))
+    logLibraryOperation('ui', 'artwork.read', reply.image ? 'complete' : reply.status === 'source-unavailable' ? 'error' : 'miss', { elapsedMs: Math.max(0, performance.now() - started), bytes: reply.grid?.bytes ?? reply.image?.display.bytes ?? 0 })
+    return reply
+  } catch (cause) {
+    logLibraryOperation('ui', 'artwork.read', 'error', { elapsedMs: Math.max(0, performance.now() - started) })
+    throw cause
+  }
+}
+async function readLocalAlbumTracksWithFlow(request: localWorkbenchDto.LocalAlbumTrackQuery): Promise<localWorkbenchDto.LocalAlbumTrackPage> {
+  const started = performance.now()
+  logLibraryOperation('ui', 'albums.tracks', 'start', { offset: request.offset })
+  try {
+    const page = await readLocalAlbumWithSafeTrace(() => window.musicBridge.getLocalAlbumTracks(request))
+    logLibraryOperation('ui', 'albums.tracks', 'complete', { offset: request.offset, count: page.items.length, total: page.total, elapsedMs: Math.max(0, performance.now() - started), slowAfterMs: 100 })
+    return page
+  } catch (cause) {
+    logLibraryOperation('ui', 'albums.tracks', 'error', { offset: request.offset, elapsedMs: Math.max(0, performance.now() - started) })
+    throw cause
+  }
+}
+const { localLibrary: albumBrowser, coverDrop: coverDropBrowser } = useLocalAlbumBrowserPages({ api: { queryAlbums: queryLocalAlbumsWithFlow, queryAlbumTracks: readLocalAlbumTracksWithFlow, getArtwork: readLocalArtworkWithFlow } })
 const workbenchLyrics = useLocalWorkbenchLyrics({ api: window.musicBridge, readOriginalResultEntry: (key, context) => resultReaders.readLyricsEntry(key, context) })
 const workbenchLibrary = useLocalWorkbenchLibrary({ api: window.musicBridge, storage: window.localStorage, canChangeLibrary: () => !workbenchLyrics.pending.value && !localLibrary.maintenanceLocked.value, onChanged: () => { void refreshLocalLibraryFromWorkbench() } })
+const { currentTrack } = useLocalPlaybackArtwork({
+  getDatasetId: () => workbenchLibrary.state.value?.datasetId ?? localLibrary.displayDatasetId.value,
+  isReadReady: () => coreState.value?.runtime === 'ready' && playbackSyncStatus.value === 'ready',
+  getClockIdentity: () => playbackClockIdentity.value,
+  getSnapshot: () => playback.playbackState.value,
+  getTrack: () => sourceCurrentTrack.value,
+  getOpenedAlbums: () => [albumBrowser, coverDropBrowser].map(browser => ({ album: browser.selectedAlbum.value, tracks: browser.tracks.value })),
+  read: readLocalArtworkWithFlow,
+})
 const workbenchPorts = shallowReactive<LocalWorkbenchPorts>({})
 const workbench = useLocalLibraryWorkbench({ ports: workbenchPorts, saveParticipants: [workbenchLibrary, workbenchLyrics, { pending: localLibrary.maintenanceLocked, locked: localLibrary.maintenanceLocked, save: async () => false, discard: () => !localLibrary.maintenanceLocked.value }] })
 const localLibraryViewMode = ref<'albums' | 'tracks'>('albums'), workbenchEntryError = ref(''), workbenchOpening = ref(false)
@@ -193,13 +272,244 @@ type InitialScanObservation = {
   settleAttempts: number; pendingAttempts: number; failures: number; finished: boolean
 }
 const initialScanObservations = new Map<string, InitialScanObservation>()
+const initialScanJobs = shallowRef<readonly InitialScanJob[]>([]), initialScanStatusError = ref('')
+function publishInitialScanJobs(): void { initialScanJobs.value = [...initialScanObservations.values()].map(value => value.job) }
 const initialScanAttemptedRoots = new Set<string>(), initialScanReceiptCommands = new Set<string>()
 const initialScanSnapshotBefore = new Map<string, string | null>()
 const initialScanDiscoveryBudgets: { pages: number; rows: number; restarts: number }[] = []
-const initialScanUnconfirmed = '扫描状态或完成快照尚未确认；已保存的音乐库保留。'
+const initialScanUnconfirmed = '扫描状态尚未确认，已保存的音乐与进度保留。请在设置中核对。'
 let initialScanEpoch = 0, initialScanDisposed = false, initialScanClosing = false, initialScanDataset: string | undefined
 let initialScanTimer: ReturnType<typeof setTimeout> | undefined, initialScanWork: Promise<void> | null = null
 let initialScanRefreshQueued = false, initialScanDiscoverQueued = false, initialScanInspectQueued = false, initialScanTimerQueued = false
+const initialScanProjectionIntervalMs = 5000
+let initialScanProjectionDirty = false, initialScanProjectionAtMs: number | undefined
+type LocalAlbumRecovery = {
+  generation: number; epoch: number; datasetId: string | undefined; view: 'local-library' | 'coverdrop'
+  browser: typeof albumBrowser; query: string; rootId: string | null; filter: localWorkbenchDto.LocalAlbumFilter
+}
+let localAlbumRecoveryGeneration = 0, localAlbumRecoveryRuntimeReady = false
+let localAlbumRecoveryQueued: LocalAlbumRecovery | null = null, localAlbumRecoveryWork: Promise<void> | null = null
+const localAlbumRecoveryAttempts = new Map<typeof albumBrowser, number>()
+// 首次页面的原model Promise保持加载；真实Core/隧道就绪前不派专辑查询。
+type LocalAlbumPageEntry = {
+  view: 'local-library' | 'coverdrop'; epoch: number; browser: typeof albumBrowser
+  query: string; rootId: string | null; filter: localWorkbenchDto.LocalAlbumFilter
+}
+function captureLocalAlbumPageEntry(request: localWorkbenchDto.LocalAlbumQuery): LocalAlbumPageEntry | null {
+  const view = currentView.value
+  if (view !== 'local-library' && view !== 'coverdrop') return null
+  return { view, epoch: initialScanEpoch, browser: view === 'local-library' ? albumBrowser : coverDropBrowser,
+    query: request.query, rootId: request.rootId, filter: request.filter }
+}
+function localAlbumPageEntryCurrent(entry: LocalAlbumPageEntry): boolean {
+  const state = entry.browser.snapshot.value
+  return !initialScanDisposed && !initialScanClosing && currentView.value === entry.view && initialScanEpoch === entry.epoch
+    && state.active && state.query === entry.query && state.rootId === entry.rootId && state.filter === entry.filter
+}
+function localAlbumPageRuntimeReady(): boolean { return isCoreRuntimeStable(coreState.value?.runtime, remoteCoreState.value.status) }
+function localAlbumPageRuntimeTerminal(): boolean {
+  return (coreState.value?.runtime === 'failed' || coreState.value?.runtime === 'stopped')
+    && !['checking', 'starting', 'reconnecting', 'stopping'].includes(remoteCoreState.value.status)
+}
+function waitLocalAlbumPageReady(entry: LocalAlbumPageEntry): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let stop: (() => void) | undefined
+    const inspect = () => {
+      if (!localAlbumPageEntryCurrent(entry)) { stop?.(); reject(new Error('原专辑页面读取已结束。')) }
+      else if (localAlbumPageRuntimeTerminal()) { stop?.(); reject(new Error('Core 已停止或启动失败，请检查连接后重试。')) }
+      else if (localAlbumPageRuntimeReady()) { stop?.(); resolve() }
+    }
+    // 监听真实状态引用，core.ready即使runtime枚举仍为ready也会在原事件内更新代次。
+    stop = watch([() => coreState.value, () => remoteCoreState.value, () => currentView.value, () => entry.browser.snapshot.value], inspect, { flush: 'sync' })
+    inspect()
+  })
+}
+// 首次目录/扫描观察排在同代真实专辑页之后；这里只安排纯读，不保存任何许可。
+type InitialAlbumContextGate = {
+  view: 'local-library' | 'coverdrop'; epoch: number; generation: number; readSerial: number
+  pageReady: boolean; released: boolean; refreshRequested: boolean; itemsBefore: readonly unknown[] | null
+}
+let initialAlbumContextView: InitialAlbumContextGate['view'] | null = null
+let initialAlbumContextGate: InitialAlbumContextGate | null = null, initialAlbumContextWarmGeneration = -1
+let initialAlbumContextWork: Promise<void> | null = null
+function initialAlbumContextCurrent(gate: InitialAlbumContextGate): boolean {
+  return initialAlbumContextGate === gate && !initialScanDisposed && !initialScanClosing && currentView.value === gate.view
+    && gate.epoch === initialScanEpoch && gate.generation === localAlbumRecoveryGeneration
+}
+function deferInitialAlbumContextReads(): boolean { return initialAlbumContextGate !== null && !initialAlbumContextGate.released }
+function beginInitialAlbumContext(view: string, albumPage: boolean): void {
+  initialAlbumContextView = albumPage && (view === 'local-library' || view === 'coverdrop') ? view : null
+  initialAlbumContextGate = initialAlbumContextView !== null && initialAlbumContextWarmGeneration !== localAlbumRecoveryGeneration
+    ? { view: initialAlbumContextView, epoch: initialScanEpoch, generation: localAlbumRecoveryGeneration, readSerial: 0,
+      pageReady: false, released: false, refreshRequested: false, itemsBefore: null } : null
+}
+function captureInitialAlbumContextPage(request: localWorkbenchDto.LocalAlbumQuery): { gate: InitialAlbumContextGate; serial: number; itemsBefore: readonly unknown[] } | null {
+  const gate = initialAlbumContextGate
+  if (!gate || gate.released || !initialAlbumContextCurrent(gate) || request.offset !== 0) return null
+  const state = (gate.view === 'local-library' ? albumBrowser : coverDropBrowser).snapshot.value
+  if (!state.active || !state.initialLoading && !state.refreshing || state.query !== request.query || state.rootId !== request.rootId || state.filter !== request.filter) return null
+  gate.pageReady = false
+  return { gate, serial: ++gate.readSerial, itemsBefore: state.items }
+}
+function acceptInitialAlbumContextPage(read: ReturnType<typeof captureInitialAlbumContextPage>, request: localWorkbenchDto.LocalAlbumQuery, page: localWorkbenchDto.LocalAlbumPage): void {
+  if (!read || !initialAlbumContextCurrent(read.gate) || read.serial !== read.gate.readSerial || !localWorkbenchDto.isLocalAlbumPage(page, request)) return
+  read.gate.pageReady = true; read.gate.itemsBefore = read.itemsBefore
+  // 真实model接受页后会发布新items；watch再启动读取，不能凭API回包或旧loaded直接放行。
+}
+function warmCachedInitialAlbumContext(): void {
+  const gate = initialAlbumContextGate
+  if (!gate || gate.released || gate.pageReady || gate.refreshRequested || !initialAlbumContextCurrent(gate) || !localAlbumRecoveryRuntimeReady) return
+  const browser = gate.view === 'local-library' ? albumBrowser : coverDropBrowser, state = browser.snapshot.value
+  if (!state.active || !state.loaded || state.initialLoading || state.refreshing || state.loadingMore) return
+  gate.refreshRequested = true
+  void browser.refresh()
+}
+function runInitialAlbumContext(): Promise<void> {
+  if (initialAlbumContextWork) return initialAlbumContextWork
+  const gate = initialAlbumContextGate
+  if (!gate || gate.released || !gate.pageReady || !initialAlbumContextCurrent(gate)) return Promise.resolve()
+  const state = (gate.view === 'local-library' ? albumBrowser : coverDropBrowser).snapshot.value
+  const allowed = () => initialAlbumContextCurrent(gate) && !workbenchLibrary.pending.value && !workbenchLibrary.writing.value
+    && !workbenchLibrary.addingLibrary.value && !workbenchLibrary.busy.value && !localLibrary.maintenanceLocked.value
+  if (!state.active || !state.loaded || state.items === gate.itemsBefore || state.initialLoading || state.refreshing || state.loadingMore
+    || state.error || state.refreshError || !allowed()) return Promise.resolve()
+  let settledNormally = false
+  const work = (async () => {
+    await localLibrary.activate({ deferTrackReads: true })
+    if (!allowed()) return
+    await loadWorkspace()
+    if (!allowed()) return
+    gate.released = true; initialAlbumContextWarmGeneration = gate.generation
+    await requestInitialScanRefresh(false)
+  })().then(() => { settledNormally = true }).finally(() => {
+    if (initialAlbumContextWork === work) initialAlbumContextWork = null
+    if (settledNormally && initialAlbumContextGate?.pageReady && !initialAlbumContextGate.released) void runInitialAlbumContext()
+  })
+  initialAlbumContextWork = work
+  return work
+}
+// 设置只补首次普通库读取；不消费任何未知写入或名称设置恢复。
+type LocalSettingsReadRecovery = { generation: number; epoch: number }
+let localSettingsReadRecoveryQueued: LocalSettingsReadRecovery | null = null, localSettingsReadRecoveryWork: Promise<void> | null = null
+let localSettingsReadRecoveryAttempts = 0
+// 扫描只读观察的恢复独立于封面墙loaded；每个真实Core代最多两次，不生成额外轮询或写入。
+type InitialScanReadRecovery = { generation: number; epoch: number; datasetId: string | undefined; view: string }
+let initialScanReadRecoveryAttempts = 0, initialScanReadFailureSerial = 0
+let initialScanReadRecoveryQueued: InitialScanReadRecovery | null = null, initialScanReadRecoveryWork: Promise<void> | null = null
+function initialScanReadRecoveryCurrent(read: InitialScanReadRecovery): boolean {
+  return initialScanCurrent(read.epoch, read.datasetId) && read.generation === localAlbumRecoveryGeneration && localAlbumRecoveryRuntimeReady
+    && currentView.value === read.view && workbenchLibrary.state.value?.datasetId === read.datasetId
+}
+function runInitialScanReadRecovery(): Promise<void> {
+  if (initialScanReadRecoveryWork) return initialScanReadRecoveryWork
+  const read = initialScanReadRecoveryQueued
+  if (!read) return Promise.resolve()
+  initialScanReadRecoveryQueued = null
+  const allowed = () => initialScanReadRecoveryCurrent(read) && initialScanStatusError.value === initialScanUnconfirmed
+    && !deferInitialAlbumContextReads() && !workbenchLibrary.pending.value && !workbenchLibrary.writing.value && !workbenchLibrary.addingLibrary.value && initialScanReadRecoveryAttempts < 2
+  if (!allowed()) return Promise.resolve()
+  const work = (async () => {
+    // 先join原读取的真实尾部；health在途只留下一个令牌，不与原root/page/get并发。
+    const previous = initialScanWork
+    if (previous) await previous
+    if (!allowed()) return
+    initialScanReadRecoveryAttempts++
+    await requestInitialScanRefresh(false)
+  })().finally(() => {
+    if (initialScanReadRecoveryWork === work) initialScanReadRecoveryWork = null
+    if (initialScanReadRecoveryQueued) return runInitialScanReadRecovery()
+  })
+  initialScanReadRecoveryWork = work
+  return work
+}
+function runLocalSettingsReadRecovery(): Promise<void> {
+  if (localSettingsReadRecoveryWork) return localSettingsReadRecoveryWork
+  const read = localSettingsReadRecoveryQueued
+  if (!read) return Promise.resolve()
+  if (!initialScanCurrent(read.epoch) || read.generation !== localAlbumRecoveryGeneration || !localAlbumRecoveryRuntimeReady || currentView.value !== 'settings'
+    || workbenchLibrary.state.value !== null || !workbenchLibrary.readFailed.value || workbenchLibrary.pending.value || workbenchLibrary.writing.value || workbenchLibrary.addingLibrary.value
+    || localSettingsReadRecoveryAttempts >= 2) { localSettingsReadRecoveryQueued = null; return Promise.resolve() }
+  // 新Core事件在原read在途时只留下一个令牌；原busy解除后再核门禁，不轮询也不并发。
+  if (workbenchLibrary.busy.value) return Promise.resolve()
+  localSettingsReadRecoveryQueued = null; localSettingsReadRecoveryAttempts++
+  const work = workbenchLibrary.read().then(() => undefined).finally(() => {
+    if (localSettingsReadRecoveryWork === work) localSettingsReadRecoveryWork = null
+    if (localSettingsReadRecoveryQueued) return runLocalSettingsReadRecovery()
+  })
+  localSettingsReadRecoveryWork = work
+  return work
+}
+function localAlbumRecoveryCurrent(read: LocalAlbumRecovery): boolean {
+  const state = read.browser.snapshot.value
+  return initialScanCurrent(read.epoch) && read.generation === localAlbumRecoveryGeneration && localAlbumRecoveryRuntimeReady
+    && currentView.value === read.view && workbenchLibrary.state.value?.datasetId === read.datasetId && state.active
+    && state.query === read.query && state.rootId === read.rootId && state.filter === read.filter
+}
+function runLocalAlbumRecovery(): Promise<void> {
+  if (localAlbumRecoveryWork) return localAlbumRecoveryWork
+  localAlbumRecoveryWork = (async () => {
+    while (localAlbumRecoveryQueued) {
+      const read = localAlbumRecoveryQueued; localAlbumRecoveryQueued = null
+      const state = read.browser.snapshot.value, attempts = localAlbumRecoveryAttempts.get(read.browser) ?? 0
+      if (!localAlbumRecoveryCurrent(read) || attempts >= 2) continue
+      if (state.loaded) {
+        if (deferInitialAlbumContextReads() || !localLibrary.rootsError.value) continue
+        // 专辑首屏成功不能遮住独立失败的目录读取；仍只消费真实Core事件和原每代预算。
+        localAlbumRecoveryAttempts.set(read.browser, attempts + 1)
+        await localLibrary.refreshContext()
+        continue
+      }
+      if (state.status !== 'error' || state.initialLoading || state.refreshing || state.loadingMore) continue
+      localAlbumRecoveryAttempts.set(read.browser, attempts + 1)
+      // 只重读未成功的首屏；失败仍由原model保留错误，后续重试必须有新的真实Core事件。
+      await read.browser.refresh()
+      if (localAlbumRecoveryCurrent(read) && read.browser.snapshot.value.loaded && !deferInitialAlbumContextReads()) {
+        if (localLibrary.error.value && !localLibrary.loaded.value) await localLibrary.refresh()
+        else if (localLibrary.rootsError.value) await localLibrary.refreshContext()
+      }
+    }
+  })().finally(() => {
+    localAlbumRecoveryWork = null
+    if (localAlbumRecoveryQueued) return runLocalAlbumRecovery()
+  })
+  return localAlbumRecoveryWork
+}
+function observeLocalAlbumCoreRecovery(event: 'core.ready' | 'core.health', runtimeReady: boolean): void {
+  if (initialScanDisposed || initialScanClosing) return
+  if (event === 'core.ready' || localAlbumRecoveryRuntimeReady && !runtimeReady) {
+    localAlbumRecoveryGeneration++; localAlbumRecoveryAttempts.clear(); localAlbumRecoveryQueued = null
+    initialAlbumContextWarmGeneration = -1
+    if (initialAlbumContextView) { beginInitialAlbumContext(initialAlbumContextView, true); void localLibrary.activate({ deferTrackReads: true, deferContextReads: true }) }
+    localSettingsReadRecoveryAttempts = 0; localSettingsReadRecoveryQueued = null
+    initialScanReadRecoveryAttempts = 0; initialScanReadRecoveryQueued = null
+  }
+  localAlbumRecoveryRuntimeReady = runtimeReady
+  if (runtimeReady) warmCachedInitialAlbumContext()
+  if (!runtimeReady) {
+    // 即使Renderer尚未见过ready，明确的未就绪事件也要撤销已捕获的旧页令牌。
+    initialAlbumContextWarmGeneration = -1
+    if (initialAlbumContextView) { beginInitialAlbumContext(initialAlbumContextView, true); void localLibrary.activate({ deferTrackReads: true, deferContextReads: true }) }
+    localAlbumRecoveryQueued = null; localSettingsReadRecoveryQueued = null; initialScanReadRecoveryQueued = null; return
+  }
+  const view = currentView.value
+  if (initialScanRelated(view) && initialScanStatusError.value === initialScanUnconfirmed) {
+    initialScanReadRecoveryQueued = { generation: localAlbumRecoveryGeneration, epoch: initialScanEpoch,
+      datasetId: workbenchLibrary.state.value?.datasetId, view }
+    void runInitialScanReadRecovery()
+  }
+  if (view === 'settings') {
+    if (workbenchLibrary.state.value === null && workbenchLibrary.readFailed.value) {
+      localSettingsReadRecoveryQueued = { generation: localAlbumRecoveryGeneration, epoch: initialScanEpoch }
+      void runLocalSettingsReadRecovery()
+    }
+    return
+  }
+  if (view !== 'local-library' && view !== 'coverdrop') return
+  const browser = view === 'local-library' ? albumBrowser : coverDropBrowser, state = browser.snapshot.value
+  localAlbumRecoveryQueued = { generation: localAlbumRecoveryGeneration, epoch: initialScanEpoch, datasetId: workbenchLibrary.state.value?.datasetId,
+    view, browser, query: state.query, rootId: state.rootId, filter: state.filter }
+  void runLocalAlbumRecovery()
+}
 function initialScanRelated(view: string | undefined): boolean { return view === 'local-library' || view === 'coverdrop' || view === 'settings' }
 function initialScanCurrent(epoch: number, datasetId?: string): boolean {
   return !initialScanDisposed && !initialScanClosing && epoch === initialScanEpoch && initialScanRelated(currentView.value)
@@ -209,15 +519,24 @@ function initialScanRootKey(root: InitialScanRoot): string { return JSON.stringi
 function initialScanMatches(job: InitialScanJob, root: InitialScanRoot, datasetId: string): boolean {
   return job.datasetId === datasetId && job.libraryRootId === root.id && job.sourceRootId === root.sourceRootId && job.rootRevision === root.revision
 }
-function initialScanNotConfirmed(): void { if (!workbenchLibrary.notice.value || workbenchLibrary.notice.value === initialScanUnconfirmed) workbenchLibrary.notice.value = initialScanUnconfirmed }
+function initialScanNotConfirmed(): void { initialScanReadFailureSerial++; initialScanStatusError.value = initialScanUnconfirmed; if (!workbenchLibrary.notice.value || workbenchLibrary.notice.value === initialScanUnconfirmed) workbenchLibrary.notice.value = initialScanUnconfirmed }
 function stopInitialScanObservation(closing = false): void {
+  localSettingsReadRecoveryQueued = null
+  initialScanReadRecoveryQueued = null; initialScanReadRecoveryAttempts = 0
   initialScanEpoch++; initialScanClosing ||= closing
+  if (initialAlbumContextView && initialScanRelated(currentView.value) && !initialScanClosing) {
+    initialAlbumContextWarmGeneration = -1; beginInitialAlbumContext(initialAlbumContextView, true)
+    void localLibrary.activate({ deferTrackReads: true, deferContextReads: true })
+  } else initialAlbumContextGate = null
   clearTimeout(initialScanTimer); initialScanTimer = undefined; initialScanDataset = undefined
+  localAlbumRecoveryQueued = null
   initialScanObservations.clear(); initialScanAttemptedRoots.clear(); initialScanReceiptCommands.clear(); initialScanSnapshotBefore.clear(); initialScanDiscoveryBudgets.length = 0
+  initialScanJobs.value = []; initialScanStatusError.value = ''
   initialScanRefreshQueued = initialScanDiscoverQueued = initialScanInspectQueued = initialScanTimerQueued = false
+  initialScanProjectionDirty = false; initialScanProjectionAtMs = undefined
 }
 async function readInitialScanLibrary(epoch: number, datasetId?: string): Promise<boolean> {
-  if (!initialScanCurrent(epoch, datasetId) || workbenchLibrary.busy.value) return false
+  if (!initialScanCurrent(epoch, datasetId) || deferInitialAlbumContextReads() || workbenchLibrary.busy.value) return false
   const before = workbenchLibrary.state.value
   // busy核对到原read同步受理之间没有await；另一旧read不能冒充本次新鲜读取。
   const reading = workbenchLibrary.read()
@@ -228,9 +547,14 @@ async function readInitialScanLibrary(epoch: number, datasetId?: string): Promis
 }
 async function discoverInitialScanJobs(epoch: number, datasetId: string, roots: readonly InitialScanRoot[]): Promise<void> {
   const remember = (job: InitialScanJob, root: InitialScanRoot) => {
-    if (!initialScanCurrent(epoch, datasetId) || !initialScanMatches(job, root, datasetId) || initialScanObservations.has(job.jobId)) return
+    if (!initialScanCurrent(epoch, datasetId) || !initialScanMatches(job, root, datasetId)) return
+    const original = initialScanObservations.get(job.jobId)
+    if (original) { if (job.jobRevision !== original.job.jobRevision || job.phase !== original.job.phase) original.finished = false; return }
+    // 每个根只跟随最新扫描；旧终态不能遮住设置里刚启动或恢复的任务。
+    for (const [id, observation] of initialScanObservations) if (observation.job.libraryRootId === root.id) initialScanObservations.delete(id)
     initialScanObservations.set(job.jobId, { job, signature: '', snapshotBefore: initialScanSnapshotBefore.get(root.id) ?? null, observedSnapshot: null,
       completed: false, settleAttempts: 0, pendingAttempts: 0, failures: 0, finished: false })
+    publishInitialScanJobs()
   }
   // 这里只使用真正的导入原命令；AI/CUE的job/originalJob不属于扫描任务。
   for (const operation of workbenchLibrary.operations.value) {
@@ -246,7 +570,7 @@ async function discoverInitialScanJobs(epoch: number, datasetId: string, roots: 
     } catch { if (!initialScanCurrent(epoch, datasetId)) return }
   }
   const targets = roots.filter(root => !initialScanAttemptedRoots.has(initialScanRootKey(root))
-    && ![...initialScanObservations.values()].some(value => initialScanMatches(value.job, root, datasetId)))
+    && ![...initialScanObservations.values()].some(value => !value.finished && initialScanMatches(value.job, root, datasetId)))
   if (!targets.length) return
   for (const root of targets) initialScanAttemptedRoots.add(initialScanRootKey(root))
   const budget = { pages: 0, rows: 0, restarts: 0 }; initialScanDiscoveryBudgets.push(budget)
@@ -276,23 +600,36 @@ async function discoverInitialScanJobs(epoch: number, datasetId: string, roots: 
       }
       if (!changed) changed = (await page(0, 1)).total !== total
       if (changed) { if (budget.restarts >= 1) throw new Error('扫描清单持续变化。'); budget.restarts++; continue }
-      for (const root of targets) { const job = found.get(root.id); if (job) remember(job, root); else initialScanNotConfirmed() }
+      for (const root of targets) {
+        const job = found.get(root.id)
+        if (job) remember(job, root)
+        else { initialScanAttemptedRoots.delete(initialScanRootKey(root)); initialScanNotConfirmed() }
+      }
       return
     }
-  } catch { if (initialScanCurrent(epoch, datasetId)) initialScanNotConfirmed() }
+  } catch {
+    if (initialScanCurrent(epoch, datasetId)) {
+      // 失败的只读发现没有资格封死此root；下次真实Core事件可重新取得原分页证明。
+      for (const root of targets) initialScanAttemptedRoots.delete(initialScanRootKey(root))
+      initialScanNotConfirmed()
+    }
+  }
 }
 function scheduleInitialScanObservation(): void {
   if (!initialScanCurrent(initialScanEpoch, initialScanDataset) || ![...initialScanObservations.values()].some(value => !value.finished)) {
     clearTimeout(initialScanTimer); initialScanTimer = undefined; return
   }
   if (initialScanTimer !== undefined) return
+  const failures = Math.max(0, ...[...initialScanObservations.values()].filter(value => !value.finished).map(value => value.failures))
+  const delay = Math.min(15_000, 1500 * 2 ** Math.min(4, failures))
   initialScanTimer = setTimeout(() => {
     initialScanTimer = undefined; initialScanInspectQueued = initialScanTimerQueued = true; void runInitialScanRefresh()
-  }, 1500)
+  }, initialScanProjectionDirty && initialScanProjectionAtMs !== undefined
+    ? Math.min(delay, Math.max(1, initialScanProjectionAtMs + initialScanProjectionIntervalMs - Date.now())) : delay)
 }
 async function initialScanRefreshCycle(refresh: boolean, discover: boolean, inspect: boolean, timerTick: boolean): Promise<void> {
-  if (initialScanDisposed || initialScanClosing) return
-  const epoch = initialScanEpoch
+  if (initialScanDisposed || initialScanClosing || deferInitialAlbumContextReads()) return
+  const epoch = initialScanEpoch, readGeneration = localAlbumRecoveryGeneration, failureSerial = initialScanReadFailureSerial
   if (!initialScanRelated(currentView.value)) return
   for (const library of workbenchLibrary.state.value?.libraries ?? []) if (!initialScanSnapshotBefore.has(library.libraryId)) initialScanSnapshotBefore.set(library.libraryId, library.latestSnapshotId)
   if (!initialScanDataset && !await readInitialScanLibrary(epoch)) {
@@ -305,6 +642,7 @@ async function initialScanRefreshCycle(refresh: boolean, discover: boolean, insp
   const datasetId = initialScanDataset ?? workbenchLibrary.state.value?.datasetId
   if (!datasetId || !initialScanCurrent(epoch)) return
   initialScanDataset = datasetId
+  let projectionImmediate = false
   let roots: readonly InitialScanRoot[] = []
   try {
     const views = await window.musicBridge.listLocalLibraryRoots()
@@ -314,11 +652,10 @@ async function initialScanRefreshCycle(refresh: boolean, discover: boolean, insp
     if (discover) await discoverInitialScanJobs(epoch, datasetId, roots)
   } catch {
     if (!initialScanCurrent(epoch, datasetId)) return
-    for (const value of initialScanObservations.values()) if (!value.finished && ++value.failures >= 3) value.finished = true
+    for (const value of initialScanObservations.values()) if (!value.finished) value.failures++
     initialScanNotConfirmed(); return
   }
   if (!initialScanCurrent(epoch, datasetId)) return
-  const completedNow = new Set<string>()
   if (inspect || discover) for (const observation of initialScanObservations.values()) {
     if (observation.finished) continue
     const root = roots.find(value => initialScanMatches(observation.job, value, datasetId))
@@ -333,28 +670,54 @@ async function initialScanRefreshCycle(refresh: boolean, discover: boolean, insp
       }
       if (!localWorkbenchDto.isScanJobRecord(job) || job.jobId !== observation.job.jobId || !initialScanMatches(job, root, datasetId)
         || observation.completed && job.phase !== 'completed') throw new Error('原扫描任务身份未确认。')
-      observation.failures = 0; observation.job = job
+      const previousJob = observation.job
+      observation.failures = 0; observation.job = job; publishInitialScanJobs()
       const signature = JSON.stringify([job.jobRevision, job.phase, job.progress, job.checkpointRef, job.failureCode])
-      if (signature !== observation.signature) { observation.signature = signature; refresh = true }
+      if (signature !== observation.signature) {
+        observation.signature = signature
+        // 首批与终态立即显示；扫描中间批次合并到五秒窗口，进度条仍使用每次真实观察。
+        if (job.progress.accepted !== previousJob.progress.accepted || job.phase !== previousJob.phase) {
+          initialScanProjectionDirty = true
+          projectionImmediate ||= previousJob.progress.accepted === '0' && job.progress.accepted !== '0'
+            || job.phase !== 'running' && job.phase !== 'pending'
+        }
+        const count = (value: string) => Math.min(Number.MAX_SAFE_INTEGER, Number(value))
+        logLibraryOperation('ui', 'scan.updated', job.phase === 'failed' ? 'error' : job.phase === 'completed' ? 'complete' : job.phase === 'paused' ? 'paused' : job.phase === 'cancelled' ? 'cancelled' : 'progress',
+          { visited: count(job.progress.visited), accepted: count(job.progress.accepted), rejected: count(job.progress.rejected), code: job.failureCode ?? job.phase.toUpperCase() })
+      }
       if (job.phase === 'completed') {
-        if (!observation.completed) { observation.completed = true; completedNow.add(job.jobId); refresh = true }
-        else if (timerTick) { observation.settleAttempts++; refresh = true }
+        if (!observation.completed) observation.completed = true
+        else if (timerTick) observation.settleAttempts++
       } else if (job.phase === 'pending') {
-        if (timerTick && ++observation.pendingAttempts >= 6) { observation.finished = true; initialScanNotConfirmed() }
-      } else if (job.phase !== 'running') { observation.finished = true; refresh = true }
-    } catch { if (!initialScanCurrent(epoch, datasetId)) return; if (++observation.failures >= 3) observation.finished = true; initialScanNotConfirmed() }
+        if (timerTick) observation.pendingAttempts++
+      } else if (job.phase !== 'running') { observation.finished = true; initialScanProjectionDirty = true; projectionImmediate = true }
+    } catch { if (!initialScanCurrent(epoch, datasetId)) return; observation.failures++; initialScanNotConfirmed() }
   }
   if (!initialScanCurrent(epoch, datasetId)) return
-  const fresh = refresh ? await readInitialScanLibrary(epoch, datasetId) : false
+  refresh ||= initialScanProjectionDirty && (projectionImmediate || initialScanProjectionAtMs === undefined
+    || Date.now() - initialScanProjectionAtMs >= initialScanProjectionIntervalMs)
+  // 完成后只补齐一次真实库读取；busy或失败可重试，不重复刷新已读过的专辑墙。
+  const finalReadPending = [...initialScanObservations.values()].some(value => value.completed && !value.finished)
+  const fresh = refresh || finalReadPending ? await readInitialScanLibrary(epoch, datasetId) : false
   if (!initialScanCurrent(epoch, datasetId)) return
-  if (refresh) await Promise.all([albumBrowser.refresh(), coverDropBrowser.refresh(), localLibrary.refresh()])
+  if (refresh) {
+    initialScanProjectionDirty = false; initialScanProjectionAtMs = Date.now()
+    await Promise.all([albumBrowser.refresh(), coverDropBrowser.refresh(), localLibrary.refresh()])
+  }
   if (!initialScanCurrent(epoch, datasetId)) return
   for (const observation of initialScanObservations.values()) if (observation.completed && !observation.finished) {
     const library = fresh ? workbenchLibrary.state.value?.libraries.find(value => value.libraryId === observation.job.libraryRootId) : undefined
     // 公开ID仅指最后成功快照，即使变化也没有本次job对应，不能升级成本次ready。
-    if (library) observation.observedSnapshot = library.latestSnapshotId
-    // 只能保留本次快照对应未确认的内部边界，不能把正常只读完成变成用户故障提示。
-    if (timerTick && !completedNow.has(observation.job.jobId) && observation.settleAttempts >= 6) observation.finished = true
+    // 停止观察只表示完成态与本次读取已核实，不把最后成功ID冒充本job的完成快照。
+    if (library) { observation.observedSnapshot = library.latestSnapshotId; observation.finished = true }
+  }
+  // 只在同Core代完整成功周期之后清本观察的提示；重试受理/部分读取不能暂时抹掉红字。
+  if (initialScanCurrent(epoch, datasetId) && readGeneration === localAlbumRecoveryGeneration && failureSerial === initialScanReadFailureSerial
+    && roots.every(root => [...initialScanObservations.values()].some(observation => initialScanMatches(observation.job, root, datasetId)))
+    && [...initialScanObservations.values()].every(observation => observation.finished || observation.failures === 0)
+    && (!(refresh || finalReadPending) || fresh)) {
+    initialScanStatusError.value = ''
+    if (workbenchLibrary.notice.value === initialScanUnconfirmed) workbenchLibrary.notice.value = ''
   }
 }
 function runInitialScanRefresh(): Promise<void> {
@@ -372,9 +735,11 @@ function runInitialScanRefresh(): Promise<void> {
   })
   return initialScanWork
 }
-function requestInitialScanRefresh(): Promise<void> {
-  if (initialScanDisposed || initialScanClosing || !initialScanRelated(currentView.value)) return Promise.resolve()
-  initialScanRefreshQueued = initialScanDiscoverQueued = true
+function requestInitialScanRefresh(refresh = true): Promise<void> {
+  if (initialScanDisposed || initialScanClosing || deferInitialAlbumContextReads() || !initialScanRelated(currentView.value)) return Promise.resolve()
+  initialScanAttemptedRoots.clear()
+  initialScanRefreshQueued ||= refresh
+  initialScanDiscoverQueued = true
   return runInitialScanRefresh()
 }
 async function refreshLocalLibraryFromWorkbench(): Promise<void> {
@@ -383,15 +748,20 @@ async function refreshLocalLibraryFromWorkbench(): Promise<void> {
   await requestInitialScanRefresh()
 }
 async function refreshLocalBrowserViews(): Promise<void> { await requestInitialScanRefresh() }
-function closeInitialScanObservation(): void { stopInitialScanObservation(true) }
+function closeInitialScanObservation(): void { albumBrowser.deactivate(); coverDropBrowser.deactivate(); stopInitialScanObservation(true) }
 function installInitialScanObservationLifecycle(): void {
+  watch([() => albumBrowser.snapshot.value, () => coverDropBrowser.snapshot.value, () => workbenchLibrary.busy.value,
+    () => workbenchLibrary.pending.value, () => workbenchLibrary.writing.value, () => workbenchLibrary.addingLibrary.value, () => localLibrary.maintenanceLocked.value], () => {
+    warmCachedInitialAlbumContext(); void runInitialAlbumContext()
+  }, { flush: 'post' })
+  watch(() => workbenchLibrary.busy.value, busy => { if (!busy && localSettingsReadRecoveryQueued) void runLocalSettingsReadRecovery() }, { flush: 'sync' })
   watch([() => currentView.value, () => workbenchLibrary.state.value?.datasetId], ([view, datasetId]) => {
     if (!initialScanRelated(view)) { stopInitialScanObservation(); return }
     if (initialScanDataset !== undefined && datasetId !== initialScanDataset) stopInitialScanObservation()
     initialScanDataset = datasetId
-    void requestInitialScanRefresh()
+    void requestInitialScanRefresh(false)
   }, { flush: 'sync' })
-  onMounted(() => { window.addEventListener('pagehide', closeInitialScanObservation); if (initialScanRelated(currentView.value)) void requestInitialScanRefresh() })
+  onMounted(() => { window.addEventListener('pagehide', closeInitialScanObservation); if (initialScanRelated(currentView.value)) void requestInitialScanRefresh(false) })
   onUnmounted(() => { initialScanDisposed = true; closeInitialScanObservation(); window.removeEventListener('pagehide', closeInitialScanObservation) })
 }
 // 首扫原任务观察结束。
@@ -400,7 +770,8 @@ async function loadWorkspace(): Promise<boolean> {
   workspaceLoading = (async () => {
     try {
       const capabilities = await window.musicBridge.localWorkbenchCapabilities()
-      await Promise.all([workbenchLibrary.read(), workbenchLibrary.readNameSettings()])
+      const confirmed = await Promise.all([workbenchLibrary.read(), workbenchLibrary.readNameSettings()])
+      if (!confirmed.every(value => value === true)) return false
       Object.assign(workbenchPorts, createLocalWorkbenchRendererPorts({ api: window.musicBridge, capabilities, openExistingAction: request => openOriginalMaintenance(request.action, request.albums), localExistingRoutes: {
         datasetId: () => workbenchLibrary.state.value?.datasetId ?? null,
         generation: () => maintenanceUiGeneration,
@@ -429,12 +800,16 @@ async function captureWorkbenchTargets(intent: CoverDropPageIntent): Promise<voi
   try {
     if (!await loadWorkspace()) throw new Error('整理入口尚未就绪。')
     if (owner !== workbenchOpenGeneration || currentView.value !== 'coverdrop') return
+    const datasetId = workbenchLibrary.state.value?.datasetId
+    if (!datasetId) throw new Error('工作库读取尚未确认。')
     if (!targets.length) {
       failureStage = 'workspace'
       workbench.openLibrary()
       failureStage = 'context'
+      const selected = workbenchLibrary.selectedLibraryIds.value.length > 0
       const capture = await workbenchLibrary.captureLibraries()
       if (owner !== workbenchOpenGeneration || currentView.value !== 'coverdrop') return
+      if (workbenchLibrary.state.value?.datasetId !== datasetId || capture && capture.datasetId !== datasetId || selected && !capture) throw new Error('音乐库读取尚未确认。')
       if (capture?.lyricsLibraries.length === 1) workbenchLyrics.bind(null, capture.lyricsLibraries[0]!)
       return
     }
@@ -444,15 +819,17 @@ async function captureWorkbenchTargets(intent: CoverDropPageIntent): Promise<voi
     const captured = descriptors.length === 1
       ? await window.musicBridge.localLibraryManagement('library.album.capture', descriptors[0]!)
       : await window.musicBridge.localLibraryManagement('library.albums.capture', { albums: descriptors })
-    if (owner !== workbenchOpenGeneration) return
+    if (owner !== workbenchOpenGeneration || currentView.value !== 'coverdrop') return
+    if (captured.datasetId !== datasetId || workbenchLibrary.state.value?.datasetId !== datasetId) throw new Error('完整专辑所属工作库已变化。')
     const albums = captured.albums.map(value => value.album)
     failureStage = 'workspace'
     await workbench.open({ action, albums }, captured)
-    if (owner !== workbenchOpenGeneration) return
-    if (!workbench.isOpen.value) throw new Error('完整专辑读取尚未确认。')
-    const rootIds = [...new Set(albums.flatMap(value => value.rootId ? [value.rootId] : []))]
+    if (owner !== workbenchOpenGeneration || currentView.value !== 'coverdrop') return
+    if (!workbench.isOpen.value || workbench.readback.value?.datasetId !== datasetId
+      || workbench.readback.value.snapshotId !== captured.snapshotId) throw new Error('完整专辑读取尚未确认。')
     failureStage = 'context'
-    if (rootIds.length) await workbenchLibrary.captureLibraries(rootIds)
+    if (workbenchLibrary.state.value?.datasetId !== datasetId) throw new Error('音乐库读取尚未确认。')
+    // 专辑已有作者的完整readToken；打开它不预先捕获整个音乐库。
     bindWorkbenchLyrics()
   } catch { if (owner === workbenchOpenGeneration) {
     workbenchEntryError.value = readFailureMessages[failureStage]
@@ -476,16 +853,21 @@ function openAlbumWorkbenchBatch(request: LocalAlbumWorkbenchBatchRequest): void
 }
 function bindWorkbenchLyrics(): void {
   const album = workbench.focusedAlbum.value, dataset = workbench.readback.value?.datasetId
-  const library = workbenchLibrary.capture.value?.lyricsLibraries.find(value => value.libraryId === album?.album.rootId)
+  const capture = workbenchLibrary.capture.value
+  const library = capture && capture.datasetId === dataset ? capture.lyricsLibraries.find(value => value.libraryId === album?.album.rootId) : undefined
   if (album?.album.rootId && dataset) workbenchLyrics.bind({ datasetId: dataset, libraryId: album.album.rootId, albumId: album.album.albumId, captureId: album.capture.readToken }, library ?? null)
 }
 watch(() => workbench.focusedAlbum.value, bindWorkbenchLyrics)
-watch(() => workbenchLibrary.selectedLibraryIds.value, async () => {
-  if (!workbench.isOpen.value || workbenchLibrary.selectionLocked.value) return
+async function captureSelectedLyricsLibraries(): Promise<void> {
+  if (currentView.value !== 'coverdrop' || !workbench.isOpen.value || workbench.action.value !== 'library'
+    || workbenchOpening.value || workbenchLibrary.selectionLocked.value) return
+  const owner = workbenchOpenGeneration, datasetId = workbenchLibrary.state.value?.datasetId
   const capture = await workbenchLibrary.captureLibraries()
-  if (capture) workbenchLyrics.setLibraries(capture.lyricsLibraries)
-})
-watch(() => workbenchLibrary.capture.value, capture => { if (capture) workbenchLyrics.setLibraries(capture.lyricsLibraries) })
+  if (capture && owner === workbenchOpenGeneration && currentView.value === 'coverdrop' && workbench.isOpen.value
+    && workbench.action.value === 'library' && workbenchLibrary.state.value?.datasetId === datasetId && capture.datasetId === datasetId) workbenchLyrics.setLibraries(capture.lyricsLibraries)
+}
+watch([() => workbenchLibrary.selectedLibraryIds.value, () => workbench.action.value], () => { void captureSelectedLyricsLibraries() })
+watch(() => workbenchLibrary.capture.value, capture => { if (capture && capture.datasetId === workbenchLibrary.state.value?.datasetId) workbenchLyrics.setLibraries(capture.lyricsLibraries) })
 let refreshedWorkbenchItems = new Set<string>(), refreshedLyricsCommands = new Set<string>()
 const lyricsSessionScopes = new Map<string, import('@music-bridge/contracts').LocalLyricsScope>()
 watch(() => workbenchLyrics.session.value, session => {
@@ -605,7 +987,7 @@ function sourceFromOrganizer(): void {
 }
 function sourceFromArtwork(): void {
   const current = localLibrary.artwork.target.value, selection = localLibrary.artwork.context.value?.selection
-  if (current && selection?.candidate) void localLibrary.sourceWrites.open({ mode: 'single', trackId: current.trackId }, '当前曲目已保存的 MB 封面', 'EMBEDDED_COVER', current.editionId)
+  if (current && selection?.candidate) void localLibrary.sourceWrites.open({ mode: 'single', trackId: current.trackId }, '当前曲目已保存的 Mousa 封面', 'EMBEDDED_COVER', current.editionId)
 }
 function openSourceMbOnly(): void {
   const current = localLibrary.sourceWrites.target.value, detail = localLibrary.detail.value
@@ -621,7 +1003,7 @@ function openSourceMbOnly(): void {
 }
 function reacquireSourceArtwork(): void {
   const current = localLibrary.detail.value, requested = localLibrary.sourceWrites.editionId.value
-  if (!current || requested && !current.editions.some(edition => edition.id === requested)) { localLibrary.sourceWrites.error.value = '请从此具体发行的曲目详情进入原选图入口，保存 MB 封面后重新读取材料。'; return }
+  if (!current || requested && !current.editions.some(edition => edition.id === requested)) { localLibrary.sourceWrites.error.value = '请从此具体发行的曲目详情进入原选图入口，保存 Mousa 封面后重新读取材料。'; return }
   localLibrary.sourceWrites.close(); void localLibrary.artwork.open(current.track.id, requested || null)
 }
 const zones = ref<readonly PublicRoonZone[]>([])
@@ -661,13 +1043,24 @@ const toastMessage = ref<string | null>(null)
 const pageCache = createLibraryPageCache()
 let pageCacheEpoch = 0
 const roonGridScopeEpoch = ref(0)
-function invalidatePageCaches(): void {
+function invalidatePageCaches(sources: readonly CatalogSource[] = ['local', 'netease', 'roon']): void {
+  for (const source of sources) { catalog.invalidateSource(source); catalogData.cancelSource(source) }
+  catalogActionGeneration++; catalogActionPending.value = false
   pageCacheEpoch++; pageCache.clear()
   roonGridScopeEpoch.value++
   roonArtworkCache.clear()
   // scope 已轮转：同步结束旧私有读取，保留当前目标供原恢复链续读。
   netease.resetAuthorizedLoadStarted()
 }
+
+const catalogData = createCatalogDataAdapter(window.musicBridge, () => window.musicBridgeCatalog)
+const catalog = useCatalogExperience(catalogData.port)
+const catalogActionPending = ref(false)
+const catalogPlaybackRecovery = useCatalogPlaybackRecovery({
+  readReceipt: request => playback.readLocalLibraryPlayReceipt(request), getSnapshot: () => playback.playbackState.value,
+})
+const catalogLocalUnconfirmed = catalogPlaybackRecovery.request
+let catalogActionGeneration = 0, catalogRoonContext: RoonPlaybackContext | undefined
 
 const search = useAggregatedSearch({
   cache: pageCache, getCacheScope: () => String(pageCacheEpoch),
@@ -699,6 +1092,7 @@ const browse = useRoonBrowse({
   onError: recordActionError,
   onToast: showToast,
   getView: () => journey.currentView.value,
+  isArtistPageActive: () => catalog.artistSource.value === 'roon',
   onDetailOpening: view => { journey.setDetailView(view) },
   onDetailReady: (view, source) => { journey.setDetailView(view, source) },
   onNavigateSource: source => journey.navigateSource(source),
@@ -746,7 +1140,7 @@ const netease = useNeteaseLibrary({
   onPlaylistSwitch: () => playback.invalidateCollectionOperation(),
   onPlaylistReady: playlistId => journey.setDetailView('playlist-detail', { type: 'playlist', playlistId }),
   onResetPrivate: () => {
-    invalidatePageCaches()
+    invalidatePageCaches(['netease'])
     journey.resetPrivatePath()
     search.resetSearch()
     search.invalidateAccountScope()
@@ -776,6 +1170,7 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined
 const journey = usePageJourney({
   search,
   browse,
+  localArtistsEnabled: true,
   library: {
     hasLikedItems: () => likedPage.value.items.length > 0,
     isPlaylistReady: () => playlistState.value === 'ready',
@@ -806,6 +1201,94 @@ const {
   returnToSearch, selectAggregatedRoonItem: selectAggregatedRoonItemInJourney,
 } = journey
 
+const catalogAlbumNavigation = useCatalogAlbumNavigation({ journey, catalog, browser: albumBrowser,
+  selectAlbumView: () => { localLibraryViewMode.value = 'albums' } })
+
+function updateCatalogDraft(value: string): void { catalog.invalidatePreview(value) }
+function submitCatalogSearch(value: string): void {
+  if (!value.trim()) return
+  catalogAlbumNavigation.clear()
+  navigate('search', false)
+  if (currentView.value !== 'search') return
+  catalogActionGeneration++; catalogActionPending.value = false
+  void catalog.search(value)
+  void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
+}
+function navigateCatalogSource(source: SidebarSource): void {
+  catalogAlbumNavigation.clear()
+  navigateSource(source)
+  if (source.type === 'roon-artists' && currentView.value === 'roon-artists') { catalog.artistSource.value = 'local'; catalog.closeDetail() }
+}
+function selectCatalogSuggestion(suggestion: SidebarSearchSuggestion): void {
+  if (suggestion.kind === 'keyword') { submitCatalogSearch(suggestion.title); return }
+  const item = catalog.previewItem(suggestion.key), query = catalog.draft.value.trim()
+  if (!item) return
+  if (item.kind === 'tracks') { void playCatalogItem(item, 'PLAY_NOW', query); return }
+  if (catalog.query.value !== query) submitCatalogSearch(query)
+  else navigate('search', false)
+  if (currentView.value === 'search') void openCatalogItem(item)
+}
+async function openCatalogItem(item: CatalogItem): Promise<void> {
+  if (item.kind === 'tracks') { await playCatalogItem(item); return }
+  if (item.identity.type === 'roon') { openRoonLibraryItem(item.identity.value); return }
+  if (item.identity.type === 'local-album') {
+    await catalogAlbumNavigation.open(item.identity.value)
+    return
+  }
+  await catalog.openDetail(item)
+  void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
+}
+async function playCatalogItem(item: CatalogItem, action: LocalPlayAction = 'PLAY_NOW', explicitQuery?: string): Promise<void> {
+  if (catalogActionPending.value || playbackStartPending.value) return
+  if (catalogLocalUnconfirmed.value) { recordActionError(new Error('原本地点播的结果尚未确认，请使用“核对播放请求”；不会重复提交。')); return }
+  const generation = ++catalogActionGeneration, query = explicitQuery ?? catalog.query.value
+  const current = () => generation === catalogActionGeneration
+  catalogActionPending.value = true
+  try {
+    if (item.identity.type === 'netease-track') {
+      if (action === 'APPEND_MB_QUEUE') { await appendTrack(item.identity.value, 'netease'); return }
+      if (action === 'PLAY_NEXT_MB_QUEUE') { await insertTrackNext(item.identity.value, 'netease'); return }
+      const loader = catalogData.neteaseLoader(query, explicitQuery === undefined ? catalog.detail.value?.item : undefined)
+      const initial = await readCatalogPlaybackPrefix(loader, item.identity.value.id, current)
+      if (current()) await replaceAndPlayCollection(loader, item.identity.value.id, initial, true, 'netease')
+    } else if (item.identity.type === 'roon') {
+      if (action === 'APPEND_MB_QUEUE') { await queueRoonLibraryTrack(item.identity.value); return }
+      if (action === 'PLAY_NEXT_MB_QUEUE') return
+      const load = (page: import('@music-bridge/contracts').PageRequest) => window.musicBridge.searchRoonLibrary(query, page, 'track')
+      const initial = await readCatalogRoonPlaybackPrefix(load, item.identity.value.reference, current)
+      if (!current()) return
+      catalogRoonContext = { page: initial, reference: query, load: (_reference, page) => load(page) }
+      try { await playRoonLibraryTrack(item.identity.value) } finally { catalogRoonContext = undefined }
+    } else if (item.identity.type === 'local-track') {
+      const selected = item.identity.value, context = catalog.localPlaybackContext(item, query)
+      if (action === 'PLAY_NOW' && !context) throw new Error('原搜索或艺术家资料已变化，请重新读取后选择歌曲。')
+      const target = await window.musicBridge.getLocalLibraryPlaybackTarget()
+      if (!current()) return
+      if (!target || selectedZone.value?.zoneId !== target.zone_id) throw new Error('请先在原播放器中选择可用的 Roon Zone。')
+      const original: LocalPlayRequest = { schema_version: '1.2', request_id: crypto.randomUUID(), route: 'roon_audio_input', source_kind: 'local_file', local_track_id: selected.track.id,
+        asset_id: selected.asset.id, expected_asset_revision: selected.asset.fileRevision, target: { ...target }, action,
+        ...(action === 'PLAY_NOW' && context ? { context: { ...context } } : {}) }
+      if (action === 'PLAY_NOW') catalogPlaybackRecovery.begin(original)
+      const request: ArtistCatalogPlayRequest | undefined = context ? { requestId: original.request_id, context, startTrackId: selected.track.id, target: { ...target }, action } : undefined
+      let result: import('@music-bridge/contracts').LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported
+      try { result = action === 'PLAY_NOW' && request ? await playback.playLocalCatalogSelection(request) : await playback.playLocalLibrarySelection(original) }
+      catch (error) { if (action === 'PLAY_NOW') catalogPlaybackRecovery.fail(error, original); throw error }
+      if (action === 'PLAY_NOW') catalogPlaybackRecovery.accept(result, original)
+      if (result.status === 'unsupported') { showToast('当前播放目标暂不支持此本地来源。'); return }
+      if (action === 'PLAY_NOW') {
+        if (current()) enterNowPlaying()
+      } else showToast(action === 'APPEND_MB_QUEUE' ? '已加入播放队列' : '已加入下一首播放')
+    }
+  } catch (error) { if (current()) recordActionError(error) }
+  finally { if (current()) catalogActionPending.value = false }
+}
+watch(() => playback.playbackState.value, snapshot => {
+  catalogPlaybackRecovery.observe(snapshot)
+})
+watch([() => catalog.detail.value?.item.key, catalog.artistSource], () => {
+  catalogActionGeneration++; catalogActionPending.value = false
+}, { flush: 'sync' })
+
 // 点击时携带的描述符比旧根列表或详情缓存更新；导航仍沿原父页与搜索链。
 function seedCurrentRoonDescriptor(item: RoonLibraryItem): void {
   if (item.kind === 'album') browse.selectedRoonAlbum.value = item
@@ -829,9 +1312,11 @@ function selectAggregatedRoonItem(item: RoonLibraryItem): void {
 }
 
 watch(currentView, (view, previous) => {
-  if (view === 'local-library' || view === 'coverdrop' || view === 'settings') void loadWorkspace()
+  if (view !== previous) { catalogActionGeneration++; catalogActionPending.value = false }
   const localPage = view === 'local-library' || view === 'coverdrop', previousLocalPage = previous === 'local-library' || previous === 'coverdrop'
-  if (localPage && !previousLocalPage) void localLibrary.activate()
+  beginInitialAlbumContext(view, view === 'coverdrop' || view === 'local-library' && localLibraryViewMode.value === 'albums')
+  if (view === 'settings' || localPage && !deferInitialAlbumContextReads()) void loadWorkspace()
+  if (localPage) void localLibrary.activate({ deferTrackReads: view === 'coverdrop' || localLibraryViewMode.value === 'albums' || !!localLibrarySelectedTrackId.value, deferContextReads: deferInitialAlbumContextReads() })
   else if (!localPage && previousLocalPage) localLibrary.suspend()
   if (view !== 'local-library') albumBrowser.deactivate()
   if (view !== 'coverdrop') coverDropBrowser.deactivate()
@@ -840,6 +1325,12 @@ watch(currentView, (view, previous) => {
     recordingInitialPhysical.value = undefined
     recordingReservationNavigation.value = undefined
   }
+}, { flush: 'sync' })
+
+watch(localLibraryViewMode, () => {
+  if (currentView.value !== 'local-library') return
+  beginInitialAlbumContext('local-library', localLibraryViewMode.value === 'albums')
+  if (!deferInitialAlbumContextReads()) { void localLibrary.activate({ deferTrackReads: localLibraryViewMode.value === 'albums' || !!localLibrarySelectedTrackId.value }); void loadWorkspace(); void requestInitialScanRefresh(false) }
 }, { flush: 'sync' })
 
 installInitialScanObservationLifecycle()
@@ -887,7 +1378,7 @@ const selectedZone = computed(() => {
 })
 watch(() => selectedZone.value?.zoneId, (next, previous) => {
   if (next === previous) return
-  invalidatePageCaches()
+  invalidatePageCaches(['roon'])
   search.invalidateScope()
   if (journey.currentView.value === 'search') search.resume()
   browse.resetSession()
@@ -903,7 +1394,7 @@ const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
   selected: selectedZone.value !== undefined,
 }))
 watch(() => [selectedZone.value?.zoneId, coreState.value?.roon], () => {
-  if (currentView.value === 'local-library' || currentView.value === 'coverdrop') void localLibrary.refreshContext()
+  if ((currentView.value === 'local-library' || currentView.value === 'coverdrop') && !deferInitialAlbumContextReads()) void localLibrary.refreshContext()
 })
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
 const greeting = computed(() => {
@@ -911,7 +1402,7 @@ const greeting = computed(() => {
   return hour >= 5 && hour < 12 ? '早上好' : hour >= 12 && hour < 18 ? '下午好' : '晚上好'
 })
 function resetRoonRuntimeReferences(): void {
-  invalidatePageCaches()
+  invalidatePageCaches(['roon'])
   browse.resetSession()
   journey.resetRoonPath()
   playback.resetRoonSession()
@@ -1051,6 +1542,7 @@ function showToast(message: string): void {
 }
 
 function getRoonPlaybackContext(): RoonPlaybackContext | undefined {
+  if (catalogRoonContext) return catalogRoonContext
   if (currentView.value === 'roon-album-detail' && selectedRoonAlbum.value) {
     return { page: selectedRoonAlbumPage.value, reference: selectedRoonAlbum.value.reference, load: window.musicBridge.getRoonAlbumTracks }
   }
@@ -1209,6 +1701,7 @@ function navigateCollection(view: 'tapes' | 'music'): void {
 }
 
 function onGlobalShortcut(event: KeyboardEvent): void {
+  if (event.defaultPrevented) return
   if (event.key === 'Escape' && isImmersiveNowPlaying.value) {
     event.preventDefault()
     exitNowPlaying()
@@ -1217,11 +1710,6 @@ function onGlobalShortcut(event: KeyboardEvent): void {
   if (event.key === 'Escape' && inspectorOpen.value) {
     event.preventDefault()
     closeInspector()
-    return
-  }
-  if (event.key === 'Escape' && sidebarSearchQuery.value) {
-    event.preventDefault()
-    clearSearch()
     return
   }
   if (!event.metaKey || event.altKey || event.ctrlKey) return
@@ -1280,6 +1768,7 @@ const lifecycle = useRendererLifecycle({
     remoteCoreState.value = state
     if (state.sshTarget) updateRemoteSshTarget(state.sshTarget)
     if (previousStatus === 'ready' && state.status !== 'ready') { invalidateResultInspections();playback.suspendPlaybackStream(); resetRoonRuntimeReferences() }
+    if (previousStatus === 'ready' && state.status !== 'ready') invalidatePageCaches(['local'])
     if (previousStatus === 'ready' && state.status !== 'ready') search.invalidateScope()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
@@ -1295,6 +1784,7 @@ const lifecycle = useRendererLifecycle({
   onCoreEvent: event => {
     const previousRoonStatus = coreState.value?.roon
     const previousRuntime = coreState.value?.runtime
+    if (event.event === 'core.ready' || event.event === 'core.health' && previousRuntime === 'ready' && event.payload.state.runtime !== 'ready') invalidatePageCaches(['local'])
     if(event.event==='core.ready'||event.event==='core.health'&&event.payload.state.runtime!=='ready')invalidateResultInspections()
     if (event.event === 'core.ready') playback.acceptPlaybackReady(event.payload.playbackEvents)
     if (event.event === 'core.health' && event.payload.state.runtime !== 'ready') playback.suspendPlaybackStream()
@@ -1312,9 +1802,14 @@ const lifecycle = useRendererLifecycle({
       coreState.value = event.payload.state
       if (event.payload.state.runtime !== 'ready') resetAuthorizedLoadStarted()
     }
+    // 本地专辑首读恢复事件开始。
+    if (event.event === 'core.ready' || event.event === 'core.health') observeLocalAlbumCoreRecovery(event.event, event.payload.state.runtime === 'ready')
+    // 本地专辑首读恢复事件结束。
     if (event.event === 'core.ready') {
       resetAuthorizedLoadStarted()
       loadAuthorizedLibraryWhenReady()
+      if (currentView.value === 'roon-artists' && catalog.artistSource.value === 'local') void catalog.loadArtists()
+      if (currentView.value === 'search' && catalog.query.value) for (const kind of ['artists', 'albums', 'tracks'] as const) void catalog.readSearch('local', kind)
     }
     if (
       (event.event === 'core.ready' || event.event === 'roon.changed')
@@ -1336,12 +1831,12 @@ const lifecycle = useRendererLifecycle({
       refreshVisibleRoonCollection()
     }
     if (event.event === 'auth.changed') {
-      invalidatePageCaches()
+      invalidatePageCaches(['netease'])
       applyAuthState(event.payload.state)
       loadAuthorizedLibraryWhenReady()
     }
     if (event.event === 'account.changed') {
-      invalidatePageCaches()
+      invalidatePageCaches(['netease'])
       netease.resetPrivateLibraryState(false)
       journey.resetPrivatePath()
       playback.invalidateCollectionOperation()
@@ -1372,11 +1867,7 @@ const lifecycle = useRendererLifecycle({
     remoteCoreState.value = remoteResult.value
     remoteSshTarget.value = restoreRemoteTarget(remoteCoreState.value.sshTarget, window.localStorage)
     remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
-    if (remoteAutoStart.value && remoteSshTarget.value && remoteCoreState.value.status === 'idle') {
-      // 先在 Renderer 内标记切换中，避免隧道事件抵达前抢跑旧 Core 请求。
-      remoteCoreState.value = { ...remoteCoreState.value, status: 'checking' }
-      void startRemoteCore()
-    }
+    // 首次自动连接由Main在首代Core之前完成；此处只恢复设置显示。
     const coreResult = await read(() => window.musicBridge.getCoreHealth())
     if (!coreResult.active) return
     coreState.value = coreResult.value
@@ -1402,6 +1893,7 @@ const lifecycle = useRendererLifecycle({
 onMounted(() => lifecycle.start())
 
 onUnmounted(() => {
+  catalogActionGeneration++; catalogAlbumNavigation.dispose(); catalog.dispose(); catalogData.dispose()
   inspectionDisposed=true;invalidateResultInspections()
   pageCache.dispose()
   lifecycle.dispose()
@@ -1428,18 +1920,24 @@ onUnmounted(() => {
         v-if="!isImmersiveNowPlaying"
         :expanded="sidebar.expanded.value"
         :active-source="sidebar.activeSource.value"
-        :search-query="sidebarSearchQuery"
-        :search-label="sidebarSearchLabel"
+        :search-query="catalog.draft.value"
+        search-label="搜索歌曲、专辑或艺术家"
+        :search-suggestions="catalog.suggestions.value"
+        :search-pending="catalog.previewPending.value > 0"
+        :search-message="catalog.previewMessage.value"
         :playlists="playlists"
         :playlist-state="playlistState"
         :source-scroll-top="sidebar.sourceScrollTop.value"
         :settings-active="currentView === 'settings'"
         :collection-view="collectionView"
         @toggle="sidebar.toggleExpanded"
-        @navigate="navigateSource"
+        @navigate="navigateCatalogSource"
         @navigate-collection="navigateCollection"
-        @update:search-query="updateSearchQuery"
-        @clear-search="clearSearch"
+        @update:search-query="updateCatalogDraft"
+        @suggest-query="catalog.preview"
+        @submit-query="submitCatalogSearch"
+        @select-suggestion="selectCatalogSuggestion"
+        @clear-search="updateCatalogDraft('')"
         @retry-playlists="loadPlaylists"
         @scroll-source="sidebar.setSourceScrollTop"
         @settings="navigate('settings')"
@@ -1472,7 +1970,7 @@ onUnmounted(() => {
           @retry-daily="refreshAccountProfile"
         />
 
-        <LocalLibraryView v-else-if="currentView === 'local-library'" ref="localLibraryViewRef" v-model:view-mode="localLibraryViewMode" v-model:selected-track-id="localLibrarySelectedTrackId" :workbench-entry-error="workbenchEntryError" :workbench-opening="workbenchOpening" external-relocation-dialog external-maintenance-dialogs external-session-lifecycle :browser="albumBrowser" :workspace="workbenchLibrary" @workbench="openAlbumWorkbench" @workbench-batch="openAlbumWorkbenchBatch" :session="localLibrary" :playback-state="playbackState" @open-queue="openQueue" @open-outbox="commandOutboxOpen = true" />
+        <LocalLibraryView @open-settings="navigate('settings')" :scan-jobs="initialScanJobs" :scan-status-error="initialScanStatusError" @updated="refreshLocalBrowserViews" v-else-if="currentView === 'local-library'" ref="localLibraryViewRef" v-model:view-mode="localLibraryViewMode" v-model:selected-track-id="localLibrarySelectedTrackId" :album-back-label="catalogAlbumNavigation.backLabel.value" @back-album="catalogAlbumNavigation.back" @select-album="catalogAlbumNavigation.clear" :workbench-entry-error="workbenchEntryError" :workbench-opening="workbenchOpening" external-relocation-dialog external-maintenance-dialogs external-session-lifecycle :browser="albumBrowser" :workspace="workbenchLibrary" @workbench="openAlbumWorkbench" @workbench-batch="openAlbumWorkbenchBatch" :session="localLibrary" :playback-state="playbackState" @open-queue="openQueue" @open-outbox="commandOutboxOpen = true" />
 
         <CoverDropView v-else-if="currentView === 'coverdrop'" ref="coverDropViewRef" :workbench-entry-error="workbenchEntryError" :workbench-opening="workbenchOpening" :session="localLibrary" :browser="coverDropBrowser" :workspace="workbenchLibrary" :model="workbench" :lyrics="workbenchLyrics" :lyrics-inspection="workbenchLyrics.resultInspection.value" :library-inspection="libraryResultInspection" :playback-state="playbackState" @open-queue="openQueue" @open-outbox="commandOutboxOpen = true" @workbench="openAlbumWorkbench" @workbench-batch="openAlbumWorkbenchBatch" @inspect-lyrics-result="inspectLyricsResult" @close-lyrics-inspection="closeLyricsResultInspection" @inspect-library-result="inspectLibraryResult" @close-library-inspection="closeLibraryResultInspection" @updated="refreshLocalBrowserViews" />
 
@@ -1529,23 +2027,14 @@ onUnmounted(() => {
           />
         </section>
 
-        <section v-else-if="currentView === 'roon-artists'" class="view" aria-labelledby="roon-artists-heading">
-          <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-artists-heading">艺术家</h2><p class="lede">在本地艺术家中搜索，不包含网易云结果。</p></div></div>
-          <p v-if="localArtistQuery.trim()" class="local-search-summary">“{{ localArtistQuery.trim() }}”的本地艺术家 <button type="button" class="text-button" @click="setLocalArtistQuery('')">清除搜索</button></p>
-          <LibraryRefreshNotice :message="browse.roonArtistsRefreshError.value" @retry="retryRoonArtists" />
-          <RoonEntityGrid
-            :page="roonArtistsPage"
-            entity-label="艺术家"
-            :empty-title="localArtistQuery.trim() ? '没有匹配的本地艺术家' : '还没有可显示的艺术家'"
-            :empty-copy="localArtistQuery.trim() ? '换一个关键词，或清除搜索查看全部艺术家。' : 'Roon Core 当前返回 0 位艺术家。'"
-            :initial-loading="roonArtistsInitialLoading"
-            :loading-more="roonArtistsLoadingMore"
-            :load-more-error="roonArtistsLoadMoreError"
-            :error="roonArtistsError"
-            @select="openRoonLibraryItem"
-            @retry="retryRoonArtists"
-            @load-more="loadMoreRoonArtists"
-          />
+        <section v-else-if="currentView === 'roon-artists'" class="view" aria-label="艺术家">
+          <CatalogWorkspace :model="catalog" mode="artists" :busy="playbackStartPending || catalogActionPending || !!catalogLocalUnconfirmed" @select="openCatalogItem" @play="playCatalogItem($event)" @queue="playCatalogItem($event, 'APPEND_MB_QUEUE')" @next="playCatalogItem($event, 'PLAY_NEXT_MB_QUEUE')" @load-roon="loadRoonArtists()">
+            <template #roon>
+              <label class="catalog-roon-search"><span class="visually-hidden">搜索 Roon 艺术家</span><input type="search" :value="localArtistQuery" placeholder="搜索 Roon 艺术家" maxlength="200" @input="!($event as InputEvent).isComposing && setLocalArtistQuery(($event.target as HTMLInputElement).value)" @compositionend="setLocalArtistQuery(($event.target as HTMLInputElement).value)" /></label>
+              <LibraryRefreshNotice :message="browse.roonArtistsRefreshError.value" @retry="retryRoonArtists" />
+              <RoonEntityGrid :page="roonArtistsPage" entity-label="艺术家" :empty-title="localArtistQuery.trim() ? '没有匹配的 Roon 艺术家' : '还没有可显示的 Roon 艺术家'" :empty-copy="localArtistQuery.trim() ? '换一个关键词，或清除搜索查看全部艺术家。' : 'Roon Core 当前返回 0 位艺术家。'" :initial-loading="roonArtistsInitialLoading" :loading-more="roonArtistsLoadingMore" :load-more-error="roonArtistsLoadMoreError" :error="roonArtistsError" @select="openRoonLibraryItem" @retry="retryRoonArtists" @load-more="loadMoreRoonArtists" />
+            </template>
+          </CatalogWorkspace>
         </section>
 
         <section v-else-if="currentView === 'roon-genres'" class="view" aria-labelledby="roon-genres-heading">
@@ -1585,7 +2074,7 @@ onUnmounted(() => {
         </section>
 
         <section v-else-if="currentView === 'roon-favorites'" class="view" aria-labelledby="roon-favorites-heading">
-          <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-favorites-heading">收藏</h2><p class="lede">收藏关系由 MusicBridge 本地保存，不会删除或移动 Roon Library 媒体。</p></div></div>
+          <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-favorites-heading">收藏</h2><p class="lede">收藏关系由 Mousa 本地保存，不会删除或移动 Roon Library 媒体。</p></div></div>
           <div class="button-row favorite-kind-tabs" role="tablist" aria-label="本地收藏分类">
             <button type="button" class="secondary-button" :class="{ 'is-selected': favoriteKind === 'track' }" role="tab" :aria-selected="favoriteKind === 'track'" @click="setFavoriteKind('track')">喜欢的歌曲</button>
             <button type="button" class="secondary-button" :class="{ 'is-selected': favoriteKind === 'album' }" role="tab" :aria-selected="favoriteKind === 'album'" @click="setFavoriteKind('album')">喜欢的专辑</button>
@@ -1689,93 +2178,13 @@ onUnmounted(() => {
           />
         </template>
 
-        <section v-else-if="currentView === 'search'" class="view view-search" :class="{ 'search-category-artists': searchCategory === 'artists' && !searchDetail }" aria-labelledby="search-heading">
-          <div class="view-heading search-view-heading"><h2 id="search-heading">{{ searchQuery }}</h2></div>
-          <nav v-if="!searchDetail" class="search-category-tabs" aria-label="搜索分类">
-            <button v-for="category in ([{ id: 'all', label: '综合' }, { id: 'tracks', label: '单曲' }, { id: 'albums', label: '专辑' }, { id: 'artists', label: '艺人' }] as const)" :key="category.id" type="button" :aria-current="searchCategory === category.id ? 'page' : undefined" :class="{ active: searchCategory === category.id }" @click="selectSearchCategory(category.id)">{{ category.label }}</button>
-          </nav>
-          <template v-if="searchDetail">
-            <button type="button" class="back-link" @click="closeSearchDetail">← 返回搜索结果</button>
-            <div class="search-detail-hero">
-              <div><p class="section-kicker">{{ searchDetail.kind === 'artist' ? '艺人详情' : '专辑详情' }}</p><h3>{{ searchDetail.title }}</h3><p class="lede">{{ searchDetail.subtitle }}</p></div>
-            </div>
-            <div v-if="searchDetail.loading && !searchDetail.tracks.items.length" class="empty-state"><span class="loading-line"></span><p>正在读取歌曲…</p></div>
-            <p v-else-if="searchDetail.error && !searchDetail.tracks.items.length" class="persistent-error">{{ searchDetail.error }} <button type="button" class="inline-action" @click="search.retrySearchDetail">重新读取</button></p>
-            <template v-else>
-              <p v-if="searchDetail.loading" role="status">正在刷新歌曲…</p>
-              <LibraryRefreshNotice :message="searchDetail.error" :pending="searchDetail.loading" @retry="search.retrySearchDetail" />
-              <TrackTable
-                :tracks="searchDetail.tracks.items"
-                :busy="playbackStartPending"
-                :match-states="matchStates"
-                :total="searchDetail.tracks.total"
-                :has-more="searchDetail.tracks.hasMore"
-                :loading-more="searchDetailLoadingMore || searchDetail.loading" :load-more-error="searchDetailMoreError"
-                @load-more="loadMoreSearchDetail"
-                empty-title="没有可显示的歌曲"
-                empty-copy="Provider 暂时没有返回此项的歌曲。"
-                @play="playTrack"
-                @queue="appendTrack"
-                @play-next="insertTrackNext"
-              />
-            </template>
-          </template>
-          <template v-else>
-            <LibraryRefreshNotice :message="Object.values(search.refreshErrors.value).filter(Boolean).join(' ')" @retry="scheduleSearch" />
-            <SearchEntities
-              v-if="!searchSongsOpen"
-              :mode="searchCategory === 'tracks' ? 'all' : searchCategory"
-              @category="selectSearchCategory"
-              :artists="searchArtistsPage.items" :albums="searchAlbumsPage.items"
-              :roon-artists="roonSearchArtists.items" :roon-albums="roonSearchAlbums.items"
-              :artists-loading="searchArtistsState === 'loading'" :albums-loading="searchAlbumsState === 'loading'"
-              :roon-albums-loading="search.roonAlbumsLoading.value" :roon-artists-loading="search.roonArtistsLoading.value"
-              :roon-albums-error="search.roonAlbumsError.value" :roon-artists-error="search.roonArtistsError.value"
-              :roon-loading="roonSearchLoading" :artists-error="searchArtistsError" :albums-error="searchAlbumsError" :roon-error="roonSearchError"
-              :more-roon-albums="!!roonSearchAlbums.hasMore" :more-roon-artists="!!roonSearchArtists.hasMore"
-              :more-albums="searchAlbumsPage.hasMore" :more-artists="searchArtistsPage.hasMore"
-              @artist="openSearchDetail('artist', $event.id, $event.name, '网易云')"
-              @album="openSearchDetail('album', $event.id, $event.name, $event.artistName)"
-              @roon="selectAggregatedRoonItem" @more="loadMoreSearchEntities"
-            />
-            <button v-if="searchSongsOpen" type="button" class="back-link" @click="returnToSearch">← 返回搜索结果</button>
-            <section v-if="searchCategory === 'all' || searchSongsOpen" class="search-result-section" aria-labelledby="search-tracks-heading">
-              <div class="search-section-heading"><h3 id="search-tracks-heading">单曲</h3><button v-if="!searchSongsOpen && searchPage.items.length" type="button" class="text-button" @click="openSearchSongs">查看全部 →</button><span v-if="searchPage.total">{{ searchPage.total }} 首</span></div>
-              <p v-if="searchError === 'auth-required'" class="persistent-error">请先登录音乐服务，再搜索内容。</p>
-              <p v-else-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
-              <p v-else-if="searchError === 'generic'" class="persistent-error">搜索单曲暂时不可用，请检查连接状态。</p>
-              <SearchTrackPreview v-if="!searchSongsOpen" :tracks="searchPage.items" :busy="playbackStartPending" @play="playTrack" @queue="appendTrack" @play-next="insertTrackNext" />
-              <p v-if="!searchSongsOpen && searchInitialLoading" role="status">正在搜索单曲…</p>
-              <p v-else-if="!searchSongsOpen && !searchError && !searchPage.items.length" class="search-section-empty">没有匹配的单曲</p>
-              <div v-if="searchSongsOpen" class="search-track-results">
-                <TrackTable v-model:scroll-top="searchSongScrollTop"
-                  :tracks="searchPage.items"
-                  :busy="playbackStartPending"
-                  :match-states="matchStates"
-                  :show-artwork="true"
-                  :initial-loading="searchInitialLoading"
-                  :loading-more="searchLoadingMore"
-                  :load-more-error="searchLoadMoreError"
-                  :total="searchPage.total"
-                  :has-more="searchPage.hasMore"
-                  :empty-title="searchQuery.trim() ? '没有匹配的单曲' : '开始一段搜索'"
-                  empty-copy="搜索结果会以连续歌曲列表显示。"
-                  empty-glyph="⌕"
-                  @play="playTrack"
-                  @queue="appendTrack"
-                  @play-next="insertTrackNext"
-                  @load-more="searchPageAt(searchPage.offset + searchPage.limit)"
-                />
-              </div>
-            </section>
-
-
-          </template>
+        <section v-else-if="currentView === 'search'" class="view view-search" aria-label="搜索结果">
+          <CatalogWorkspace :model="catalog" mode="search" :busy="playbackStartPending || catalogActionPending || !!catalogLocalUnconfirmed" @select="openCatalogItem" @play="playCatalogItem($event)" @queue="playCatalogItem($event, 'APPEND_MB_QUEUE')" @next="playCatalogItem($event, 'PLAY_NEXT_MB_QUEUE')" />
         </section>
 
         <section v-else-if="currentView === 'liked'" class="view view-library view-liked" aria-labelledby="liked-heading">
           <div class="liked-hero">
-            <div class="view-heading"><div><p class="section-kicker">MUSIC BRIDGE</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
+            <div class="view-heading"><div><p class="section-kicker">Mousa</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
           </div>
           <p v-if="likedError" class="persistent-error">{{ likedError === 'auth-required' ? '请先登录音乐服务，再打开我喜欢的音乐。' : likedError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}<button type="button" class="inline-action" @click="loadLiked()">重试</button></p>
           <LibraryRefreshNotice :message="netease.likedRefreshError.value" @retry="loadLiked" />
@@ -1839,6 +2248,8 @@ onUnmounted(() => {
           :workbench-library="workbenchLibrary"
           :local-relocation-session="localLibrary.relocationPlans"
           @updated="refreshLocalBrowserViews"
+          @scan-observed="requestInitialScanRefresh(false)"
+          @organize-library="openAlbumWorkbench({ action: 'overview' })"
           :auth-state="authState"
           :account-state="accountState"
           :zones="zones"
@@ -1916,9 +2327,14 @@ onUnmounted(() => {
     />
 
     <div v-if="toastMessage" class="toast" role="status" aria-live="polite">{{ toastMessage }}</div>
+    <aside v-if="catalogPlaybackRecovery.message.value" class="catalog-playback-notice" role="status" aria-live="polite" aria-label="播放请求状态">
+      <span>{{ catalogPlaybackRecovery.message.value }}</span>
+      <button v-if="catalogLocalUnconfirmed" type="button" class="text-button" :disabled="catalogPlaybackRecovery.checking.value || playbackStartPending" @click="catalogPlaybackRecovery.check">{{ catalogPlaybackRecovery.checking.value ? '正在核对…' : '核对播放请求' }}</button>
+      <button v-else type="button" class="text-button" aria-label="关闭播放请求提示" @click="catalogPlaybackRecovery.message.value = ''">关闭</button>
+    </aside>
     <LocalLibraryWorkbench v-if="currentView !== 'coverdrop' && (workbench.isOpen.value || workbench.leavePrompt.value)" :model="workbench" :lyrics="workbenchLyrics" :workspace="workbenchLibrary" :lyrics-inspection="workbenchLyrics.resultInspection.value" :library-inspection="libraryResultInspection"
       @inspect-lyrics-result="inspectLyricsResult" @close-lyrics-inspection="closeLyricsResultInspection" @inspect-library-result="inspectLibraryResult" @close-library-inspection="closeLibraryResultInspection">
-      <template #library><LocalLibrarySettings :workspace="workbenchLibrary" :relocation-session="localLibrary.relocationPlans" management-only @updated="refreshLocalBrowserViews" /><section aria-label="全库智能名称解析"><button type="button" :disabled="workbenchLibrary.pending.value || !!workbenchLibrary.originalJob.value || !workbenchLibrary.selectedLibraryIds.value.length" @click="workbenchLibrary.startAi(workbenchLibrary.settings.value?.backend ?? 'ollama')">为选中整个库的缺封面专辑批量解析名称</button></section></template>
+      <template #library><LocalLibrarySettings :workspace="workbenchLibrary" :relocation-session="localLibrary.relocationPlans" management-only @updated="refreshLocalBrowserViews" @scan-observed="requestInitialScanRefresh(false)" @organize="openAlbumWorkbench({ action: 'overview' })" /><section aria-label="全库智能名称解析"><button type="button" :disabled="workbenchLibrary.pending.value || !!workbenchLibrary.originalJob.value || !workbenchLibrary.selectedLibraryIds.value.length" @click="workbenchLibrary.startAi(workbenchLibrary.settings.value?.backend ?? 'ollama')">为选中整个库的缺封面专辑批量解析名称</button></section></template>
     </LocalLibraryWorkbench>
     <LocalArtworkDialog v-if="localLibrary.artwork.isOpen.value" :session="localLibrary.artwork" :source-writes-available="localLibrary.sourceWrites.capable" @source-writes="sourceFromArtwork" />
     <LocalOrganizerDialog v-if="localLibrary.organizer.isOpen.value" :session="localLibrary.organizer" :source-writes-available="localLibrary.sourceWrites.capable" @open-outbox="commandOutboxOpen = true" @return-focus="returnLocalMaintenanceFocus" @source-writes="sourceFromOrganizer" />
@@ -1934,5 +2350,9 @@ onUnmounted(() => {
 .app-shell:not(.is-now-playing) .content-scroll.is-coverdrop { display: flex; overflow: hidden; padding: 0; scroll-padding-bottom: 0; }
 .command-outbox-entry { min-height: 44px; padding: 8px 12px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font: inherit; font-size: 13px; cursor: pointer; }
 .command-outbox-entry:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
+.catalog-roon-search { display: block; margin: 0 0 26px; }
+.catalog-roon-search input { width: min(300px, 100%); padding: 10px 14px; border: 1px solid var(--mb-glass-border); border-radius: 10px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font: inherit; font-size: 13px; }
+.catalog-playback-notice { position: fixed; z-index: 45; top: 70px; right: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: min(430px, calc(100vw - 32px)); padding: 14px 18px; border: 1px solid var(--mb-glass-border); border-radius: 14px; background: var(--mb-glass-strong); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); box-shadow: var(--mb-glass-shadow); color: var(--mb-text-primary); font-size: 12px; }
+.catalog-playback-notice span { flex: 1 1 220px; line-height: 1.6; }
 @media (hover: hover) and (pointer: fine) { .command-outbox-entry:hover { border-color: var(--mb-accent); } }
 </style>

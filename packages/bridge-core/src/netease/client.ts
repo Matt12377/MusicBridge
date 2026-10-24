@@ -2,6 +2,7 @@ import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, rem
 import { randomUUID } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import { SnapshotReadFlights } from './read-snapshot-cache.js';
+import { projectMobileReadResponse } from './mobile-read-response.js';
 import { assertNeteaseRequestCurrent, MAX_NETEASE_REQUEST_TIMEOUT_MS, NeteaseRequestScheduler, waitNeteaseRequest } from './request-scheduler.js';
 import { traceProviderApi } from '../diagnostics/performance-instrumentation.js';
 import { createRequire } from 'node:module';
@@ -228,6 +229,9 @@ interface NeteaseApiModule {
   search?(params: Record<string, unknown>): ApiResponse;
   artists?(params: Record<string, unknown>): ApiResponse;
   artist_detail?(params: Record<string, unknown>): ApiResponse;
+  artist_desc?(params: Record<string, unknown>): ApiResponse;
+  artist_album?(params: Record<string, unknown>): ApiResponse;
+  search_suggest?(params: Record<string, unknown>): ApiResponse;
   album?(params: Record<string, unknown>): ApiResponse;
   likelist?(params: Record<string, unknown>): ApiResponse;
   song_like?(params: Record<string, unknown>): ApiResponse;
@@ -263,6 +267,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   private readonly mobileInvalidations = new Set<(event: NeteaseMobileAccountInvalidation) => void>();
   private readonly mobileOptions = new WeakSet<object>();
   private readonly mobilePending = new Set<Promise<unknown>>();
+  private readonly mobilePendingBySignal = new WeakMap<AbortSignal, Set<Promise<unknown>>>();
   private cookie: string | undefined;
   private accountGeneration = 0;
   private outstandingReads = 0;
@@ -302,7 +307,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     });
     const providerApi = api ?? loadApi();
     const traced = process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? traceProviderApi(providerApi) : providerApi;
-    const readMethods = new Set(['search', 'artists', 'artist_detail', 'album', 'likelist', 'song_like_check', 'user_account', 'recommend_songs', 'user_playlist', 'playlist_detail', 'playlist_track_all', 'song_detail', 'lyric_new', 'song_url_v1', 'personalized', 'album_new', 'toplist', 'personal_fm']);
+    const readMethods = new Set(['search', 'search_suggest', 'artists', 'artist_detail', 'artist_desc', 'artist_album', 'album', 'likelist', 'song_like_check', 'user_account', 'recommend_songs', 'user_playlist', 'playlist_detail', 'playlist_track_all', 'song_detail', 'lyric_new', 'song_url_v1', 'personalized', 'album_new', 'toplist', 'personal_fm']);
     const playbackMethods = new Set(['song_detail', 'lyric_new', 'song_url_v1']);
     const wrapped = new Map<PropertyKey, unknown>();
     this.api = new Proxy(traced, { get: (target, property, receiver) => {
@@ -318,7 +323,13 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
           const work = Promise.resolve(original.call(target, query) as unknown);
           if (requestOptions && this.mobileOptions.has(requestOptions)) {
             this.mobilePending.add(work);
-            void work.finally(() => this.mobilePending.delete(work)).catch(() => undefined);
+            const signal = requestOptions.signal;
+            const owned = signal ? this.mobilePendingBySignal.get(signal) ?? new Set<Promise<unknown>>() : undefined;
+            if (signal && owned) { owned.add(work); this.mobilePendingBySignal.set(signal, owned); }
+            void work.finally(() => {
+              this.mobilePending.delete(work); owned?.delete(work);
+              if (signal && owned?.size === 0 && this.mobilePendingBySignal.get(signal) === owned) this.mobilePendingBySignal.delete(signal);
+            }).catch(() => undefined);
           }
           return work;
         };
@@ -395,7 +406,12 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     if (typeof listener !== 'function' || this.mobileInvalidations.size >= 16) throw this.libraryApiUnavailable();
     this.mobileInvalidations.add(listener); return () => { this.mobileInvalidations.delete(listener); };
   }
-  async awaitMobileQuiet(): Promise<void> { while (this.mobilePending.size) await Promise.allSettled([...this.mobilePending]); }
+  async awaitMobileQuiet(signal?: AbortSignal): Promise<void> {
+    if (signal) { let owned: Set<Promise<unknown>> | undefined;
+      while ((owned = this.mobilePendingBySignal.get(signal))?.size) await Promise.allSettled([...owned]); return;
+    }
+    while (this.mobilePending.size) await Promise.allSettled([...this.mobilePending]);
+  }
 
   async mobileAccount(options: NeteaseRequestOptions = {}): Promise<NeteaseMobileAccountSnapshot> {
     options = { ...options }; this.mobileOptions.add(options);
@@ -443,6 +459,16 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const current = () => generation === this.accountGeneration && cookie === this.cookie;
     const params: Record<string, unknown> = { cookie }; let name: keyof NeteaseApiModule;
     switch (request.operation) {
+      case 'directory-search':
+        if (!exact(['operation','kind','query','offset','limit']) || !['tracks','albums','artists'].includes(request.kind)
+          || typeof request.query !== 'string' || !request.query.trim() || request.query.length > 200 || !page(request.offset, request.limit)) throw this.libraryApiUnavailable();
+        name = 'search'; Object.assign(params, { keywords: request.query, type: request.kind === 'tracks' ? 1 : request.kind === 'albums' ? 10 : 100, offset: request.offset, limit: request.limit }); break;
+      case 'artist-profile': case 'artist-songs':
+        if (!exact(['operation','id']) || !numericId(request.id)) throw this.libraryApiUnavailable();
+        name = 'artists'; params.id = request.id; break;
+      case 'artist-albums':
+        if (!exact(['operation','id','offset','limit']) || !numericId(request.id) || !page(request.offset, request.limit)) throw this.libraryApiUnavailable();
+        name = 'artist_album'; Object.assign(params, { id: request.id, offset: request.offset, limit: request.limit }); break;
       case 'song-detail':
         if (!exact(['operation','ids']) || !Array.isArray(request.ids) || request.ids.length < 1 || request.ids.length > 100 || !request.ids.every(numericId) || new Set(request.ids).size !== request.ids.length) throw this.libraryApiUnavailable();
         name = 'song_detail'; params.ids = request.ids.join(','); break;
@@ -466,14 +492,21 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
         if (!exact(['operation','id','quality']) || !numericId(request.id) || !['standard','exhigh','lossless','hires'].includes(request.quality)) throw this.libraryApiUnavailable();
         name = 'song_url_v1'; Object.assign(params,{id:request.id,level:request.quality});
         await waitNeteaseRequest(this.prepareApiRuntime(),options,current,this.requestScheduler.timeoutMs); break;
+      case 'streams':
+        if (!exact(['operation','ids','quality']) || !Array.isArray(request.ids) || request.ids.length < 1 || request.ids.length > 100
+          || !request.ids.every(numericId) || new Set(request.ids).size !== request.ids.length
+          || !['standard','exhigh','lossless','hires'].includes(request.quality)) throw this.libraryApiUnavailable();
+        name = 'song_url_v1'; Object.assign(params,{id:request.ids.join(','),level:request.quality});
+        await waitNeteaseRequest(this.prepareApiRuntime(),options,current,this.requestScheduler.timeoutMs); break;
       default: throw this.libraryApiUnavailable();
     }
     assertNeteaseRequestCurrent(options,current);
     const method = this.api[name]; if (!method) throw this.libraryApiUnavailable();
     const response = await (method as (p: Record<string, unknown>, o: NeteaseRequestOptions) => ApiResponse)(params, options);
     assertNeteaseRequestCurrent(options,current);
-    const responseBody = response !== null && typeof response === 'object' && !Array.isArray(response)
-      && Object.hasOwn(response, 'body') ? (response as { body: unknown }).body : response;
+    let responseBody: unknown;
+    try { responseBody = projectMobileReadResponse(response, request.operation); }
+    catch { throw this.libraryApiUnavailable(); }
     const snapshot = mobileDataSnapshot(responseBody, { requestBytes: 16_384, responseBytes: 2 * 1024 * 1024, depth: 32, nodes: 65_536, extensionBytes: 2 * 1024 * 1024 });
     if (!snapshot.ok) throw this.libraryApiUnavailable();
     return Object.freeze({ providerEpoch: this.mobileProviderEpoch(), response: snapshot.value });
@@ -582,6 +615,46 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     } catch (error) {
       throw this.libraryError(error, 'album search')
     }
+  }
+
+  async searchSuggestions(queryInput: string): Promise<{ keywords: string[] }> {
+    const query = normalizeSearchQuery(queryInput), cookie = this.requireCookie();
+    if (!this.api.search_suggest) return { keywords: [] };
+    const raw = await this.api.search_suggest({ keywords: query, type: 'mobile', cookie });
+    const body = providerBody(raw);
+    const result = providerRecord(body.result);
+    const rows = Array.isArray(result.allMatch) ? result.allMatch : [];
+    return { keywords: [...new Set(rows.map(row => providerRecord(row).keyword)
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= 200)
+      .map(value => value.trim()))].slice(0, 10) };
+  }
+
+  async getArtistProfile(artistIdInput: string): Promise<import('@music-bridge/contracts').NeteaseArtistProfile> {
+    const artistId = normalizeTrackId(artistIdInput), cookie = this.requireCookie();
+    if (!this.api.artists) throw this.libraryApiUnavailable();
+    const raw = await this.api.artists({ id: artistId, cookie });
+    const artist = parseArtistDetail(raw, { offset: 0, limit: 1 });
+    if (artist.id !== artistId) throw this.libraryApiUnavailable();
+    let biography = String(providerRecord(providerBody(raw).artist).briefDesc ?? '').slice(0, 20000);
+    if (this.api.artist_desc) {
+      try {
+        const description = providerBody(await this.api.artist_desc({ id: artistId, cookie }));
+        if (typeof description.briefDesc === 'string') biography = description.briefDesc.slice(0, 20000);
+      } catch { assertLibraryReadCurrent(); }
+    }
+    return { id: artist.id, name: artist.name, albumCount: artist.albumCount ?? 0, trackCount: artist.trackCount ?? 0,
+      ...(artist.artworkUrl ? { artworkUrl: artist.artworkUrl } : {}), biography };
+  }
+
+  async getArtistAlbums(artistIdInput: string, pageInput: PageRequest): Promise<Page<AlbumSummary>> {
+    const artistId = normalizeTrackId(artistIdInput), page = normalizePageRequest(pageInput), cookie = this.requireCookie();
+    if (!this.api.artist_album) throw this.libraryApiUnavailable();
+    const body = providerBody(await this.api.artist_album({ id: artistId, offset: page.offset, limit: page.limit, cookie }));
+    if (String(providerRecord(body.artist).id) !== artistId || !Array.isArray(body.hotAlbums)) throw this.libraryApiUnavailable();
+    const count = providerRecord(body.artist).albumSize;
+    const total = typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 ? count
+      : page.offset + body.hotAlbums.length + (body.more === true ? 1 : 0);
+    return parseAlbumSearchPage({ ...body, result: { albums: body.hotAlbums, albumCount: total } }, page);
   }
 
   async getArtist(artistIdInput: string, pageInput: PageRequest) {
@@ -1028,4 +1101,13 @@ function pageOf<T>(items: readonly T[], page: PageRequest, total: number): Page<
     total: boundedTotal,
     hasMore: page.offset + items.length < boundedTotal,
   };
+}
+
+function providerRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+function providerBody(value: unknown): Record<string, unknown> {
+  const envelope = providerRecord(value), body = envelope.body === undefined ? envelope : providerRecord(envelope.body);
+  if (body.code !== 200) throw new BridgeError('NETEASE_REQUEST_FAILED', '网易云资料暂时不可用');
+  return body;
 }

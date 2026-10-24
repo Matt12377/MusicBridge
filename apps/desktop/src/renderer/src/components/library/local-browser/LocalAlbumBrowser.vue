@@ -15,7 +15,12 @@ const props = withDefaults(defineProps<{
   managementAvailable?: boolean
   /** 嵌在本地音乐页时共用父页标题与内容宽度；读写和选择语义不变。 */
   embedded?: boolean
-}>(), { roots: () => [], playbackPending: false, readAvailable: true, managementAvailable: true, embedded: false })
+  /** 本地播放页直接展示封面墙；整理页面继续保留浏览控件。 */
+  showControls?: boolean
+  emptyTitle?: string
+  emptyCopy?: string
+  backLabel?: string
+}>(), { roots: () => [], playbackPending: false, readAvailable: true, managementAvailable: true, embedded: false, showControls: true })
 const emit = defineEmits<{
   search: [request: { query: string; rootId: string | null; filter: LocalAlbumFilter }]
   select: [album: LocalAlbumSummary, scrollTop: number]
@@ -60,7 +65,7 @@ function setFilter(filter: LocalAlbumFilter): void {
   emit('search', { query: props.state.query, rootId: props.state.rootId, filter })
 }
 function selectAlbum(album: LocalAlbumSummary, event: MouseEvent): void {
-  if (event.shiftKey || event.metaKey || event.ctrlKey) { toggleSelection(album, event); return }
+  if (props.showControls && (event.shiftKey || event.metaKey || event.ctrlKey)) { toggleSelection(album, event); return }
   selectionAnchor = album.id
   detailTrigger = event.currentTarget as HTMLElement | null
   const scrollTop = scrollRoot?.scrollTop ?? props.state.scrollTop
@@ -68,7 +73,7 @@ function selectAlbum(album: LocalAlbumSummary, event: MouseEvent): void {
   emit('select', album, scrollTop)
 }
 function toggleSelection(album: LocalAlbumSummary, event: MouseEvent): void {
-  if (!props.readAvailable || !props.state.items.some(item => item.id === album.id)) return
+  if (!props.showControls || !props.readAvailable || !props.state.items.some(item => item.id === album.id)) return
   const next = new Set(selectedAlbumIds.value), index = props.state.items.findIndex(item => item.id === album.id)
   const anchor = props.state.items.findIndex(item => item.id === selectionAnchor)
   if (event.shiftKey && anchor >= 0) {
@@ -80,10 +85,11 @@ function toggleSelection(album: LocalAlbumSummary, event: MouseEvent): void {
   selectedAlbumIds.value = next; emit('update:selectedAlbumIds', [...next]); selectionMessage.value = ''
   if (!event.shiftKey || anchor < 0) selectionAnchor = album.id
 }
+function focusGallery(): void { const target = searchInput.value ?? root.value; target?.focus({ preventScroll: true }) }
 function clearSelection(restoreFocus = false): void {
   const anchor = selectionAnchor
   selectedAlbumIds.value = new Set(); emit('update:selectedAlbumIds', []); selectionAnchor = null; selectionMessage.value = ''
-  if (restoreFocus) void nextTick(() => { if (!anchor || !grid.value?.focusAlbum(anchor)) searchInput.value?.focus({ preventScroll: true }) })
+  if (restoreFocus) void nextTick(() => { if (!anchor || !grid.value?.focusAlbum(anchor)) focusGallery() })
 }
 function requestBatch(): void {
   if (!canOpenBatch.value) return
@@ -95,7 +101,11 @@ function selectReadAlbums(): void {
   selectedAlbumIds.value = new Set(props.state.items.map(value => value.id)); emit('update:selectedAlbumIds', [...selectedAlbumIds.value]); selectionMessage.value = ''
 }
 function captureScroll(): void { if (!props.state.selectedAlbum && scrollRoot) emit('update:scrollTop', scrollRoot.scrollTop) }
-function requestWorkbench(request: LocalAlbumWorkbenchRequest): void { if (props.managementAvailable) emit('workbench', request) }
+function retryBackgroundPage(): void {
+  if (!props.state.active || !props.readAvailable || !props.state.hasMore || props.state.initialLoading || props.state.refreshing || props.state.loadingMore) return
+  emit('load-more')
+}
+function requestWorkbench(request: LocalAlbumWorkbenchRequest): void { if (props.showControls && props.managementAvailable) emit('workbench', request) }
 function clearSearch(): void { queryDraft.value = ''; submitSearch() }
 async function restoreGallery(generation: number): Promise<void> {
   await nextTick()
@@ -105,7 +115,7 @@ async function restoreGallery(generation: number): Promise<void> {
   grid.value?.refresh()
   if (sameScope && detailTrigger?.isConnected) { detailTrigger.focus({ preventScroll: true }); return }
   if (sameScope && grid.value?.focusAlbum(origin!.albumId)) return
-  searchInput.value?.focus({ preventScroll: true })
+  focusGallery()
 }
 watch(() => props.state.selectedAlbumIds, ids => { if (ids) { selectedAlbumIds.value = new Set(ids); if (!ids.length) { selectionAnchor = null; selectionMessage.value = '' } } })
 watch(() => props.state.scrollTop, (top, previous) => {
@@ -117,7 +127,7 @@ watch(() => props.state.scrollTop, (top, previous) => {
 watch(() => props.state.query, value => { queryDraft.value = value })
 watch(() => props.state.rootId, value => { rootDraft.value = value ?? '' })
 watch([() => props.state.query, () => props.state.rootId, () => props.state.filter], () => clearSelection())
-watch(() => [props.state.items, props.state.initialLoading, props.state.refreshing], () => {
+watch([() => props.state.items, () => props.state.initialLoading, () => props.state.refreshing], () => {
   if (props.state.initialLoading || props.state.refreshing) return
   const current = new Set(props.state.items.map(album => album.id))
   selectedAlbumIds.value = new Set([...selectedAlbumIds.value].filter(id => current.has(id)))
@@ -136,9 +146,9 @@ function updateArtworkWindow(window: LocalAlbumArtworkWindow): void {
   const album = props.state.selectedAlbum
   emit('artwork-window', !props.state.active || !props.readAvailable ? { visible: [], nearby: [] } : album ? { visible: [album], nearby: [] } : window)
 }
-watch(() => [props.state.active, props.readAvailable, props.state.selectedAlbum ? JSON.stringify([props.state.selectedAlbum.id, props.state.selectedAlbum.rootId,
+watch([() => props.state.active, () => props.readAvailable, () => props.state.selectedAlbum ? JSON.stringify([props.state.selectedAlbum.id, props.state.selectedAlbum.rootId,
   props.state.selectedAlbum.editionId, props.state.selectedAlbum.representativeTrackId, props.state.selectedAlbum.revision]) : null,
-  props.state.artworkInvalidation?.albumKey === null || props.state.artworkInvalidation?.albumKey === props.state.selectedAlbum?.id ? props.state.artworkInvalidation?.epoch : 0], () => {
+  () => props.state.artworkInvalidation?.albumKey === null || props.state.artworkInvalidation?.albumKey === props.state.selectedAlbum?.id ? props.state.artworkInvalidation?.epoch : 0], () => {
   const album = props.state.selectedAlbum
   if (!props.state.active || !props.readAvailable) { updateArtworkWindow({ visible: [], nearby: [] }); return }
   if (album) {
@@ -157,25 +167,33 @@ onUnmounted(() => { focusGeneration++; scrollRoot?.removeEventListener('scroll',
 </script>
 
 <template>
-  <section ref="root" class="local-album-browser" :class="{ view: !props.embedded, 'is-embedded': props.embedded }" :aria-labelledby="props.state.selectedAlbum ? 'local-album-detail-heading' : 'local-album-browser-heading'" data-testid="local-album-browser" @keydown.esc="clearSelection()">
+  <section ref="root" class="local-album-browser" :class="{ view: !props.embedded, 'is-embedded': props.embedded }" :aria-labelledby="props.state.selectedAlbum ? 'local-album-detail-heading' : 'local-album-browser-heading'" :tabindex="props.showControls ? undefined : -1" data-testid="local-album-browser" @keydown.esc="clearSelection()">
     <div v-show="!props.state.selectedAlbum" class="local-album-gallery">
-      <header class="view-heading"><div :class="{ 'visually-hidden': props.embedded }"><p class="section-kicker">本地数字音乐</p><h2 id="local-album-browser-heading">本地音乐</h2><p class="lede">按专辑浏览已加入的音乐，保留版本与来源。</p></div><div class="button-row"><button type="button" class="secondary-button" :disabled="!props.managementAvailable" @click="requestWorkbench({ action: 'overview' })"><i class="bi bi-sliders" aria-hidden="true"></i> 整理工作台</button><button type="button" class="text-button" :disabled="props.state.initialLoading || props.state.refreshing || !props.readAvailable" @click="emit('retry')"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {{ props.state.refreshing ? '正在刷新…' : '刷新' }}</button></div></header>
-      <form class="local-album-search" role="search" aria-label="搜索本地专辑" @submit.prevent="submitSearch()">
+      <h2 v-if="!props.showControls" id="local-album-browser-heading" class="visually-hidden">本地音乐</h2>
+      <header v-if="props.showControls" class="view-heading"><div :class="{ 'visually-hidden': props.embedded }"><p class="section-kicker">本地数字音乐</p><h2 id="local-album-browser-heading">本地音乐</h2><p class="lede">按专辑浏览已加入的音乐，保留版本与来源。</p></div><div class="button-row"><button type="button" class="secondary-button" :disabled="!props.managementAvailable" @click="requestWorkbench({ action: 'overview' })"><i class="bi bi-sliders" aria-hidden="true"></i> 整理工作台</button><button type="button" class="text-button" :disabled="props.state.initialLoading || props.state.refreshing || !props.readAvailable" @click="emit('retry')"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {{ props.state.refreshing ? '正在刷新…' : '刷新' }}</button></div></header>
+      <form v-if="props.showControls" class="local-album-search" role="search" aria-label="搜索本地专辑" @submit.prevent="submitSearch()">
         <label for="local-album-search-query" class="visually-hidden">专辑、艺术家或版本</label><div class="local-album-search-field"><i class="bi bi-search" aria-hidden="true"></i><input id="local-album-search-query" ref="searchInput" v-model="queryDraft" type="search" maxlength="256" autocomplete="off" placeholder="搜索本地专辑、艺术家或版本" :disabled="!props.readAvailable"><button v-if="queryDraft" type="button" class="text-button" aria-label="清除本地专辑搜索" @click="clearSearch">清除</button></div>
         <label class="local-album-root-filter"><span class="visually-hidden">专辑来源目录</span><select v-model="rootDraft" :disabled="!props.readAvailable" aria-label="专辑来源目录"><option value="">全部已加入目录</option><option v-for="item in props.roots" :key="item.root.id" :value="item.root.id">{{ item.label }} · {{ rootLabels[item.availability] }}</option></select></label><button type="submit" class="secondary-button" :disabled="!props.readAvailable">搜索</button>
       </form>
-      <div class="local-album-filters" role="group" aria-label="本地专辑筛选"><button v-for="filter in filters" :key="filter" type="button" class="text-button local-album-filter" :class="{ 'is-selected': props.state.filter === filter }" :aria-pressed="props.state.filter === filter" :disabled="!props.readAvailable" @click="setFilter(filter)">{{ LOCAL_ALBUM_FILTER_LABELS[filter] }} <span v-if="props.state.loaded">{{ props.state.counts[filter] }}</span></button></div>
-      <div class="local-album-result-summary" aria-live="polite"><span v-if="props.state.loaded">{{ props.state.total }} 张专辑<span v-if="props.state.query"> · “{{ props.state.query }}”</span></span><span v-if="props.state.initialLoading || props.state.refreshing" role="status">正在读取…</span><span v-if="props.state.stale">正在显示上次成功读取的结果</span><span v-if="!props.managementAvailable">整理工作台尚未接入</span></div>
-      <div v-if="selectedAlbums.length" class="local-album-selection-bar" role="group" aria-label="已选择的本地专辑"><span role="status" aria-live="polite">已选择 {{ selectedAlbums.length }} 张专辑</span><button type="button" class="secondary-button" :disabled="!canOpenBatch" @click="requestBatch"><i class="bi bi-sliders" aria-hidden="true"></i> 批量整理</button><button type="button" class="text-button" @click="clearSelection(true)">取消选择</button></div>
-      <div class="local-album-selection-tools">
+      <div v-if="props.showControls" class="local-album-filters" role="group" aria-label="本地专辑筛选"><button v-for="filter in filters" :key="filter" type="button" class="text-button local-album-filter" :class="{ 'is-selected': props.state.filter === filter }" :aria-pressed="props.state.filter === filter" :disabled="!props.readAvailable" @click="setFilter(filter)">{{ LOCAL_ALBUM_FILTER_LABELS[filter] }} <span v-if="props.state.loaded">{{ props.state.counts[filter] }}</span></button></div>
+      <div v-if="props.showControls" class="local-album-result-summary" aria-live="polite"><span v-if="props.state.loaded">{{ props.state.total }} 张专辑<span v-if="props.state.query"> · “{{ props.state.query }}”</span></span><span v-if="props.state.initialLoading || props.state.refreshing" role="status">正在读取…</span><span v-if="props.state.stale">正在显示上次成功读取的结果</span><span v-if="!props.managementAvailable">整理工作台尚未接入</span></div>
+      <div v-if="props.showControls && selectedAlbums.length" class="local-album-selection-bar" role="group" aria-label="已选择的本地专辑"><span role="status" aria-live="polite">已选择 {{ selectedAlbums.length }} 张专辑</span><button type="button" class="secondary-button" :disabled="!canOpenBatch" @click="requestBatch"><i class="bi bi-sliders" aria-hidden="true"></i> 批量整理</button><button type="button" class="text-button" @click="clearSelection(true)">取消选择</button></div>
+      <div v-if="props.showControls" class="local-album-selection-tools">
         <p class="local-album-selection-help">单击打开专辑；使用选择按钮或 Cmd/Ctrl 多选，Shift 按当前已读取顺序连续选择。</p>
         <button type="button" class="text-button" :disabled="!props.readAvailable || props.state.initialLoading || props.state.refreshing || !props.state.items.length" @click="selectReadAlbums()">全选当前已读取专辑</button>
       </div>
       <p v-if="selectionMessage" class="persistent-error" role="status">{{ selectionMessage }}</p>
       <p v-if="props.state.refreshError || props.state.error && props.state.items.length" class="persistent-error" role="alert">{{ props.state.refreshError || props.state.error }} <button type="button" class="inline-action" :disabled="props.state.refreshing" @click="emit('retry')">重试读取</button></p>
-      <LocalAlbumGrid ref="grid" :albums="props.state.items" :selected-album-ids="selectedAlbumIds" :artwork="props.state.artwork" :artwork-invalidation="props.state.artworkInvalidation" :active="props.state.active && !props.state.selectedAlbum" :loaded="props.state.loaded" :initial-loading="props.state.initialLoading" :loading-more="props.state.loadingMore" :has-more="props.state.hasMore" :total="props.state.total" :error="props.state.error" :load-more-error="props.state.loadMoreError" :searching="!!props.state.query" :filtering="props.state.filter !== 'all'" :read-available="props.readAvailable" :management-available="props.managementAvailable" @select="selectAlbum" @toggle-selection="toggleSelection" @retry="emit('retry')" @load-more="emit('load-more')" @artwork-window="updateArtworkWindow" @ensure-artwork="emit('ensure-artwork', $event)" @retry-artwork="emit('retry-artwork', $event)" @workbench="requestWorkbench" />
+      <div v-if="props.state.backgroundArtwork && props.state.items.length" class="local-album-background-status" aria-live="polite">
+        <span>已载入 {{ props.state.items.length }} / {{ props.state.total }} 张专辑</span>
+        <span v-if="props.state.loadingMore" role="status">正在继续载入专辑…</span>
+        <span v-if="props.state.backgroundArtwork.running" role="status">正在准备封面 {{ props.state.backgroundArtwork.completed }} / {{ props.state.backgroundArtwork.total }}</span>
+        <span v-else>封面检查进度 {{ props.state.backgroundArtwork.completed }} / {{ props.state.backgroundArtwork.total }}</span>
+        <span v-if="props.state.loadMoreError" class="persistent-error" role="alert">{{ props.state.loadMoreError }} <button type="button" class="inline-action" :disabled="!props.state.active || !props.readAvailable || props.state.initialLoading || props.state.refreshing || props.state.loadingMore" @click="retryBackgroundPage">重试载入专辑</button></span>
+      </div>
+      <LocalAlbumGrid ref="grid" :albums="props.state.items" :selected-album-ids="props.showControls ? selectedAlbumIds : undefined" :empty-title="props.emptyTitle" :empty-copy="props.emptyCopy" :show-management-actions="props.showControls" :show-page-status="!props.state.backgroundArtwork" :artwork="props.state.artwork" :artwork-invalidation="props.state.artworkInvalidation" :active="props.state.active && !props.state.selectedAlbum" :loaded="props.state.loaded" :initial-loading="props.state.initialLoading" :refreshing="props.state.refreshing" :loading-more="props.state.loadingMore" :has-more="props.state.hasMore" :total="props.state.total" :error="props.state.error" :load-more-error="props.state.loadMoreError" :searching="!!props.state.query" :filtering="props.state.filter !== 'all'" :read-available="props.readAvailable" :management-available="props.managementAvailable" @select="selectAlbum" @toggle-selection="toggleSelection" @retry="emit('retry')" @load-more="emit('load-more')" @artwork-window="updateArtworkWindow" @ensure-artwork="emit('ensure-artwork', $event)" @retry-artwork="emit('retry-artwork', $event)" @workbench="requestWorkbench" />
     </div>
-    <LocalAlbumDetail v-if="props.state.selectedAlbum" ref="detail" :album="props.state.selectedAlbum" :tracks="props.state.tracks" :artwork="props.state.artwork[props.state.selectedAlbum.id]" :total="props.state.trackTotal" :has-more="props.state.tracksHasMore" :initial-loading="props.state.detailLoading" :loading-more="props.state.detailLoadingMore" :error="props.state.detailError" :refresh-error="props.state.detailRefreshError" :load-more-error="props.state.detailLoadMoreError" :stale="props.state.detailStale" :playback-pending="props.playbackPending" :read-available="props.readAvailable" :management-available="props.managementAvailable" :source-unavailable="sourceUnavailable" :source-status="sourceStatus" @back="emit('back')" @play="emit('play', $event)" @queue="emit('queue', $event)" @play-next="emit('play-next', $event)" @open-track="emit('open-track', $event)" @retry="emit('retry-detail')" @load-more="emit('load-more-tracks')" @retry-artwork="emit('retry-artwork', $event)" @workbench="requestWorkbench" />
+    <LocalAlbumDetail v-if="props.state.selectedAlbum" ref="detail" :back-label="props.backLabel" :show-management-actions="props.showControls" :album="props.state.selectedAlbum" :tracks="props.state.tracks" :artwork="props.state.artwork[props.state.selectedAlbum.id]" :total="props.state.trackTotal" :has-more="props.state.tracksHasMore" :initial-loading="props.state.detailLoading" :loading-more="props.state.detailLoadingMore" :error="props.state.detailError" :refresh-error="props.state.detailRefreshError" :load-more-error="props.state.detailLoadMoreError" :stale="props.state.detailStale" :playback-pending="props.playbackPending" :read-available="props.readAvailable" :management-available="props.managementAvailable" :source-unavailable="sourceUnavailable" :source-status="sourceStatus" @back="emit('back')" @play="emit('play', $event)" @queue="emit('queue', $event)" @play-next="emit('play-next', $event)" @open-track="emit('open-track', $event)" @retry="emit('retry-detail')" @load-more="emit('load-more-tracks')" @retry-artwork="emit('retry-artwork', $event)" @workbench="requestWorkbench" />
   </section>
 </template>
 
@@ -199,6 +217,7 @@ onUnmounted(() => { focusGeneration++; scrollRoot?.removeEventListener('scroll',
 .local-album-filter.is-selected { border-bottom-color: var(--mb-accent); color: var(--mb-text-primary); }
 .local-album-filter span { color: var(--mb-text-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
 .local-album-result-summary { display: flex; min-height: 36px; flex-wrap: wrap; gap: 16px; align-items: center; margin: 0 0 18px; color: var(--mb-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.local-album-background-status { display: flex; min-height: 36px; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 0 0 12px; color: var(--mb-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
 .local-album-selection-bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
 .local-album-selection-help { margin: 0 0 18px; color: var(--mb-text-secondary); font-size: 12px; }
 .local-album-browser button:focus-visible, .local-album-browser select:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; border-radius: 6px; }

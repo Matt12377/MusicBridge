@@ -1,5 +1,6 @@
-import { computed, getCurrentScope, onScopeDispose, shallowReadonly, shallowRef } from 'vue'
-import { createLocalAlbumBrowserModel } from './model.js'
+import { computed, getCurrentScope, nextTick, onScopeDispose, shallowReadonly, shallowRef } from 'vue'
+import { logLibraryOperation } from '../../../../../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { createLocalAlbumBrowserModel, LOCAL_ALBUM_ARTWORK_CACHE_BYTES, LOCAL_ALBUM_ARTWORK_COMPACT_CACHE_ENTRIES } from './model.js'
 import type { LocalAlbumBrowserOptions, LocalAlbumSummary } from './types.js'
 import type { LocalAlbumWorkbenchBatchTarget, LocalAlbumWorkbenchRequest } from '../../../components/library/local-browser/presentation.js'
 
@@ -16,16 +17,31 @@ export function useLocalAlbumBrowser(options: LocalAlbumBrowserOptions) {
     trackTotal: computed(() => snapshot.value.trackTotal), tracksHasMore: computed(() => snapshot.value.tracksHasMore), detailStatus: computed(() => snapshot.value.detailStatus),
     detailLoading: computed(() => snapshot.value.detailLoading), detailRefreshing: computed(() => snapshot.value.detailRefreshing), detailLoadingMore: computed(() => snapshot.value.detailLoadingMore),
     detailError: computed(() => snapshot.value.detailError), detailRefreshError: computed(() => snapshot.value.detailRefreshError), detailLoadMoreError: computed(() => snapshot.value.detailLoadMoreError),
-    detailStale: computed(() => snapshot.value.detailStale), returnTarget: computed(() => snapshot.value.returnTarget), artwork: computed(() => snapshot.value.artwork) }
+    detailStale: computed(() => snapshot.value.detailStale), returnTarget: computed(() => snapshot.value.returnTarget), artwork: computed(() => snapshot.value.artwork),
+    backgroundArtwork: computed(() => snapshot.value.backgroundArtwork) }
 }
 
-/** 两个入口各有纯读页面状态，仍复用同一公开读口；仅当前页激活，封面缓存保原总上限。 */
+/** 两个入口共享总预算，离页保留有界压缩副本；网格卸载仍释放解码内存。 */
 export function useLocalAlbumBrowserPages(options: LocalAlbumBrowserOptions) {
-  const library = useLocalAlbumBrowser(options), coverDrop = useLocalAlbumBrowser(options)
+  const sharedOptions = { ...options,
+    backgroundLoading: options.backgroundLoading ?? true,
+    backgroundArtworkLoading: options.backgroundArtworkLoading ?? false,
+    compactGridArtwork: options.compactGridArtwork ?? true,
+    reuseLoadedOnActivate: options.reuseLoadedOnActivate ?? true,
+    artworkCacheBytes: Math.min(options.artworkCacheBytes ?? LOCAL_ALBUM_ARTWORK_CACHE_BYTES, LOCAL_ALBUM_ARTWORK_CACHE_BYTES / 2),
+    artworkCacheEntries: Math.min(options.artworkCacheEntries ?? LOCAL_ALBUM_ARTWORK_COMPACT_CACHE_ENTRIES, LOCAL_ALBUM_ARTWORK_COMPACT_CACHE_ENTRIES) }
+  const library = useLocalAlbumBrowser(sharedOptions), coverDrop = useLocalAlbumBrowser(sharedOptions)
   const page = (current: ReturnType<typeof useLocalAlbumBrowser>, other: ReturnType<typeof useLocalAlbumBrowser>) => ({
     ...current,
-    activate: () => { other.deactivate(true); return current.activate() },
-    deactivate: () => current.deactivate(true),
+    activate: async () => {
+      other.deactivate()
+      const started = performance.now()
+      await current.activate(); await nextTick()
+      if (current.snapshot.value.active) logLibraryOperation('ui', 'albums.first-screen', current.loaded.value ? 'complete' : 'error', {
+        elapsedMs: Math.max(0, performance.now() - started), count: current.items.value.length, total: current.total.value,
+      })
+    },
+    deactivate: () => current.deactivate(),
   })
   return { localLibrary: page(library, coverDrop), coverDrop: page(coverDrop, library) }
 }

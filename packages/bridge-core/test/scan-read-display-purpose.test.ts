@@ -105,10 +105,10 @@ test('显示读取私有用途：显示采样异常保守撤销，缺省谓词�
 
 type ScanProjectionCommand = 'scanReadAcquire' | 'scanReadWatchRevocation' | 'scanReadRelease';
 type ScanProjection = (command: ScanProjectionCommand, payload: unknown, context: ScanReadContext) => Promise<unknown>;
-/** 精确提取原Utility三命令分支；仅证明该组件接线，不启动或冒充完整Utility/Owner。 */
+/** 精确提取原Utility含status的私有分支，行为仍核原三命令；不启动或冒充完整Utility/Owner。 */
 async function originalUtilityProjection(admission: ScanReadAdmission, identity: ScanReadContext | undefined): Promise<ScanProjection> {
   const source = await readFile(new URL('../src/utility-main.ts', import.meta.url), 'utf8');
-  const start = "            if (command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {";
+  const start = "            if (command === 'scanReadStatus' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {";
   const end = '\n            return projectionGateway!.handler(';
   assert.equal(source.split(start).length, 2); assert.equal(source.split(end).length, 2);
   const begin = source.indexOf(start), finish = source.indexOf(end, begin); assert.ok(finish > begin);

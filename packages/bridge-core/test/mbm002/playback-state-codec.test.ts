@@ -5,8 +5,9 @@ import { MOBILE_CODEC_LIMITS, mobileCanonicalJson, mobileDataSnapshot, type Mobi
 import { createMobilePlaybackService } from '../../src/mobile/playback-service.js';
 import { createMobileAuthCrypto } from '../../src/mobile/auth-crypto.js';
 import { capturePlaybackState, decodePlaybackState, playbackCanonical, playbackCopy, type PlaybackState, type StoredPlaybackReceipt } from '../../src/mobile/playback-state.js';
-import { encodePlaybackStorage, decodePlaybackStorage, PLAYBACK_COMPACT_SCHEMA, PLAYBACK_SHARED_BYTES_PER_RECEIPT } from '../../src/mobile/playback-state-codec.js';
+import { encodePlaybackStorage, decodePlaybackStorage, readPlaybackStorageRejectionBoundary, PLAYBACK_COMPACT_SCHEMA, PLAYBACK_SHARED_BYTES_PER_RECEIPT } from '../../src/mobile/playback-state-codec.js';
 import { MOBILE_PLAYBACK_DEFAULT_LIMITS, type MobilePlaybackSourcePort, type MobilePlaybackService } from '../../src/mobile/playback-types.js';
+import { MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET } from '../../src/mobile/playback-types.js';
 import type { MobileAuthPersistence, MobileSealedState, MobilePrincipal, MobileAuthCrypto } from '../../src/mobile/types.js';
 import { MobileAuthPersistenceError } from '../../src/mobile/types.js';
 
@@ -247,8 +248,8 @@ test('紧凑播放账本：坏版本引用与逻辑膨胀先拒绝，原字段�
       }
     }
     capturePlaybackState(baseline, SERVER, DATASET, ORIGIN, limits);
+    // 保留旧200k边界夹具：迁移后新增一条回执仍能读写；真正新逻辑边界另有放大回归。
     const template = playbackCopy(baseline.receipts.find(r => r.operation === 'createResource')!);
-    template.state = 'UNKNOWN'; template.reply = null; template.resourceContext = null;
     function unknownReceipt(index: number): StoredPlaybackReceipt {
       const row = playbackCopy(template); row.id = `nodes.synthetic.receipt.${index}`;
       row.request.idempotencyKey = `nodes.synthetic.original-key.${index}`;
@@ -276,7 +277,9 @@ test('紧凑播放账本：坏版本引用与逻辑膨胀先拒绝，原字段�
         + (row.resourceContext?.template === undefined ? 0 : canonicalBytes(fanout.contextTemplates[row.resourceContext.template]));
       assert.ok(shared <= PLAYBACK_SHARED_BYTES_PER_RECEIPT);
     }
-    expectBusy(() => decodePlaybackStorage(text(fanout), SERVER, DATASET, ORIGIN, limits));
+    assert.equal(jsonForTest(decodePlaybackStorage(text(fanout), SERVER, DATASET, ORIGIN, limits).state), jsonForTest(outside));
+    const beyondOld = encodePlaybackStorage(outside, SERVER, DATASET, ORIGIN, limits);
+    assert.equal(jsonForTest(decodePlaybackStorage(beyondOld.bytes, SERVER, DATASET, ORIGIN, limits).state), jsonForTest(outside));
   }
   reject(v => { let body: any = null; for (let i = 0; i < 21; i++) body = { n: body }; v.requestTemplates[0].body = body; });
   for (const [key, maximum] of [['sessions', limits.maxStoredSessions], ['resources', limits.maxStoredResources], ['receipts', limits.maxReceipts]] as const)
@@ -312,4 +315,320 @@ test('紧凑播放账本：坏版本引用与逻辑膨胀先拒绝，原字段�
   assert.deepEqual(decodePlaybackStorage(inline.bytes, SERVER, DATASET, ORIGIN, limits).state, expectedLarge);
   if (inline.format === 'v2') assert.equal(JSON.parse(inline.canonical).contextTemplates.length, 0);
   assert.equal(limits.stateBytes, 2_097_152); assert.equal(limits.maxReceipts, 4096); assert.equal(PLAYBACK_SHARED_BYTES_PER_RECEIPT, 8192);
+});
+
+async function denseStoredHistory(crypto: MobileAuthCrypto): Promise<PlaybackState> {
+  const base = await seedHistory(crypto), state = playbackCopy(base);
+  const template = base.receipts.find(r => r.operation === 'renewResource')!;
+  for (let index = 0; index < 1230; index++) {
+    const row = playbackCopy(template); row.id = `dense.synthetic.receipt.${index}`;
+    row.request.idempotencyKey = `dense.synthetic.renew.${index}`;
+    row.keyHash = digest('key', [row.deviceId, row.deviceEpoch, row.request.idempotencyKey]);
+    const body = row.reply!.body as MobileReadyResource;
+    body.media.url = `${ORIGIN}/mobile/v1/media/${row.resourceId}/source?ticket=${index.toString(16).padStart(64, 'a')}`;
+    row.resourceContext!.now = new Date(NOW + index).toISOString(); state.receipts.push(row);
+  }
+  assert.ok(nodeCount(state) < 200_000 && canonicalBytes(state) > limits.stateBytes);
+  return capturePlaybackState(state, SERVER, DATASET, ORIGIN, limits);
+}
+
+test('形状账本v3：原紧凑物理预算耗尽仍无损写入，冷启逐字段重放全部旧键与新键', async t => {
+  const key = randomBytes(32), crypto = createMobileAuthCrypto(key); key.fill(0);
+  const state = await denseStoredHistory(crypto), encoded = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, limits);
+  assert.equal(encoded.format, 'v3'); assert.ok(encoded.bytes.length <= limits.stateBytes);
+  const restored = decodePlaybackStorage(encoded.bytes, SERVER, DATASET, ORIGIN, limits);
+  assert.equal(restored.canonical, encoded.canonical); assert.deepEqual(restored.state, state);
+  let row: MobileSealedState = { kind: 'sealed', datasetId: DATASET, revision: state.revision, commitId: state.commitId!,
+    sealed: crypto.seal(encoded.bytes, aad(state.revision)) }, saves = 0;
+  const persistence: MobileAuthPersistence = {
+    async load() { return structuredClone(row); }, async save(request) {
+      assert.equal(request.expectedRevision, row.revision); saves++;
+      row = { kind: 'sealed', datasetId: DATASET, revision: row.revision + 1, commitId: request.commitId, sealed: new Uint8Array(request.sealed) };
+      return { kind: 'saved', datasetId: DATASET, revision: row.revision, commitId: row.commitId }; },
+  };
+  const actors: MobilePlaybackService[] = [];
+  const create = () => { const actor = createMobilePlaybackService({ serverId: SERVER, datasetId: DATASET, responseOrigin: ORIGIN,
+    auth, persistence, crypto, sourcePort: sourcePort(false), nowMs: () => NOW }); actors.push(actor); return actor; };
+  t.after(async () => { for (const actor of actors) await actor.close(); });
+  const actor = create();
+  for (const receipt of state.receipts) {
+    const replay = await actor.control(receipt.operation, receipt.request, historyPrincipal, signal());
+    assert.equal(replay.status, receipt.reply!.status); assert.deepEqual(replay.body, receipt.reply!.body);
+    assert.deepEqual(replay.resourceContext ?? null, receipt.resourceContext); await replay.beforeSend();
+  }
+  assert.equal(saves, 0); const created = await call(actor); assert.equal(created.status, 201); assert.equal(saves, 1);
+  await actor.close(); const cold = create(), replay = await call(cold);
+  assert.equal(replay.status, created.status); assert.deepEqual(replay.body, created.body); assert.equal(saves, 1);
+  assert.ok(row.kind === 'sealed'); const plain = crypto.open(row.sealed, aad(row.revision));
+  try { assert.deepEqual(decodePlaybackStorage(plain, SERVER, DATASET, ORIGIN, limits).state.receipts.slice(0, state.receipts.length), state.receipts); }
+  finally { plain.fill(0); }
+});
+
+test('形状账本v3：闭集tag/shape/arity与null缺值边界拒绝，终态预算不能缩小或插入getter', async t => {
+  const key = randomBytes(32), crypto = createMobileAuthCrypto(key); key.fill(0);
+  const state = await denseStoredHistory(crypto), encoded = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, limits);
+  assert.equal(encoded.format, 'v3'); const packed = JSON.parse(encoded.canonical) as Record<string, any>;
+  const reject = (change: (v: Record<string, any>) => void) => { const value = playbackCopy(packed); change(value); expectBusy(() => decodePlaybackStorage(text(value), SERVER, DATASET, ORIGIN, limits)); };
+  reject(v => { v.schema = 'mbm002.playback-compact-state.v4'; });
+  reject(v => { v.extra = null; });
+  for (const tag of [-1, 0.5, vTag(packed) + packed.shapes.length + 1]) reject(v => { v.root[0] = tag; });
+  reject(v => { v.root.pop(); });
+  reject(v => { v.root.push(null); });
+  reject(v => { v.shapes.push(['unused']); });
+  reject(v => { v.shapes.push(playbackCopy(v.shapes[0])); });
+  reject(v => { v.shapes[0].push(v.shapes[0][0]); });
+  reject(v => { v.shapes[0].reverse(); });
+  reject(v => { v.shapes[0][0] = '__proto__'; });
+  const restored = decodePlaybackStorage(encoded.bytes, SERVER, DATASET, ORIGIN, limits).state;
+  assert.deepEqual(restored, state); assert.equal(restored.resources[0]!.media, null);
+  for (const field of Object.keys(MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET)) {
+    const smaller = { ...MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET, [field]: 0 };
+    expectBusy(() => (encodePlaybackStorage as any)(state, SERVER, DATASET, ORIGIN, limits, smaller));
+  }
+  let invoked = 0;
+  const getter = Object.defineProperty({ ...MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET }, 'codeJsonBytes', { enumerable: true, get() { invoked++; return 22; } });
+  expectBusy(() => (encodePlaybackStorage as any)(state, SERVER, DATASET, ORIGIN, limits, getter)); assert.equal(invoked, 0);
+});
+function vTag(value: Record<string, any>): number { return value.root[0] as number; }
+
+test('终态预留：8个UNKNOWN的256种部分结算均可写，保持原字段及全预算且不靠压缩单调性', async () => {
+  const key = randomBytes(32), crypto = createMobileAuthCrypto(key); key.fill(0);
+  const state = await seedHistory(crypto), template = playbackCopy(state.receipts.find(r => r.operation === 'createResource')!);
+  for (let i = 0; i < 8; i++) {
+    const row = playbackCopy(template); row.id = `reservation.synthetic.${i}`; row.request.idempotencyKey = `reservation.key.${i}`;
+    row.keyHash = digest('key', [row.deviceId, row.deviceEpoch, row.request.idempotencyKey]);
+    row.state = 'UNKNOWN'; row.reply = null; row.resourceContext = null; state.receipts.push(row);
+  }
+  let low = 1, high = limits.stateBytes;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    try { const encoded = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, { ...limits, stateBytes: middle }); if (encoded.format === 'v5') low = middle + 1; else high = middle; }
+    catch (error) { assert.equal(safeError(error).code, 'RESOURCE_BUSY'); low = middle + 1; }
+  }
+  const tight = { ...limits, stateBytes: low };
+  assert.equal(encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, { ...tight, stateBytes: low - 1 }).format, 'v5');
+  assert.ok(encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, tight).bytes.length <= low);
+  for (let mask = 0; mask < 256; mask++) {
+    const candidate = playbackCopy(state); candidate.revision = Number.MAX_SAFE_INTEGER; candidate.clockFloor = 8_640_000_000_000_000;
+    for (let i = 0; i < 8; i++) if (mask & 1 << i) {
+      const row = candidate.receipts[state.receipts.length - 8 + i]!;
+      row.state = 'RECORDED'; row.reply = { status: 409, body: { error: { code: 'IDEMPOTENCY_CONFLICT',
+        message: '服务暂时无法完成请求，请查询原记录。', requestId: '40000000-0000-4000-8000-000000000001',
+        retryable: false, retryAfterMs: Number.MAX_SAFE_INTEGER } } };
+      const resource = candidate.resources.find(r => r.id === row.resourceId)!; resource.state = 'failed'; resource.failure = 'IDEMPOTENCY_CONFLICT'; resource.media = null;
+    }
+    const encoded = encodePlaybackStorage(candidate, SERVER, DATASET, ORIGIN, tight);
+    assert.ok(encoded.bytes.length <= low); const decoded = decodePlaybackStorage(encoded.bytes, SERVER, DATASET, ORIGIN, tight);
+    assert.deepEqual(decoded.state, candidate); assert.equal(decoded.canonical, encoded.canonical);
+    assert.deepEqual(decoded.state.receipts.slice(0, state.receipts.length - 8), state.receipts.slice(0, state.receipts.length - 8));
+  }
+});
+
+
+test('终态预留：后置已存在错误shape提前，8个UNKNOWN任意子集及9到10编号边界安全', async () => {
+  const key = randomBytes(32), crypto = createMobileAuthCrypto(key); key.fill(0);
+  const base = await seedHistory(crypto), state = playbackCopy(base), template = playbackCopy(base.receipts.find(r => r.operation === 'createResource')!);
+  const unknown: StoredPlaybackReceipt[] = [];
+  for (let i = 0; i < 8; i++) {
+    const row = playbackCopy(template); row.id = `later-error.unknown.${i}`; row.request.idempotencyKey = `later-error.key.${i}`;
+    row.keyHash = digest('key', [row.deviceId, row.deviceEpoch, row.request.idempotencyKey]);
+    row.state = 'UNKNOWN'; row.reply = null; row.resourceContext = null; unknown.push(row);
+  }
+  const later = playbackCopy(template); later.id = 'later-error.recorded'; later.request.idempotencyKey = 'later-error.recorded.key';
+  later.keyHash = digest('key', [later.deviceId, later.deviceEpoch, later.request.idempotencyKey]); later.state = 'RECORDED'; later.resourceContext = null;
+  later.reply = { status: 409, body: { error: { code: 'SOURCE_CHANGED', message: '服务暂时无法完成请求，请查询原记录。',
+    requestId: '40000000-0000-4000-8000-000000000001', retryable: false } } };
+  state.receipts = [...unknown, ...base.receipts, later];
+  let low = 1, high = limits.stateBytes;
+  while (low < high) { const middle = Math.floor((low + high) / 2);
+    try { const encoded = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, { ...limits, stateBytes: middle }); if (encoded.format === 'v5') low = middle + 1; else high = middle; }
+    catch (error) { assert.equal(safeError(error).code, 'RESOURCE_BUSY'); low = middle + 1; }
+  }
+  const tight = { ...limits, stateBytes: low }, initial = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, tight);
+  assert.equal(initial.format, 'v3'); const originalShapes = JSON.parse(initial.canonical).shapes as string[][]; let crossed = false;
+  for (let mask = 0; mask < 256; mask++) {
+    const candidate = playbackCopy(state); candidate.revision = Number.MAX_SAFE_INTEGER; candidate.clockFloor = 8_640_000_000_000_000;
+    for (let i = 0; i < 8; i++) if (mask & 1 << i) {
+      const row = candidate.receipts[i]!; row.state = 'RECORDED'; row.reply = { status: 409, body: { error: { code: 'IDEMPOTENCY_CONFLICT',
+        message: '服务暂时无法完成请求，请查询原记录。', requestId: '40000000-0000-4000-8000-000000000001', retryable: false,
+        ...(i % 2 ? { retryAfterMs: Number.MAX_SAFE_INTEGER } : {}) } } };
+      const resource = candidate.resources.find(r => r.id === row.resourceId)!; resource.state = 'failed'; resource.failure = 'IDEMPOTENCY_CONFLICT'; resource.media = null;
+    }
+    const encoded = encodePlaybackStorage(candidate, SERVER, DATASET, ORIGIN, tight); assert.ok(encoded.bytes.length <= low);
+    const decoded = decodePlaybackStorage(encoded.bytes, SERVER, DATASET, ORIGIN, tight); assert.deepEqual(decoded.state, candidate);
+    assert.deepEqual(decoded.state.receipts.slice(8), state.receipts.slice(8));
+    if (encoded.format === 'v3') {
+      const shapes = JSON.parse(encoded.canonical).shapes as string[][];
+      for (const [i, keys] of originalShapes.entries()) {
+        const shifted = shapes.findIndex(shape => JSON.stringify(shape) === JSON.stringify(keys)) + 1;
+        if (i + 1 < 10 && shifted >= 10) crossed = true;
+      }
+    }
+  }
+  assert.ok(crossed, '夹具必须真正覆盖既有shape从一位编号移到两位编号');
+});
+
+
+test('终态预留：合法UNKNOWN已有media对象时保守计费，256种部分结算仍保留旧回执', async () => {
+  const key = randomBytes(32), crypto = createMobileAuthCrypto(key); key.fill(0);
+  const state = await seedHistory(crypto), resource = state.resources[0]!, ready = state.receipts.find(r => r.operation === 'renewResource')!.reply!.body as MobileReadyResource;
+  resource.state = 'ready'; resource.failure = null; resource.media = playbackCopy(ready.media);
+  const historicalCount = state.receipts.length, template = state.receipts.find(r => r.operation === 'createResource')!;
+  for (let i = 0; i < 8; i++) {
+    const row = playbackCopy(template); row.id = `legacy-media.unknown.${i}`; row.request.idempotencyKey = `legacy-media.key.${i}`;
+    row.keyHash = digest('key', [row.deviceId, row.deviceEpoch, row.request.idempotencyKey]); row.state = 'UNKNOWN'; row.reply = null; row.resourceContext = null;
+    state.receipts.push(row);
+  }
+  assert.deepEqual(capturePlaybackState(state, SERVER, DATASET, ORIGIN, limits), state);
+  let low = 1, high = limits.stateBytes;
+  while (low < high) { const middle = Math.floor((low + high) / 2);
+    try { const encoded = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, { ...limits, stateBytes: middle }); if (encoded.format === 'v5') low = middle + 1; else high = middle; }
+    catch (error) { assert.equal(safeError(error).code, 'RESOURCE_BUSY'); low = middle + 1; }
+  }
+  const tight = { ...limits, stateBytes: low }, initial = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, tight); assert.equal(initial.format, 'v3');
+  for (let mask = 0; mask < 256; mask++) {
+    const candidate = playbackCopy(state); candidate.revision = Number.MAX_SAFE_INTEGER; candidate.clockFloor = 8_640_000_000_000_000;
+    for (let i = 0; i < 8; i++) if (mask & 1 << i) {
+      const row = candidate.receipts[historicalCount + i]!; row.state = 'RECORDED'; row.reply = { status: 409, body: { error: { code: 'IDEMPOTENCY_CONFLICT',
+        message: '服务暂时无法完成请求，请查询原记录。', requestId: '40000000-0000-4000-8000-000000000001', retryable: false, retryAfterMs: Number.MAX_SAFE_INTEGER } } };
+      candidate.resources[0]!.state = 'failed'; candidate.resources[0]!.failure = 'IDEMPOTENCY_CONFLICT'; candidate.resources[0]!.media = null;
+    }
+    const encoded = encodePlaybackStorage(candidate, SERVER, DATASET, ORIGIN, tight); assert.ok(encoded.bytes.length <= low);
+    const decoded = decodePlaybackStorage(encoded.bytes, SERVER, DATASET, ORIGIN, tight); assert.deepEqual(decoded.state, candidate);
+    assert.deepEqual(decoded.state.receipts.slice(0, historicalCount), state.receipts.slice(0, historicalCount));
+  }
+});
+
+test('字符串账本v4：近满历史UNKNOWN终态预留后createSession成功，旧键与新键冷启无损', { timeout: 120_000 }, async t => {
+  const key = randomBytes(32), crypto = createMobileAuthCrypto(key); key.fill(0);
+  const state = await denseStoredHistory(crypto), template = state.receipts.find(r => r.operation === 'createResource')!;
+  for (let i = 0; i < 8; i++) {
+    const r = playbackCopy(template); r.id = `string-reserve.unknown.${i}`; r.request.idempotencyKey = `string-reserve.key.${i}`;
+    r.keyHash = digest('key', [r.deviceId, r.deviceEpoch, r.request.idempotencyKey]);
+    r.state = 'UNKNOWN'; r.reply = null; r.resourceContext = null; state.receipts.push(r);
+  }
+  const initial = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, limits);
+  assert.equal(initial.format, 'v3');
+  const tight = { ...limits, stateBytes: initial.bytes.length + 32 };
+  assert.ok(tight.stateBytes < limits.stateBytes && nodeCount(state) < 200_000);
+  let row: MobileSealedState = { kind: 'sealed', datasetId: DATASET, revision: state.revision, commitId: state.commitId!,
+    sealed: crypto.seal(initial.bytes, aad(state.revision)) }, saves = 0;
+  const persistence: MobileAuthPersistence = {
+    async load() { return structuredClone(row); },
+    async save(request) {
+      assert.equal(request.expectedRevision, row.revision); saves++;
+      row = { kind: 'sealed', datasetId: DATASET, revision: row.revision + 1, commitId: request.commitId, sealed: new Uint8Array(request.sealed) };
+      return { kind: 'saved', datasetId: DATASET, revision: row.revision, commitId: row.commitId };
+    },
+  };
+  const actors: MobilePlaybackService[] = [];
+  const create = (configuration = tight) => { const actor = createMobilePlaybackService({ serverId: SERVER, datasetId: DATASET, responseOrigin: ORIGIN,
+    auth, persistence, crypto, sourcePort: sourcePort(false), limits: configuration, nowMs: () => NOW }); actors.push(actor); return actor; };
+  t.after(async () => { for (const actor of actors) await actor.close(); });
+  // 用同一合法候选在默认预算下的实际物理长度定位reserve，避免把物理满误称终态预留。
+  const calibration = create(limits); assert.equal((await call(calibration)).status, 201); await calibration.close();
+  assert.equal(row.kind, 'sealed'); if (row.kind !== 'sealed') throw new Error();
+  const calibrated = crypto.open(row.sealed, aad(row.revision));
+  try {
+    const decoded = decodePlaybackStorage(calibrated, SERVER, DATASET, ORIGIN, limits);
+    assert.equal(decoded.format, 'v3'); tight.stateBytes = calibrated.byteLength + 32;
+    t.diagnostic(`合成近满候选v3=${JSON.stringify({ physicalBytes: calibrated.byteLength, physicalNodes: nodeCount(JSON.parse(Buffer.from(calibrated).toString('utf8'))),
+      logicalBytes: canonicalBytes(decoded.state), logicalNodes: nodeCount(decoded.state), receipts: decoded.state.receipts.length })}`);
+  }
+  finally { calibrated.fill(0); }
+  row = { kind: 'sealed', datasetId: DATASET, revision: state.revision, commitId: state.commitId!, sealed: crypto.seal(initial.bytes, aad(state.revision)) }; saves = 0;
+  const actor = create();
+  let created;
+  try { created = await call(actor); } catch (error) {
+    t.diagnostic(`近满会话候选首拒=${readPlaybackStorageRejectionBoundary(error) ?? 'UNKNOWN'}`); throw error;
+  }
+  assert.equal(created.status, 201); assert.equal(saves, 1);
+  assert.equal(row.kind, 'sealed'); if (row.kind !== 'sealed') throw new Error();
+  const plain = crypto.open(row.sealed, aad(row.revision));
+  try {
+    const decoded = decodePlaybackStorage(plain, SERVER, DATASET, ORIGIN, tight);
+    assert.equal(decoded.format, 'v5'); assert.ok(plain.byteLength <= tight.stateBytes);
+    t.diagnostic(`合成近满候选v4=${JSON.stringify({ physicalBytes: plain.byteLength, physicalNodes: nodeCount(JSON.parse(Buffer.from(plain).toString('utf8'))),
+      logicalBytes: canonicalBytes(decoded.state), logicalNodes: nodeCount(decoded.state), receipts: decoded.state.receipts.length, stateBytes: tight.stateBytes })}`);
+    assert.deepEqual(decoded.state.receipts.slice(0, state.receipts.length), state.receipts);
+    assert.equal(decoded.state.receipts.filter(r => r.state === 'UNKNOWN').length, 8);
+  } finally { plain.fill(0); }
+  await actor.close();
+  const cold = create(), replay = await call(cold);
+  assert.equal(replay.status, created.status); assert.deepEqual(replay.body, created.body); assert.equal(saves, 1);
+  const old = state.receipts.find(r => r.operation === 'renewResource')!;
+  const oldReply = await cold.control(old.operation, old.request, historyPrincipal, signal());
+  assert.equal(oldReply.status, old.reply!.status); assert.deepEqual(oldReply.body, old.reply!.body); await oldReply.beforeSend();
+  const unknown = state.receipts.find(r => r.state === 'UNKNOWN')!;
+  await assert.rejects(cold.control(unknown.operation, unknown.request, historyPrincipal, signal()), error => safeError(error).code === 'RESOURCE_BUSY');
+  assert.equal(saves, 1);
+});
+
+async function stringReserveFixture(media = false) {
+  const key = randomBytes(32), crypto = createMobileAuthCrypto(key); key.fill(0);
+  const state = await seedHistory(crypto), template = state.receipts.find(r => r.operation === 'createResource')!;
+  const resource = state.resources[0]!;
+  // 标记碰撞必须是合法业务值；字典里的此字面量不能被递归当作另一条引用。
+  resource.source!.processing.reason = '~0000';
+  for (const r of state.receipts) if (r.reply && r.reply.status < 400 && r.operation !== 'createSession')
+    (r.reply.body as MobileReadyResource).processing.reason = '~0000';
+  if (media) { resource.state = 'ready'; resource.failure = null; resource.media = playbackCopy((template.reply!.body as MobileReadyResource).media); }
+  for (let i = 0; i < 8; i++) {
+    const r = playbackCopy(template); r.id = `string-subset.unknown.${i}`; r.request.idempotencyKey = `string-subset.key.${i}`;
+    r.keyHash = digest('key', [r.deviceId, r.deviceEpoch, r.request.idempotencyKey]);
+    r.state = 'UNKNOWN'; r.reply = null; r.resourceContext = null; state.receipts.unshift(r);
+  }
+  capturePlaybackState(state, SERVER, DATASET, ORIGIN, limits);
+  let low = 1, high = limits.stateBytes;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    try { encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, { ...limits, stateBytes: middle }); high = middle; }
+    catch (error) { assert.equal(safeError(error).code, 'RESOURCE_BUSY'); low = middle + 1; }
+  }
+  const tight = { ...limits, stateBytes: low }, encoded = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, tight);
+  assert.equal(encoded.format, 'v5'); assert.ok(encoded.bytes.length < low);
+  assert.throws(() => encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, { ...tight, stateBytes: low - 1 }), error =>
+    safeError(error).code === 'RESOURCE_BUSY' && readPlaybackStorageRejectionBoundary(error) === 'terminal-v4-reserve');
+  return { state, tight, encoded };
+}
+
+test('字符串账本v4：两种media形态的8 UNKNOWN全部256子集可写，最大整数及新字符串保留', { timeout: 120_000 }, async () => {
+  for (const media of [false, true]) {
+    const { state, tight } = await stringReserveFixture(media);
+    for (let mask = 0; mask < 256; mask++) {
+      const candidate = playbackCopy(state); candidate.revision = Number.MAX_SAFE_INTEGER; candidate.clockFloor = 8_640_000_000_000_000;
+      candidate.commitId = '50000000-0000-4000-8000-000000000001';
+      for (let i = 0; i < 8; i++) if (mask & 1 << i) {
+        const r = candidate.receipts[i]!; r.state = 'RECORDED'; r.reply = { status: 409, body: { error: {
+          code: 'IDEMPOTENCY_CONFLICT', message: '服务暂时无法完成请求，请查询原记录。',
+          requestId: `40000000-0000-4000-8000-${(mask * 8 + i).toString().padStart(12, '0')}`, retryable: false,
+          ...(i % 2 ? { retryAfterMs: Number.MAX_SAFE_INTEGER } : {}),
+        } } };
+        const resource = candidate.resources.find(x => x.id === r.resourceId)!;
+        resource.state = 'failed'; resource.failure = 'IDEMPOTENCY_CONFLICT'; resource.media = null;
+      }
+      const encoded = encodePlaybackStorage(candidate, SERVER, DATASET, ORIGIN, tight);
+      assert.ok(encoded.bytes.length <= tight.stateBytes);
+      const decoded = decodePlaybackStorage(encoded.bytes, SERVER, DATASET, ORIGIN, tight);
+      assert.deepEqual(decoded.state, candidate); assert.deepEqual(decoded.state.receipts.slice(8), state.receipts.slice(8));
+    }
+  }
+});
+
+test('字符串账本v4：标记碰撞逐字还原，重复未用越界及非规范引用均拒绝', async () => {
+  const { state, encoded } = await stringReserveFixture(), packed = JSON.parse(encoded.canonical) as Record<string, any>;
+  assert.ok(packed.strings.includes('~0000'));
+  assert.deepEqual(decodePlaybackStorage(encoded.bytes, SERVER, DATASET, ORIGIN, limits).state, state);
+  const reject = (change: (v: Record<string, any>) => void) => { const value = playbackCopy(packed); change(value); expectBusy(() => decodePlaybackStorage(text(value), SERVER, DATASET, ORIGIN, limits)); };
+  reject(v => { v.strings.push(v.strings[0]); });
+  reject(v => { v.strings.push('unused.synthetic.dictionary.entry'); });
+  reject(v => { v.strings[0] = {}; });
+  reject(v => { v.strings[0] = 'short'; });
+  reject(v => { v.extra = null; }); reject(v => { delete v.strings; });
+  for (const marker of ['~zzzz', '~000', '~00000', '~ABCD', '~wat?', '~', 'long.synthetic.must.be.a.reference'])
+    reject(v => { v.root[1] = marker; });
+  // 6000个短引用不能在预算前展开为同一个8KiB值的约48MiB副本。
+  expectBusy(() => decodePlaybackStorage(text({ schema: 'mbm002.playback-compact-state.v4', shapes: [],
+    strings: ['x'.repeat(8192)], root: [0, ...Array(6000).fill('~0000')] }), SERVER, DATASET, ORIGIN, limits));
+  expectBusy(() => decodePlaybackStorage(new Uint8Array(limits.stateBytes + 1), SERVER, DATASET, ORIGIN, limits));
 });

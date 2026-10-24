@@ -14,6 +14,7 @@ import { createMobileContentRpcPort } from '../../src/mobile/content-rpc-port.js
 import { captureMobileNeteaseScope } from '../../src/mobile/netease-source-types.js';
 import { captureMobileContentScope } from '../../src/mobile/content-types.js';
 import { sameMobileContentScope } from '../../src/mobile/content-service.js';
+import { createMobileCapabilityContext, withMobileCapabilityContext, MOBILE_CAPABILITY_TRACE_PREFIX } from '../../src/mobile/capability-trace.js';
 
 const image = new Uint8Array([255,216,1,2,3,4,255,217]);
 const url = 'https://p1.music.126.net/synthetic-cover.jpg';
@@ -22,8 +23,9 @@ const busy = (error: unknown) => error instanceof MobileServiceError && error.co
 const deferred = () => { let done!: () => void; const promise = new Promise<void>(resolve => { done = resolve; }); return { promise, done }; };
 
 /** 原生请求/响应叶的受控替身；DNS及固定地址/TLS选项仍由实际生产函数生成。 */
-function nativeFixture(mode: 'image' | 'connect-hold' | 'body-hold' | 'redirect' = 'image') {
+function nativeFixture(mode: 'image' | 'connect-hold' | 'body-hold' | 'redirect' | 'forbidden' = 'image') {
   const options: RequestOptions[] = [], entered = deferred(); let requestDestroyed = 0, responseClosed = 0, payload = image;
+  let contentTypes = ['image/jpeg'];
   const request: NonNullable<MobileArtworkTransportLeaves['request']> = (value, respond) => {
     options.push(value); const emitter = new EventEmitter(); let closed = false, message: IncomingMessage | undefined;
     const close = () => { if (closed) return; closed = true; emitter.emit('close'); };
@@ -33,8 +35,9 @@ function nativeFixture(mode: 'image' | 'connect-hold' | 'body-hold' | 'redirect'
         entered.done(); if (mode === 'connect-hold') return stub;
         queueMicrotask(() => {
           const stream = new PassThrough();
-          message = Object.assign(stream, { statusCode: mode === 'redirect' ? 302 : 200,
-            rawHeaders: mode === 'redirect' ? ['Location','https://p2.music.126.net/next.jpg'] : ['Content-Type','image/jpeg','Content-Length',String(payload.length)] }) as unknown as IncomingMessage;
+          message = Object.assign(stream, { statusCode: mode === 'redirect' ? 302 : mode === 'forbidden' ? 403 : 200,
+            rawHeaders: mode === 'redirect' ? ['Location','https://p2.music.126.net/next.jpg']
+              : [...contentTypes.flatMap(type => ['Content-Type', type]), 'Content-Length', String(payload.length)] }) as unknown as IncomingMessage;
           stream.once('close', () => { responseClosed++; close(); }); respond(message);
           if (mode === 'image') stream.end(payload);
         });
@@ -44,8 +47,137 @@ function nativeFixture(mode: 'image' | 'connect-hold' | 'body-hold' | 'redirect'
     });
     return stub as unknown as ClientRequest;
   };
-  return { request, options, entered: entered.promise, setImage(value: Uint8Array<ArrayBuffer>) { payload = value; }, counts: () => ({ requestDestroyed, responseClosed }) };
+  return { request, options, entered: entered.promise, setImage(value: Uint8Array<ArrayBuffer>) { payload = value; },
+    setContentTypes(values: string[]) { contentTypes = [...values]; }, counts: () => ({ requestDestroyed, responseClosed }) };
 }
+
+test('封面MIME有限兼容：完整图片经过生产transport与service，别名只归一类型不改变字节修订', async t => {
+  const cases = [
+    { name: 'jpg实际JPEG', input: 'image/jpg', type: 'image/jpeg', file: 'owned-cover-16.jpg' },
+    { name: '通用二进制实际JPEG', input: 'application/octet-stream', type: 'image/jpeg', file: 'owned-cover-16.jpg' },
+    { name: '通用二进制实际PNG', input: 'application/octet-stream', type: 'image/png', file: 'owned-cover-16.png' },
+  ];
+  for (const row of cases) await t.test(row.name, async () => {
+    const bytes = Uint8Array.from(readFileSync(new URL('../fixtures/mbrs012-source/' + row.file, import.meta.url)));
+    const native = nativeFixture(); native.setImage(bytes); native.setContentTypes([row.input]);
+    const transport = createMobileArtworkFetch({ request: native.request, resolver: () => ({
+      async resolve4() { return ['8.8.8.8']; }, async resolve6() { return []; }, cancel() {},
+    }) });
+    const scope = { serverId: 'server.art', datasetId: 'dataset.art', ownerEpoch: 'owner.art',
+      deviceId: 'device.art', deviceEpoch: 1, accessGeneration: 1, accountDomain: 'nc:account.art', providerEpoch: 'provider.art' };
+    const service = createMobileNeteaseArtwork({ ...scope, namespace: 'abc123', key: new Uint8Array(32).fill(7), fetch: transport });
+    try {
+      const id = service.bind(scope, 's', '12', url)!;
+      const selected = await service.read(scope, id, new AbortController().signal, async () => url);
+      assert.equal(selected.contentType, row.type); assert.deepEqual(selected.bytes, bytes);
+      native.setContentTypes([row.type]);
+      assert.equal(await service.assert(scope, id, new AbortController().signal, async () => url), selected.revision);
+      assert.equal(native.options.length, 2); assert.equal(native.counts().responseClosed, 2);
+      assert.equal(native.options[0]!.hostname, native.options[1]!.hostname);
+      assert.equal(native.options[0]!.path, native.options[1]!.path);
+      assert.equal(native.options[0]!.servername, 'p1.music.126.net');
+      assert.equal(native.options[0]!.rejectUnauthorized, true);
+      assert.deepEqual(native.options[0]!.headers, { Host: 'p1.music.126.net', Accept: 'image/jpeg,image/png', 'Accept-Encoding': 'identity' });
+    } finally { service.close(); }
+  });
+});
+
+test('封面MIME传输拒绝：重复类型头不取首项，拒绝前等待原生请求响应关闭', async () => {
+  const native = nativeFixture(); native.setContentTypes(['image/jpeg', 'image/png']);
+  native.setImage(Uint8Array.from(readFileSync(new URL('../fixtures/mbrs012-source/owned-cover-16.jpg', import.meta.url))));
+  const transport = createMobileArtworkFetch({ request: native.request, resolver: () => ({
+    async resolve4() { return ['8.8.8.8']; }, async resolve6() { return []; }, cancel() {},
+  }) });
+  const scope = { serverId: 'server.art', datasetId: 'dataset.art', ownerEpoch: 'owner.art',
+    deviceId: 'device.art', deviceEpoch: 1, accessGeneration: 1, accountDomain: 'nc:account.art', providerEpoch: 'provider.art' };
+  const service = createMobileNeteaseArtwork({ ...scope, namespace: 'abc123', key: new Uint8Array(32).fill(7), fetch: transport });
+  const lines: string[] = [], signal = new AbortController().signal;
+  const context = createMobileCapabilityContext(randomUUID(), 'core', 'content', null, signal, line => { lines.push(line); })!;
+  context.privateContentDiagnostic = true;
+  try {
+    await withMobileCapabilityContext(context, () => assert.rejects(service.read(scope,
+      service.bind(scope, 's', '12', url)!, signal, async () => url), busy));
+    assert.equal(lines.length, 1);
+    assert.equal(JSON.parse(lines[0]!.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length)).stage, 'provider.artwork.download.type.combined');
+    assert.equal(native.options.length, 1); assert.equal(native.counts().responseClosed, 1);
+  } finally { service.close(); }
+});
+
+test('封面MIME取消：通用二进制读体中止后不返回图片且原生请求响应静止', async () => {
+  const native = nativeFixture('body-hold'); native.setContentTypes(['application/octet-stream']);
+  const transport = createMobileArtworkFetch({ request: native.request, resolver: () => ({
+    async resolve4() { return ['8.8.8.8']; }, async resolve6() { return []; }, cancel() {},
+  }) });
+  const scope = { serverId: 'server.art', datasetId: 'dataset.art', ownerEpoch: 'owner.art',
+    deviceId: 'device.art', deviceEpoch: 1, accessGeneration: 1, accountDomain: 'nc:account.art', providerEpoch: 'provider.art' };
+  const service = createMobileNeteaseArtwork({ ...scope, namespace: 'abc123', key: new Uint8Array(32).fill(7), fetch: transport });
+  const controller = new AbortController();
+  try {
+    const reading = service.read(scope, service.bind(scope, 's', '12', url)!, controller.signal, async () => url);
+    await native.entered; await new Promise<void>(resolve => setImmediate(resolve)); controller.abort();
+    await assert.rejects(reading);
+    assert.equal(native.options.length, 1); assert.equal(native.counts().responseClosed, 1);
+    assert.ok(native.counts().requestDestroyed >= 1);
+  } finally { service.close(); }
+});
+
+test('封面DNS首拒：解析错误/非法回答/非公网/空回答独立分类且零连接', async () => {
+  for (const [stage, answer] of [
+    ['dns-failure', async () => { throw Object.assign(new Error('private-dns-detail'), { code: 'ETIMEOUT' }); }],
+    ['dns-answer', async () => Array<string>(33).fill('8.8.8.8')],
+    ['dns-address', async () => ['127.0.0.1']],
+    ['dns-empty', async () => []],
+  ] as const) {
+    const lines: string[] = [], native = nativeFixture(), signal = new AbortController().signal;
+    const context = createMobileCapabilityContext(randomUUID(), 'core', 'content', null, signal, line => { lines.push(line); })!;
+    context.privateContentDiagnostic = true;
+    const fetch = createMobileArtworkFetch({ request: native.request, resolver: () => ({ resolve4: answer, resolve6: async () => [], cancel() {} }) });
+    await withMobileCapabilityContext(context, () => assert.rejects(fetch(url, init(signal)), busy));
+    assert.equal(native.options.length, 0); assert.equal(lines.length, 1);
+    const record = JSON.parse(lines[0]!.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length));
+    assert.equal(record.stage, 'provider.artwork.transport.' + stage); assert.equal(Object.keys(record).length, 15);
+    assert.doesNotMatch(lines.join(''), /private-dns|127\.0|8\.8|https:|synthetic-cover/u);
+  }
+});
+
+test('封面HTTP首拒：真实请求响应close之后保持BUSY，外层下载不覆盖首拒', async () => {
+  const native = nativeFixture('forbidden'), lines: string[] = [], signal = new AbortController().signal;
+  const context = createMobileCapabilityContext(randomUUID(), 'core', 'content', null, signal, line => { lines.push(line); })!;
+  context.privateContentDiagnostic = true;
+  const fetch = createMobileArtworkFetch({ request: native.request,
+    resolver: () => ({ resolve4: async () => ['8.8.8.8'], resolve6: async () => [], cancel() {} }) });
+  const scope = { serverId: 'server.art', datasetId: 'dataset.art', ownerEpoch: 'owner.art',
+    deviceId: 'device.art', deviceEpoch: 1, accessGeneration: 1, accountDomain: 'nc:account.art', providerEpoch: 'provider.art' };
+  const service = createMobileNeteaseArtwork({ ...scope, namespace: 'abc123', key: new Uint8Array(32).fill(7), fetch });
+  try {
+    await withMobileCapabilityContext(context, () => assert.rejects(service.read(scope,
+      service.bind(scope, 's', '12', url)!, signal, async () => url), busy));
+    assert.equal(native.counts().responseClosed, 1); assert.equal(lines.length, 1);
+    assert.equal(JSON.parse(lines[0]!.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length)).stage, 'provider.artwork.transport.http-status');
+  } finally { service.close(); }
+});
+
+test('封面TLS首拒：证书拒绝不输出底层文本，默认关闭不产生诊断', async () => {
+  for (const enabled of [false, true]) {
+    const lines: string[] = [], signal = new AbortController().signal; let closed = false;
+    const context = createMobileCapabilityContext(randomUUID(), 'core', 'content', null, signal, line => { lines.push(line); })!;
+    if (enabled) context.privateContentDiagnostic = true;
+    const fetch = createMobileArtworkFetch({
+      resolver: () => ({ resolve4: async () => ['8.8.8.8'], resolve6: async () => [], cancel() {} }),
+      request: () => {
+        const emitter = new EventEmitter();
+        return Object.assign(emitter, { maxHeadersCount: 0, end() {
+          emitter.emit('error', Object.assign(new Error('private-certificate-host'), { code: 'ERR_TLS_CERT_ALTNAME_INVALID' }));
+          closed = true; emitter.emit('close'); return emitter;
+        }, destroy() { closed = true; emitter.emit('close'); return emitter; } }) as unknown as ClientRequest;
+      },
+    });
+    await withMobileCapabilityContext(context, () => assert.rejects(fetch(url, init(signal)), busy));
+    assert.equal(closed, true); assert.equal(lines.length, enabled ? 1 : 0);
+    if (enabled) assert.equal(JSON.parse(lines[0]!.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length)).stage, 'provider.artwork.transport.tls');
+    assert.doesNotMatch(lines.join(''), /private-certificate|https:|8\.8/u);
+  }
+});
 
 test('封面生产transport选择：只连接首批已验IP，DNS随后变化不触发重解析且TLS仍核原CDN主机', async () => {
   let dns4 = 0, dns6 = 0; const native = nativeFixture();

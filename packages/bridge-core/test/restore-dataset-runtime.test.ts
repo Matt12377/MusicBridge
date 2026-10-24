@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import type * as SheetJS from 'xlsx';
 import type { CanonicalReference, SpreadsheetImportPlan } from '@music-bridge/contracts';
-import { copyFile, link, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, link, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { openCollectionDataset } from '../src/recording/restore-dataset-runtime.js';
@@ -288,12 +288,19 @@ for (const fault of ['corrupt', 'symlink', 'hardlink'] as const) {
   test(`active数据库${fault}拒绝启动，不覆盖文件也不回退默认库`, async t => {
     const f = await fixture(t), opened = await f.open(f.privatePath); opened.commit(); opened.close();
     const file = path.join(f.pending.prepared.database.path, 'collection.sqlite'), original = await readFile(file);
+    const defaultNames = (await readdir(f.privatePath)).filter(name => name.startsWith('collection.v1')).sort();
+    const readDefaultFiles = () => Promise.all(defaultNames.map(async name => {
+      const file = path.join(f.privatePath, name), info = await lstat(file);
+      return { dev: info.dev, ino: info.ino, mode: info.mode, nlink: info.nlink, bytes: await readFile(file) };
+    }));
+    const defaultFiles = await readDefaultFiles();
     if (fault === 'corrupt') await writeFile(file, '合成损坏的工作库');
     else if (fault === 'hardlink') await link(file, path.join(f.privatePath, '工作库硬链接'));
     else { await rename(file, file + '.saved'); await symlink(file + '.saved', file); }
     await assert.rejects(f.open(f.privatePath));
     assert.deepEqual(await readFile(file), fault === 'corrupt' ? Buffer.from('合成损坏的工作库') : original);
-    assert.deepEqual((await readdir(f.privatePath)).filter(name => name.startsWith('collection.v1')), ['collection.v1.sqlite']);
+    assert.deepEqual((await readdir(f.privatePath)).filter(name => name.startsWith('collection.v1')).sort(), defaultNames);
+    assert.deepEqual(await readDefaultFiles(), defaultFiles);
   });
 }
 

@@ -171,7 +171,15 @@ export function createMobileAuthService(options: MobileAuthServiceOptions): Mobi
   async function load(): Promise<State> {
     let raw: MobileSealedState;
     try { raw = await mobilePreparationAsync('preparation.auth.owner-load', () => mobileRangeWindowObserve('auth.owner-load.composite', () => persistence.load(datasetId))); }
-    catch { if (!pending) fatal = true; return unavailable(); }
+    catch (error) {
+      // load没有提交副作用；明确暂错只拒绝本次，后续仍须完整重读，不能借旧state继续。
+      const temporaryRead = error instanceof MobileAuthPersistenceError && ['not-sent', 'unknown'].includes(error.outcome)
+        || error instanceof MobileServiceError && error.status === 503 && error.code === 'BUSY';
+      if (!pending && !temporaryRead) fatal = true;
+      // 仅无待核对写入的明确读暂错可重试；关闭、fatal及UNKNOWN写仍沿原锁闭语义。
+      if (temporaryRead && !pending && !closing && !fatal) throw new MobileServiceError(503, 'BUSY', true);
+      return unavailable();
+    }
     try {
       if (closed(raw, ['kind', 'datasetId', 'revision']) && raw.kind === 'missing'
         && raw.datasetId === datasetId && raw.revision === 0) {

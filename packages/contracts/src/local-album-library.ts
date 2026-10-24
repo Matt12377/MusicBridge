@@ -22,6 +22,8 @@ export interface LocalAlbumSummary {
   representativeTrackId: string | null
   revision: string
   artworkAvailable: boolean
+  /** 本地展示资源已可靠提交；仅用于显示调度，不授予音乐源读取权限。 */
+  artworkPrepared?: boolean
   /** 尚未实读与确认为缺图分开；省略时沿用旧布尔语义。 */
   artworkState?: 'available' | 'missing' | 'unknown' | 'source-unavailable'
   /** 全组全部有词才true；未观察/离线/修订过期为unknown，不能按搜索候选判定。 */
@@ -66,6 +68,8 @@ export interface LocalAlbumTrackPage extends LocalAlbumTrackQuery {
 }
 
 export interface LocalAlbumArtworkRequest {
+  /** 仅选择传输尺寸；不改变来源身份、授权或持久封面。 */
+  variant?: 'grid'
   /** 仅明确刷新/重试携带；重探读取观测，不放宽来源身份或许可。 */
   refresh?: true
   albumKey: string
@@ -77,6 +81,15 @@ export interface LocalAlbumArtworkRequest {
 export interface LocalAlbumArtworkReply extends Omit<LocalAlbumArtworkRequest, 'refresh'> {
   image: LocalArtworkImage | null
   status?: 'ready' | 'source-unavailable'
+  /** 与展示图同源生成的持久网格副本；旧缓存没有此字段仍可读取。 */
+  grid?: LocalAlbumArtworkGrid
+}
+export type LocalAlbumArtworkGrid = LocalArtworkImage['display']
+export function isLocalAlbumArtworkGrid(value: unknown): value is LocalAlbumArtworkGrid {
+  if (!closed(value, ['mime', 'bytes', 'sha256', 'width', 'height', 'dataUrl'])) return false
+  const grid = value as unknown as LocalAlbumArtworkGrid
+  return isLocalArtworkImage({ original: { mime: grid.mime, bytes: grid.bytes, sha256: grid.sha256, width: grid.width, height: grid.height }, display: grid })
+    && grid.width <= 512 && grid.height <= 512 && grid.bytes <= 256 * 1024
 }
 
 /** 端口只读；选图、整理、CUE、写回和播放继续走现有工作台。 */
@@ -115,7 +128,7 @@ function statuses(value: unknown): boolean {
   return dense(value, LOCAL_ALBUM_STATUSES.length) && value.every(status => (LOCAL_ALBUM_STATUSES as readonly unknown[]).includes(status)) && new Set(value).size === value.length
 }
 export function isLocalAlbumSummary(value: unknown): value is LocalAlbumSummary {
-  if (!closed(value, ['id', 'kind', 'rootId', 'editionId', 'title', 'artists', 'year', 'versionLabel', 'trackCount', 'representativeTrackId', 'revision', 'artworkAvailable', 'statuses'], ['sourceLabel', 'artworkState', 'lyricsPresence'])) return false
+  if (!closed(value, ['id', 'kind', 'rootId', 'editionId', 'title', 'artists', 'year', 'versionLabel', 'trackCount', 'representativeTrackId', 'revision', 'artworkAvailable', 'statuses'], ['sourceLabel', 'artworkState', 'lyricsPresence', 'artworkPrepared'])) return false
   return opaqueIdentity(value.id) && isCollectionId(value.rootId) && natural(value.trackCount)
     && (value.trackCount === 0 ? value.representativeTrackId === null : isCollectionId(value.representativeTrackId))
     && (value.kind === 'edition' ? isCollectionId(value.editionId) : value.kind === 'source-directory' && value.editionId === null)
@@ -123,6 +136,7 @@ export function isLocalAlbumSummary(value: unknown): value is LocalAlbumSummary 
     && nullableText(value.year) && nullableText(value.versionLabel) && revision(value.revision)
     && (!Object.hasOwn(value, 'sourceLabel') || isLocalCatalogText(value.sourceLabel) && !/^(?:\/|[a-z]:[\\/])/iu.test(value.sourceLabel))
     && typeof value.artworkAvailable === 'boolean' && statuses(value.statuses)
+    && (!Object.hasOwn(value, 'artworkPrepared') || typeof value.artworkPrepared === 'boolean')
     && (!Object.hasOwn(value, 'artworkState') || ['available','missing','unknown','source-unavailable'].includes(String(value.artworkState)))
     && (!Object.hasOwn(value, 'lyricsPresence') || ['unknown', 'false', 'true'].includes(String(value.lyricsPresence)))
     && (value.lyricsPresence === undefined || (value.statuses as unknown[]).includes('missing-lyrics') === (value.lyricsPresence === 'false'))
@@ -170,8 +184,10 @@ const artworkRequest = (album: LocalAlbumSummary): LocalAlbumArtworkRequest => (
 const sameArtworkRequest = (left: LocalAlbumArtworkRequest, right: LocalAlbumArtworkRequest): boolean => left.albumKey === right.albumKey && left.rootId === right.rootId
   && left.editionId === right.editionId && left.representativeTrackId === right.representativeTrackId && left.revision === right.revision
 export function isLocalAlbumArtworkReply(value: unknown, request: LocalAlbumArtworkRequest): value is LocalAlbumArtworkReply {
-  return closed(value, ['albumKey', 'rootId', 'editionId', 'representativeTrackId', 'revision', 'image'], ['status'])
+  return closed(value, ['albumKey', 'rootId', 'editionId', 'representativeTrackId', 'revision', 'image'], ['status', 'grid', 'variant'])
+    && (!Object.hasOwn(value, 'variant') || value.variant === 'grid') && value.variant === request.variant
     && sameArtworkRequest(value as unknown as LocalAlbumArtworkRequest, request) && (value.image === null || isLocalArtworkImage(value.image))
+    && (!Object.hasOwn(value, 'grid') || value.image !== null && isLocalAlbumArtworkGrid(value.grid))
     && (!Object.hasOwn(value, 'status') || value.status === 'ready' || value.status === 'source-unavailable' && value.image === null)
 }
 
@@ -201,7 +217,8 @@ export function isLocalAlbumTrackQuery(value: unknown): value is LocalAlbumTrack
   return closed(value, ['albumKey','rootId','offset','limit']) && opaqueIdentity(value.albumKey) && isCollectionId(value.rootId) && natural(value.offset) && natural(value.limit, 200) && value.limit > 0;
 }
 export function isLocalAlbumArtworkRequest(value: unknown): value is LocalAlbumArtworkRequest {
-  return closed(value, ['albumKey','rootId','editionId','representativeTrackId','revision'], ['refresh'])
+  return closed(value, ['albumKey','rootId','editionId','representativeTrackId','revision'], ['refresh','variant'])
+    && (!Object.hasOwn(value, 'variant') || value.variant === 'grid')
     && (!Object.hasOwn(value, 'refresh') || value.refresh === true) && opaqueIdentity(value.albumKey) && isCollectionId(value.rootId)
     && (value.editionId === null || isCollectionId(value.editionId)) && (value.representativeTrackId === null || isCollectionId(value.representativeTrackId)) && revision(value.revision);
 }
@@ -225,7 +242,7 @@ export function isLocalAlbumCommandResult<C extends LocalAlbumCommand>(command: 
       return isLocalAlbumTrackQuery(request) && isLocalAlbumSummary(row.album) && isLocalAlbumTrackPage(value, request, row.album);
     }
     case 'localAlbum.artwork': {
-      const request = { albumKey: row.albumKey, rootId: row.rootId, editionId: row.editionId, representativeTrackId: row.representativeTrackId, revision: row.revision };
+      const request = { albumKey: row.albumKey, rootId: row.rootId, editionId: row.editionId, representativeTrackId: row.representativeTrackId, revision: row.revision, ...(Object.hasOwn(row, 'variant') ? { variant: row.variant } : {}) };
       return isLocalAlbumArtworkRequest(request) && isLocalAlbumArtworkReply(value, request);
     }
   }

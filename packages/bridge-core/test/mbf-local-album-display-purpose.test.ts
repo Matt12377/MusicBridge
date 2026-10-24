@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { after } from 'node:test'
 import { createHash, randomUUID } from 'node:crypto'
 import { fstatSync } from 'node:fs'
 import { mkdtemp, mkdir, open, readFile, rm, stat, writeFile, type FileHandle } from 'node:fs/promises'
@@ -12,6 +12,7 @@ import { createLocalAlbumArtworkReader } from '../src/collection/local-album-bro
 import type { LocalAlbumArtworkReadContext } from '../src/collection/local-album-browser/types.js'
 import { isDatasetProjectionPayload, type DatasetProjectionPort } from '../src/collection/dataset-owner-protocol.js'
 import { createScanReadAdmission } from '../src/library/scan-read-admission.js'
+import { closeRustMediaWorkerPool } from '../src/library/rust-media-worker.js'
 import { authorizeSourceDirectory, sourceRootAvailability } from '../src/recording/source-files.js'
 import { createBridgeRuntime } from '../src/runtime.js'
 import { RoonAudioInputAdapter } from '../src/roon/adapter.js'
@@ -21,6 +22,8 @@ import { StreamGateway } from '../src/stream/gateway.js'
 import { ControlServer } from '../src/control/server.js'
 import { createLocalFavoriteRepository } from '../src/favorites/repository.js'
 import { createLogger } from '../src/shared/logger.js'
+
+after(() => closeRustMediaWorkerPool())
 
 function deferred() {
   let resolve!: () => void
@@ -113,7 +116,7 @@ test('DISPLAY_PURPOSE原Reader：冷PNG显示可读，candidate仍拒；混合�
     }
     throw new Error('本用例只验证原来源读取，不冒Main解码')
   } }
-  artwork = createLocalAlbumArtworkReader({ repository, projection, assertCurrent() {} })
+  artwork = createLocalAlbumArtworkReader({ repository, projection, datasetId: scope.datasetId, assertCurrent() {} })
   albums = createLocalAlbumOwnerService({ repository, assertCurrent() {},
     async readRootViews() { return [{ root: repository!.localCatalog.root(root.id), label: '合成来源', availability: await sourceRootAvailability(repository!.sources.root(root.sourceRootId)) }] },
     async readArtwork() { throw new Error('本用例不替代正式readSources') },
@@ -123,8 +126,9 @@ test('DISPLAY_PURPOSE原Reader：冷PNG显示可读，candidate仍拒；混合�
   const right = target(repository, page.items.find(item => item.representativeTrackId === tracks[1]!.id)!)
   const before = authorRows(file)
   assert.equal(before.find(([name]) => name === 'local_artwork_selections')?.[1], 0)
-  const read = (value: typeof left, mode: 'candidate' | 'display') => {
-    const task = artwork!.readSources(value, randomUUID(), undefined, undefined, mode)
+  const read = (value: typeof left, mode: 'candidate' | 'display', refresh = false) => {
+    const sourceRead = refresh ? { ...value, request: { ...value.request, refresh: true as const } } : value
+    const task = artwork!.readSources(sourceRead, randomUUID(), undefined, undefined, mode)
     tasks.push(task); void task.catch(() => {})
     return task
   }
@@ -169,13 +173,14 @@ test('DISPLAY_PURPOSE原Reader：冷PNG显示可读，candidate仍拒；混合�
     }
     return Reflect.apply(originalRead, this, args)
   })
-  const acquireStart = acquires.length, first = read(left, 'display')
+  // 此阶段验证真实来源FD，显式刷新不能被上一步已经准备的持久图命中替代。
+  const acquireStart = acquires.length, first = read(left, 'display', true)
   await Promise.race([entered.promise, first.then(() => assert.fail('未进入真实封面FD'))])
   const heldCover = held[0]; assert.ok(heldCover)
   assert.equal(heldCover.handle.fd, heldCover.fd); assert.ok(fstatSync(heldCover.fd).isFile())
   assert.equal(admission.resourceCounts().permits, 2)
   onDeferred = deferredRead.resolve
-  const second = read(right, 'display')
+  const second = read(right, 'display', true)
   await Promise.race([deferredRead.promise, second.then(() => assert.fail('第二显示没有等待原许可'))])
   scanBusy = true; admission.observe()
   assert.deepEqual(await externalWatch, { reason: 'media-busy' })

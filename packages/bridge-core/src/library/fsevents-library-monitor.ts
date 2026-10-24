@@ -3,6 +3,7 @@ import { open, realpath, lstat, readdir, type FileHandle } from 'node:fs/promise
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { isCanonicalUnsignedStatInode, nodeStatInodeAsUnsignedDecimal } from '../shared/filesystem-inode.js';
 
 export interface LibraryWatchBundle { root: string; manifestSha256: string; programSha256: string; programBytes: number }
 const admitted = new WeakSet<LibraryWatchBundle>();
@@ -144,7 +145,7 @@ export interface LibraryDirectoryStructureFacts {
 const directoryPhysicalKeys=['dev','ino','birthtimeNs','mode','uid','gid'] as const;
 function directoryPhysical(value:unknown):value is LibraryDirectoryPhysical {
   return keys(value,directoryPhysicalKeys)&&directoryPhysicalKeys.every(key=>typeof value[key]==='string'
-    && (key==='birthtimeNs'?/^-?(?:0|[1-9][0-9]{0,23})$/u:/^(?:0|[1-9][0-9]{0,19})$/u).test(value[key] as string))&&(BigInt(value.mode as string)&0o170000n)===0o040000n;
+    && (key==='ino'?isCanonicalUnsignedStatInode(value[key]):(key==='birthtimeNs'?/^-?(?:0|[1-9][0-9]{0,23})$/u:/^(?:0|[1-9][0-9]{0,19})$/u).test(value[key] as string)))&&(BigInt(value.mode as string)&0o170000n)===0o040000n;
 }
 function sameDirectoryPhysical(left:LibraryDirectoryPhysical,right:LibraryDirectoryPhysical):boolean {
   return directoryPhysicalKeys.every(key=>left[key]===right[key]);
@@ -240,7 +241,7 @@ export async function probeLibraryDirectoryStructure(bundle:LibraryWatchBundle,o
       throw new LibraryDirectoryProbeError('原结构探测未取得当代成功回执。',true,raw,{cause:failure});
     current();await options.assertCurrent();current();const after=await options.root.stat({bigint:true});current();
     if(!after.isDirectory()||directoryPhysicalKeys.some(key=>original[key]!==after[key]))throw new Error('原Owner结构根FD身份改变。');
-    const expected=Object.fromEntries(directoryPhysicalKeys.map(key=>[key,String(original[key])])) as unknown as LibraryDirectoryPhysical;
+    const expected=Object.fromEntries(directoryPhysicalKeys.map(key=>[key,key==='ino'?nodeStatInodeAsUnsignedDecimal(original.ino):String(original[key])])) as unknown as LibraryDirectoryPhysical;
     const facts=readLibraryDirectoryStructureBytes(raw.stdout,expected);current();await options.assertCurrent();current();
     return {facts,raw:{...raw,exitCode:0,signal:null,pid:child.pid,pidClosed:true}};
   }catch(error){

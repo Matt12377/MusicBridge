@@ -1,0 +1,263 @@
+/* 播放与空闲共用紧凑玻璃胶囊，进度交互只占用中间区域。 */
+:root .global-player.is-reference-player {
+  --player-foreground: #fff;
+  --player-muted: rgb(255 255 255 / 36%);
+  --player-glint: rgb(255 255 255 / 24%);
+  display: grid;
+  width: calc(100% - 32px);
+  max-width: 780px;
+  height: 60px;
+  min-height: 60px;
+  padding: 0 14px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  border-radius: 999px;
+  color: var(--player-foreground);
+  border: 1px solid var(--player-glint);
+  background: linear-gradient(115deg, rgb(189 211 210 / 28%), rgb(148 154 153 / 20%));
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 12%), inset 0 1px 0 rgb(255 255 255 / 18%), inset 0 -1px 0 rgb(255 255 255 / 8%);
+}
+:root[data-theme] .global-player.is-reference-player {
+  background: linear-gradient(115deg, rgb(189 211 210 / 28%), rgb(148 154 153 / 20%));
+  border-color: var(--player-glint);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 12%), inset 0 1px 0 rgb(255 255 255 / 18%), inset 0 -1px 0 rgb(255 255 255 / 8%);
+}
+:root .app-shell:not(.is-now-playing) .global-player.is-reference-player {
+  inset-inline-start: var(--mb-sidebar-width);
+  inset-inline-end: 0;
+  width: min(780px, calc(100% - var(--mb-sidebar-width) - 32px));
+}
+:root .global-player.is-reference-player.is-idle { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); }
+:root .global-player.is-reference-player .player-controls {
+  grid-column: 1;
+  grid-row: 1;
+  justify-content: flex-start;
+  gap: 6px;
+}
+:root .global-player.is-reference-player .player-control-button,
+:root .global-player.is-reference-player .player-play-button,
+:root .global-player.is-reference-player .player-mode-icon {
+  display: grid;
+  width: 30px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--player-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
+  opacity: 1;
+}
+:root .global-player.is-reference-player .player-play-button { width: 36px; }
+:root .global-player.is-reference-player .player-play-button::before { content: none; animation: none; }
+:root .global-player.is-reference-player .player-mode-icon { width: 22px; }
+:root .global-player.is-reference-player .player-control-button .player-reference-icon { width: 26px; height: 26px; }
+:root .global-player.is-reference-player .player-play-button .player-reference-icon { width: 32px; height: 32px; }
+:root .global-player.is-reference-player .player-mode-icon .player-reference-icon { width: 18px; height: 18px; }
+:root .global-player.is-reference-player .player-controls button:not(:disabled) { color: var(--player-foreground); }
+:root .global-player.is-reference-player .player-controls button:hover:not(:disabled) { background: rgb(255 255 255 / 8%); }
+:root .global-player.is-reference-player .player-idle-brand {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 34px;
+  line-height: 1;
+  color: rgb(255 255 255 / 48%);
+  user-select: none;
+  pointer-events: none;
+}
+:root .global-player.is-reference-player .player-content {
+  --timeline-height: 14px;
+  --timeline-range-height: 12px;
+  --timeline-track-height: 2px;
+  --timeline-range-bottom: 0px;
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: stretch;
+  min-width: 0;
+}
+:root .global-player.is-reference-player .player-content-details {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+:root .global-player.is-reference-player .player-track {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  gap: 9px;
+  grid-column: auto;
+  grid-row: auto;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+:root .global-player.is-reference-player .player-art {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+}
+:root .global-player.is-reference-player .player-track-copy { display: grid; min-width: 0; gap: 1px; }
+:root .global-player.is-reference-player .player-track strong {
+  color: var(--player-foreground);
+  font-size: 13px;
+  line-height: 17px;
+  font-weight: 650;
+}
+:root .global-player.is-reference-player .player-track small {
+  margin: 0;
+  color: rgb(255 255 255 / 90%);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+:root .global-player.is-reference-player .player-quality-control { flex: 0 0 auto; min-width: 0; }
+:root .global-player.is-reference-player .player-quality-button {
+  width: auto;
+  min-width: 0;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 4px;
+  color: rgb(255 255 255 / 65%);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+:root .global-player.is-reference-player .player-quality-button strong { font-size: 10px; }
+:root .global-player.is-reference-player .player-quality-button > .sidebar-icon { display: none; }
+:root .global-player.is-reference-player .player-meta {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 0;
+}
+:root .global-player.is-reference-player .player-inspector-button,
+:root .global-player.is-reference-player .player-zone-button {
+  display: grid;
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  color: var(--player-foreground);
+  background: transparent;
+}
+:root .global-player.is-reference-player .player-meta .player-reference-icon { width: 26px; height: 26px; }
+:root .global-player.is-reference-player .player-zone-button > span,
+:root .global-player.is-reference-player .player-zone-button > .sidebar-icon { display: none; }
+:root .global-player.is-reference-player .player-inspector-button:hover:not(:disabled),
+:root .global-player.is-reference-player .player-zone-button:hover { background: rgb(255 255 255 / 10%); }
+:root .global-player.is-reference-player button:focus-visible { outline: 2px solid var(--player-foreground); outline-offset: 3px; }
+
+/* 细线有独立命中区域，悬停、拖动和键盘聚焦时展开。 */
+:root .global-player.is-reference-player .player-timeline {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: var(--timeline-height);
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  grid-column: auto;
+  grid-row: auto;
+}
+:root .global-player.is-reference-player .player-timeline time {
+  position: absolute;
+  bottom: 20px;
+  inset-inline-start: 0;
+  min-width: 0;
+  color: var(--player-foreground);
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+:root .global-player.is-reference-player .player-timeline time:last-child { inset-inline-start: auto; inset-inline-end: 0; }
+:root .global-player.is-reference-player .player-timeline input {
+  position: absolute;
+  inset-inline: 0;
+  bottom: var(--timeline-range-bottom);
+  display: block;
+  width: 100%;
+  height: var(--timeline-range-height);
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  touch-action: none;
+  accent-color: var(--player-foreground);
+}
+:root .global-player.is-reference-player .player-timeline input::-webkit-slider-runnable-track {
+  height: var(--timeline-track-height);
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--player-foreground) var(--progress), rgb(255 255 255 / 28%) var(--progress));
+}
+:root .global-player.is-reference-player .player-timeline input::-webkit-slider-thumb {
+  appearance: none;
+  width: 0;
+  height: 0;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+}
+:root .global-player.is-reference-player .player-timeline input:disabled { opacity: .55; }
+:root .global-player.is-reference-player .player-timeline input:focus-visible { outline: 2px solid var(--player-foreground); outline-offset: 2px; }
+:root .global-player.is-reference-player .player-content:has(.player-timeline:hover, .player-timeline input:active, .player-timeline input:focus-visible) {
+  --timeline-height: 44px;
+  --timeline-range-height: 24px;
+  --timeline-track-height: 8px;
+  --timeline-range-bottom: 2px;
+}
+:root .global-player.is-reference-player .player-content:has(.player-timeline:hover, .player-timeline input:active, .player-timeline input:focus-visible) .player-timeline time { opacity: 1; visibility: visible; }
+:root .global-player.is-reference-player .player-content:has(.player-timeline:hover, .player-timeline input:active, .player-timeline input:focus-visible) :is(.player-track, .player-quality-button) {
+  opacity: .1;
+  filter: blur(4px);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root .global-player.is-reference-player :is(.player-track, .player-quality-button) { transition: opacity 140ms ease, filter 140ms ease; }
+  :root .global-player.is-reference-player .player-timeline { transition: height 140ms ease; }
+  :root .global-player.is-reference-player .player-timeline input { transition: height 140ms ease, bottom 140ms ease; }
+  :root .global-player.is-reference-player .player-timeline input::-webkit-slider-runnable-track { transition: height 140ms ease; }
+  :root .global-player.is-reference-player .player-timeline time { transition: opacity 140ms ease; }
+}
+@media (max-width: 900px) {
+  :root .global-player.is-reference-player { padding-inline: 12px; gap: 8px; }
+  :root .global-player.is-reference-player .player-track { gap: 7px; }
+  :root .global-player.is-reference-player .player-quality-button strong { font-size: 9px; }
+}
+@media (max-width: 650px) {
+  :root .global-player.is-reference-player .player-mode-icon { display: none; }
+  :root .global-player.is-reference-player .player-controls,
+  :root .global-player.is-reference-player .player-meta { gap: 4px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme] .global-player.is-reference-player { background: #757c80; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

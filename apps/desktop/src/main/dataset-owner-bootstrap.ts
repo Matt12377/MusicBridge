@@ -7,10 +7,12 @@ import { isDatasetWorkbenchNativeConfiguration, captureDatasetWorkbenchNativeCon
 import path from 'node:path'
 import { MessagePort } from 'node:worker_threads'
 import { PHYSICAL_RESOURCE_BUFFER_BYTES } from '../../../../packages/bridge-core/src/stream/physical-resource-locks.js'
+import { isDatasetOwnerReadRevocationBuffer } from '../../../../packages/bridge-core/src/collection/dataset-owner-read-revocation.js'
 
 export function datasetOwnerEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = {}
   for (const key of ['NODE_ENV', 'TMPDIR', 'DEV_BUILD_ROOT', 'DEV_CACHE_ROOT', 'NODE_COMPILE_CACHE',
+    'MB_MEDIA_WORKER_BINARY', 'MB_MEDIA_WORKER_BINARY_SHA256',
     'LANG', 'LC_ALL', 'TZ', 'MUSIC_BRIDGE_CORE_TEST_MODE', 'MUSIC_BRIDGE_UI_E2E',
     'MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE', 'MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE', 'MUSIC_BRIDGE_MOBILE_DSD_BACKEND_GATE']) {
     const value = env[key]
@@ -19,11 +21,12 @@ export function datasetOwnerEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessE
   return result
 }
 
-export function parseDatasetOwnerWorkerData(value: unknown): { dataDirectory: string; resourcesDirectory: string; localWorkbenchNative?: Readonly<DatasetWorkbenchNativeConfiguration>; physicalResourceBuffer?: SharedArrayBuffer;sourceWritesPort?:MessagePort; relocationMainPort?: MessagePort } {
+export function parseDatasetOwnerWorkerData(value: unknown): { dataDirectory: string; resourcesDirectory: string; localWorkbenchNative?: Readonly<DatasetWorkbenchNativeConfiguration>; physicalResourceBuffer?: SharedArrayBuffer; albumReadRevocationBuffer?: SharedArrayBuffer;sourceWritesPort?:MessagePort; relocationMainPort?: MessagePort } {
   if (typeof value !== 'object' || value === null || Array.isArray(value) || bootstrapTypes.isProxy(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new Error('数据集所有者启动身份无效。')
   const input = value as Record<string, unknown>
   const descriptors = Object.getOwnPropertyDescriptors(input)
-  if (![2,3,4,5,6].includes(Reflect.ownKeys(input).length) || Reflect.ownKeys(input).some(key => typeof key !== 'string' || descriptors[key]?.enumerable !== true || !Object.hasOwn(descriptors[key]!, 'value')) || Object.keys(input).some(key => !['dataDirectory', 'resourcesDirectory', 'physicalResourceBuffer','sourceWritesPort','relocationMainPort','localWorkbenchNative'].includes(key))
+  if (![2,3,4,5,6,7].includes(Reflect.ownKeys(input).length) || Reflect.ownKeys(input).some(key => typeof key !== 'string' || descriptors[key]?.enumerable !== true || !Object.hasOwn(descriptors[key]!, 'value')) || Object.keys(input).some(key => !['dataDirectory', 'resourcesDirectory', 'physicalResourceBuffer','albumReadRevocationBuffer','sourceWritesPort','relocationMainPort','localWorkbenchNative'].includes(key))
+    || Object.hasOwn(input, 'albumReadRevocationBuffer') && !isDatasetOwnerReadRevocationBuffer(input.albumReadRevocationBuffer)
     || Object.hasOwn(input,'localWorkbenchNative') && !isDatasetWorkbenchNativeConfiguration(input.localWorkbenchNative)
     || Object.hasOwn(input,'sourceWritesPort') && !(input.sourceWritesPort instanceof MessagePort)
     || Object.hasOwn(input, 'relocationMainPort') && (!(input.relocationMainPort instanceof MessagePort) || input.relocationMainPort === input.sourceWritesPort)
@@ -34,7 +37,7 @@ export function parseDatasetOwnerWorkerData(value: unknown): { dataDirectory: st
     || input.resourcesDirectory.length > 1024 || input.resourcesDirectory.includes('\0')) {
     throw new Error('数据集所有者启动身份无效。')
   }
-  return { dataDirectory: input.dataDirectory, resourcesDirectory: input.resourcesDirectory, ...(Object.hasOwn(input,'localWorkbenchNative') ? {localWorkbenchNative:captureDatasetWorkbenchNativeConfiguration(input.localWorkbenchNative)} : {}), ...(input.physicalResourceBuffer instanceof SharedArrayBuffer ? { physicalResourceBuffer: input.physicalResourceBuffer } : {}),...(input.sourceWritesPort instanceof MessagePort?{sourceWritesPort:input.sourceWritesPort}:{}), ...(input.relocationMainPort instanceof MessagePort ? { relocationMainPort: input.relocationMainPort } : {}) }
+  return { dataDirectory: input.dataDirectory, resourcesDirectory: input.resourcesDirectory, ...(Object.hasOwn(input,'localWorkbenchNative') ? {localWorkbenchNative:captureDatasetWorkbenchNativeConfiguration(input.localWorkbenchNative)} : {}), ...(input.physicalResourceBuffer instanceof SharedArrayBuffer ? { physicalResourceBuffer: input.physicalResourceBuffer } : {}), ...(isDatasetOwnerReadRevocationBuffer(input.albumReadRevocationBuffer) ? { albumReadRevocationBuffer: input.albumReadRevocationBuffer } : {}),...(input.sourceWritesPort instanceof MessagePort?{sourceWritesPort:input.sourceWritesPort}:{}), ...(input.relocationMainPort instanceof MessagePort ? { relocationMainPort: input.relocationMainPort } : {}) }
 }
 
 

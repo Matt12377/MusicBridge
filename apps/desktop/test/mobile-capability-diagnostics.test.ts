@@ -21,6 +21,8 @@ import { MOBILE_CAPABILITY_TRACE_PREFIX, createMobileCapabilityContext, withMobi
   closeMobileCapabilityContext, captureMobileCapabilityContext, mobileCapabilityRequestSha,
   createMobileCapabilityTraceCollector, createMobileCapabilityTraceReader,
   snapshotMobileCapabilityTrace, type MobileCapabilityTraceSnapshot } from '../../../packages/bridge-core/src/mobile/capability-trace.js';
+import { createMobileOwnerLoadTraceProbe, MOBILE_OWNER_LOAD_TRACE_PREFIX, copyMobileOwnerLoadCapabilityFrame,
+  copyMobileOwnerLoadTraceFrame } from '../../../packages/bridge-core/src/mobile/owner-load-trace.js';
 
 // 原Main/Auth/codec/内容RPC合成链；仅第三例用原TLS工厂与loopback，不连接Provider、真实Owner、数据库或设备。
 const SERVER = 'server.capability-fixture', DATASET = '20000000-0000-4000-8000-000000000001';
@@ -54,15 +56,16 @@ async function backendFixture(t: TestContext) {
   const stored: { auth: MobileSealedState; playback: MobileSealedState } = {
     auth: { kind: 'missing', datasetId: DATASET, revision: 0 }, playback: { kind: 'missing', datasetId: DATASET, revision: 0 } };
   const state: { init: number; scopes: number; qualifies: number; failNextLoad: unknown;
-    failAfterScope: unknown; scopeError: unknown; cancelError: unknown; expectCloseFailure: boolean; qualified: boolean } = { init: 0, scopes: 0, qualifies: 0,
-    failNextLoad: undefined, failAfterScope: undefined, scopeError: undefined, cancelError: undefined, expectCloseFailure: false, qualified: true };
+    failAfterScope: unknown; scopeError: unknown; cancelError: unknown; expectCloseFailure: boolean; qualified: boolean; providerReady: boolean } = { init: 0, scopes: 0, qualifies: 0,
+    failNextLoad: undefined, failAfterScope: undefined, scopeError: undefined, cancelError: undefined, expectCloseFailure: false, qualified: true, providerReady: false };
   const rpc = createMobileContentRpcPort({
     async initialize() { state.init++; },
     async resolveScope(value) {
       state.scopes++;
       if (state.scopeError !== undefined) throw state.scopeError;
       if (state.failAfterScope !== undefined) { state.failNextLoad = state.failAfterScope; state.failAfterScope = undefined; }
-      return { ...value, ownerEpoch: 'owner.capability-fixture', accountDomain: `local:${DATASET}`, providerEpoch: null };
+      return { ...value, ownerEpoch: 'owner.capability-fixture', accountDomain: state.providerReady ? 'account.capability-fixture' : `local:${DATASET}`,
+        providerEpoch: state.providerReady ? 'provider.capability-fixture' : null };
     },
     assertScope() {}, async invalidateDevice() {},
     async neteasePlaybackQualified() { state.qualifies++; return state.qualified; },
@@ -100,6 +103,36 @@ async function backendFixture(t: TestContext) {
     installationId: 'installation.capability-fixture', deviceName: '合成手机' }, 'claim.capability-fixture');
   return { service, state, calls, ownerCalls, pair };
 }
+
+test('UI能力旁注逐项对应Main实际声明，Provider可用、需登录和scope暂错不混淆', { concurrency: false }, async t => {
+  for (const mode of ['ready', 'loginRequired', 'unavailable'] as const) await t.test(mode, async child => {
+    const f = await backendFixture(child), output = trace();
+    f.state.providerReady = mode === 'ready';
+    if (mode === 'unavailable') f.state.scopeError = new MobileServiceError(503, 'BUSY');
+    const decoded = decodeMobileRequest('getUIContentCapabilities', { method: 'GET', path: '/mobile/v1/ui/capabilities',
+      headers: [['Authorization', `Bearer ${f.pair.accessToken}`]], query: [], body: new Uint8Array() },
+    { responseOrigin: ORIGIN, requestPath: '/mobile/v1/ui/capabilities' }); assert.ok(decoded.ok);
+    const context = createMobileCapabilityContext(randomUUID(), 'main', 'http', null, undefined, output.write); assert.ok(context);
+    context.httpTerminalReserve = true;
+    const reply = await withMobileCapabilityContext(context, async () => {
+      const response = await f.service.dsdBackend!.dispatch({ operation: 'getUIContentCapabilities', request: decoded.value,
+        accessToken: f.pair.accessToken, signal: new AbortController().signal, origin: ORIGIN });
+      await response.beforeSend?.(); return response;
+    });
+    closeMobileCapabilityContext(context);
+    const body = JSON.parse(new TextDecoder().decode(reply.body)) as Record<string, unknown>;
+    const rows = output.collector.snapshot().records.filter(row => row.stage.startsWith('http.ui.feature.'));
+    assert.equal(rows.length, 10);
+    for (const feature of ['addedAlbums', 'neteaseDailyRecommendations', 'lyrics', 'neteaseLikedPlaylist', 'personalFavorites',
+      'personalPlaylists', 'neteaseRecommendedPlaylists', 'neteaseNewAlbums', 'neteaseCharts', 'neteasePersonalFM']) {
+      assert.equal(rows.filter(row => row.stage === `http.ui.feature.${feature}.${String(body[feature] ?? 'unsupported')}`
+        && row.phase === 'cache' && row.code === 'OK').length, 1);
+    }
+    assert.equal(body.neteaseLikedPlaylist, mode);
+    assert.equal(body.personalPlaylists, mode === 'unavailable' ? 'unavailable' : 'ready');
+    assert.doesNotMatch(output.lines.join(''), /account\.capability-fixture|provider\.capability-fixture|Bearer|accessToken|pairingSecret|message|stack/u);
+  });
+});
 
 test('能力诊断：原初始化并发等待和拒绝缓存绑定首次RPC，复用不增发也不换原错误', { concurrency: false }, async t => {
   const entered = deferred(), release = deferred(), reused = deferred(), output = trace();
@@ -181,6 +214,8 @@ test('能力诊断：原Main认证与发送前首拒保持错误身份，sink故
     assert.ok(error instanceof MobileServiceError); assert.equal(error.code, 'BUSY');
     assert.equal(Object.getOwnPropertyDescriptor(error, 'outcome')?.value, 'unknown'); return true;
   });
+  assert.equal(f.calls.filter(call => call.action === 'cancel').length, 1);
+  const scopeCallsBeforeClose = f.calls.filter(call => call.action === 'scope').length;
   const closing = f.service.close(); assert.equal(f.service.close(), closing);
   await assert.rejects(closing, error => {
     assert.ok(error instanceof AggregateError);
@@ -193,7 +228,12 @@ test('能力诊断：原Main认证与发送前首拒保持错误身份，sink故
   const cleanupHash = mobileCapabilityRequestSha('content', cancel.id);
   assert.ok(final.cleanupFailures.some(row => row.requestSha256 === cleanupHash && row.parentSha256 === unknown!.requestSha256 && row.stage === 'content.rpc.cancel'));
   assert.equal(final.firstBusinessFailures.some(row => row.requestSha256 === cleanupHash), false);
-  assert.equal(f.calls.filter(call => call.action === 'cancel').length, 1);
+  const cancellations = f.calls.filter(call => call.action === 'cancel');
+  assert.equal(cancellations.length, 2);
+  assert.notEqual(cancellations[0]!.id, cancellations[1]!.id);
+  assert.deepEqual(cancellations.map(call => ({ requestId: call.requestId, snapshotId: call.snapshotId, scope: call.scope })),
+    [0, 1].map(() => ({ requestId: cancel.requestId, snapshotId: cancel.snapshotId, scope: cancel.scope })));
+  assert.equal(f.calls.filter(call => call.action === 'scope').length, scopeCallsBeforeClose, '退出只复核原取消，不重放资格业务。');
 });
 
 interface HttpResult { status: number; body: Buffer }
@@ -233,23 +273,38 @@ test('能力诊断：真实HTTPS仅普通capabilities激活，原安全回执non
       return Buffer.concat([decipher.update(value.subarray(28)), decipher.final()]).toString('utf8'); },
   } });
   t.after(() => { key.fill(0); identity.authKey.fill(0); });
-  server = createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: '127.0.0.1', port: 0, backend: f.service.backend });
+  const ownerLoadLines: string[] = [];
+  const ownerLoadProbe = createMobileOwnerLoadTraceProbe({ enabled: true, sink: line => {
+    ownerLoadLines.push(line);
+    const raw: unknown = JSON.parse(line.slice(MOBILE_OWNER_LOAD_TRACE_PREFIX.length));
+    const detail = copyMobileOwnerLoadCapabilityFrame(raw);
+    if (detail) output.collector.record(detail.record);
+  } });
+  server = createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: '127.0.0.1', port: 0,
+    backend: f.service.backend, ownerLoadTraceProbe: ownerLoadProbe });
   const listening = await server.start();
-  const none = output.collector.snapshot().records.length;
+  const none = output.collector.snapshot().records.length, identityOrdinal = ownerLoadProbe.snapshot().claimed + 1;
   assert.equal((await read(listening.baseUrl, '/mobile/v1/server', identity.certificatePEM)).status, 200);
   assert.equal(output.collector.snapshot().records.length, none);
+  assert.equal(ownerLoadProbe.snapshot().claimed, identityOrdinal);
+  assert.ok(ownerLoadProbe.snapshot().ordinaryRecords > 0, '身份读取真实占用原Owner普通槽，不能通过重排掩盖竞争。');
+  const capabilityOrdinal = ownerLoadProbe.snapshot().claimed + 1;
   const good = await read(listening.baseUrl, '/mobile/v1/capabilities', identity.certificatePEM, f.pair.accessToken);
   assert.equal(good.status, 200); assert.equal(f.state.init, 1); assert.equal(f.state.scopes, 2);
+  assert.equal(ownerLoadProbe.snapshot().claimed, capabilityOrdinal);
   const failed = new MobileServiceError(503, 'BUSY'); f.state.failAfterScope = failed;
+  const failureOrdinal = ownerLoadProbe.snapshot().claimed + 1;
   const bad = await read(listening.baseUrl, '/mobile/v1/capabilities', identity.certificatePEM, f.pair.accessToken);
   assert.equal(bad.status, 503);
   const body = JSON.parse(bad.body.toString('utf8')) as { error: { code: string; message: string; requestId: string; retryable: boolean } };
   assert.equal(body.error.code, 'BUSY'); assert.equal(body.error.retryable, false);
   assert.equal(body.error.message, '服务忙，请稍后重试。');
   assert.deepEqual(Object.keys(body.error).sort(), ['code', 'message', 'requestId', 'retryable']);
-  const httpHash = mobileCapabilityRequestSha('http', body.error.requestId), rows = output.collector.snapshot().records;
+  const httpHash = mobileCapabilityRequestSha('http', body.error.requestId);
   assert.ok(httpHash);
-  assert.equal(output.collector.snapshot().firstBusinessFailures.find(row => row.component === 'main' && row.requestSha256 === httpHash)?.stage, 'main.beforeSend.alive');
+  // 第二个HTTP分支可能已无普通输出槽；原process安全环仍核首错、父链和初始化缓存，不伪称外部帧完整。
+  const originalSnapshot = snapshotMobileCapabilityTrace(), rows = originalSnapshot.records;
+  assert.equal(originalSnapshot.firstBusinessFailures.find(row => row.component === 'main' && row.requestSha256 === httpHash)?.stage, 'main.beforeSend.alive');
   assert.ok(rows.some(row => row.requestSha256 === httpHash && row.stage === 'http.failure' && row.phase === 'reject'));
   assert.ok(rows.some(row => row.component === 'main' && row.parentSha256 === httpHash && row.stage === 'content.rpc.scope'));
   const init = f.calls.find(call => call.action === 'initialize'); assert.ok(init);
@@ -259,9 +314,48 @@ test('能力诊断：真实HTTPS仅普通capabilities激活，原安全回执non
   const text = output.lines.join('');
   for (const value of [f.pair.accessToken, f.pair.refreshToken, body.error.requestId, directory, listening.baseUrl, init.id]) assert.equal(text.includes(value), false);
   assert.equal(rows.every(row => /^[a-f0-9]{64}$/u.test(row.requestSha256)), true);
-  const before = rows.length;
+  const mixedFrames = ownerLoadLines.map(line => {
+    assert.ok(line.startsWith(MOBILE_OWNER_LOAD_TRACE_PREFIX)); assert.ok(Buffer.byteLength(line) <= 1024);
+    const raw: unknown = JSON.parse(line.slice(MOBILE_OWNER_LOAD_TRACE_PREFIX.length));
+    const frame = copyMobileOwnerLoadTraceFrame(raw) ?? copyMobileOwnerLoadCapabilityFrame(raw);
+    assert.ok(frame, '旧event与新detail都必须通过实际严格codec。'); return frame;
+  });
+  const ownerFrames = mixedFrames.filter(frame => frame.type === 'mobile-owner-load-trace');
+  const details = mixedFrames.filter(frame => frame.type === 'mobile-owner-load-capability');
+  assert.ok(details.length > 0, '真实HTTPS的detail出口必须接入原安全collector。');
+  assert.ok(details.every(frame => output.collector.snapshot().records.some(row =>
+    JSON.stringify(row) === JSON.stringify(frame.record))));
+  const normalOwnerFrames = ownerFrames.filter(frame => frame.event.ordinal === capabilityOrdinal);
+  for (const [stage, outcome] of [['http.dispatch', 'begin'], ['http.dispatch', 'ok'], ['main.auth', 'begin'], ['main.auth', 'ok'],
+    ['main.initial-qualification', 'begin'], ['main.encode', 'ok'], ['main.before-send.qualification', 'begin'],
+    ['main.before-send.auth', 'begin'], ['main.before-send.auth', 'ok'], ['main.content.initialize', 'begin'], ['main.content.scope', 'begin']]) {
+    assert.ok(normalOwnerFrames.some(frame => frame.event.stage === stage && frame.event.outcome === outcome), `完整能力链必须记录${stage}/${outcome}`);
+  }
+  const terminals = ownerFrames.filter(frame => frame.event.stage === 'http.terminal');
+  assert.deepEqual(terminals.map(frame => frame.event.http?.status), [200, 200, 503]);
+  assert.equal(terminals.every(frame => frame.event.http?.headersSent && frame.event.http.writableFinished && !frame.event.http.aborted), true);
+  assert.ok(ownerFrames.some(frame => frame.event.ordinal === failureOrdinal && frame.event.stage === 'http.before-send.alive' && frame.event.outcome === 'error'));
+  for (const value of [f.pair.accessToken, f.pair.refreshToken, body.error.requestId, directory, listening.baseUrl, init.id]) assert.equal(ownerLoadLines.join('').includes(value), false);
+  assert.equal(ownerLoadProbe.snapshot().claimed, failureOrdinal);
+  const budget = ownerLoadProbe.snapshot();
+  assert.equal(budget.records, mixedFrames.length); assert.equal(budget.bytes, ownerLoadLines.reduce((sum, line) => sum + Buffer.byteLength(line), 0));
+  assert.ok(budget.records <= 64 && budget.ordinaryRecords <= 28 && budget.bytes <= 65536);
+  assert.ok(budget.suppressed > 0, '混合输出明确报告压缩或预算省略，不能据缺行推导原工作未执行。');
+  const publishedFailure = output.collector.snapshot().firstBusinessFailures.find(row => row.component === 'main' && row.requestSha256 === httpHash);
+  if (publishedFailure) assert.equal(publishedFailure.stage, 'main.beforeSend.alive');
+  else assert.ok(budget.suppressed > 0, '原首拒已由process安全环核实，未发布必须有省略计数。');
+  const before = output.collector.snapshot().records.length, beforeOwnerLines = ownerLoadLines.length;
+  const repeatedIdentityOrdinal = ownerLoadProbe.snapshot().claimed + 1;
   assert.equal((await read(listening.baseUrl, '/mobile/v1/server', identity.certificatePEM)).status, 200);
   assert.equal(output.collector.snapshot().records.length, before);
+  const repeatedIdentityFrames = ownerLoadLines.slice(beforeOwnerLines).map(line => copyMobileOwnerLoadTraceFrame(
+    JSON.parse(line.slice(MOBILE_OWNER_LOAD_TRACE_PREFIX.length)) as unknown));
+  assert.ok(repeatedIdentityFrames.length > 0);
+  assert.ok(repeatedIdentityFrames.every(frame => frame && frame.event.ordinal === repeatedIdentityOrdinal), '身份读取只增加自身闭集Owner帧，不激活能力细节。');
+  assert.ok(repeatedIdentityFrames.some(frame => frame?.event.stage === 'http.terminal' && frame.event.http?.status === 200));
+  assert.equal(ownerLoadProbe.snapshot().claimed, repeatedIdentityOrdinal);
+  assert.ok(ownerLoadProbe.snapshot().records <= 64 && ownerLoadProbe.snapshot().ordinaryRecords <= 28 && ownerLoadProbe.snapshot().bytes <= 65536);
+  for (const value of [f.pair.accessToken, f.pair.refreshToken, body.error.requestId, directory, listening.baseUrl, init.id]) assert.equal(ownerLoadLines.join('').includes(value), false);
 });
 
 

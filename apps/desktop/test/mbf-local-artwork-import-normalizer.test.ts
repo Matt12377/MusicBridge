@@ -1,6 +1,7 @@
+import { closeRustMediaWorkerPool } from '../../../packages/bridge-core/src/library/rust-media-worker.js'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import test from 'node:test'
+import test, { after } from 'node:test'
 import { deflateSync } from 'node:zlib'
 import type { PhotoDecoderImage } from '../src/main/collection-photos.js'
 import { LocalArtworkImageError } from '../src/main/local-artwork-image.js'
@@ -211,151 +212,246 @@ test('TIFF/WebP解码尺寸及兼容JPEG输出重新校核，损坏/超预算副
   rejectBeforeDecode(Buffer.alloc(4 * 1024 * 1024 + 1), /4 MiB/u)
 })
 
-import { mkdtemp as webpMktemp, mkdir as webpMkdir, rm as webpRm, readdir as webpReaddir } from 'node:fs/promises'
+import { mkdtemp, open, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { spawn as webpSpawn, type ChildProcess } from 'node:child_process'
-import { createLocalArtworkImportNormalizer, LocalArtworkNormalizationPhysicalError, type LocalArtworkNormalizationContext } from '../src/main/local-library-workbench/artwork-import-normalizer.js'
+import { getRustMediaWorkerPool, RustMediaWorkerError, type RustMediaWorkerPool, type RustProcessImageResult } from '../../../packages/bridge-core/src/library/rust-media-worker.js'
+import { createLocalArtworkImportNormalizer, type LocalArtworkNormalizationContext } from '../src/main/local-library-workbench/artwork-import-normalizer.js'
 
-/** 真实自有Node子进程/stdio/副本FD，JPEG像素decoder仍合成；不冒sips或Electron资格。 */
-async function webpOsComponent(t:test.TestContext,mode='copy',image=decoder()){
-  const temporary=process.env.TMPDIR
-  if(!temporary?.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/'))throw Error('WebP组件必须使用批准外置临时根')
-  const directory=await webpMktemp(path.join(temporary,'webp-os-component-')),privateRoot=path.join(directory,'captured')
-  await webpMkdir(privateRoot,{mode:0o700})
-  const children:ChildProcess[]=[],closures:{child:boolean;stdout:boolean;stderr:boolean}[]=[],started:Promise<void>[]=[]
-  let decodeCalls=0,identityCurrent=true
-  const identityError=new Error('原Main作者已经换代'),input=webp(),encoded=jpeg()
-  const program=String.raw`const fs=require('node:fs'),path=require('node:path');const [input,output,mode,expected,jpeg]=process.argv.slice(1);const data=fs.readFileSync(input),crypto=require('node:crypto');if(crypto.createHash('sha256').update(data).digest('hex')!==expected)throw Error('captured-mismatch');if((fs.statSync(input).mode&511)!==384||(fs.statSync(path.dirname(input)).mode&511)!==448)throw Error('private-permissions');if(mode==='input-changed')fs.appendFileSync(input,Buffer.from([7]));if(mode==='oversize')fs.writeFileSync(output,Buffer.alloc(4194305));else fs.writeFileSync(output,Buffer.from(jpeg,'base64'));if(mode==='cleanup-failed')fs.writeFileSync(path.join(path.dirname(input),'unexpected-private-file'),'retain');process.stdout.write('component-ready\n');if(mode==='held')setInterval(()=>{},1000);`
-  const adapter=createLocalArtworkImportNormalizer({privateRoot,decode(){decodeCalls++;return image},spawnProcess(source,output,cwd){
-    const child=webpSpawn('/Users/yihe/.nvm/versions/node/v22.23.2/bin/node',['-e',program,source,output,mode,hash(input),encoded.toString('base64')],{cwd,detached:true,stdio:['ignore','pipe','pipe'],env:{LANG:'C',LC_ALL:'C',TMPDIR:cwd}})
-    const closed={child:false,stdout:false,stderr:false};closures.push(closed);children.push(child)
-    child.once('close',()=>{closed.child=true});child.stdout.once('close',()=>{closed.stdout=true});child.stderr.once('close',()=>{closed.stderr=true})
-    started.push(new Promise<void>(resolve=>child.stdout.once('data',()=>{if(mode==='identity-changed')identityCurrent=false;resolve()})))
-    return child
-  }})
-  t.after(async()=>{if(mode==='cleanup-failed')await assert.rejects(adapter.close(),LocalArtworkNormalizationPhysicalError);else await adapter.close();await webpRm(directory,{recursive:true,force:true})})
-  const context=(signal=new AbortController().signal,deadlineAtMs=performance.now()+2000):LocalArtworkNormalizationContext=>({signal,deadlineAtMs,assertCurrent(){if(!identityCurrent)throw identityError}})
-  const waitStarted=async(work:Promise<unknown>)=>{let settled=false;const completed=work.then(()=>{settled=true},()=>{settled=true});while(!started.length&&!settled)await new Promise<void>(resolve=>setImmediate(resolve));if(started.length)await Promise.race([started[0]!,completed])}
-  const quiet=()=>{for(const [index,child]of children.entries()){assert.deepEqual(closures[index],{child:true,stdout:true,stderr:true});assert.ok(child.pid);assert.throws(()=>process.kill(-child.pid!,0),{code:'ESRCH'})}}
-  return{adapter,input,encoded,privateRoot,children,context,waitStarted,quiet,identityError,decodeCalls:()=>decodeCalls}
+// 由仓库自有 owned-cover-16.png 经 cwebp -lossless 生成；不以假压缩帧头充当解码正例。
+const ownedWebp = () => Buffer.from('UklGRjAAAABXRUJQVlA4TCMAAAAvD8ADALkKRPQ/drWoRMH7HwYibRs0BfOvd/D0qUX/I085FwA=', 'base64')
+async function ownedImages() {
+  const images = [
+    { mime: 'image/webp' as const, bytes: ownedWebp(), sha256: 'e7d229527a1eb5f5c1018f1af8543c0d11185121b6068608bc4b103844a0132b' },
+    { mime: 'image/png' as const, bytes: await readFile(new URL('../../../packages/bridge-core/test/fixtures/mbrs012-source/owned-cover-16.png', import.meta.url)), sha256: 'cbb5f0d4e01cedca1e94c0c6c5bb78c1e716834a0eb45ed2022c505dc500a7c6' },
+    { mime: 'image/jpeg' as const, bytes: await readFile(new URL('../../../packages/bridge-core/test/fixtures/mbrs012-source/owned-cover-16.jpg', import.meta.url)), sha256: '555f7915442690ccb14754bd0da000ceadfbdcfb50b4e3402f55d4806e3e989d' },
+  ]
+  for (const image of images) assert.equal(hash(image.bytes), image.sha256)
+  return images
 }
-
-test('WebP异步适配：原捕获SHA与JPEG材料分记，真实子进程和私有目录闭口后才返回',async t=>{
-  assert.equal(process.platform,'darwin','本OS组件要求当前Mac；不把其他平台分支或跳过当成功')
-  const h=await webpOsComponent(t),original=Buffer.from(h.input),value=await h.adapter.normalize(h.input,h.context())
-  assert.equal(value.input.mime,'image/webp');assert.equal(value.input.sha256,hash(original));assert.equal(value.input.bytes,original.length);assert.equal(value.input.converted,true)
-  assert.equal(value.image.original.mime,'image/jpeg');assert.equal(value.image.original.sha256,hash(h.encoded));assert.equal(value.image.original.bytes,h.encoded.length)
-  assert.equal(hash(value.compatibleOriginalBytes),value.image.original.sha256);assert.deepEqual(h.input,original);assert.equal(value.image.display.width,1);assert.equal(value.image.display.height,1)
-  h.quiet();assert.deepEqual(await webpReaddir(h.privateRoot),[]);assert.deepEqual(h.adapter.inspect(),{active:0,retained:0,closing:false})
-  const childrenBefore=h.children.length,plain=jpeg(),ordinary=await h.adapter.normalize(plain,h.context())
-  assert.equal(ordinary.input.mime,'image/jpeg');assert.equal(ordinary.input.converted,false);assert.equal(ordinary.image.original.sha256,hash(plain))
-  assert.deepEqual(ordinary.compatibleOriginalBytes,new Uint8Array(plain));assert.equal(h.children.length,childrenBefore,'正常JPEG仍走原同步像素路径，不派系统转换')
-})
-
-test('WebP异步适配：预取消和原截止已到零派发，实际子进程取消后等stdio与FD真闭',async t=>{
-  assert.equal(process.platform,'darwin')
-  const h=await webpOsComponent(t,'held'),pre=new AbortController();pre.abort()
-  await assert.rejects(h.adapter.normalize(h.input,h.context(pre.signal)),{name:'AbortError'})
-  await assert.rejects(h.adapter.normalize(h.input,h.context(undefined,performance.now()-1)),{name:'AbortError'});assert.equal(h.children.length,0)
-  for(const invalid of [Buffer.alloc(4*1024*1024+1),webp([extended(2),chunk('VP8 ',lossy())])])await assert.rejects(h.adapter.normalize(invalid,h.context()),LocalArtworkImageError)
-  assert.equal(h.children.length,0);assert.equal(h.decodeCalls(),0,'新异步入口也须在系统转换与像素解码前拒绝超界和动画')
-  const controller=new AbortController(),work=h.adapter.normalize(h.input,h.context(controller.signal)),rejection=assert.rejects(work,{name:'AbortError'})
-  await h.waitStarted(work);assert.equal(h.adapter.inspect().active,1);controller.abort();await rejection
-  h.quiet();assert.deepEqual(await webpReaddir(h.privateRoot),[]);assert.equal(h.adapter.inspect().retained,0)
-  const late=await webpOsComponent(t,'held'),parent=new AbortController(),deadline=performance.now()+180,lateWork=late.adapter.normalize(late.input,late.context(parent.signal,deadline)),lateReject=assert.rejects(lateWork,{name:'AbortError'})
-  await late.waitStarted(lateWork);await lateReject;assert.equal(parent.signal.aborted,false);assert.ok(performance.now()>=deadline);late.quiet();assert.deepEqual(await webpReaddir(late.privateRoot),[])
-})
-
-test('WebP异步适配：输出读前超界、实际尺寸失败和输入副本身份变化均拒绝，原输入不改',async t=>{
-  assert.equal(process.platform,'darwin')
-  for(const mode of ['oversize','input-changed','decode-size']){
-    const h=await webpOsComponent(t,mode,mode==='decode-size'?decoder(2,1):decoder()),before=Buffer.from(h.input)
-    await assert.rejects(h.adapter.normalize(h.input,h.context()),mode==='oversize'?/超过4 MiB/u:mode==='input-changed'?/副本已变化/u:/尺寸|身份/u)
-    if(mode!=='decode-size')assert.equal(h.decodeCalls(),0,'输出超界或input身份变化必须先于native解码')
-    h.quiet();assert.deepEqual(h.input,before);assert.deepEqual(await webpReaddir(h.privateRoot),[]);await h.adapter.close()
-  }
-})
-
-test('WebP异步适配：原作者换代不发布，cleanup失败独立保留且close不能签quiet',async t=>{
-  assert.equal(process.platform,'darwin')
-  const changed=await webpOsComponent(t,'identity-changed');await assert.rejects(changed.adapter.normalize(changed.input,changed.context()),error=>error===changed.identityError)
-  changed.quiet();assert.deepEqual(await webpReaddir(changed.privateRoot),[]);await changed.adapter.close()
-  const failed=await webpOsComponent(t,'cleanup-failed');await assert.rejects(failed.adapter.normalize(failed.input,failed.context()),LocalArtworkNormalizationPhysicalError)
-  failed.quiet();assert.equal(failed.adapter.inspect().retained,1);assert.equal((await webpReaddir(failed.privateRoot)).length,1)
-  await assert.rejects(failed.adapter.normalize(failed.input,failed.context()),/原资源尚未收口/u)
-  const decodeBefore=failed.decodeCalls(),childrenBefore=failed.children.length
-  await assert.rejects(failed.adapter.normalize(jpeg(),failed.context()),/原资源尚未收口/u)
-  assert.equal(failed.decodeCalls(),decodeBefore,'真实cleanup未确认后，合法JPEG也不得越过retained守门解码')
-  assert.equal(failed.children.length,childrenBefore,'真实cleanup未确认后不得派发新转换')
-  await assert.rejects(failed.adapter.close(),LocalArtworkNormalizationPhysicalError)
-})
-
-import { open as closeProbeOpen, writeFile as closeProbeWrite, type FileHandle as CloseProbeHandle } from 'node:fs/promises'
-
-/** 只观察本次真实输入read，在该真实FileHandle上注入close时序；原read结果完整转发。 */
-async function observeActualInputClose(h:Awaited<ReturnType<typeof webpOsComponent>>,install:(handle:CloseProbeHandle,close:()=>Promise<void>)=>void){
-  const temporary=process.env.TMPDIR;assert.ok(temporary?.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/'))
-  const file=path.join(path.dirname(h.privateRoot),'independent-close-observer.bin');await closeProbeWrite(file,Buffer.from('自有观察FD'),{flag:'wx',mode:0o600})
-  const sample=await closeProbeOpen(file,'r'),prototype=Object.getPrototypeOf(sample),descriptor=Object.getOwnPropertyDescriptor(prototype,'read');assert.ok(descriptor);assert.equal(typeof descriptor.value,'function')
-  const originalRead:CloseProbeHandle['read']=descriptor.value
-  let selected:CloseProbeHandle|undefined,originalClose:(()=>Promise<void>)|undefined
-  Object.defineProperty(prototype,'read',{...descriptor,value:function(this:CloseProbeHandle,...args:Parameters<CloseProbeHandle['read']>){
-    const handle=this,work=originalRead.apply(handle,args)
-    return work.then(result=>{
-      if(!selected&&Buffer.isBuffer(result.buffer)&&result.bytesRead===h.input.length&&result.buffer.subarray(0,h.input.length).equals(h.input)){
-        selected=handle;const close=handle.close;originalClose=()=>close.call(handle);install(handle,originalClose)
-      }
-      return result
-    })
-  }})
-  return{file,sample,selected:()=>selected,async restore(){Object.defineProperty(prototype,'read',descriptor);if(selected&&originalClose&&selected.fd!==-1)await originalClose();await sample.close()}}
+function latch() {
+  let release!: () => void
+  const promise = new Promise<void>(resolve => { release = resolve })
+  return { promise, release }
 }
-
-test('WebP副本关闭：甲close真实fulfilled后乙复用同数字FD，甲不误retained且乙仍可读取',async t=>{
-  assert.equal(process.platform,'darwin')
-  const h=await webpOsComponent(t),beta=path.join(path.dirname(h.privateRoot),'independent-beta.bin'),betaBytes=Buffer.from('乙真实FD不得由甲旧整数关闭')
-  await closeProbeWrite(beta,betaBytes,{flag:'wx',mode:0o600})
-  const acquired:CloseProbeHandle[]=[],oldNumbers:number[]=[];let reused:CloseProbeHandle|undefined,calls=0,alphaCloseFulfilled=false
-  const observer=await observeActualInputClose(h,(handle,originalClose)=>{
-    const oldFd=handle.fd;oldNumbers.push(oldFd)
-    Object.defineProperty(handle,'close',{configurable:true,value:()=>{
-      calls++
-      return originalClose().then(async()=>{
-        alphaCloseFulfilled=true;assert.equal(handle.fd,-1)
-        for(let attempt=0;attempt<64;attempt++){
-          const next=await closeProbeOpen(beta,'r');acquired.push(next)
-          if(next.fd===oldFd){reused=next;return}
-        }
-        assert.fail('本次未实际复用原FD，不能拿伪数字替代本负例')
-      })
-    }})
+function observeSettlement(work: Promise<unknown>) {
+  let settled = false
+  void work.then(() => { settled = true }, () => { settled = true })
+  return () => settled
+}
+const normalizationTurn = () => new Promise<void>(resolve => setImmediate(resolve))
+function rustCancelled(error: unknown): boolean {
+  assert.ok(error instanceof RustMediaWorkerError)
+  assert.equal(error.name, 'RustMediaWorkerError'); assert.equal(error.code, 'CANCELLED')
+  return true
+}
+interface ObservedImageCall {
+  input: Parameters<RustMediaWorkerPool['processImage']>[0]
+  signal: AbortSignal | undefined
+  actual: Promise<RustProcessImageResult>
+  delivered: Promise<RustProcessImageResult>
+  release(): void
+  holdExpired(): boolean
+}
+/** 只观察真实 processImage，门闩最多延迟原 Promise 交付1秒，成功值和失败对象均原样返回。 */
+async function rustNormalizerComponent(t: test.TestContext, hold = false) {
+  const temporary = process.env.TMPDIR
+  assert.ok(typeof temporary === 'string' && temporary.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/'), '组件必须使用批准的外置临时根')
+  const directory = await mkdtemp(path.join(temporary, 'artwork-memory-rust-'))
+  const pool = getRustMediaWorkerPool(), processImage = pool.processImage
+  const calls: ObservedImageCall[] = [], roots: string[] = [], ownedFiles: string[] = []
+  const adapters: ReturnType<typeof createLocalArtworkImportNormalizer>[] = []
+  let entered = latch(), decodeCalls = 0, spawnCalls = 0
+  const observed = t.mock.method(pool, 'processImage', function (this: RustMediaWorkerPool, ...args: Parameters<RustMediaWorkerPool['processImage']>) {
+    const gate = latch(); let expired = false, timer: ReturnType<typeof setTimeout> | undefined
+    const release = () => { if (timer) clearTimeout(timer); gate.release() }
+    if (hold) timer = setTimeout(() => { expired = true; release() }, 1000)
+    else release()
+    const actual = processImage.apply(this, args)
+    const delivered = actual.finally(() => gate.promise)
+    void delivered.catch(() => {})
+    const call = { input: args[0], signal: args[1], actual, delivered, release, holdExpired: () => expired }
+    calls.push(call); const notify = entered; entered = latch(); notify.release()
+    return delivered
   })
-  try{
-    const result=await h.adapter.normalize(h.input,h.context());assert.equal(result.image.original.mime,'image/jpeg')
-    assert.equal(alphaCloseFulfilled,true);assert.equal(calls,1);assert.equal(oldNumbers.length,1);assert.ok(reused)
-    assert.equal(reused.fd,oldNumbers[0]);assert.deepEqual(await reused.readFile(),betaBytes)
-    await reused.stat();assert.equal(observer.selected()!.fd,-1)
-    assert.deepEqual(h.adapter.inspect(),{active:0,retained:0,closing:false});h.quiet();assert.deepEqual(await webpReaddir(h.privateRoot),[])
-  }finally{for(const handle of acquired)await handle.close();await observer.restore()}
+  function createAdapter() {
+    const privateRoot = path.join(directory, `unused-private-root-${roots.length}`); roots.push(privateRoot)
+    const adapter = createLocalArtworkImportNormalizer({ privateRoot,
+      decode() { decodeCalls++; throw new Error('内存Rust入口不得调用兼容decoder') },
+      spawnProcess() { spawnCalls++; throw new Error('内存Rust入口不得逐图启动系统转换器') },
+    })
+    adapters.push(adapter); return adapter
+  }
+  const adapter = createAdapter()
+  t.after(async () => {
+    try { for (const call of calls) call.release(); await Promise.all(adapters.map(value => value.close())) }
+    finally { observed.mock.restore(); await rm(directory, { recursive: true, force: true }) }
+  })
+  const context = (signal = new AbortController().signal, deadlineAtMs = performance.now() + 2000): LocalArtworkNormalizationContext => ({ signal, deadlineAtMs, assertCurrent() {} })
+  async function waitForCall(index: number, work: Promise<unknown>): Promise<ObservedImageCall> {
+    while (!calls[index]) await Promise.race([entered.promise, work.then(() => assert.fail('未派发真实Rust便已成功'), error => { throw error })])
+    return calls[index]!
+  }
+  async function assertNoTemporaryCopies() {
+    assert.equal(decodeCalls, 0); assert.equal(spawnCalls, 0)
+    assert.deepEqual((await readdir(directory)).sort(), [...ownedFiles].sort())
+    for (const root of roots) await assert.rejects(stat(root), { code: 'ENOENT' })
+    assert.ok(calls.every(call => !call.holdExpired()), '观察门闩必须由用例显式释放，不能靠超时通过')
+  }
+  async function ownedFile(name: string, bytes: Buffer) {
+    const file = path.join(directory, name); await writeFile(file, bytes, { flag: 'wx', mode: 0o600 }); ownedFiles.push(name); return file
+  }
+  return { adapter, calls, context, waitForCall, assertNoTemporaryCopies, createAdapter, ownedFile }
+}
+
+test('内存Rust适配：真实WebP/PNG/JPEG保留捕获SHA、兼容字节和几何，不派逐图进程或临时副本', async t => {
+  const h = await rustNormalizerComponent(t)
+  for (const [index, fixture] of (await ownedImages()).entries()) {
+    const before = Buffer.from(fixture.bytes), converted = fixture.mime === 'image/webp'
+    const value = await h.adapter.normalize(fixture.bytes, h.context()), call = h.calls[index]!
+    const actual = await call.actual
+    assert.equal(await call.delivered, actual, '观察器必须返回原Rust结果对象')
+    assert.notEqual(call.input.bytes, fixture.bytes); assert.deepEqual(call.input.bytes, before); assert.deepEqual(fixture.bytes, before)
+    assert.deepEqual(value.input, { mime: fixture.mime, bytes: before.length, sha256: hash(before), converted })
+    assert.deepEqual(actual.original, { mime: fixture.mime, width: 16, height: 16 })
+    assert.deepEqual([value.image.original.width, value.image.original.height, value.image.display.width, value.image.display.height], [16, 16, 16, 16])
+    assert.equal(value.image.original.mime, converted ? 'image/jpeg' : fixture.mime)
+    if (converted) assert.ok(actual.compatible)
+    const compatible = converted ? actual.compatible!.bytes : before
+    assert.ok(value.compatibleOriginalBytes instanceof Uint8Array); assert.deepEqual(Buffer.from(value.compatibleOriginalBytes), Buffer.from(compatible))
+    assert.equal(value.image.original.bytes, compatible.length); assert.equal(value.image.original.sha256, hash(compatible))
+    if (converted) { assert.notEqual(value.input.sha256, value.image.original.sha256); assert.match(value.conversionLabel!, /转换为JPEG兼容副本/u) }
+    else { assert.equal(value.conversionLabel, null); assert.equal(value.image.original.sha256, value.input.sha256) }
+    const display = Buffer.from(value.image.display.dataUrl.slice('data:image/jpeg;base64,'.length), 'base64')
+    assert.equal(hash(display), value.image.display.sha256); assert.equal(display.length, value.image.display.bytes); assert.deepEqual(display, Buffer.from(actual.bytes))
+    assert.deepEqual([call.input.maxEdge, call.input.maxOutputBytes, call.input.gridSize], [1200, 768 * 1024, 512])
+    assert.ok(actual.grid); assert.ok(actual.bytes.length <= 768 * 1024); assert.ok(actual.grid.bytes.length <= 256 * 1024); assert.ok(compatible.length <= 4 * 1024 * 1024)
+    assert.deepEqual(h.adapter.inspect(), { active: 0, retained: 0, closing: false })
+  }
+  assert.equal(h.calls.length, 3); await h.assertNoTemporaryCopies()
 })
 
-test('WebP副本关闭：原close拒绝或同步throw保真实handle及首业务错误，不能只凭fd标签签quiet',async t=>{
-  assert.equal(process.platform,'darwin')
-  for(const mode of ['promise','sync'] as const){
-    const h=await webpOsComponent(t,'cleanup-failed'),business=new Error('原作者受控拒绝'),closeFailure=new Error('原真实FileHandle受控close未确认')
-    let armed=false,calls=0,held:CloseProbeHandle|undefined
-    const observer=await observeActualInputClose(h,(handle)=>{
-      held=handle;armed=true
-      const originalWork=Promise.reject<void>(closeFailure);void originalWork.catch(()=>{})
-      Object.defineProperty(handle,'close',{configurable:true,value:()=>{calls++;if(mode==='sync')throw closeFailure;return originalWork}})
-    })
-    try{
-      await assert.rejects(h.adapter.normalize(h.input,{...h.context(),assertCurrent(){if(armed)throw business}}),error=>{
-        assert.ok(error instanceof LocalArtworkNormalizationPhysicalError);assert.ok(error.failure instanceof AggregateError)
-        assert.equal(error.failure.errors[0],business);assert.ok(error.failure.errors.includes(closeFailure));return true
-      })
-      assert.ok(held);assert.ok(held.fd>=0);await held.stat();assert.equal(calls,1)
-      assert.equal(h.adapter.inspect().retained,1);await assert.rejects(h.adapter.close(),LocalArtworkNormalizationPhysicalError)
-    }finally{await observer.restore()}
+test('内存Rust适配：预取消及原截止零派发，在途取消与原deadline等待真实Promise收口', async t => {
+  const h = await rustNormalizerComponent(t, true), input = ownedWebp(), pre = new AbortController(); pre.abort()
+  await assert.rejects(h.adapter.normalize(input, h.context(pre.signal)), { name: 'AbortError' })
+  for (const deadline of [performance.now() - 1, NaN, Infinity]) await assert.rejects(h.adapter.normalize(input, h.context(undefined, deadline)), { name: 'AbortError' })
+  assert.equal(h.calls.length, 0); assert.deepEqual(h.adapter.inspect(), { active: 0, retained: 0, closing: false })
+  for (const mode of ['in-flight', 'parent', 'deadline'] as const) {
+    const parent = new AbortController(), context = h.context(parent.signal, performance.now() + (mode === 'deadline' ? 180 : 2000))
+    const index = h.calls.length, work = h.adapter.normalize(input, context), settled = observeSettlement(work), call = await h.waitForCall(index, work)
+    assert.ok(call.signal); assert.equal(settled(), false)
+    if (mode === 'in-flight') {
+      parent.abort(); assert.equal(call.signal.aborted, true)
+      let actualCancellation: unknown
+      await assert.rejects(call.actual, error => { rustCancelled(error); actualCancellation = error; return true })
+      assert.equal(settled(), false); assert.equal(h.adapter.inspect().active, 1)
+      call.release(); await assert.rejects(work, error => error === actualCancellation)
+      assert.deepEqual(h.adapter.inspect(), { active: 0, retained: 0, closing: false })
+      continue
+    }
+    await call.actual; assert.equal(call.holdExpired(), false)
+    // Rust结果是真实的；仅交付仍在途，不声称取消时native解码本身仍运行。
+    if (mode === 'parent') parent.abort()
+    else if (!call.signal.aborted) await new Promise<void>(resolve => call.signal!.addEventListener('abort', () => resolve(), { once: true }))
+    assert.equal(call.signal.aborted, true); assert.equal(parent.signal.aborted, mode === 'parent')
+    if (mode === 'deadline') {
+      while (performance.now() < context.deadlineAtMs) await new Promise(resolve => setTimeout(resolve, Math.max(1, context.deadlineAtMs - performance.now())))
+      assert.ok(performance.now() >= context.deadlineAtMs)
+    }
+    await normalizationTurn(); assert.equal(settled(), false); assert.equal(h.adapter.inspect().active, 1)
+    call.release(); await assert.rejects(work, rustCancelled)
+    assert.deepEqual(h.adapter.inspect(), { active: 0, retained: 0, closing: false })
   }
+  assert.equal(h.calls.length, 3); await h.assertNoTemporaryCopies()
 })
+
+test('内存Rust适配：严格结构先拒绝，真实损坏压缩像素失败后仍可处理下一张自有图片', async t => {
+  const h = await rustNormalizerComponent(t)
+  const invalidCrc = png(); invalidCrc[invalidCrc.length - 1] = invalidCrc[invalidCrc.length - 1]! ^ 1
+  for (const input of [Buffer.alloc(4 * 1024 * 1024 + 1), invalidCrc, webp([extended(2), chunk('VP8 ', lossy())]), webp([chunk('VP8 ', lossy(4097, 1))])]) {
+    await assert.rejects(h.adapter.normalize(input, h.context()), LocalArtworkImageError)
+  }
+  assert.equal(h.calls.length, 0, '结构、帧数和输入预算先于真实Rust派发')
+  const broken = webp(), before = Buffer.from(broken)
+  await assert.rejects(h.adapter.normalize(broken, h.context()), error => {
+    assert.ok(error instanceof LocalArtworkImageError); assert.doesNotMatch(error.message, /secret|Cookie|stack|https?:/u); return true
+  })
+  assert.equal(h.calls.length, 1); await assert.rejects(h.calls[0]!.actual, error => {
+    assert.ok(error instanceof RustMediaWorkerError); assert.equal(error.code, 'PARSE_FAILED'); return true
+  })
+  assert.deepEqual(broken, before); assert.deepEqual(h.adapter.inspect(), { active: 0, retained: 0, closing: false })
+  const input = (await ownedImages()).find(image => image.mime === 'image/png')!.bytes, captured = Buffer.from(input)
+  const work = h.adapter.normalize(input, h.context()); input.fill(7) // 调用者主动改自己的buffer，原捕获不能跟着变化。
+  const value = await work
+  assert.equal(h.calls.length, 2); assert.deepEqual(h.calls[1]!.input.bytes, captured); assert.notEqual(h.calls[1]!.input.bytes, input)
+  assert.equal(value.input.sha256, hash(captured)); assert.equal(value.image.original.sha256, hash(captured)); assert.deepEqual(Buffer.from(value.compatibleOriginalBytes), captured)
+  assert.deepEqual([value.image.original.width, value.image.original.height], [16, 16]); await h.assertNoTemporaryCopies()
+})
+
+test('内存Rust适配：作者、父signal或deadline换代均拒绝真实迟到结果', async t => {
+  const h = await rustNormalizerComponent(t, true), input = ownedWebp(), before = Buffer.from(input)
+  for (const mode of ['owner', 'author', 'signal', 'deadline'] as const) {
+    const parent = new AbortController(), context = h.context(parent.signal), identityError = new Error('原Main作者已经换代')
+    let current = true; context.assertCurrent = () => { if (!current) throw identityError }
+    const index = h.calls.length, work = h.adapter.normalize(input, context), call = await h.waitForCall(index, work)
+    await call.actual; assert.equal(call.holdExpired(), false); assert.equal(h.adapter.inspect().active, 1)
+    if (mode === 'owner') current = false
+    else if (mode === 'author') context.assertCurrent = () => {}
+    else if (mode === 'signal') context.signal = new AbortController().signal
+    else context.deadlineAtMs += 1000
+    call.release()
+    if (mode === 'owner') await assert.rejects(work, error => error === identityError)
+    else await assert.rejects(work, { name: 'AbortError' })
+    assert.equal(parent.signal.aborted, false); assert.equal(call.signal!.aborted, false, '换代拒绝不能冒充超时或父取消')
+    assert.deepEqual(input, before); assert.deepEqual(h.adapter.inspect(), { active: 0, retained: 0, closing: false })
+  }
+  assert.equal(h.calls.length, 4); await h.assertNoTemporaryCopies()
+})
+
+test('内存Rust适配：两槽有界且收口后可复用，close等待在途结果且不关闭共享Rust池', async t => {
+  const h = await rustNormalizerComponent(t, true), input = ownedWebp()
+  const first = h.adapter.normalize(input, h.context()), second = h.adapter.normalize(input, h.context())
+  const a = await h.waitForCall(0, first), b = await h.waitForCall(1, second); await Promise.all([a.actual, b.actual])
+  assert.equal(h.adapter.inspect().active, 2)
+  await assert.rejects(h.adapter.normalize(input, h.context()), /封面处理槽位正忙/u); assert.equal(h.calls.length, 2)
+  a.release(); await first; assert.equal(h.adapter.inspect().active, 1)
+  const reused = h.adapter.normalize(input, h.context()), c = await h.waitForCall(2, reused); await c.actual
+  assert.equal(h.adapter.inspect().active, 2); b.release(); await second; assert.equal(h.adapter.inspect().active, 1)
+  const reusedSettled = observeSettlement(reused), close = h.adapter.close(), closeSettled = observeSettlement(close)
+  assert.equal(h.adapter.close(), close); assert.equal(c.signal!.aborted, true)
+  await normalizationTurn(); assert.equal(reusedSettled(), false); assert.equal(closeSettled(), false)
+  assert.deepEqual(h.adapter.inspect(), { active: 1, retained: 0, closing: true })
+  await assert.rejects(h.adapter.normalize(input, h.context()), { name: 'AbortError' }); assert.equal(h.calls.length, 3)
+  c.release(); await assert.rejects(reused, rustCancelled); await close
+  assert.deepEqual(h.adapter.inspect(), { active: 0, retained: 0, closing: true })
+  const independent = h.createAdapter(), next = independent.normalize(input, h.context()), d = await h.waitForCall(3, next)
+  await d.actual; d.release(); const value = await next
+  assert.equal(value.input.sha256, hash(input)); assert.equal(value.image.original.mime, 'image/jpeg')
+  assert.deepEqual(independent.inspect(), { active: 0, retained: 0, closing: false }); await h.assertNoTemporaryCopies()
+})
+
+test('内存Rust适配：未分配文件FD，独立持有人close拒绝或同步throw不污染normalizer收口', async t => {
+  const h = await rustNormalizerComponent(t), input = ownedWebp()
+  for (const mode of ['promise', 'sync'] as const) {
+    const bytes = Buffer.from('独立持有人的真实FD不得由图片normalizer处置'), file = await h.ownedFile(`independent-${mode}.bin`, bytes)
+    const handle = await open(file, 'r'), originalClose = handle.close.bind(handle), originalFd = handle.fd
+    const failure = new Error('独立持有人close未确认'); let closeCalls = 0
+    Object.defineProperty(handle, 'close', { configurable: true, value: () => { closeCalls++; if (mode === 'sync') throw failure; return Promise.reject(failure) } })
+    try {
+      if (mode === 'sync') assert.throws(() => handle.close(), error => error === failure)
+      else await assert.rejects(handle.close(), error => error === failure)
+      assert.ok(originalFd >= 0); assert.equal(handle.fd, originalFd); await handle.stat()
+      const adapter = mode === 'promise' ? h.adapter : h.createAdapter(), value = await adapter.normalize(input, h.context())
+      assert.equal(value.image.original.mime, 'image/jpeg'); assert.equal(value.input.sha256, hash(input)); await adapter.close()
+      assert.deepEqual(adapter.inspect(), { active: 0, retained: 0, closing: true })
+      assert.equal(closeCalls, 1, 'normalizer未获得此FD，也不能替独立持有人重试close')
+      assert.equal(handle.fd, originalFd); assert.deepEqual(await handle.readFile(), bytes); await handle.stat()
+      await h.assertNoTemporaryCopies()
+    } finally { await originalClose() }
+    assert.equal(handle.fd, -1)
+  }
+  assert.equal(h.calls.length, 2)
+})
+
+
+// 本测试进程拥有实际图片处理池；用例结束后等待原Rust子进程静止并释放句柄。
+after(async () => { await closeRustMediaWorkerPool() })

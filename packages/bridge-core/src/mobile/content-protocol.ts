@@ -129,7 +129,8 @@ export function captureMobileContentReply<O extends MobileContentOperation>(
     || captured.value.category !== 'success'
     || !(MOBILE_OPERATION_TABLE[operation].successStatuses as readonly number[]).includes(captured.value.status as number)) return unavailable();
   const raw = captured.value as unknown as MobileReplyMap[O];
-  const wire = { responseOrigin: origin, requestPath: request.path, content: context, ...options };
+  // 内部DTO可表达未知时长；是否允许发给客户端仍由Main的真实请求协商独立决定。
+  const wire = { responseOrigin: origin, requestPath: request.path, content: context, ...options, catalogFeatures: 'unknown-duration-v1' as const };
   const encoded = encodeMobileJsonReply(operation, raw, wire);
   if (!encoded.ok) return encoded.issue.code === 'SOURCE_CHANGED' ? changed() : unavailable();
   const decoded = decodeMobileResponse(operation, { ...encoded.value, finalUrl: `${origin}${request.path}` }, wire);

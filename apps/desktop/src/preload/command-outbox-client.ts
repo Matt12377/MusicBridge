@@ -8,27 +8,38 @@ const safeCodes = new Set(['OUTBOX_UNAVAILABLE', 'OUTBOX_CONFLICT', 'OUTBOX_SCOP
 const failure = (code: string): Error => new Error(`[${code}] 操作回执尚未确认，请查看未确认操作；工作库变化后须重新加载。`)
 export type DatasetScope = () => Promise<string>
 
-/** 同一预加载窗口只采集一次工作库身份；读写客户端共用此闭包，不暴露给 Renderer。 */
+/** 首次成功前仅由后续显式调用重读，进行中的context单飞；首次成功后本窗口永久固定身份。 */
 export function createCommandOutboxDatasetScope(invoke: (channel: string, value?: unknown) => Promise<unknown>): DatasetScope {
-  const scope = invoke('commandOutbox:context').then(value => {
-    if (!record(value) || !uuid(value.datasetId) || Object.keys(value).some(key => key !== 'datasetId')) throw failure('OUTBOX_UNAVAILABLE')
-    return value.datasetId
-  }).catch(() => { throw failure('OUTBOX_UNAVAILABLE') })
-  void scope.catch(() => undefined)
-  return () => scope
+  let confirmed: Promise<string> | undefined, flight: Promise<string> | undefined
+  const getDatasetId: DatasetScope = () => {
+    if (confirmed) return confirmed
+    if (flight) return flight
+    let received: Promise<unknown>
+    try { received = Promise.resolve(invoke('commandOutbox:context')) } catch { received = Promise.reject(failure('OUTBOX_UNAVAILABLE')) }
+    const attempt: Promise<string> = received.then(value => {
+      if (!record(value) || !uuid(value.datasetId) || Object.keys(value).some(key => key !== 'datasetId')) throw failure('OUTBOX_UNAVAILABLE')
+      return value.datasetId
+    }).catch(() => { throw failure('OUTBOX_UNAVAILABLE') }).then(datasetId => {
+      confirmed = attempt
+      return datasetId
+    }).finally(() => { if (flight === attempt) flight = undefined })
+    flight = attempt
+    // 启动期首次探测无人等待时也不产生unhandled rejection；此处绝不重新调用或发送业务。
+    void attempt.catch(() => undefined)
+    return attempt
+  }
+  void getDatasetId()
+  return getDatasetId
 }
 
 /** sandbox预加载只用本地信封检查；Main负责领域DTO校验。身份固定在本次Renderer加载，不在发送时换库。 */
 export function createCommandOutboxClient(invoke: (channel: string, value?: unknown) => Promise<unknown>, getDatasetId: DatasetScope = createCommandOutboxDatasetScope(invoke)) {
-  const scope = getDatasetId()
-  void scope.catch(() => undefined)
-  void scope.catch(() => undefined)
   const failed = new Set<string>()
   return {
     async submitPreparedRevocations(payloads: readonly Payload<'recordingPrepared.revoke'>[]): Promise<readonly Result<'recordingPrepared.revoke'>[]> {
       const captured = structuredClone(payloads)
       if (!Array.isArray(captured) || captured.length < 1 || captured.length > 3) throw failure('INVALID_IPC_REQUEST')
-      const keys = captured.map(payload => `recordingPrepared.revoke:${payload.commandId}`), datasetId = await scope
+      const keys = captured.map(payload => `recordingPrepared.revoke:${payload.commandId}`), datasetId = await getDatasetId()
       let reply: unknown
       try {
         reply = await invoke('commandOutbox:revokePreparedBatch', {
@@ -49,7 +60,7 @@ export function createCommandOutboxClient(invoke: (channel: string, value?: unkn
     async submit<C extends CommandOutboxTrackedCommand>(command: C, payload: Payload<C>): Promise<Result<C>> {
       // 等待context前复制原输入，表单随后变化不能改写已确认意图。
       const captured = structuredClone(payload), key = `${command}:${captured.commandId}`
-      const datasetId = await scope
+      const datasetId = await getDatasetId()
       let reply: unknown
       try {
         reply = await invoke('commandOutbox:submit', { request: { datasetId, command, payload: captured }, ...(failed.has(key) ? { retryConfirmed: true } : {}) })

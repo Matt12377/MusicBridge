@@ -1,4 +1,1377 @@
 {
+  "mousa41": {
+    "branch": "codex/mousa-4-1-artists-search",
+    "baseCommit": "f459c46525855e87e1d8ee68388e8ea21ab04653",
+    "iosBaseCommit": "4e9d8fb8f0ba734b010ac9c7a9d2f91bc15a628e",
+    "state": "nearby-pairing-software-validated-delivery-in-progress",
+    "taskTable": "project/MOUSA_4_1_TODO.md",
+    "activeItem": "014",
+    "device": {
+      "name": "SE",
+      "previousAirRetained": true,
+      "doNotOperate14P": true
+    },
+    "items": [
+      {
+        "id": "001",
+        "state": "complete"
+      },
+      {
+        "id": "002",
+        "state": "implemented-runtime-pending"
+      },
+      {
+        "id": "003",
+        "state": "implemented-runtime-pending"
+      },
+      {
+        "id": "004",
+        "state": "implemented-device-pending"
+      },
+      {
+        "id": "005",
+        "state": "software-verified-device-pending"
+      },
+      {
+        "id": "006",
+        "state": "engineering-and-mac-browse-passed-se-pending"
+      },
+      {
+        "id": "007",
+        "state": "regression-passed-runtime-pending"
+      },
+      {
+        "id": "008",
+        "state": "recovery-64-targeted-and-r10-passed-installed-live-scan-pending"
+      },
+      {
+        "id": "009",
+        "state": "mac132038-same-identity-installed-se114-installed"
+      },
+      {
+        "id": "010",
+        "state": "r10-full-engineering-passed-mac132038-live-validation-pending"
+      },
+      {
+        "id": "011",
+        "state": "se114-system-authorization-passed-not-connected-pairing-in-progress"
+      },
+      {
+        "id": "012",
+        "state": "partially-measured"
+      }
+    ],
+    "ownerAccepted": false,
+    "implementationCommit": null,
+    "reportCommit": null,
+    "engineeringValidation": {
+      "desktopTargetedPassed": 63,
+      "coreTargetedPassed": 47,
+      "preparationContractPassed": 2,
+      "iosTargetedPassed": 29,
+      "macBuild": "passed-in-full-r10",
+      "desktopTypecheck": "passed",
+      "iosProductionBuild": 112,
+      "controlPlane": "passed",
+      "fullVerify": "passed-r8-natural-exit0-all-stages",
+      "runtime": "mac-phonetic-ranking-observed-air-paired-local-search-partial-busy",
+      "neteaseSourceTargetedPassed": 44,
+      "streamingFollowup": "targeted-and-real-copy-concurrency-build-signing-passed-runtime-running",
+      "iosProgressivePublicationPassed": 88,
+      "indexTimeSliceAndAsyncAdapterPassed": 16,
+      "indexCoreFollowupPassed": 27,
+      "indexSqlWorkerPassed": 8,
+      "originalMobileSqlRegressionPassed": 84,
+      "sidebarReopenPassed": 13,
+      "coreNaturalExitDiagnosis": {
+        "audioConverter": {
+          "passed": 10,
+          "exitCode": 0
+        },
+        "audioQuality": {
+          "assertionsPassed": 30,
+          "naturalExit": false,
+          "timeoutMs": 60000,
+          "remainingChild": "rust-media-worker",
+          "testTeardownFix": "30-tests-passed-natural-exit0-4783ms"
+        }
+      },
+      "localSourcePreparationPassed": 8,
+      "localPlaybackMainRegressionPassed": 90,
+      "localSourceOriginalRegression": {
+        "passed": 119,
+        "failed": 0,
+        "state": "fresh-preparation-batched-passed",
+        "includesLocalSourcePreparationTests": true,
+        "namespaceFixtureUpdatedRealParserObserved": true
+      },
+      "desktopNavigationAndPlaybackBatchedPassed": 202,
+      "coreLocalAndAudioQualityBatchedPassed": 149,
+      "followupMacBuild": "passed",
+      "followupRootTypecheck": "passed-verify-r3",
+      "boundaries": {
+        "exitCode": 0,
+        "receipt": "current-worktree-final-gates-6irn_20l/RESULT.json"
+      },
+      "finalNavigationAndComponentsRerun": {
+        "passed": 76,
+        "failed": 0,
+        "exitCode": 0,
+        "includedInDesktop202": true
+      },
+      "latestFullVerify": {
+        "round": "r8",
+        "rootTypecheckPassed": true,
+        "contractsPassed": 362,
+        "coreMainTests": 3654,
+        "coreMainPassed": 3652,
+        "coreMainFailed": 0,
+        "coreMainSkipped": 2,
+        "coreIsolatedStopPassed": 8,
+        "coreSuiteComplete": true,
+        "coreNaturalExit": true,
+        "desktopTests": 2957,
+        "desktopPassed": 2957,
+        "desktopFailed": 0,
+        "desktopCancelled": 0,
+        "desktopSkipped": 0,
+        "desktopSuiteComplete": true,
+        "productionBuildPassed": true,
+        "sandboxPreloadCheckPassed": true,
+        "complete": true,
+        "naturalExit": true,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "durationMs": 300298.699416,
+        "log": "mac-source-prepare-verify-r8.log",
+        "receipt": "mac-source-prepare-verify-r8.json"
+      },
+      "followupMacPackaging": "passed-38-compiled-files-byte-matched",
+      "followupMacSigning": "passed-original-identity-23-targets-deep-strict",
+      "followupProductSourceIdentity": {
+        "filesCompared": 885,
+        "mismatches": 0
+      },
+      "localPreparationClockRegression": {
+        "redReproduced": true,
+        "passed": 8,
+        "exitCode": 0
+      },
+      "catalogPlaybackMessageRaceRegression": {
+        "redReproduced": true,
+        "withOriginalRecoveryPassed": 79,
+        "exitCode": 0
+      },
+      "latestDesktopRegression": {
+        "tests": 188,
+        "passed": 188,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "log": "ui-followup-nJK08n/desktop-regression.log"
+      },
+      "exactArtistNameRanking": {
+        "redReproduced": true,
+        "passed": 27,
+        "exitCode": 0
+      },
+      "gridLayoutRestoration": {
+        "passed": 62,
+        "exitCode": 0,
+        "appRetestPending": false
+      },
+      "latestWaveRegression": {
+        "tests": 160,
+        "passed": 153,
+        "failed": 7,
+        "exitCode": 1,
+        "timedOut": false,
+        "log": "wave-regression-SOQviE/wave-regression.log",
+        "notFullVerify": true
+      },
+      "phoneticArtistRanking": {
+        "redReproduced": true,
+        "passed": 35,
+        "failed": 0,
+        "exitCode": 0,
+        "log": "phonetic-followup-xbtwin/artist-search-regression.log"
+      },
+      "imePopover": {
+        "redReproduced": true,
+        "passed": 13,
+        "exitCode": 0,
+        "receipt": "ime-popover-ioaz4zi6/green.log",
+        "packaged": true
+      },
+      "shutdownArtistObservation": {
+        "redReproduced": true,
+        "passed": 16,
+        "exitCode": 0,
+        "receipt": "shutdown-artist-observation-9tzkis6t/green.json",
+        "quitFixed": false
+      },
+      "artistSearchHttpObservation": {
+        "tests": 6,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "receipt": "http-observer-test-gdlcUu/test.log",
+        "defaultEnabled": false,
+        "deviceDiagnosisPending": true
+      },
+      "iosPhoneFirstPage25": {
+        "build": 111,
+        "tests": 13,
+        "passed": 13,
+        "failed": 0,
+        "exitCode": 0,
+        "signatureVerified": true,
+        "sourceFilesCompared": 382,
+        "installed": false,
+        "receipt": "ios-phone-page25-dxuhyq10/RESULT.json",
+        "publicMaximumUnchanged": 100
+      },
+      "selectedPageIntegration": {
+        "rootTypecheckExit": 0,
+        "desktopPassed": 82,
+        "corePassed": 76,
+        "failed": 0,
+        "skipped": 0,
+        "buildExit": 0,
+        "packageExit": 0,
+        "signatureExit": 0,
+        "receipt": "selected-page-followup-pE9u0A/RESULT.json",
+        "previousTypecheckFailure": "selected-page-followup-QShY2M/root-typecheck.log",
+        "apeFixtureShapeAssertionStrengthened": true
+      },
+      "selectedPageRealCopy": {
+        "pages": 6,
+        "wireDTOsEqualToOriginal": true,
+        "parentCurrentCalls": 0,
+        "tracksTotalMs": [
+          268.322583,
+          474.082458,
+          1776.84625
+        ],
+        "trackLimits": [
+          10,
+          25,
+          100
+        ],
+        "singleSamplesOnly": true,
+        "actualAppOrLAN": false,
+        "receipt": "mobile-selected-page-t49i_rd7/real-post-cold-final/RESULT.json"
+      },
+      "sourceAndAuthFollowup": {
+        "receipt": "source-auth-validation-OuVz4X/RESULT.json",
+        "coreTypecheckExit": 0,
+        "corePassed": 103,
+        "desktopPassed": 9,
+        "failed": 0,
+        "packaged": false,
+        "fullMacGatePassed": false
+      },
+      "shutdownAckFollowup": {
+        "receipt": "shutdown-ack-validation-h5nsuB/RESULT.json",
+        "tests": 80,
+        "passed": 80,
+        "exitCode": 0,
+        "typecheckExit": 0,
+        "naturalExit": true,
+        "actualAppQuitProven": false
+      },
+      "capacitySidecarFollowup": {
+        "receipt": "capacity-sidecar-focused-LozTcZ/RESULT.json",
+        "typecheckExit": 0,
+        "focusedExit": 0,
+        "fullFileReceipt": "capacity-sidecar-green-cSIxN9/RESULT.json",
+        "fullFilePassed": false,
+        "unexpectedObjectsStillRejected": true
+      },
+      "waveMetadataFollowup": {
+        "receipt": "wave-rebuilt-regression-zj9Yhf/RESULT.json",
+        "tests": 87,
+        "passed": 87,
+        "failed": 0,
+        "exitCode": 0,
+        "naturalExit": true,
+        "nativeBinaryRebuilt": true,
+        "nativeBinarySHA256": "f861d7463d220229fbc1c0500ef2341205ed8990b85552b8f657a52c0c9d3895",
+        "packaged": false,
+        "fullMacGatePassed": false
+      },
+      "macCloseoutFollowup": {
+        "receipt": "se113-mac-closeout-WPa9Kc/RESULT.json",
+        "coreTypecheckExit": 0,
+        "ownerTimer": {
+          "tests": 33,
+          "passed": 33,
+          "failed": 0,
+          "exitCode": 0
+        },
+        "capacity": {
+          "tests": 145,
+          "passed": 145,
+          "failed": 0,
+          "exitCode": 0
+        },
+        "boundariesExit": 0,
+        "boundaryCounterexamples": {
+          "cases": 9,
+          "passed": 9,
+          "sourceUnchanged": true
+        },
+        "sqlAndCD01": {
+          "exitCode": 1,
+          "failures": [
+            "compact-envelope-test-expectation",
+            "CD01-album-original-2s-deadline",
+            "CD01-artist-original-2s-deadline"
+          ],
+          "naturalExit": false,
+          "entrypointCorrection": "use-root-local-name-rules.test.ts-with-original-Rust-pool-cleanup",
+          "stopReceipt": "se113-mac-closeout-WPa9Kc/SQL-ENTRYPOINT-STOP.json"
+        },
+        "controlPlaneIsolatedExit": 1,
+        "controlPlaneIsolatedReason": "copied-workspace-has-no-Git-history",
+        "controlPlaneRealWorktreeExit": 0,
+        "controlPlaneRealWorktreeLog": "se113-control-plane-real-worktree.log",
+        "completeVerifyPassed": false
+      },
+      "latestSQLBatch": {
+        "receipt": "se113-sql-final-UiCQ1d/RESULT.json",
+        "tests": 304,
+        "passed": 302,
+        "failed": 2,
+        "skipped": 0,
+        "exitCode": 1,
+        "naturalExit": true,
+        "remainingFailures": [
+          "CD01-album-original-2s-deadline",
+          "CD01-artist-original-2s-deadline"
+        ],
+        "originalCompactEnvelopePassed": true,
+        "completeVerifyPassed": false
+      },
+      "cd01SQLProbe": {
+        "receipt": "cd01-instrumented-uP92Lo/RESULT.json",
+        "syntheticDatabases": 3,
+        "sourceFieldsCalls": 0,
+        "originalCloseSucceeded": true,
+        "probeErrors": 0,
+        "productChanged": false,
+        "inference": "prepare-and-execution-cost-confirmed-source-fields-callback-not-cause"
+      },
+      "cd01EligibleExperiment": {
+        "receipt": "cd01-eligible-paired-1sUEl7/RESULT.json",
+        "controlExit": 1,
+        "candidateExit": 1,
+        "bothNaturalExit": true,
+        "transformationQualified": true,
+        "candidateImprovementProven": false,
+        "candidateIssuesPrepareFailed": true,
+        "productChanged": false,
+        "nativeErrorClassificationPending": false,
+        "nativeErrorReceipt": "cd01-native-error-CtxEDr/RESULT.json",
+        "nativeErrorCategory": "too-many-references",
+        "nativeErrorCode": "ERR_SQLITE_ERROR",
+        "nativeErrcode": 1
+      },
+      "catalogSourceFilter": {
+        "receipt": "catalog-source-filter-x3zliqc6/RESULT.json",
+        "redPassed": 9,
+        "redFailed": 3,
+        "redExitCode": 1,
+        "greenPassed": 12,
+        "greenFailed": 0,
+        "greenSkipped": 0,
+        "greenExitCode": 0,
+        "desktopTypecheckExitCode": 0,
+        "typecheckReceipt": "catalog-source-typecheck-9deykyr5/RESULT.json",
+        "productSourcesUnchangedDuringValidation": true,
+        "packaged": false,
+        "actualAppVerified": false
+      },
+      "cd01RawMetadataExperiment": {
+        "receipt": "cd01-raw-paired-IgCepK/RESULT.json",
+        "controlExit": 1,
+        "candidateExit": 1,
+        "transformationQualified": true,
+        "candidatePrepareFailed": false,
+        "originalThreeTests": {
+          "passed": 1,
+          "failed": 2
+        },
+        "withoutProbeReceipt": "cd01-raw-natural-MW6nhs/RESULT.json",
+        "withoutProbeExit": 1,
+        "original2sDeadlineMet": false,
+        "productChanged": false,
+        "realLibraryOrLANMeasurement": false
+      },
+      "cd01OuterSfExperiment": {
+        "receipt": "cd01-outer-sf-paired-LDDxub/RESULT.json",
+        "candidateExit": 1,
+        "controlExit": 1,
+        "original2sDeadlineMet": false,
+        "productChanged": false
+      },
+      "cd01OrdinalQualification": {
+        "receipt": "cd01-ordinal-only-3OpTur/QUALIFICATION.json",
+        "syntheticDatabases": 3,
+        "ordinalNullReturns": 95,
+        "ordinalPositiveReturns": 0,
+        "sourceFieldsCalls": 0,
+        "sourceWritesLedgerEvents": 0,
+        "allOriginalClosesSucceeded": true,
+        "probeErrors": 0,
+        "qualificationUsesOriginalAuditedProjection": true,
+        "realLibraryMeasured": false
+      },
+      "cd01NoAnchorFollowup": {
+        "artifact": "cd01-no-anchor-fix-yahv_uez/FROZEN.json",
+        "productSha256": "b427c89472b850fdd3d134d11b8b4c66b57eac22ca1087bf9d577747a1e258a2",
+        "state": "original-deadline-and-behavior-tests-passed-full-desktop-gate-pending",
+        "onlyPrivateAuditedEmptyProjection": true,
+        "defaultAndAnchoredRulesRetained": true,
+        "deadlineRelaxed": false,
+        "completeVerifyPassed": false,
+        "sourceMarkerReceipt": "cd01-no-anchor-validation-O4mhis/CLASSIFICATION.json",
+        "sourceMarkerPassed": 7,
+        "originalCD01Passed": 3,
+        "originalCD01Failed": 0,
+        "originalCD01Skipped": 0,
+        "originalCD01Receipt": "cd01-no-anchor-cold-check-i6HsT2/RESULT.json",
+        "coldArtworkFixture": "cd01-cold-artwork-fixture-x1vbd3rx/FROZEN.json",
+        "defaultSqlByteEquality": "cd01-no-anchor-review-hsp43_i9/default-sql-equality.json"
+      },
+      "desktopR6Followup": {
+        "state": "test-fixtures-and-teardown-corrected-validation-pending",
+        "fixtureFailures": {
+          "collection-readonly-main-security": 1,
+          "core-supervisor-compact": 1,
+          "first-album-context-admission": 25,
+          "library-read-terminal": 1
+        },
+        "rustPoolOpenTestProcesses": 3,
+        "teardownArtifact": "desktop-rust-pool-teardown-d1na8_bk/FROZEN.json",
+        "originalAssertionsRetained": true,
+        "defaultOffAndClosedFrameAssertionsStrengthened": true,
+        "productChangesForThisFollowup": false,
+        "fullVerifyPassed": false
+      },
+      "desktopFullDiagnosis": {
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mousa41-artists-search-c997n3rn/desktop-full-diagnosis-1uYoGY/RESULT.json",
+        "total": 2951,
+        "passed": 2877,
+        "failed": 71,
+        "cancelled": 3,
+        "skipped": 0,
+        "exitCode": 1,
+        "naturalExit": true,
+        "durationSecondsApprox": 14.7,
+        "fullGatePassed": false,
+        "fixtureAndProductFollowup": "in-progress-not-revalidated"
+      },
+      "desktopR6FixTargeted": {
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mousa41-artists-search-c997n3rn/desktop-r6-fix-validation-k3p5gv/RESULT.json",
+        "total": 81,
+        "passed": 75,
+        "failed": 6,
+        "skipped": 0,
+        "exitCode": 1,
+        "naturalExit": true,
+        "remaining": "legacy-artwork-normalizer-tail-contract",
+        "originalR6Visible28FailuresResolved": true
+      },
+      "desktopFullDiagnosisR2": {
+        "receipt": "desktop-full-diagnosis-fHXK6e/RESULT.json",
+        "tests": 2956,
+        "passed": 2928,
+        "failed": 28,
+        "cancelled": 0,
+        "skipped": 0,
+        "naturalExit": true,
+        "exitCode": 1
+      },
+      "desktopFinalFiveFollowup": {
+        "receipt": "desktop-final-five-validation-YBPnQA/RESULT.json",
+        "tests": 207,
+        "passed": 206,
+        "failed": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "naturalExit": true,
+        "lastFailure": "Root-added fallback branch assumption; original assertions passed; minimal grid-only followup separately passed",
+        "fullGatePassed": false
+      },
+      "coverDropMinimalGrid": {
+        "receipt": "coverdrop-grid-contract-check-5j8xgk8a/RESULT.json",
+        "tests": 27,
+        "passed": 27,
+        "failed": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "originalAssertionsUnchanged": true,
+        "productChanged": false
+      },
+      "latestFullVerifyAttempt": {
+        "round": "r8",
+        "state": "passed",
+        "receipt": "mac-source-prepare-verify-r8.json",
+        "previousRound": "r7",
+        "previousExitCode": 2,
+        "previousPhase": "typecheck-test-helper-TMPDIR-narrowing",
+        "previousReceipt": "mac-source-prepare-verify-r7.json",
+        "fullGatePassed": true,
+        "exitCode": 0
+      },
+      "currentWorktreeFinalGates": {
+        "receipt": "current-worktree-final-gates-6irn_20l/RESULT.json",
+        "controlPlaneExitCode": 0,
+        "boundariesExitCode": 0
+      },
+      "previousFullVerifyR6": {
+        "rootTypecheckPassed": true,
+        "contractsPassed": 362,
+        "coreMainTests": 3654,
+        "coreMainPassed": 3652,
+        "coreMainFailed": 0,
+        "coreMainSkipped": 2,
+        "coreIsolatedStopPassed": 8,
+        "coreSuiteComplete": true,
+        "coreNaturalExit": true,
+        "desktopKnownFailures": 28,
+        "desktopSuiteComplete": false,
+        "complete": false,
+        "naturalExit": false,
+        "exitCode": null,
+        "signal": "SIGTERM",
+        "log": "mac-source-prepare-verify-r6.log",
+        "receipt": "mac-source-prepare-verify-r6.json",
+        "stopReceipt": "verify-r6-desktop-stall-odwy67wv/STOP.json",
+        "baselineDynamicAttribution": false
+      },
+      "previousBoundaries": {
+        "exitCode": 1,
+        "reason": "audio-boundary:packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts",
+        "baselineDynamicAttribution": false
+      },
+      "r8Packaging": {
+        "receipt": "mac-r8-package-eUKomu/RESULT.json",
+        "exitCode": 0,
+        "sourceInputsCompared": 2902,
+        "sourceInputsUnchanged": true,
+        "extraProductionBuildExecuted": false,
+        "signingAndInstallation": "passed-original-identity-installed-110352"
+      },
+      "postR8ProductDelta": {
+        "file": "apps/desktop/src/renderer/src/components/settings/MobileConnectionSettings.vue",
+        "scope": "scoped-row-actions-opacity-1-only",
+        "artifact": "mac-mobile-actions-opacity-2ifp4qti/DELTA-FROM-R8.json",
+        "fullVerifyNotRepeatedForCss": true,
+        "productionBuildReceipt": "mac-mobile-actions-build-izQOF7/RESULT.json",
+        "productionBuildExit": 0,
+        "sourceInputsCompared": 886,
+        "packageReceipt": "mac-mobile-actions-package-J3TD83/RESULT.json",
+        "packageInputsCompared": 2902,
+        "signatureReceipt": "mac-mobile-actions-signed/SIGNATURE.json",
+        "signedTargets": 23,
+        "installationReceipt": "mac-mobile-actions-install-icz4rry7/INSTALL.json",
+        "installedBuild": "20261024.112455",
+        "actualButtonsVisible": true,
+        "formalIssueButtonWorked": true
+      },
+      "fullStandardR9": {
+        "receipt": "mac-source-prepare-verify-r9.json",
+        "exit": 0,
+        "durationMs": 312082.97075,
+        "contractsPassed": 362,
+        "corePassed": 3652,
+        "coreFailed": 0,
+        "coreSkipped": 2,
+        "coreIsolatedStopPassed": 8,
+        "desktopPassed": 2957,
+        "includesLaterBoundaryReview": false
+      },
+      "artistRecoveryTargeted": {
+        "receipt": "artist-backfill-recovery-checks-U6OCSn/RESULT.json",
+        "typecheckExit": 0,
+        "passed": 58,
+        "failed": 0,
+        "skipped": 0,
+        "includesLaterBoundaryReview": false
+      },
+      "fullStandardR10": {
+        "receipt": "mac-source-prepare-verify-r10.json",
+        "exit": 0,
+        "durationMs": 307249.84629099997,
+        "includesLatestRecoveryChanges": true
+      },
+      "artistRecoveryReview": {
+        "receipt": "backfill-review-boundaries-hua1ovn8/CHECKS.json",
+        "passed": 64,
+        "failed": 0,
+        "skipped": 0,
+        "redNewFailures": 4,
+        "extraLegacyDiagnosticPassed": false
+      }
+    },
+    "streamingFollowup": {
+      "existingCatalogIndependentFromArtistIndex": true,
+      "iosAlbumPublicationBarrier": "implemented-engineering-verified-device-pending",
+      "indexSynchronousSqlBlocking": "confirmed-real-library-copy",
+      "partialArtistResultsPublished": false,
+      "realApplicationResponsiveWhileIndexing": "mac-catalog-and-detail-observed",
+      "indexTimeSlicing": "implemented-engineering-verified",
+      "independentIndexSqlWorker": "implemented-engineering-and-mac-browse-verified",
+      "realLibraryConcurrentMeasurement": {
+        "state": "passed",
+        "indexMs": 194540.893375,
+        "macDirectory": {
+          "count": 386,
+          "p95Ms": 2.0455
+        },
+        "mobileDirectoryService": {
+          "count": 211,
+          "p95Ms": 444.402916
+        },
+        "requestFailures": 0,
+        "eventLoopMaxIntervalMs": 118.193375,
+        "actualAppOrLAN": false,
+        "originalLyricsInventoryIncluded": false
+      },
+      "macCandidateBuild": "passed",
+      "macCandidate": {
+        "build": "20261023.165108",
+        "installed": true,
+        "asarSHA256": "13d3fd2897bd9229b8f5fdc114605bb29795efbd7f53137ce81a051f3cba37b3",
+        "signedAsOriginal": true
+      },
+      "airCandidate": {
+        "build": 112,
+        "installedVerified": true,
+        "sameBundleAndTeam": true,
+        "normalLaunchObserved": true,
+        "existingPairingAndHomeContentObserved": true,
+        "fourTabsRetained": true,
+        "currentValidation": "historical-five-search-tests-passed-device-retired",
+        "receipt": "ios-air112-xjw7mszc/INSTALL-RECEIPT.json"
+      },
+      "followupMacCandidate": {
+        "build": "20261023.181121",
+        "installed": true,
+        "asarSHA256": "5e1be96cda1c1f45b46a3ca170476e02a414822b71201e2ea51aa324d054c7ee",
+        "signedAsOriginal": true,
+        "nativeResourcesUnchanged": true,
+        "runtimeVerified": false
+      },
+      "latestMacCandidate": {
+        "build": "20261024.013718",
+        "installed": true,
+        "asarSHA256": "7194f8ab101e05393ead62549cba5661a2bec6f1b349efb51bce8e63a19b5593",
+        "signedAsOriginal": true,
+        "nativeResourcesUnchangedDuringSigning": true,
+        "resourceNamesMatchPreviousInstalled": true,
+        "productSourceFilesCompared": 878,
+        "productSourceScope": "apps/desktop/src and packages/*/src",
+        "normalLaunchObserved": true,
+        "privateContentObservationEnabled": false,
+        "receipt": "selected-page-followup-pE9u0A/INSTALLED.json"
+      },
+      "previousMacCandidate": {
+        "build": "20261024.000732",
+        "installed": true,
+        "asarSHA256": "6d171aff28e9637d07e21f218b6e97fb92c5ae62ed22c619fcfc00fd7c4d2948",
+        "signedAsOriginal": true,
+        "nativeResourcesUnchanged": true,
+        "normalLaunchObserved": true,
+        "productSourceFilesCompared": 885
+      },
+      "air112OrdinarySearch": {
+        "receipt": "air112-scroll-search-m64bkcst/RESULT.json",
+        "tests": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "normalPhoneLaunch": true,
+        "macPrivateObservationEnabled": true,
+        "seAcceptance": false
+      }
+    },
+    "runtimeValidation": {
+      "macCatalogDuringIndex": "passed-observation",
+      "macArtistFullPinyinAndInitials": "passed-observation",
+      "macProfileProvenance": "passed-observation",
+      "macLocalPlayback": "observed-start-progress-and-browse-without-track-change",
+      "macLocalPlaybackRootCause": "owner-authorized-network-volume-new-build-playback-observed",
+      "air109Smoke": {
+        "processExitCode": 0,
+        "executedRealMethods": 1,
+        "passed": 0,
+        "skipped": 1,
+        "failed": 0,
+        "searchAssertionsExecuted": false,
+        "reason": "app-not-connected",
+        "receipt": "air109-owner-authorized-test03-ouqcss6c/test03-verdict.json"
+      },
+      "imeComposition": "002900-native-composition-and-keyboard-navigation-observed-popover-visibility-fix-awaiting-package",
+      "crossPagePlayback": "latest-mac-local-search-item24-to25-progress17s-return24-progress28s",
+      "physicalMultiDevice": "unverified",
+      "ownerVisualAcceptance": "unverified",
+      "macNetworkVolumePermission": "owner-confirmed-allowed-local-playback-observed",
+      "macLocalSourcePreparationDeadline": "eight-regressions-passed-clock-fix-in-installed000732",
+      "macUnifiedSearchSources": "local-netease-roon-observed",
+      "macArtistFilterOnReturn": "preserved-observation",
+      "macSearchSuggestionReopen": "observed-escape-retains-input-down-reopens-enter-search",
+      "airConnectionDetail": "paired-upgrade-and-cold-relaunch110-retained-home-and-server-description",
+      "macSearchLocalAlbumReturn": "passed-query-source-category-and-visual-cover-y60-restored",
+      "macOnlinePlayback": "000732-netease-result2-progress38s-next-result3-progress33s-observed",
+      "listeningAcceptance": "not-observed",
+      "macExactNameSuggestion": "passed-actual-app",
+      "macPlaybackWaitingMessage": "absent-after-confirmed-local-playback",
+      "macQuit": "002900-two-ordinary-quits-exit0-observed-prior181121-and000732-stalls-retained",
+      "macExactPhoneticSuggestion": "002900-full-pinyin-and-initials-exact-artist-first-observed",
+      "air109ConnectedBatch": {
+        "receipt": "air109-connected-01-09-by1bcov7/tests01-09-verdict.json",
+        "passed": 1,
+        "failed": 8,
+        "skipped": 0,
+        "queryAssertionsReached": false
+      },
+      "air109ManualLocalSearch": {
+        "artistResultsObserved": true,
+        "tracksAndAlbums": "busy-after-loading",
+        "receipt": "air109-local-zjl-results.png"
+      },
+      "air109ManualPlayback": {
+        "startIndex": 2,
+        "progressSeconds": [
+          42,
+          68
+        ],
+        "sameTrackAfterMacSearch": true,
+        "nextProgressSeconds": 100,
+        "lastState": "paused",
+        "naturalEndVerified": false,
+        "crossPageVerified": false,
+        "audibleAcceptance": false,
+        "receipt": "mac-ime-air-local-playback-and110.json"
+      },
+      "air110Upgrade": {
+        "installedVerified": true,
+        "sameBundleAndTeam": true,
+        "normalLaunchObserved": true,
+        "existingPairingAndHomeContentRestoredAfterUpgrade": true,
+        "fourTabsRetained": true,
+        "searchFieldImmediatelyVisible": true,
+        "evidence": "air110-search-always-visible.png",
+        "deviceHub": "screen-stream-errors-and-late-input-observed-not-attributed-to-product",
+        "dedicatedColdRestart": "new-process-home-and-server-description-restored-media-after-restart-pending",
+        "uiBatch": "completed-one-pass-one-fail-no-skip",
+        "localDetailSingleCreditObserved": true,
+        "detailSearchFieldVisible": true
+      },
+      "air110FocusedBatch": {
+        "receipt": "air110-netease-allartists-9bnu1l19/verdict.json",
+        "exitCode": 65,
+        "passed": 1,
+        "failed": 1,
+        "skipped": 0,
+        "singleSourceNetEaseArtist": "still-loading-at-30s-budget",
+        "allSourceArtistEntrances": "passed",
+        "albumAndTrackAssertionsReached": false
+      },
+      "macQuitReceipt": "mac-normal-quit-air-cold-restore.json",
+      "secondMacQuitReceipt": "mac-observed-runtime-f9G6H2/exit.json",
+      "air110SelectedPage": {
+        "recordedAt": "2026-10-24T01:54:18.775401+00:00",
+        "macBuild": "20261024.013718",
+        "iosBuild": 110,
+        "macExplicitPrivateContentObservation": true,
+        "testBatch": {
+          "receipt": "air110-selected-page-r78h0jgb/RESULT.json",
+          "exitCode": 65,
+          "passed": 1,
+          "failed": 3,
+          "skipped": 0,
+          "03and04": "local-artist-visible-but-linked-online-entrance-violates-current-filter",
+          "05": "local-initials-UI-still-loading-at30s-after-server-http200",
+          "06": "netease-artists-albums-tracks-passed"
+        },
+        "manualLocal100": {
+          "songsVisible": true,
+          "albumsVisible": true,
+          "sourcePageSize": 100,
+          "serverTerminalMs": {
+            "tracks": 3524.444,
+            "albums": 811.871
+          },
+          "screenEvidence": [
+            "air110-local100-songs-after-fix.png",
+            "air110-local100-albums-after-fix.png"
+          ],
+          "LANP95Measured": false,
+          "audibleAcceptance": false
+        },
+        "spinnerCorrelation": {
+          "serverTerminalMs": 816.377,
+          "serverStatus": 200,
+          "clientReceiptOrDecodeObserved": false,
+          "causeConfirmed": false
+        },
+        "newIOSSourceFixes": {
+          "filterEntrances": "implemented-unbuilt",
+          "cancelledInitialPage": "reproduced-in-controlled-test-not-yet-fixed",
+          "phonePage25": "111-built-not-installed"
+        },
+        "fullGate": "failed",
+        "receipt": "air110-selected-page-runtime-receipt.json"
+      },
+      "air112ManualAndDiagnostic": {
+        "recordedAt": "2026-10-24T02:20:23.137016+00:00",
+        "iosBuild": 112,
+        "macBuild": "20261024.013718",
+        "diagnosticModeBothEnds": true,
+        "automatedTest05": {
+          "receipt": "air112-selected-page-tqhj8q0x/RESULT.json",
+          "exitCode": 65,
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "artistsAssertionPassed": true,
+          "albumsClientTrace": "HTTP200 decoded validated25 published25 view-ready",
+          "failure": "fixed-firstMatch-offscreen-no-scroll",
+          "trackAssertionReached": false,
+          "old110SpinnerCauseProven": false
+        },
+        "manualSearch": {
+          "query": "zjl",
+          "source": "local",
+          "artistsVisible": true,
+          "albumsVisible": true,
+          "songsVisible": true,
+          "albumDetailTracks": 12,
+          "albumDetailReturnPreservedQuerySourceKindAndVisiblePosition": true
+        },
+        "manualPlayback": {
+          "startOneBasedSearchIndex": 2,
+          "startTrack": "Dead Romance(Part I)",
+          "initialObservedProgressSeconds": 135,
+          "subsequentObservedProgressSeconds": [
+            161,
+            222,
+            226
+          ],
+          "upNextCount": 371,
+          "laterPageSelected": "龙拳",
+          "laterPageUpNextCount": 1,
+          "laterPageObservedProgressSeconds": 13,
+          "seekNearEndSeconds": 238,
+          "durationSeconds": 252,
+          "afterSeekNaturalEOSNext": "龙骑战士",
+          "nextObservedProgressSeconds": [
+            6,
+            60,
+            66,
+            93,
+            168
+          ],
+          "finalState": "paused-at173s",
+          "originalSource": "local",
+          "heardAudioAccepted": false,
+          "uninterruptedFullTrackDurationTest": false,
+          "macConcurrentSearchVerified": false,
+          "completeSearchBeforeStartWait": "observed-not-timed-needs-followup"
+        },
+        "screenEvidence": [
+          "air112-initials-albums-hittability.png",
+          "air112-local-albums-after-pagination.png",
+          "air112-initials-album-detail.png",
+          "air112-initials-albums-return-position.png",
+          "air112-initials-local-songs.png",
+          "air112-nonfirst-local-playing.png",
+          "air112-nonfirst-local-player-2m15.png",
+          "air112-local-search-queue-371.png",
+          "air112-local-search-queue-last-page.png",
+          "air112-local-search-later-page-playing.png",
+          "air112-local-search-auto-next.png",
+          "air112-auto-next-progress60s.png",
+          "air112-auto-next-progress168s.png"
+        ],
+        "LANP95Measured": false,
+        "ownerVisualAcceptance": false
+      },
+      "orphanedDiagnosticEPIPE": {
+        "receipt": "mac-orphaned-diagnostic-epipe-512b7639/RESULT.json",
+        "closedStdioPipeObserved": true,
+        "normalQuitPassed": false,
+        "forcedRecovery": true,
+        "ordinaryRelaunchObserved": true,
+        "ordinaryHomeReady": true
+      },
+      "se113": {
+        "installedVerified": true,
+        "normalLaunchObserved": true,
+        "fourTabsVisible": true,
+        "uiAutomation": "owner-authorized-readonly-test00-passed",
+        "firstDiagnosticReceipt": "se113-scroll-search-psntdkvl/RESULT.json",
+        "firstDiagnosticStatus": "runner-initialization-timeout-no-test-method-executed",
+        "appPairing": "single-submit-server-row-increased-client-terminal-unverified",
+        "physicalSearchVerified": false,
+        "readonlyDiagnosticReceipt": "se113-scroll-search-236xrmuj/RESULT.json",
+        "readonlyDiagnosticPassed": 1,
+        "readonlyDiagnosticFailed": 0,
+        "readonlyDiagnosticSkipped": 0,
+        "publicClipboardProbe": {
+          "receipt": "se113-pairing-clipboard-probe-eq5g619i/RESULT.json",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "exitCode": 0,
+          "publicMarkerCleared": true,
+          "pairingSubmitted": false
+        },
+        "certificateAndServerConfirmed": true,
+        "autonomousExecution": {
+          "ownerRequested": true,
+          "manualPairingWaitSuperseded": true,
+          "pairingState": "pending",
+          "macController": "AX readable; generate action unchanged; coordinate scroll noWindowsAvailable",
+          "newPermitIssuedObserved": false,
+          "permitTransferred": false,
+          "pairingSubmitted": false,
+          "productServiceFailureProven": false
+        },
+        "currentLockRead": {
+          "receipt": "se113-current-lock-read-haa1rrlr/lock.json",
+          "passcodeRequired": false,
+          "unlockedSinceBoot": true,
+          "functionalEvidence": false
+        },
+        "publicClipboardProbeLatest": {
+          "receipt": "se113-pairing-clipboard-probe-hsrstzh4/RESULT.json",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "focusPreconditionAdded": true
+        },
+        "latestPairingAttempt": {
+          "receipt": "se113-pairing-foreground-pair-42ehpw9s/RESULT.json",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "uniqueSubmitCount": 1,
+          "terminalConnectedWithin30s": false,
+          "permitReadForSubmission": true,
+          "runnerFileRemovedBeforeInput": true,
+          "hostFileRemoved": true,
+          "valueLogged": false,
+          "automaticResubmit": false
+        },
+        "previousPairingPreflightAttempt": {
+          "receipt": "se113-pairing-foreground-pair-c48g4jly/RESULT.json",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "phase": "initial-public-origin-selector",
+          "permitRead": false,
+          "permitSubmitted": false,
+          "hostTransferFileRemoved": true,
+          "runnerOwnedFileCleanupPending": true,
+          "physicalFunctionProven": false
+        },
+        "publicIdentityDiagnostic": {
+          "receipt": "se113-pairing-public-identity-qmpa3oie/RESULT.json",
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "exactNativeDelimiterObserved": "、",
+          "oldOwnedPermitFileRemovedWithoutReading": true
+        },
+        "macActiveDeviceRows": {
+          "before": 2,
+          "after": 3,
+          "deviceNamesNotUsedAsUniqueIdentity": true
+        },
+        "latestSearchBatch": {
+          "receipt": "se113-pairing-search-all-rw_v4kkd/RESULT.json",
+          "passed": 0,
+          "failed": 1,
+          "skipped": 8,
+          "exitCode": 65,
+          "actualSearchAssertionsExecuted": false,
+          "nativeNavigationPreconditionPending": true
+        },
+        "readonlyConnectionFollowup": {
+          "receipt": "se113-pairing-connection-detail-ft7k25st/RESULT.json",
+          "passed": 0,
+          "failed": 1,
+          "phase": "settings-navigation"
+        },
+        "latestOwnerDeviceChange": {
+          "state": "stopped-by-owner",
+          "operationsStopped": true,
+          "newDevice": "pending",
+          "inventoryReceipt": "device-transition-from-se-iaplh1ag/devices.json",
+          "noNewDeviceSelectedAutomatically": true
+        },
+        "nativeNavigationDiagnostic": {
+          "receipt": "se-native-navigation-observation-v7xitp06/RESULT.json",
+          "diagnosticPassed": true,
+          "searchPassed": false,
+          "fourTabsVisualAfterFirstHome": true,
+          "secondScreenshotSystemControlCenter": true,
+          "backgroundAXNotCurrentScreenProof": true
+        },
+        "pairingTerminalTestAssumption": {
+          "state": "not-auth-failure-proof",
+          "productSuccessReturnsHomeOnConnectionIdentityChange": true,
+          "noRepeatedPairingSubmission": true
+        }
+      },
+      "macMobileButtons": {
+        "build": "20261024.112455",
+        "beforeScreenshot": "mac-mobile-actions-opacity-2ifp4qti/before.png",
+        "afterScreenshot": "mac-mobile-actions-opacity-2ifp4qti/after.png",
+        "visibleAndGeneratedPermit": true,
+        "credentialValueLogged": false
+      },
+      "macNormalQuitFollowup": {
+        "build": "20261024.110352",
+        "ordinaryMenuQuitObservedTwice": true,
+        "mainProcessAbsent": true,
+        "forcedTermination": false,
+        "latestCssBuildQuitPending": true
+      },
+      "macLatestNormalStartup": {
+        "build": "20261024.112455",
+        "receipt": "mac-mobile-actions-normal-fbskgx4k/START.json",
+        "diagnosticFlags": false,
+        "finalReadyMs": 105184.742792,
+        "homepageObserved": true,
+        "coldStartupOptimized": false
+      },
+      "mac112455LiveSearch": {
+        "receipt": "mac112455-live-search-eAwKiX/UI.json",
+        "localSourceFilterRuntimePassed": true,
+        "mergedArtistCardRuntimePassed": true,
+        "detailReturnQueryAndFilterPassed": true,
+        "newPlaybackVerified": false,
+        "newNativeIMEExecuted": false
+      },
+      "localRootRecoveryBackup": {
+        "receipt": "library-before-root-recovery-t5s_jdmr/BACKUP.json",
+        "bytes": 973160448,
+        "quickCheck": "ok",
+        "sourceReadonly": true,
+        "relinkOrScanExecuted": false
+      },
+      "iphone14P114": {
+        "preflight": "iphone14p-readonly-takeover-9mdckzxu/",
+        "installedBefore": "106",
+        "buildReceipt": "ios-14p114-nhmo8l97/RESULT.json",
+        "built": "114",
+        "targetProvisioned": true,
+        "sourceSameAsVerified113": true,
+        "sourceFiles": 379,
+        "installed": false,
+        "searchVerified": false,
+        "playbackVerified": false
+      },
+      "iphoneDuo114Install": {
+        "requestedByOwner": true,
+        "priority": "before-further-device-testing",
+        "deviceKind": "physical",
+        "deviceUDIDSuffix": "EA00036",
+        "ios": "27.1",
+        "developerMode": "enabled",
+        "locked": false,
+        "installedBefore": false,
+        "preflight": "duo-physical-install-preflight-fkygl560/",
+        "buildReceipt": "ios-duo114-etgl5w4x/RESULT.json",
+        "buildExit": 65,
+        "blocker": "apple-team-iphone-registration-capacity-exhausted",
+        "profileIncludesDuo": false,
+        "localProfileAudit": "duo-local-profile-audit-swmtyrre/RESULT.json",
+        "localProfilesChecked": 6,
+        "localValidDuoProfiles": 0,
+        "installed": false,
+        "accountOrDeviceRegistrationChanges": false,
+        "waitingFor": "eligible-signing-team"
+      },
+      "mac112455NormalQuit": {
+        "receipt": "mac112455-normal-quit-2e20thqj/RESULT.json",
+        "passed": true,
+        "forced": false
+      },
+      "mac112455RestartObservation": {
+        "receiptDirectory": "mac112455-root-recovery-normal-jew2bh2u/",
+        "coreReadyMs": 104873.711458,
+        "finalReadyMs": 105299.687833,
+        "uiStillPreparingObserved": true,
+        "rendererAppSetupAndMountedEventsPresent": true,
+        "startupDeadlockProven": false
+      },
+      "se114AfterReset": {
+        "installReceipt": "ios-se114-install-1lv_jl6y/RESULT.json",
+        "installed": true,
+        "normalLaunch": true,
+        "connectionReceipt": "se114-pairing-connection-state-_qxco8qe/RESULT.json",
+        "systemAuthorizationPassed": true,
+        "methodStarted": true,
+        "state": "not-connected",
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "searchExecuted": false,
+        "playbackExecuted": false,
+        "otherPairingsRevoked": false,
+        "duoDeferredByOwner": true
+      },
+      "mac112455FreshHome": {
+        "receipt": "mac112455-root-recovery-normal-jew2bh2u/UI-RESELECTED.json",
+        "ordinaryHomeObserved": true,
+        "ownerAccepted": false
+      },
+      "mac132038": {
+        "build": "20261024.132038",
+        "installReceipt": "mac-artist-recovery-install-rnbho_nd/INSTALL.json",
+        "asarSHA256": "07809069c47b5363b996a37643b864a96d225cb81cf9d7f80d482b7d9ecea45f",
+        "signedTargets": 23,
+        "signatureMatchesOriginal": true,
+        "normalLaunchReceipt": "mac132038-normal-0dkby11n/START.json",
+        "diagnosticFlags": false,
+        "liveScanStarted": false
+      }
+    },
+    "stageReport": "reports/MOUSA_4_1_STREAMING_LIBRARY_2026-10-24.md",
+    "ios112FullLibraryGate": {
+      "receipt": "ios-air112-bwwwq_3c/RESULT.json",
+      "exitCode": 1,
+      "tests": 669,
+      "failedAssertions": 21,
+      "failedMethods": 18,
+      "failures": [
+        {
+          "suite": "IOS33CachedBrowseTests",
+          "method": "testLocalCorruptDuplicateDiskRowsAreIgnoredBeforeFreshDetail"
+        },
+        {
+          "suite": "LibraryHTTPTests",
+          "method": "testFiveThousandSyntheticItemsDecodeMapAndStoreRemainBounded"
+        },
+        {
+          "suite": "LibraryHTTPTests",
+          "method": "testRealHTTPArtworkPNGJPEG404AndValidation"
+        },
+        {
+          "suite": "LibraryHTTPTests",
+          "method": "testRealHTTPArtworkRequiresAuthorizationAndUsesSingularContractRoute"
+        },
+        {
+          "suite": "LibraryHTTPTests",
+          "method": "testRealHTTPCursorInvalidRefreshesStoreOnce"
+        },
+        {
+          "suite": "LibraryHTTPTests",
+          "method": "testRealHTTPPaginationSourceSearchAndExactDetails"
+        },
+        {
+          "suite": "LibraryHTTPTests",
+          "method": "testRealHTTPStoreKeepsUnavailableAndMissingRowsWithoutSubstitution"
+        },
+        {
+          "suite": "MBM000ConsumerContractTests",
+          "method": "testSafeHTTPFailurePreservesClassificationAndDropsRawDiagnosticText"
+        },
+        {
+          "suite": "MBM004ContentAccountChangeTests",
+          "method": "testSourceChangedFencesNonCooperativeDailyAndNotifiesOnlyOnce"
+        },
+        {
+          "suite": "MBM004ContentContractTests",
+          "method": "testRepositoriesPreserveOnlyTrueWireSourceChangedForAccountCallback"
+        },
+        {
+          "suite": "MBM004ContentStateTests",
+          "method": "testManualCapabilityRefreshCannotReuseOrCacheLateOldFlight"
+        },
+        {
+          "suite": "MBM004ContentStateTests",
+          "method": "testSourceChangedConflictClearsCrossModuleAccountSnapshot"
+        },
+        {
+          "suite": "MBPrivateCatalogBatchProbeTests",
+          "method": "testRealRepositoryAndDecoderReadOnlyUseObservedHTTPStatus"
+        },
+        {
+          "suite": "MBPrivateForegroundHoldTests",
+          "method": "testDisabledConstructionAndRunDoNotReadWriteOrCreateReport"
+        },
+        {
+          "suite": "MBPrivateForegroundHoldTests",
+          "method": "testEveryConflictingProbeRejectsWithoutAcquiringIdle"
+        },
+        {
+          "suite": "MBPrivateForegroundHoldTests",
+          "method": "testHoldStartsWithoutConnectionAndEarlyWakeCannotExtendTenMinuteDeadline"
+        },
+        {
+          "suite": "MBPrivateForegroundHoldTests",
+          "method": "testReportUsesClosedSmallPayloadAndNoSensitiveArgumentOrPath"
+        },
+        {
+          "suite": "MBPrivateForegroundHoldTests",
+          "method": "testReportWriteFailureDoesNotPreventRealIdleRestoration"
+        }
+      ],
+      "environmentGaps": [
+        "MB_LIBRARY_TEST_PYTHON",
+        "MB_LIBRARY_TEST_ROOT",
+        "MB_PLAYBACK_TEST_FILES"
+      ],
+      "allRemainingFailuresAttributed": false,
+      "targetedNewArtistTests": {
+        "tests": 19,
+        "failed": 0
+      }
+    },
+    "ios112TargetedValidation": {
+      "libraryTests": 46,
+      "clientTraceTests": 8,
+      "failed": 0,
+      "productionBuildExit": 0,
+      "signatureExit": 0,
+      "sourceFilesCompared": 198,
+      "sourceScope": "App and Presentation Swift, Packages production Swift, project.pbxproj; excludes Tests",
+      "sourceUnchanged": true,
+      "fullLibraryGatePassed": true,
+      "receipt": "ios-air112-xjw7mszc/RESULT.json"
+    },
+    "ios112LibraryRecheck": {
+      "startedAt": "2026-10-24T02:16:19.776752+00:00",
+      "testEnvironmentComplete": true,
+      "deviceTouched": false,
+      "productBuiltOrInstalled": false,
+      "exitCode": 0,
+      "sourceUnchanged": true,
+      "sourceFiles": 314,
+      "finishedAt": "2026-10-24T02:17:41.107942+00:00",
+      "tests": 671,
+      "passed": 671,
+      "failed": 0,
+      "skipped": 0,
+      "productBuild": 112,
+      "originalFailureReceipt": "ios-air112-bwwwq_3c/RESULT.json",
+      "fixtureChanges": "ios-regression-fixtures-1aybgyiz/changes.patch"
+    },
+    "deviceTransition": {
+      "date": "2026-10-24",
+      "previous": "Duo-signing-deferred",
+      "current": "iPhone SE",
+      "oldAirOperationsAllowed": false,
+      "phone14POperationsAllowed": false,
+      "systemPaired": true,
+      "developerModeEnabled": true,
+      "installed": true,
+      "existing112ProfileIncludesSE": false,
+      "acceptanceTransferredFromAir": false,
+      "uiRunner": {
+        "receipt": "se-ui-runner-_e7hvahj/RESULT.json",
+        "buildExit": 0,
+        "signatureExit": 0,
+        "targetProvisioned": true,
+        "installed": false
+      },
+      "build": 114,
+      "seOperationsAllowed": true,
+      "newDeviceSpecified": true,
+      "acceptanceTransferredFromSE": false,
+      "ownerReply": "跳过Duo问题，继续在SE测试",
+      "resetUDIDUnchanged": true,
+      "productInstalled": true,
+      "systemAuthorizationCompleted": true,
+      "applicationConnected": false
+    },
+    "ios113ProgressiveQueue": {
+      "state": "engineering-passed-installed-se-pairing-in-progress",
+      "modelTests": 34,
+      "modelFailed": 0,
+      "receipt": "ios-se113-n2x3ak28/RESULT.json",
+      "deviceTouched": true,
+      "libraryTests": 679,
+      "libraryFailed": 0,
+      "productionBuildExit": 0,
+      "signatureExit": 0,
+      "sourceFilesCompared": 379,
+      "sourceUnchanged": true
+    },
+    "updatedAt": "2026-10-24T14:48:23.970129+00:00",
+    "fixedTaskNumbers": [
+      "001",
+      "002",
+      "003",
+      "004",
+      "005",
+      "006",
+      "007",
+      "008",
+      "009",
+      "010",
+      "011",
+      "012",
+      "013",
+      "014",
+      "015"
+    ],
+    "scopeDiscipline": "事项001–015固定；按风险验证；范围外大型问题只记录，不自行修复。",
+    "nearbyPairing": {
+      "state": "implemented-software-validated",
+      "bonjourService": "_mousa._tcp",
+      "flow": "发现电脑→iOS发起→Mac显示六位码→iOS确认",
+      "originalAuthPreserved": true,
+      "physicalDeviceValidation": "pending",
+      "coreTargetedTests": 49,
+      "macTargetedTests": 46,
+      "iosClientFullTests": 227,
+      "iosAppStateTests": 13
+    },
+    "duoIntegration": {
+      "state": "pending-implementation-commit-only",
+      "sourceCommit": "d40565bca43c0be452f4ee280415246a15b5fa12",
+      "fileCount": 5
+    },
+    "gitDelivery": {
+      "state": "authorized-not-yet-pushed",
+      "forcePush": false
+    }
+  },
+  "v4LocalLibraryRepair": {
+    "state": "ENGINEERING_VERIFIED_RUNTIME_PARTIAL_WITH_CARRYOVER",
+    "branch": "codex/v4",
+    "baseSha": "f459c46525855e87e1d8ee68388e8ea21ab04653",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "sourceState": "PRESERVED_UNCOMMITTED_WIP",
+    "developmentBuild": "PASSED",
+    "targetedRegression": "PASSED",
+    "realEmbeddedLyrics": "PASSED",
+    "realParentDiscArtwork": "PASSED",
+    "realRepeatedSeekPositions": "PASSED",
+    "physicalContinuousDrag": "UNVERIFIED_AUTOMATION_LIMIT",
+    "firstOpenFalseWarnings": "NOT_OBSERVED_FINAL_RUNTIME",
+    "coldStartLatency": "OPEN",
+    "fullLibraryScanWithinFiveMinutes": "UNVERIFIED",
+    "physicalAudioOutput": "UNVERIFIED",
+    "ownerAcceptance": "PENDING",
+    "remotePush": "NOT_RUN",
+    "otherTasks": "UNCHANGED",
+    "report": "reports/V4_LOCAL_LIBRARY_PLAYBACK_REPAIR_2026-10-19.md"
+  },
   "v4DevelopmentBaseline": {
     "branch": "codex/v4",
     "state": "LOCAL_DEVELOPMENT_BUILD_READY",
@@ -49037,32 +50410,32 @@
   },
   "currentIntegrationTask": "V39-INTEGRATION-002",
   "v39Integration": {
-  "schema": "musicbridge.v39.integration002.status.v1",
-  "task": "V39-INTEGRATION-002",
-  "branch": "codex/v39-integration-002",
-  "baseReportSha": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
-  "state": "IN_PROGRESS",
-  "phase": "FULL_DONOR_ADOPTION_AND_IMPLEMENTATION",
-  "sourceCommit": null,
-  "reportCommit": null,
-  "software": "NOT_RUN",
-  "nativeEightFormats": "NOT_RUN",
-  "currentCapacity": "NOT_RUN",
-  "sourceCi": "NOT_RUN",
-  "reportCi": "NOT_RUN",
-  "realApplicationServiceDeviceAudio": "NOT_RUN",
-  "ownerAcceptance": "NOT_RUN",
-  "nextTask": "V39-INTEGRATION-003"
-},
+    "schema": "musicbridge.v39.integration002.status.v1",
+    "task": "V39-INTEGRATION-002",
+    "branch": "codex/v39-integration-002",
+    "baseReportSha": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+    "state": "IN_PROGRESS",
+    "phase": "FULL_DONOR_ADOPTION_AND_IMPLEMENTATION",
+    "sourceCommit": null,
+    "reportCommit": null,
+    "software": "NOT_RUN",
+    "nativeEightFormats": "NOT_RUN",
+    "currentCapacity": "NOT_RUN",
+    "sourceCi": "NOT_RUN",
+    "reportCi": "NOT_RUN",
+    "realApplicationServiceDeviceAudio": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "nextTask": "V39-INTEGRATION-003"
+  },
   "v39Integration001Seal": {
-  "task": "V39-INTEGRATION-001",
-  "state": "SOURCE_AND_UNIQUE_DIRECT_REPORT_FIRST_NATURAL_CI_SEALED",
-  "sourceCommit": "744c29af17e7f587a635810c4f45e327c7132705",
-  "reportCommit": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
-  "sourceCi": "PASSED",
-  "reportCi": "PASSED",
-  "sealRef": "docs/integration/V39-INTEGRATION-002/SEALED_BASELINE.json",
-  "realApplicationServiceDeviceAudio": "NOT_RUN",
-  "ownerAcceptance": "NOT_RUN"
-}
+    "task": "V39-INTEGRATION-001",
+    "state": "SOURCE_AND_UNIQUE_DIRECT_REPORT_FIRST_NATURAL_CI_SEALED",
+    "sourceCommit": "744c29af17e7f587a635810c4f45e327c7132705",
+    "reportCommit": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+    "sourceCi": "PASSED",
+    "reportCi": "PASSED",
+    "sealRef": "docs/integration/V39-INTEGRATION-002/SEALED_BASELINE.json",
+    "realApplicationServiceDeviceAudio": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN"
+  }
 }

@@ -1,4 +1,3 @@
-import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'electron-vite'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -7,7 +6,8 @@ import { captureNativeMobileConverter } from './scripts/native-mobile-converter-
 import { captureNativeOutput } from './scripts/native-output-package.mjs'
 import { captureNativeOutputDevice } from './scripts/native-output-device-package.mjs'
 import { captureNativeRust } from './scripts/native-rust-package.mjs'
-import { fixedMetadataWorkerBundlePlugin } from './scripts/metadata-worker-bundle-package.mjs'
+import { createRendererConfig } from './electron.renderer.config.js'
+import { captureNativeMediaWorker } from './scripts/native-media-worker-package.mjs'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 const converterBuild = await captureNativeConverter(currentDirectory)
@@ -15,7 +15,7 @@ const mobileConverterBuild = await captureNativeMobileConverter(currentDirectory
 const outputBuild = await captureNativeOutput(currentDirectory)
 const outputDeviceBuild = await captureNativeOutputDevice(currentDirectory)
 const rustBuild = await captureNativeRust(currentDirectory)
-const metadataWorker = await fixedMetadataWorkerBundlePlugin(path.resolve(currentDirectory, '../../packages/bridge-core'))
+const mediaWorkerBuild = await captureNativeMediaWorker(currentDirectory)
 
 export default defineConfig(({ mode }) => ({
   main: {
@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => ({
       __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__: 'null',
       __MUSIC_BRIDGE_COLLECTION_READONLY_PROBE_EXPECTATION__: 'null',
       __MUSIC_BRIDGE_RUST_MANIFEST_SHA256__: JSON.stringify(rustBuild.manifestSha256),
+      __MUSIC_BRIDGE_MEDIA_WORKER_SHA256__: JSON.stringify(mediaWorkerBuild.binarySha256),
       __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false',
       // 普通构建默认关闭；只有本轮私有诊断构建显式指定once才领取一条Range。
@@ -37,7 +38,8 @@ export default defineConfig(({ mode }) => ({
       __MUSIC_BRIDGE_OUTPUT_DEVICE_MANIFEST_SHA256__: JSON.stringify(outputDeviceBuild.manifestSha256),
       __MUSIC_BRIDGE_OUTPUT_DEVICE_CANDIDATE__: JSON.stringify(outputDeviceBuild.candidate),
     },
-    plugins: [metadataWorker, {
+    // 标签解析已切到带SHA固定身份的原生媒体Worker，不再改写旧JS Worker URL。
+    plugins: [{
       name: 'fixed-converter-build-identity',
       generateBundle() {
         this.emitFile({ type: 'asset', fileName: 'converter-build.json', source: JSON.stringify(converterBuild) + '\n' })
@@ -45,6 +47,7 @@ export default defineConfig(({ mode }) => ({
         this.emitFile({ type: 'asset', fileName: 'output-build.json', source: JSON.stringify(outputBuild) + '\n' })
         this.emitFile({ type: 'asset', fileName: 'output-device-build.json', source: JSON.stringify(outputDeviceBuild) + '\n' })
         this.emitFile({ type: 'asset', fileName: 'rust-core-build.json', source: JSON.stringify(rustBuild) + '\n' })
+        this.emitFile({ type: 'asset', fileName: 'media-worker-build.json', source: JSON.stringify(mediaWorkerBuild) + '\n' })
       },
     }],
     build: {
@@ -54,8 +57,10 @@ export default defineConfig(({ mode }) => ({
           index: path.join(currentDirectory, 'src/main/index.ts'),
           core: path.join(currentDirectory, 'src/main/core-entry.ts'),
           'dataset-owner': path.join(currentDirectory, 'src/main/dataset-owner-entry.ts'),
+          'mobile-sql-worker-entry': path.join(currentDirectory, '../../packages/bridge-core/src/collection/local-album-browser/mobile-sql-worker-entry.ts'),
           'mobile-playback-state-worker-entry': path.join(currentDirectory, 'src/main/mobile-playback-state-worker-entry.ts'),
           'chunks/cue-sidecar-worker': path.join(currentDirectory, '../../packages/bridge-core/src/library/cue-sidecar-worker.ts'),
+          'chunks/cue-sidecar-bulk-worker': path.join(currentDirectory, '../../packages/bridge-core/src/library/cue-sidecar-bulk-worker.ts'),
           'spreadsheet-worker': path.join(currentDirectory, '../../packages/bridge-core/src/collection/spreadsheet-worker.ts'),
         },
         output: {
@@ -77,11 +82,5 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  renderer: {
-    define: { __MUSIC_BRIDGE_PRIVATE_DESKTOP_ARTWORK__: JSON.stringify(process.env.MUSIC_BRIDGE_PRIVATE_DESKTOP_ARTWORK_BUILD === 'once'), __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__: 'null' },
-    build: {
-      outDir: 'dist/renderer',
-    },
-    plugins: [vue()],
-  },
+  renderer: createRendererConfig(),
 }))

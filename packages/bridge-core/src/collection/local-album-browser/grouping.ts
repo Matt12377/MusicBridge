@@ -32,7 +32,7 @@ function array(value: unknown, max: number): value is unknown[] {
 function unique(values: readonly string[]): boolean { return new Set(values).size === values.length }
 function metadata(value: unknown): value is dto.LocalMetadata {
   if (value === null || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return false
-  return Reflect.ownKeys(value).every(key => typeof key === 'string' && ['title', 'artist', 'album', 'disc', 'track', 'year'].includes(key)
+  return Reflect.ownKeys(value).every(key => typeof key === 'string' && ['title', 'artist', 'album', 'disc', 'track', 'year', 'albumArtist', 'artists', 'albumArtists'].includes(key)
     && Object.getOwnPropertyDescriptor(value, key)?.enumerable === true && Object.hasOwn(Object.getOwnPropertyDescriptor(value, key)!, 'value')) && dto.isLocalMetadata(value)
 }
 export function validateLocalAlbumSnapshot(snapshot: unknown, budget: LocalAlbumSnapshotBudget): asserts snapshot is LocalAlbumReadSnapshot {

@@ -1,3 +1,4 @@
+import { isLocalSourceLyricsSnapshot } from '../collection/local-source-ticket-types.js';
 import type { LyricsSnapshot, PlaybackSnapshot } from '@music-bridge/contracts';
 import { emptyLyricsSnapshot } from '../netease/lyrics.js';
 import type {
@@ -14,6 +15,7 @@ const ACTIVE_WORD_PUSH_INTERVAL_MS = 100;
 
 export interface LyricsCoordinatorOptions {
   load: (trackId: string) => Promise<LyricsSnapshot>;
+  localFile?: { read(context: LocalFileLyricsContext): Promise<LyricsSnapshot>; isCurrent(context: LocalFileLyricsContext): boolean };
   localDisplay?: { enabled: boolean; read(context: Extract<LyricsRequestContext, { kind: 'local' }>): LyricsSnapshot | undefined };
   localResolver?: {
     resolveActive(request: ActiveLyricsResolutionRequest): Promise<LyricsResolution>;
@@ -28,7 +30,13 @@ export interface LyricsCoordinatorOptions {
   scheduleEstimatedUpdates?: (callback: () => void) => () => void;
 }
 
+/** 只在Core内部从实际播放快照生成；不是Provider ID或Source授权。 */
+export interface LocalFileLyricsContext {
+  kind: 'local-file'; playbackGeneration: number; cacheKey: string;
+  localTrackId: string; assetId: string; assetRevision: string; attemptId: string;
+}
 export type LyricsRequestContext =
+  | LocalFileLyricsContext
   | {
       kind: 'netease';
       playbackGeneration: number;
@@ -58,8 +66,16 @@ export function createLyricsRequestContext(
   if (snapshot.state === 'idle' || snapshot.state === 'stopping' || snapshot.state === 'error') return undefined;
   const track = snapshot.currentTrack;
   const item = snapshot.queue.items[snapshot.queue.index];
-  if (!track || (!item && snapshot.source !== 'roon')) return undefined;
-  if(snapshot.source==='local_file'){const local=snapshot.local;return {kind:'unavailable',playbackGeneration,cacheKey:`local_file:${local?.local_track_id}:${local?.asset_id}:${local?.asset_revision}:${local?.attempt_id}`};}
+  if (!track) return undefined;
+  if (snapshot.source === 'local_file') {
+    const local = snapshot.local;
+    if (!local || !item?.local || track.id !== local.local_track_id || item.trackId !== local.local_track_id
+      || item.local.asset_id !== local.asset_id || item.local.asset_revision !== local.asset_revision || !local.attempt_id)
+      return { kind: 'unavailable', playbackGeneration, cacheKey: `local_file:unavailable:${playbackGeneration}` };
+    return { kind: 'local-file', playbackGeneration, cacheKey: JSON.stringify(['local_file',local.local_track_id,local.asset_id,local.asset_revision,local.attempt_id]),
+      localTrackId: local.local_track_id, assetId: local.asset_id, assetRevision: local.asset_revision, attemptId: local.attempt_id };
+  }
+  if (!item && snapshot.source !== 'roon') return undefined;
   const directRoon = item?.preferredSource === 'roon' || (!item && snapshot.source === 'roon');
   const smartRoon = item?.preferredSource === 'smart' && snapshot.source === 'roon';
   if (!directRoon && !smartRoon) {
@@ -182,6 +198,7 @@ export class LyricsCoordinator {
   private activeTrackId: string | undefined;
   private activeCacheKey: string | undefined;
   private activePlaybackGeneration: number | undefined;
+  private activeLocalFileContext: LocalFileLyricsContext | undefined;
   private activeSource: PlaybackSnapshot['source'];
   private activeZoneId: string | undefined;
   private activePlaybackState: PlaybackSnapshot['state'] | undefined;
@@ -204,11 +221,14 @@ export class LyricsCoordinator {
   }
 
   getSnapshot(): LyricsSnapshot {
+    if (this.activeLocalFileContext && !this.options.localFile?.isCurrent(this.activeLocalFileContext)) return emptyLyricsSnapshot('unavailable');
     return cloneSnapshot(this.activeSnapshot);
   }
 
   async getLyrics(trackId: string): Promise<LyricsSnapshot> {
     if (this.activeTrackId === trackId) return this.getSnapshot();
+    // 本地曲目UUID即使已切歌也不能落入网易云下载分支。
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(trackId)) return emptyLyricsSnapshot('unavailable');
     const cached = this.readCache(`netease:${trackId}`);
     if (cached) return cloneSnapshot(cached.snapshot);
     return this.loadNeteaseSnapshot(trackId, `netease:${trackId}`);
@@ -248,12 +268,13 @@ export class LyricsCoordinator {
       return;
     }
 
-    const context = suppliedContext ?? {
+    const context = suppliedContext ?? (snapshot.source === 'local_file'
+      ? createLyricsRequestContext(snapshot, 0) ?? { kind: 'unavailable' as const, playbackGeneration: 0, cacheKey: 'local_file:unavailable' } : {
       kind: 'netease' as const,
       playbackGeneration: 0,
       cacheKey: `netease:${trackId}`,
       neteaseTrackId: trackId,
-    };
+    });
 
     if (
       this.activeTrackId !== trackId
@@ -268,11 +289,12 @@ export class LyricsCoordinator {
       this.activeTrackId = trackId;
       this.activeCacheKey = context.cacheKey;
       this.activePlaybackGeneration = context.playbackGeneration;
+      this.activeLocalFileContext = context.kind === 'local-file' ? { ...context } : undefined;
       this.activeSource = snapshot.source;
       this.activeZoneId = snapshot.selectedZoneId;
       this.positionAnchorMs = undefined;
       this.positionAnchorClockMs = undefined;
-      const cached = context.kind === 'local' && this.options.localDisplay?.enabled ? undefined : this.readCache(context.cacheKey);
+      const cached = context.kind === 'local-file' || context.kind === 'local' && this.options.localDisplay?.enabled ? undefined : this.readCache(context.cacheKey);
       this.activeSnapshot = cached ? cloneSnapshot(cached.snapshot) : loadingSnapshot();
       if (cached?.localResolution && context.kind === 'local') {
         this.options.onLocalResolution?.(context, cached.localResolution);
@@ -325,6 +347,7 @@ export class LyricsCoordinator {
     this.activeTrackId = trackId;
     this.activeCacheKey = `netease:${trackId}`;
     this.activePlaybackGeneration = 0;
+    this.activeLocalFileContext = undefined;
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;
@@ -378,6 +401,7 @@ export class LyricsCoordinator {
     this.activeCacheKey = undefined;
     this.activePlaybackGeneration = undefined;
     this.options.localResolver?.cancelActive();
+    this.activeLocalFileContext = undefined;
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;
@@ -397,14 +421,17 @@ export class LyricsCoordinator {
         ? await this.loadNeteaseSnapshot(context.neteaseTrackId, context.cacheKey)
         : context.kind === 'local'
           ? await this.loadLocalSnapshot(context)
-          : emptyLyricsSnapshot('unavailable');
+          : context.kind === 'local-file' && this.options.localFile?.isCurrent(context)
+            ? await this.options.localFile.read(context) : emptyLyricsSnapshot('unavailable');
       if (
         generation !== this.generation
         || this.activeTrackId !== trackId
         || this.activeCacheKey !== context.cacheKey
         || this.activePlaybackGeneration !== context.playbackGeneration
       ) return;
-      this.activeSnapshot = cloneSnapshot(loaded);
+      this.activeSnapshot = context.kind === 'local-file'
+        && (!this.options.localFile?.isCurrent(context) || !isLocalSourceLyricsSnapshot(loaded))
+        ? emptyLyricsSnapshot('unavailable') : cloneSnapshot(loaded);
       this.emit(true);
       if (this.positionAnchorMs !== undefined) {
         if (this.activePlaybackState === 'playing') this.updateEstimated();
@@ -490,6 +517,7 @@ export class LyricsCoordinator {
     this.activeCacheKey = undefined;
     this.activePlaybackGeneration = undefined;
     this.options.localResolver?.cancelActive();
+    this.activeLocalFileContext = undefined;
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;
@@ -535,6 +563,9 @@ export class LyricsCoordinator {
   }
 
   private emit(force: boolean): void {
+    if (this.activeLocalFileContext && !this.options.localFile?.isCurrent(this.activeLocalFileContext)) {
+      this.stopEstimatedUpdates(); this.activeSnapshot = emptyLyricsSnapshot('unavailable');
+    }
     const snapshot = this.activeSnapshot;
     const key = `${snapshot.status}:${snapshot.activeLineIndex}:${snapshot.activeWordIndex ?? -1}:${snapshot.timingSource}:${snapshot.lines.length}`;
     if (!force && key === this.lastEmittedKey) return;

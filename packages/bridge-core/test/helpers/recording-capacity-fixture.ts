@@ -616,11 +616,15 @@ export function finishCapacityClone(clone: CapacityClone, result: { outcome: Cap
     if (info.dev !== clone.device || info.ino !== clone.inode || parentInfo.dev !== clone.parentDevice || parentInfo.ino !== clone.parentInode) throw new Error('容量clone目录身份变化');
     assert.deepEqual(JSON.parse(readFileSync(path.join(clone.directory, 'owner.json'), 'utf8')), clone.marker);
     const files = ['owner.json', 'sample.sqlite', 'sample.sqlite-wal', 'sample.sqlite-shm', 'sample.sqlite-journal'];
+    // Repository按需创建的四个固定派生库同属当前clone；不扩大到任意SQLite或目录。
+    const sidecars = new Set(['album-display-cache', 'album-artwork-resources', 'album-artwork-queue', 'album-artwork-observations']
+      .flatMap(kind => ['', '-wal', '-shm', '-journal'].map(suffix => `sample.sqlite.${kind}.sqlite${suffix}`)));
     for (const name of readdirSync(clone.directory)) {
       const value = lstatSync(path.join(clone.directory, name));
       if (result.ownedWorkspace && name === 'group-stop-workspace') {
         if (clone.label !== 'group-stop' || result.ownedWorkspace.path !== path.join(clone.directory, name) || !value.isDirectory() || value.isSymbolicLink()) throw new Error('容量clone的Stop workspace无效');
-      } else if (!files.includes(name) || !value.isFile() || value.isSymbolicLink()) throw new Error('容量clone包含非预期对象');
+      } else if ((!files.includes(name) && !sidecars.has(name)) || !value.isFile() || value.isSymbolicLink()
+        || sidecars.has(name) && value.nlink !== 1) throw new Error('容量clone包含非预期对象');
     }
     if (result.ownedWorkspace && !readdirSync(clone.directory).includes('group-stop-workspace')) throw new Error('容量clone缺少Stop workspace');
   };

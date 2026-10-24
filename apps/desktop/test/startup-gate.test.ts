@@ -438,11 +438,11 @@ function mainCrashArmFixture(enabled: boolean) {
   const exports: { create?: (directory: string, options: unknown) => unknown } = {}
   const sandbox = { exports, path, process: { env: {} }, coreDataDirectory: undefined, currentDirectory: '/synthetic/dist/main',
     buildCoreEnvironment: () => ({}), collectionReadonlyProbe: undefined, collectionScaleProbe: undefined,
-    packagedRouteProbe: undefined, packagedRendererProbe: undefined, collectionReadonlySettings: undefined, libraryReadTrace: undefined,
+    packagedRouteProbe: undefined, packagedRendererProbe: undefined, collectionReadonlySettings: undefined, libraryReadTrace: undefined, mobilePreparationProbe: undefined,
     mainWindow: undefined, mainDiagnostics: { performance: undefined }, performanceIpc: { context: () => undefined },
     MessageChannelMain: class { port1 = {}; port2 = {} },
     utilityProcess: { fork() { const child = { posts: [] as Array<{ message: unknown; ports: unknown[] }>, postMessage(message: unknown, ports: unknown[] = []) { this.posts.push({ message, ports }) } }; children.push(child); return child } },
-    CoreSupervisor: class { constructor(value: unknown) { configuration = value } },
+    CoreSupervisor: class { constructor(value: unknown) { configuration = value } configurePrivatePersistentOwnerStartup() {} },
   }
   const compiled = ts.transpileModule(source.slice(start, end) + '\nexports.create = createCoreSupervisor', { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
   runInNewContext(compiled, sandbox)

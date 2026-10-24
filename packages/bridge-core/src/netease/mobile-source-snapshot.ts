@@ -1,10 +1,12 @@
 import { createHmac } from 'node:crypto';
+import { types as nodeTypes } from 'node:util';
 import { mobileDataSnapshot, mobileInteger, mobileRecord, mobileUtf8Bytes } from '@music-bridge/contracts';
 import type { MobileTrackSelection } from '@music-bridge/contracts';
 import { captureMobileNeteaseSelection } from '../mobile/netease-catalog-service.js';
 import { captureMobileNeteaseAccount, mobileNeteaseId, MOBILE_NETEASE_DURATION_TOLERANCE_MS } from '../mobile/netease-source-types.js';
 import type { MobileNeteaseAccount, MobileNeteaseObservedAudio, MobileNeteaseTrackFacts } from '../mobile/netease-source-types.js';
 import { MobileServiceError } from '../mobile/types.js';
+import { mobileNeteaseSongAlbum, mobileNeteaseAlbumRegistration, isMobileNeteaseUnregisteredAlbumId } from './mobile-song-album.js';
 
 const invalid=():never=>{throw new MobileServiceError(409,'SOURCE_CHANGED');};
 function providerId(value:unknown):string{
@@ -26,16 +28,38 @@ export function createMobileNeteaseAccountMapper(options:{serverId:string;datase
     return Object.freeze({accountDomain,providerEpoch});
   }};
 }
+/** 目录只声明真实媒体描述符的授权状态；未知音频轴不冒充已观察的文件头。 */
+export function captureMobileNeteaseDirectorySongSnapshot(rawSong:unknown,binding:{account:MobileNeteaseAccount;selection:MobileTrackSelection;
+  sourceItemId:string;albumId:string;providerAlbumId:string|null;editionLabel:string;
+  media:{md5:string;size:number}|null;availability:'available'|'unavailable';artworkId?:string}):MobileNeteaseTrackFacts{
+  if(nodeTypes.isProxy(rawSong)||nodeTypes.isProxy(binding))return invalid();
+  const c=mobileDataSnapshot({song:rawSong,binding});if(!c.ok||!mobileRecord(c.value)||!mobileRecord(c.value.song)||!mobileRecord(c.value.binding))return invalid();
+  const song=c.value.song,b=c.value.binding as unknown as typeof binding,selection=captureMobileNeteaseSelection(b.selection),account=captureMobileNeteaseAccount(b.account);
+  if(providerId(song.id)!==b.sourceItemId||!mobileNeteaseId(b.albumId)||!mobileNeteaseId(b.sourceItemId)
+    ||!['available','unavailable'].includes(b.availability)||typeof b.editionLabel!=='string'||mobileUtf8Bytes(b.editionLabel)>1024
+    ||/[\u0000-\u001f\u007f-\u009f]/u.test(b.editionLabel)||b.artworkId!==undefined&&!mobileNeteaseId(b.artworkId))return invalid();
+  if(mobileNeteaseAlbumRegistration(mobileNeteaseSongAlbum(song.al))!==b.providerAlbumId
+    ||(b.providerAlbumId===null?!isMobileNeteaseUnregisteredAlbumId(b.albumId):isMobileNeteaseUnregisteredAlbumId(b.albumId))||!Array.isArray(song.ar)||song.ar.length>32||song.ar.length===0
+    ||!mobileInteger(song.dt,1))return invalid();
+  if(b.availability==='available'?(b.media===null||!mobileRecord(b.media)||Reflect.ownKeys(b.media).length!==2
+    ||typeof b.media.md5!=='string'||!/^[a-f0-9]{32}(?![\s\S])/u.test(b.media.md5)||!mobileInteger(b.media.size,4)):b.media!==null)return invalid();
+  const artists=song.ar.map(artist=>mobileRecord(artist)?label(artist.name):invalid()),title=label(song.name);
+  return Object.freeze({account,track:Object.freeze({id:selection.trackId,source:'netease' as const,sourceItemId:b.sourceItemId,albumId:b.albumId,
+    title,artists:Object.freeze(artists) as unknown as string[],versionId:selection.versionId,contentRevision:selection.contentRevision,
+    editionLabel:b.editionLabel,durationMs:song.dt,audio:Object.freeze({codec:'unknown',container:'unknown'}),availability:b.availability,
+    ...(b.artworkId?{artworkId:b.artworkId}:{})})});
+}
 /** 保留真实 song_detail 的 id/name/ar/al/dt；旧 parse 的 Unknown Artist/Album 不用于手机事实。 */
 export function captureMobileNeteaseSongSnapshot(rawSong:unknown,binding:{account:MobileNeteaseAccount;selection:MobileTrackSelection;
-  sourceItemId:string;albumId:string;providerAlbumId:string;editionLabel:string;observed:MobileNeteaseObservedAudio;
+  sourceItemId:string;albumId:string;providerAlbumId:string|null;editionLabel:string;observed:MobileNeteaseObservedAudio;
   availability:'available'|'missing'|'unavailable';artworkId?:string}):MobileNeteaseTrackFacts{
   const c=mobileDataSnapshot({song:rawSong,binding});if(!c.ok||!mobileRecord(c.value)||!mobileRecord(c.value.song)||!mobileRecord(c.value.binding))return invalid();
   const song=c.value.song,b=c.value.binding as unknown as typeof binding,selection=captureMobileNeteaseSelection(b.selection),account=captureMobileNeteaseAccount(b.account);
   if(providerId(song.id)!==b.sourceItemId||!mobileNeteaseId(b.albumId)||!mobileNeteaseId(b.sourceItemId)
     ||!['available','missing','unavailable'].includes(b.availability)||typeof b.editionLabel!=='string'||mobileUtf8Bytes(b.editionLabel)>1024
     ||/[\u0000-\u001f\u007f-\u009f]/u.test(b.editionLabel)||b.artworkId!==undefined&&!mobileNeteaseId(b.artworkId))return invalid();
-  if(!mobileRecord(song.al)||providerId(song.al.id)!==b.providerAlbumId||!Array.isArray(song.ar)||song.ar.length>32||song.ar.length===0)return invalid();
+  if(mobileNeteaseAlbumRegistration(mobileNeteaseSongAlbum(song.al))!==b.providerAlbumId
+    ||(b.providerAlbumId===null?!isMobileNeteaseUnregisteredAlbumId(b.albumId):isMobileNeteaseUnregisteredAlbumId(b.albumId))||!Array.isArray(song.ar)||song.ar.length>32||song.ar.length===0)return invalid();
   const artists=song.ar.map(artist=>mobileRecord(artist)?label(artist.name):invalid()),title=label(song.name);
   if(!mobileRecord(b.observed)||!mobileRecord(b.observed.audio)||!mobileInteger(song.dt,1)||!mobileInteger(b.observed.size,1)
     ||!['audio/flac','audio/mpeg'].includes(b.observed.contentType)||typeof b.observed.headerSha256!=='string'

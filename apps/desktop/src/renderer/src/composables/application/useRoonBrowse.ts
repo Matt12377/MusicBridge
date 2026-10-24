@@ -23,6 +23,7 @@ export interface RoonBrowseOptions extends PageCacheOwnerOptions {
   onError: (error: unknown) => void
   onToast: (message: string) => void
   getView: () => ViewId
+  isArtistPageActive?: () => boolean
   onDetailOpening: (view: ViewId) => void
   onDetailReady: (view: ViewId, source: SidebarSource) => void
   onNavigateSource: (source: SidebarSource) => void
@@ -652,7 +653,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   function refreshVisibleRoonCollection(): void {
     if (getView() === 'roon-favorites') favoriteResolutionEpoch.value += 1
     if (getView() === 'roon-albums' && !roonAlbumsInitialLoading.value) void loadRoonAlbums()
-    if (getView() === 'roon-artists' && !roonArtistsInitialLoading.value) void loadRoonArtists()
+    if (getView() === 'roon-artists' && options.isArtistPageActive?.() !== false && !roonArtistsInitialLoading.value) void loadRoonArtists()
     if (getView() === 'roon-genres' && !roonGenresInitialLoading.value) void loadRoonGenres()
     if (getView() === 'roon-playlists' && !roonPlaylistsInitialLoading.value) void loadRoonPlaylists()
   }
@@ -692,7 +693,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   async function resumePageReads(view: ViewId): Promise<void> {
     if (disposed) return
     if (view === 'roon-albums') await albumCollection.resume()
-    else if (view === 'roon-artists') await artistCollection.resume()
+    else if (view === 'roon-artists' && options.isArtistPageActive?.() !== false) await artistCollection.resume()
     else if (view === 'roon-genres') await genreCollection.resume()
     else if (view === 'roon-playlists') await playlistCollection.resume()
     else if (view === 'roon-favorites' && pendingFavorite && !favoritesInitialLoading.value && !favoritesLoadingMore.value) await loadFavorites(pendingFavorite.kind, pendingFavorite.page)

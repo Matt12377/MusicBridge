@@ -8,12 +8,16 @@ import SidebarNavRow from './SidebarNavRow.vue'
 import SidebarPlaylistList from './SidebarPlaylistList.vue'
 import SidebarSearch from './SidebarSearch.vue'
 import SidebarIcon from './SidebarIcon.vue'
+import type { SidebarSearchSuggestion } from './sidebar-search-model.js'
 
 const props = defineProps<{
   expanded: boolean
   activeSource: SidebarSource
   searchQuery: string
   searchLabel?: string
+  searchSuggestions?: readonly SidebarSearchSuggestion[]
+  searchPending?: boolean
+  searchMessage?: string
   playlists: readonly PlaylistSummary[]
   playlistState: 'loading' | 'ready' | 'error'
   sourceScrollTop: number
@@ -27,6 +31,9 @@ const emit = defineEmits<{
   'navigate-collection': [view: 'tapes' | 'music']
   'update:searchQuery': [value: string]
   'clear-search': []
+  'suggest-query': [query: string]
+  'submit-query': [query: string]
+  'select-suggestion': [item: SidebarSearchSuggestion]
   'retry-playlists': []
   'scroll-source': [scrollTop: number]
   settings: []
@@ -87,7 +94,7 @@ onMounted(restoreSourceScroll)
 <template>
   <aside class="music-sidebar" :class="{ 'is-collapsed': !expanded }" data-component="MusicSidebar">
     <SidebarHeader :expanded="expanded" @toggle="emit('toggle')" />
-    <SidebarSearch :model-value="searchQuery" :label="searchLabel" :expanded="expanded" @update:model-value="emit('update:searchQuery', $event)" @clear-search="emit('clear-search')" @expand="requestExpand" />
+    <SidebarSearch :model-value="searchQuery" :label="searchLabel" :expanded="expanded" :suggestions="searchSuggestions" :pending="searchPending" :message="searchMessage" @update:model-value="emit('update:searchQuery', $event)" @clear-search="emit('clear-search')" @suggest-query="emit('suggest-query', $event)" @submit-query="emit('submit-query', $event)" @select-suggestion="emit('select-suggestion', $event)" @expand="requestExpand" />
 
     <nav ref="sourceScroll" class="sidebar-source-scroll" aria-label="音乐来源" @scroll="emit('scroll-source', ($event.target as HTMLElement).scrollTop)">
       <div class="sidebar-primary-navigation">

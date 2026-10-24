@@ -36,10 +36,19 @@ export interface LocalAlbumSnapshotPort {
   readTrackDetails(ids: readonly string[]): readonly LocalLibraryTrackDetail[]
   readArtwork(request: LocalAlbumArtworkRequest, context: LocalAlbumArtworkReadContext): LocalAlbumArtworkReadResult | Promise<LocalAlbumArtworkReadResult>
 }
-export interface LocalAlbumArtworkReadResult { image: LocalArtworkImage | null; status: 'ready' | 'source-unavailable' }
+export interface LocalAlbumArtworkReadResult { image: LocalArtworkImage | null; status: 'ready' | 'source-unavailable'; grid?: import('@music-bridge/contracts').LocalAlbumArtworkGrid }
 /** 仅交给可信作者封面port；目录与代表文件仍不是Renderer授予的路径权限。 */
 /** 同组来源指纹不含读取观察及全库lyrics水位；仅作派生缓存键，不代替公开tuple校验。 */
-export interface LocalAlbumArtworkReadContext { artworkSourceRevision?: string; readDeadlineAtMs?: number; album: LocalAlbumSummary; directory: string | null; representative: LocalAlbumTrackFact | null }
+export interface LocalAlbumArtworkReadContext {
+  artworkSourceRevision?: string
+  readDeadlineAtMs?: number
+  /** 仅可信后台调度器提供，普通页面不能借此扩大读取权限。 */
+  readPurpose?: 'background'
+  readSignal?: AbortSignal
+  album: LocalAlbumSummary
+  directory: string | null
+  representative: LocalAlbumTrackFact | null
+}
 export interface LocalAlbumReadServiceOptions { port: Readonly<LocalAlbumSnapshotPort>; maxTracks?: number; maxScanFacts?: number; maxBytes?: number }
 /** 可信工作台捕获成员范围；不能携带 Renderer 路径或写入能力。 */
 export interface LocalAlbumInspectRequest { albumKey: string; rootId: string; revision?: string }

@@ -5,6 +5,7 @@ import type {
 } from '@music-bridge/contracts';
 import type { MobileOwnerSourceRequest, MobileOwnerSourceResult } from './source-protocol.js';
 import type { MobileContentOwnerRequest, MobileContentOwnerResult } from './owner-content-protocol.js';
+import type { PlaybackHistoryRequest, PlaybackHistoryReply } from './playback-history-types.js';
 import type { MobileServiceError } from './content-errors.js';
 export { MobileServiceError } from './content-errors.js';
 
@@ -78,6 +79,17 @@ export interface MobileOwnerCatalogSnapshot {
   operation: MobileOwnerCatalogOperation; offset: number; limit: number; total: number;
   items: readonly (MobileAlbum | MobileTrack)[];
 }
+/** Artist 索引只贡献选择与原作者版本；完整 DTO 仍由当前 Owner 投影。 */
+export interface MobileCatalogSelectedQuery {
+  kind: 'albums' | 'tracks'; ids: readonly string[]; sourceRevision: string;
+}
+export interface MobileOwnerCatalogSelectedRequest extends MobileCatalogSelectedQuery {
+  serverId: string; catalogPlaybackEnabled?: boolean;
+}
+export interface MobileOwnerCatalogSelectedSnapshot {
+  datasetId: string; ownerEpoch: string; sourceRevision: string; libraryRevision: string;
+  kind: 'albums' | 'tracks'; items: readonly (MobileAlbum | MobileTrack)[];
+}
 export interface MobileOwnerLocalTrackFacts {
   detail: LocalLibraryTrackDetail; binding: MobileCatalogIdentityBinding;
   projection: MobileCatalogProjection;
@@ -89,19 +101,34 @@ export interface MobileOwnerArtworkSnapshot {
 }
 export interface MobileCatalogReadPort {
   read(request: MobileOwnerCatalogRequest): Promise<MobileOwnerCatalogSnapshot>;
+  selected?(request: MobileOwnerCatalogSelectedRequest): Promise<MobileOwnerCatalogSelectedSnapshot>;
   artwork(request: { serverId: string; artworkId: string }): Promise<MobileOwnerArtworkSnapshot>;
+}
+/** 仅控制后台新入场的RAM提示；不携授权结果、不改变请求或Source的期限。 */
+export const MOBILE_PLAYBACK_ACTIVITY_LEASE_MS = 10_000;
+export const MOBILE_PLAYBACK_ACTIVITY_MAX_LEASES = 32;
+export const MOBILE_PLAYBACK_ACTIVITY_ACQUIRE_MS = 100;
+export type MobileOwnerPlaybackActivityRequest =
+  | { operation: 'begin' }
+  | { operation: 'end'; ownerEpoch: string; leaseId: string };
+export interface MobileOwnerPlaybackActivityResult {
+  kind: 'playback-activity'; datasetId: string; ownerEpoch: string;
+  operation: 'begin' | 'end'; leaseId: string | null;
 }
 export type MobileOwnerPrivateRequest =
   | { kind: 'load'; datasetId: string }
   | { kind: 'playback-load'; datasetId: string }
   | { kind: 'save'; datasetId: string; request: MobileSealedSave }
   | { kind: 'playback-save'; datasetId: string; request: MobileSealedSave }
+  | { kind: 'playback-history'; datasetId: string; request: PlaybackHistoryRequest }
+  | { kind: 'playback-activity'; datasetId: string; request: MobileOwnerPlaybackActivityRequest }
   | { kind: 'media-source'; datasetId: string; request: MobileOwnerSourceRequest }
   | { kind: 'content'; datasetId: string; request: MobileContentOwnerRequest }
   | { kind: 'catalog'; datasetId: string; request: MobileOwnerCatalogRequest }
+  | { kind: 'catalog-selected'; datasetId: string; request: MobileOwnerCatalogSelectedRequest }
   | { kind: 'artwork'; datasetId: string; request: { serverId: string; artworkId: string } };
-export type MobileOwnerPrivateResult = MobileSealedState | MobileSealedSaveResult
-  | MobileOwnerCatalogSnapshot | MobileOwnerArtworkSnapshot | MobileOwnerSourceResult | MobileContentOwnerResult | MobileOwnerPrivateFailure;
+export type MobileOwnerPrivateResult = MobileSealedState | MobileSealedSaveResult | MobileOwnerPlaybackActivityResult
+  | MobileOwnerCatalogSnapshot | MobileOwnerCatalogSelectedSnapshot | MobileOwnerArtworkSnapshot | MobileOwnerSourceResult | MobileContentOwnerResult | PlaybackHistoryReply | MobileOwnerPrivateFailure;
 export interface MobileOwnerPrivateFailure {
   kind: 'mobile-error'; status: MobileServiceError['status']; code: MobileSafeErrorFacts['code'];
   retryable: boolean; outcome: 'not-sent' | 'unknown' | null;

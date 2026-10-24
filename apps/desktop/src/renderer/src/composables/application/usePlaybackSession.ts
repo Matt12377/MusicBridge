@@ -1,10 +1,11 @@
+import { logLibraryOperation } from '../../../../../../../packages/bridge-core/src/shared/library-operation-log.js'
 import { computed, ref, shallowRef } from 'vue'
 import { roonTrackIdFromReference } from '@music-bridge/contracts'
 import type {
   FavoriteEntityDescriptor, LocalLyricsMatchSnapshot, LyricsSnapshot, Page, PageRequest,
   PlaybackQualityPreference, PlaybackQueueItem, PlaybackQueueRequestItem, PlaybackSnapshot,
   PlaybackEventProtocolAck, PlaybackStreamSnapshot, PlaybackStreamState, PlaybackStreamProgress,
-  PublicRoonZone, PublicTrackMatchResult, RoonLibraryItem, RoonLibraryPage, TrackSummary, LocalPlayRequest, LocalPlayAccepted, LocalSourceUnsupported,
+  PublicRoonZone, PublicTrackMatchResult, RoonLibraryItem, RoonLibraryPage, TrackSummary, LocalPlayRequest, LocalPlayAccepted, LocalSourceUnsupported, PlaybackSourcePreference, ArtistCatalogPlayRequest,
 } from '@music-bridge/contracts'
 import type { MusicBridgePublicApi } from '../../../../preload/api.js'
 import type { ZoneLifecycleStatus } from '../../zone-lifecycle.js'
@@ -34,6 +35,7 @@ export interface RoonPlaybackContext {
 
 export interface PlaybackSessionOptions {
   api: MusicBridgePublicApi
+  playLocalCatalogSelection?: (request: ArtistCatalogPlayRequest) => Promise<LocalPlayAccepted | LocalSourceUnsupported>
   getSelectedZone: () => PublicRoonZone | undefined
   getZoneLifecycleStatus: () => ZoneLifecycleStatus
   getSelectedQuality: () => PlaybackQualityPreference
@@ -145,15 +147,25 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   let disposed = false
   const currentTrack = computed(() => playbackState.value?.currentTrack)
 
+  function localLyricsIdentity(snapshot: PlaybackSnapshot | null | undefined): string | undefined {
+    if (snapshot?.source !== 'local_file') return undefined;
+    const local = snapshot.local;
+    return JSON.stringify([snapshot.currentTrack?.id, local?.local_track_id, local?.asset_id, local?.asset_revision, local?.attempt_id]);
+  }
   async function loadLyrics(trackId: string): Promise<void> {
-    const operation = ++lyricsOperation
+    const operation = ++lyricsOperation, localIdentity = localLyricsIdentity(playbackState.value), started = performance.now()
+    if (localIdentity !== undefined) logLibraryOperation('ui', 'lyrics.local.request', 'start')
+    const current = () => operation === lyricsOperation && playbackState.value?.currentTrack?.id === trackId
+      && localLyricsIdentity(playbackState.value) === localIdentity
     lyricsSnapshot.value = emptyLyricsSnapshot('loading')
     try {
       const snapshot = await api.getLyrics(trackId)
-      if (operation !== lyricsOperation || playbackState.value?.currentTrack?.id !== trackId) return
+      if (localIdentity !== undefined) logLibraryOperation('ui', 'lyrics.local.request', current() ? 'complete' : 'cancelled', { code: current() ? 'RETURNED' : 'STALE_ATTEMPT', elapsedMs: performance.now() - started })
+      if (!current()) return
       lyricsSnapshot.value = snapshot
     } catch {
-      if (operation === lyricsOperation) lyricsSnapshot.value = emptyLyricsSnapshot('error')
+      if (localIdentity !== undefined) logLibraryOperation('ui', 'lyrics.local.request', current() ? 'error' : 'cancelled', { code: current() ? 'READ_FAILED' : 'STALE_ATTEMPT', elapsedMs: performance.now() - started })
+      if (current()) lyricsSnapshot.value = emptyLyricsSnapshot('error')
     }
   }
 
@@ -417,11 +429,12 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }
     const trackId = projected.currentTrack?.id
     const identityChanged = trackId !== previousTrackId
+      || localLyricsIdentity(projected) !== localLyricsIdentity(previousSnapshot)
       || playbackSource.value !== previousSource
       || nativeRoonHasNeteaseMatch.value !== previousNeteaseMatch
       || !sameFavoriteDescriptor(previousDescriptor, localTrackFavoriteDescriptor.value)
     if (trackId && identityChanged) {
-      if (playbackSource.value === 'netease' || (playbackSource.value === 'roon' && nativeRoonHasNeteaseMatch.value)) void loadLyrics(trackId)
+      if (playbackSource.value === 'local_file' || playbackSource.value === 'netease' || (playbackSource.value === 'roon' && nativeRoonHasNeteaseMatch.value)) void loadLyrics(trackId)
       else {
         // 原生 Roon 的歌词由 Core 事件推送；事件可能先于播放快照到达。
         lyricsOperation += 1
@@ -609,6 +622,20 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       return result
     } finally { playbackStartPending.value = false }
   }
+  async function playLocalCatalogSelection(request: ArtistCatalogPlayRequest): Promise<LocalPlayAccepted | LocalSourceUnsupported> {
+    if (!options.playLocalCatalogSelection || !playbackCommandsReady() || disposed || playbackStartPending.value) throw Object.assign(new Error('本地播放状态尚未就绪。'), { outcome: 'not-sent' as const })
+    if (request.action === 'PLAY_NOW' && localPlaybackSubmissionUnconfirmed(playbackState.value)) {
+      throw Object.assign(new Error('原本地点播的结果仍未确认，请先核对原播放器。'), { outcome: 'not-sent' as const })
+    }
+    if (request.action === 'PLAY_NOW') { invalidateCollectionOperation(); cancelRoonPlaybackPreparation(); retryStopSource = undefined }
+    const operation = collectionOperation
+    playbackStartPending.value = true; clearActionError()
+    try {
+      const result = await options.playLocalCatalogSelection(request)
+      if (!disposed && operation === collectionOperation) await refreshPlaybackWhileCurrent(() => !disposed && operation === collectionOperation)
+      return result
+    } finally { playbackStartPending.value = false }
+  }
   async function readLocalLibraryPlayReceipt(request:LocalPlayRequest):Promise<import('@music-bridge/contracts').LocalPlayReceipt> {
     if(disposed || playbackStartPending.value || !api.getLocalLibraryPlayReceipt)throw new Error('原点播回执读取尚未就绪')
     const lifecycle=streamLifecycle, operation=collectionOperation
@@ -620,15 +647,15 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }finally{playbackStartPending.value=false}
   }
 
-  function queueItemsForTracks(tracks: readonly TrackSummary[]): PlaybackQueueRequestItem[] {
+  function queueItemsForTracks(tracks: readonly TrackSummary[], preferredSource?: PlaybackSourcePreference): PlaybackQueueRequestItem[] {
     return tracks.map((track) => {
       const match = getMatchResult(track.id)
       const candidate = confirmedRoonCandidate(match)
-      if (candidate) rememberRoonQueueDescriptor(track.id, candidate, true)
+      if (candidate && preferredSource !== 'netease') rememberRoonQueueDescriptor(track.id, candidate, true)
       return {
         trackId: track.id,
         qualityPreference: getSelectedQuality(),
-        preferredSource: queuePreferenceForMatch(match),
+        preferredSource: preferredSource ?? queuePreferenceForMatch(match),
       }
     })
   }
@@ -791,22 +818,22 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }
   }
 
-  async function appendTrack(track: TrackSummary): Promise<void> {
+  async function appendTrack(track: TrackSummary, preferredSource?: PlaybackSourcePreference): Promise<void> {
     if (!playbackCommandsReady()) return
     clearActionError()
     try {
-      applyNeteasePlayback(await api.appendQueue(queueItemsForTracks([track])))
+      applyNeteasePlayback(await api.appendQueue(queueItemsForTracks([track], preferredSource)))
       onToast('已加入播放队列')
     } catch (error) {
       onError(error)
     }
   }
 
-  async function insertTrackNext(track: TrackSummary): Promise<void> {
+  async function insertTrackNext(track: TrackSummary, preferredSource?: PlaybackSourcePreference): Promise<void> {
     if (!playbackCommandsReady()) return
     clearActionError()
     try {
-      applyNeteasePlayback(await api.insertNext(queueItemsForTracks([track])))
+      applyNeteasePlayback(await api.insertNext(queueItemsForTracks([track], preferredSource)))
       onToast('将在下一首播放')
     } catch (error) {
       onError(error)
@@ -823,10 +850,11 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     loader: ProgressiveCollectionLoader,
     operation: number,
     pendingTracks: readonly TrackSummary[] = [],
+    preferredSource?: PlaybackSourcePreference,
   ): Promise<void> {
     try {
       if (pendingTracks.length > 0 && operation === collectionOperation) {
-        const snapshot = await api.appendQueue(queueItemsForTracks(pendingTracks))
+        const snapshot = await api.appendQueue(queueItemsForTracks(pendingTracks, preferredSource))
         if (operation !== collectionOperation || disposed) return
         applyPlaybackState(snapshot)
       }
@@ -834,7 +862,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
         const batch = await loader.next()
         if (!batch || operation !== collectionOperation) return
         if (batch.tracks.length > 0) {
-          const snapshot = await api.appendQueue(queueItemsForTracks(batch.tracks))
+          const snapshot = await api.appendQueue(queueItemsForTracks(batch.tracks, preferredSource))
           if (operation !== collectionOperation || disposed) return
           applyPlaybackState(snapshot)
         }
@@ -853,6 +881,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     selectedTrackId?: string,
     initialPage?: Page<TrackSummary>,
     openNowPlaying = true,
+    preferredSource?: PlaybackSourcePreference,
   ): Promise<void> {
     if (!playbackCommandsReady()) return
     // 新点击立即取代旧集合操作；旧请求的回执和错误只由其原代际消费。
@@ -870,14 +899,14 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       }
       const initial = selectInitialCollectionPlayback(firstBatch.tracks, selectedTrackId)
       const snapshot = await api.replaceQueue(
-        queueItemsForTracks(initial.tracks),
+        queueItemsForTracks(initial.tracks, preferredSource),
         initial.index,
       )
       if (operation !== collectionOperation) return
       applyPlaybackState(snapshot)
       if (openNowPlaying) onEnterNowPlaying()
       if (firstBatch.hasMore) {
-        void continueCollectionQueue(loader, operation)
+        void continueCollectionQueue(loader, operation, [], preferredSource)
       } else {
         activeCollectionLoader = undefined
       }
@@ -1100,7 +1129,8 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
           ;(pending.timer as unknown as { unref?: () => void }).unref?.()
         }
       }
-      await refreshPlayback()
+      // 健康紧凑流继续等原owner的实际进度；冗余seed会撤下封面并暂时禁用后续拖动。
+      if (streamMode !== 'compact' || stream.desynced || playbackSyncStatus.value !== 'ready') await refreshPlayback()
     } catch (error) {
       if (!isCurrent()) {
         if (pending.local && streamMode === 'legacy') { if (pendingSeek === pending) clearPendingSeek(); pending.settle?.() }
@@ -1176,7 +1206,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     playbackSyncStatus, playbackViewState, playbackClockIdentity, initializePlaybackStream, retryPlaybackSync, acceptPlaybackReady, acceptPlaybackStreamEvent, suspendPlaybackStream,
     onLyricsChanged, onLocalMatchChanged, initializeLocalLyricsMatch,
     selectLocalLyricsMatch, revokeLocalLyricsMatch, toggleTrackLike, refreshPlayback,
-    playTrack, playLocalLibrarySelection, readLocalLibraryPlayReceipt, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,
+    playTrack, playLocalLibrarySelection, playLocalCatalogSelection, readLocalLibraryPlayReceipt, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,
     replaceAndPlayCollection, appendCollection, playTracks, invalidateCollectionOperation,
     playQueueItem, editQueueEntry, togglePlayback, stopPlayback, retryLastPlaybackAction, nextTrack, previousTrack, seekPlayback,
     cancelRoonPlaybackPreparation, resetRoonSession, dispose,

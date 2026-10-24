@@ -1,5 +1,6 @@
 import {
   CredentialVaultError,
+  recordCredentialStage,
   type CredentialVault,
   type CredentialVaultReadResult,
 } from './credential-vault.js'
@@ -39,22 +40,28 @@ async function hydrateStoredCredential(options: {
   if (options.stored.status !== 'configured') return statusFromReadResult(options.stored)
 
   let verification: 'authorized' | 'expired' | 'unavailable'
+  const verifyBegan = performance.now()
   try {
     verification = await options.core.verifyCredential(options.stored.credential)
   } catch {
+    recordCredentialStage('core-verify', 'VERIFY_FAILED', verifyBegan)
     return 'unavailable'
   }
+  recordCredentialStage('core-verify', verification === 'authorized' ? 'AUTHORIZED' : verification === 'expired' ? 'EXPIRED' : 'UNAVAILABLE', verifyBegan)
   if (verification === 'expired') {
     await options.vault.delete()
     return 'expired'
   }
   if (verification !== 'authorized') return 'unavailable'
 
+  const setBegan = performance.now()
   try {
     await options.core.setCredential(options.stored.credential)
   } catch {
+    recordCredentialStage('core-set', 'SET_FAILED', setBegan)
     return 'unavailable'
   }
+  recordCredentialStage('core-set', 'CONFIGURED', setBegan)
   return 'configured'
 }
 
@@ -64,10 +71,13 @@ export async function provisionProviderCredential(options: {
   environment: NodeJS.ProcessEnv
 }): Promise<ProviderProvisioningStatus> {
   const environmentCredential = options.environment.NETEASE_COOKIE
+  const migrationBegan = performance.now()
   try {
-    await options.vault.migratePlaintext(environmentCredential)
+    const migration = await options.vault.migratePlaintext(environmentCredential)
+    recordCredentialStage('migration', migration === 'none' ? 'NONE' : migration === 'migrated' ? 'MIGRATED' : 'ALREADY_PRESENT', migrationBegan)
   } catch (error) {
     delete options.environment.NETEASE_COOKIE
+    recordCredentialStage('migration', 'MIGRATION_FAILED', migrationBegan)
     return statusFromMigrationError(error)
   }
   delete options.environment.NETEASE_COOKIE

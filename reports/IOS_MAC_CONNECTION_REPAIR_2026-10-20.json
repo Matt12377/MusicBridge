@@ -1,0 +1,169 @@
+{
+  "schema": "musicbridge.ios-mac-chain-repair.v1",
+  "generatedAt": "2026-10-19T16:43:33.633520+00:00",
+  "status": "IMPLEMENTED_DEPLOYED_SAMPLED_DEVICE_CHAIN_PASS",
+  "ownerRequest": "修复iPhone与Mac配对后目录、专辑曲目、封面和播放链路；Owner暂不能操作手机，使用实机默认关闭的有界诊断完成复测。",
+  "repository": {
+    "path": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/v4",
+    "branch": "codex/v4",
+    "baseHEAD": "f459c46525855e87e1d8ee68388e8ea21ab04653",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "remoteBranch": "origin/codex/v4",
+    "remoteCheckExitCode": 2,
+    "remoteCheckMeaning": "git ls-remote --exit-code未找到对应远端分支",
+    "pushPerformed": false,
+    "sharedDirtyWIPPreserved": true,
+    "indexUnchanged": true,
+    "globalProjectStatusNotChanged": true,
+    "commitBoundary": "修复依赖当前未提交的v4服务链基线；不将其他任务WIP纳入提交。"
+  },
+  "findings": [
+    {
+      "cause": "目录与修订读取误触发全库同步计算",
+      "repair": "复用同一当前scope的完成摘要与安全目录查询，保留初末屏障、当前CUE事实、成员关系与完整scope容量核验。"
+    },
+    {
+      "cause": "播放单曲trackId误入全库SQL fallback",
+      "beforeMs": 25425.81,
+      "afterColdSingleQueryMs": 372.841334,
+      "repair": "在当前完整摘要唯一定位组后，原SQL从已验证目录核实际trackId和分组成员关系；不能证明时仍保留原fallback。"
+    },
+    {
+      "cause": "明确只读暂时错误被Auth永久置fatal，后续/server快速503",
+      "proof": "真实server503/capabilities401与原码合成RED到GREEN相互支持；未直接读取旧运行闭包。",
+      "repair": "本请求仍失败，后续必须完整重读；损坏数据、修订回退和未决写入确认规则保持。"
+    }
+  ],
+  "verification": {
+    "macFocusedTests": {
+      "passed": 76,
+      "exitCode": 0
+    },
+    "macTargetedTypecheckExitCode": 0,
+    "globalGitDiffCheckExitCode": 0,
+    "macFrozenBuildPackSignLoadAndShutdownContractStages": {
+      "passed": 11,
+      "allExitCode": 0
+    },
+    "iosClientTraceTests": {
+      "passed": 6,
+      "exitCode": 0
+    },
+    "iosCatalogBatchAndArtworkTests": {
+      "passed": 28,
+      "exitCode": 0
+    },
+    "iosReleaseBuildSigningBoundaryExitCode": 0,
+    "deviceBatch": {
+      "distinctAlbums": 5,
+      "httpResponses": 16,
+      "allHTTPStatus": 200,
+      "trackFirstPageCounts": [
+        11,
+        12,
+        16,
+        15,
+        13
+      ],
+      "totalTracksInSample": 67,
+      "albumJPEGsDownloadedAndDecoded": 5,
+      "first50AlbumArtworkReferences": 49,
+      "elapsedMs": 43891.045125,
+      "failedEvents": 0,
+      "droppedEvents": 0
+    },
+    "devicePlayback": {
+      "audioWindowMs": 12002.783709,
+      "pauseConfirmationMs": 3,
+      "maximumPositionMs": 10753,
+      "successful206Responses": 13,
+      "receivedBytes": 2673050,
+      "engineFailureEvents": 0,
+      "thermalStates": [
+        0
+      ],
+      "rangeCancellations": 2,
+      "rangeCancellationBoundary": "一次AVPlayer范围切换、一次定时暂停收尾；不是HTTP失败。"
+    },
+    "normalQuit": {
+      "phasesSettled": 27,
+      "mainExitCode": 0,
+      "mainExitSignal": null,
+      "remainingCandidateProcesses": 0
+    },
+    "normalReopen": {
+      "originalPairingRestored": true,
+      "restoreMs": 61.32612502574921,
+      "basicCapabilitiesStatus": 200,
+      "firstPageAlbums": 50,
+      "firstPageTracks": 50,
+      "ordinaryArtworkHTTPStatus": 200
+    }
+  },
+  "deployment": {
+    "macBuild": "20261020.001400",
+    "macApp": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-mac-r3-LfHeshxu/output/mac-arm64/Music Bridge for Roon.app",
+    "macMainPID": 29265,
+    "iosBuild": "0.1.0(13)",
+    "iosBundle": "app.musicbridge.ios",
+    "iosSource": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-catalog-batch13-p7vvkr84/checkout",
+    "phonePID": 11285,
+    "originalPairingPreserved": true,
+    "userLibraryRescanned": false,
+    "userQueueChangedByProbe": false,
+    "automaticPlaybackAndBatchProbeEnabled": false,
+    "readOnlyPrivateTraceEnabledOnPhone": true,
+    "macAppArguments": []
+  },
+  "limits": [
+    "实机样本通过不代表整座曲库或每张专辑全部分页均验收。",
+    "Device Hub远程触控未可靠送达；未声明手机专辑页面导航与全部图片实际上屏通过。",
+    "没有Owner听感、长时连续、锁屏、切歌或发热耐久验收。",
+    "首页收藏区域仍见重试；uiCapabilities本轮200，现有标签不含likedPlaylist/personalPlaylist的具体结果，独立扩展读取原因未定位。",
+    "旧r2正常退出失败，最后为受控SIGKILL；仅新r3正常退出通过，不混写旧证据。"
+  ],
+  "changedMacFiles": [
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/owner-port.ts",
+      "sha256": "d72c60bc99673cdb6bcd10450047c66fc6cef15ae54b89622eeb5b8138123d1a"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/sql-read.ts",
+      "sha256": "ad7d0c5a3f5ca60604d08fb87d3ebcbe67793f51c01cceb95420584760caf018"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/local-album-projection.ts",
+      "sha256": "41b8437b8b6c6dd9dae5d07162b693452506e5ebf3f23ac8e78914c7fdab7958"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/auth-service.ts",
+      "sha256": "6c2ec96a3bc6634baa88171532ad24106b3f4ecc2367b37d61565c8e3ca79468"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm002/mobile-catalog-revision-read.test.ts",
+      "sha256": "58c849106f2a143058484a585af2993e8a31113db716cd3bd83d0dd117d31e5d"
+    },
+    {
+      "path": "packages/bridge-core/test/v4/local-album-mobile-sql-reuse.test.ts",
+      "sha256": "43a7da3d0d1f4140c679008423f3069328e8a0caef6ccf232203f8fd0e7ab2b2"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm001/auth-service.test.ts",
+      "sha256": "9b83bc130f24d9eff758a435af57644f25b6bed91e0713185e76ba3a3cbc3937"
+    },
+    {
+      "path": "apps/desktop/test/mbm001/mobile-backend.test.ts",
+      "sha256": "5c41b5e731559c2c2ff3ff9c4f77fdb2f4e1add4ff3ab2ebfcf5ebe88e0dd1e7"
+    }
+  ],
+  "evidence": {
+    "macStatic": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-mac-r3-LfHeshxu/evidence/R3_STATIC_DELIVERY.json",
+    "iosStatic": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-catalog-batch13-p7vvkr84/evidence/STATIC_VERIFIED.json",
+    "integration": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-mac-r3-LfHeshxu/evidence/INTEGRATION_RESULT.json",
+    "batch": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-mac-r3-LfHeshxu/evidence/repaired-runtime/IOS13_BATCH_VERIFIED.json",
+    "playback": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-mac-r3-LfHeshxu/evidence/repaired-runtime/PHONE_TIMED_VERIFIED.json",
+    "normalQuit": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-mac-r3-LfHeshxu/evidence/repaired-runtime/NORMAL_QUIT_VERIFIED.json",
+    "normalMode": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-ios-mac-r3-LfHeshxu/evidence/normal-runtime/NORMAL_MODE_VERIFIED.json"
+  }
+}

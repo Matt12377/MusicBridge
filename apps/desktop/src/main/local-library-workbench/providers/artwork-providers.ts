@@ -75,7 +75,7 @@ export interface LocalArtworkProvidersOptions {
   transport?: PinnedArtworkTransport
   /** 注入端口必须只读取原自有HTTP资源状态；不得为探测新建请求或重置期限。 */
   readTransportAvailability?(signal: AbortSignal): boolean | Promise<boolean>
-  normalize(bytes: Uint8Array): NormalizedLocalArtwork | Promise<NormalizedLocalArtwork>
+  normalize(bytes: Uint8Array, signal?: AbortSignal): NormalizedLocalArtwork | Promise<NormalizedLocalArtwork>
   timeoutMs?: number
   maxMetadataBytes?: number
   maxImageBytes?: number
@@ -352,7 +352,11 @@ export function createLocalArtworkProviders(options: LocalArtworkProvidersOption
       let image = candidate.image
       if (!image) {
         const { bytes, mime } = await read(candidate.source.imageUrl, signal, imageLimit, 'image')
-        image = { bytes, normalized: checkedNormalized(bytes, await abortable(Promise.resolve().then(() => options.normalize(bytes)), signal), mime) }
+        const resources = resourcesBySignal.get(signal); if (!resources) return fail('closed')
+        const normalization = Promise.resolve().then(() => { checkSignal(signal); return options.normalize(bytes, signal) })
+        // 取消可以结束界面等待，但物理join必须等Rust进程和在途任务真正收口。
+        trackPhysical(resources, normalization)
+        image = { bytes, normalized: checkedNormalized(bytes, await abortable(normalization, signal), mime) }
       }
       checkSignal(signal)
       if (closed || candidates.get(candidate.public.candidateId) !== candidate) return fail('candidate')

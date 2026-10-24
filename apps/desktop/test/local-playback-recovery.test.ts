@@ -13,6 +13,7 @@ import type {
 } from '@music-bridge/contracts'
 import { useLocalLibrary, type LocalLibraryOptions } from '../src/renderer/src/composables/application/useLocalLibrary.js'
 import { usePlaybackSession } from '../src/renderer/src/composables/application/usePlaybackSession.js'
+import * as localScanPresentation from '../src/renderer/src/composables/application/local-library-browser/scan-presentation.js'
 import * as playbackDetails from '../src/renderer/src/components/player/details.js'
 import type { MusicBridgePublicApi } from '../src/preload/api.js'
 import { createLocalLibraryClient } from '../src/preload/local-library-client.js'
@@ -449,10 +450,12 @@ function observed(request = selection(), phase: 'AWAITING_ROON' | 'PLAYING' | 'P
 }
 function playbackSession(t: TestContext, overrides: Partial<MusicBridgePublicApi>,
   getSelectedZone = () => ({ zoneId: target.zone_id, displayName: '合成目标', selected: true })) {
-  const forbidden: string[] = [], errors: unknown[] = [], messages: string[] = []
+  const forbidden: string[] = [], errors: unknown[] = [], messages: string[] = [], lyricReads: string[] = []
   const deny = (name: string) => async (): Promise<never> => { forbidden.push(name); throw new Error(`回执查询不得调用 ${name}`) }
   const api = { play: deny('play'), playLocalLibraryTrack: deny('playLocalLibraryTrack'), replaceQueue: deny('replaceQueue'),
-    appendQueue: deny('appendQueue'), insertNext: deny('insertNext'), getLyrics: deny('getLyrics'),
+    appendQueue: deny('appendQueue'), insertNext: deny('insertNext'),
+    // 公开快照身份变化会触发既有只读歌词生命周期；与播放、队列提交分别记录。
+    getLyrics: async (trackId: string) => { lyricReads.push(trackId); return { status: 'unavailable', lines: [], activeLineIndex: -1, timingSource: 'static' } },
     getTrackLikeStatus: deny('getTrackLikeStatus'), setTrackLiked: deny('setTrackLiked'), ...overrides } as MusicBridgePublicApi
   const model = usePlaybackSession({ api, getSelectedZone,
     getZoneLifecycleStatus: () => 'selected', getSelectedQuality: () => 'auto', getMatchResult: () => undefined,
@@ -461,7 +464,7 @@ function playbackSession(t: TestContext, overrides: Partial<MusicBridgePublicApi
     onActionMessage: message => messages.push(message), onError: error => errors.push(error), onToast() {},
   })
   t.after(() => model.dispose())
-  return { model, forbidden, errors, messages }
+  return { model, forbidden, errors, messages, lyricReads }
 }
 
 test('MBF001-B：播放Store只查原回执并读取公开快照，accepted不能自行转换Playing', async t => {
@@ -472,6 +475,7 @@ test('MBF001-B：播放Store只查原回执并读取公开快照，accepted不�
   })
   assert.deepEqual(await f.model.readLocalLibraryPlayReceipt(request), received(request))
   assert.deepEqual(calls, ['receipt', 'snapshot']); assert.deepEqual(reads, [request]); assert.deepEqual(f.forbidden, [])
+  assert.deepEqual(f.lyricReads, [request.local_track_id], '只有公开观察中的真实曲目身份触发独立只读歌词请求。')
   assert.equal(f.model.playbackState.value?.state, 'preparing'); assert.equal(f.model.playbackState.value?.local?.phase, 'AWAITING_ROON')
   assert.equal(f.model.recentTracks.value.length, 0); assert.equal(f.model.playbackStartPending.value, false)
   assert.deepEqual(f.errors, [])
@@ -847,6 +851,8 @@ async function mountLibraryView(t: TestContext, model: ReturnType<typeof useLoca
     if (name === 'vue') return vue
     if (name.endsWith('.vue')) return { default: { render: () => vue.h('span') } }
     if (name.endsWith('/details.js')) return playbackDetails
+    // .vue issuer 的 CommonJS require 不做 .js→.ts 映射，交回实际 ESM 模块。
+    if (name.endsWith('/local-library-browser/scan-presentation.js')) return localScanPresentation
     return createRequire(path.resolve(filename))(name)
   }
   const compile = (code: string) => ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText

@@ -1,5 +1,6 @@
-import { captureDatasetNameProviderRequest, datasetNameOriginalStartSha256, DATASET_WORKBENCH_BOUNDS, DATASET_NAME_PROVIDER_CONTENT_BYTES, datasetWorkbenchJson, datasetWorkbenchSha, DatasetNameProviderBridgeError, type DatasetNameProviderRequest, type DatasetNameProviderStart, type DatasetNameProviderRead, type DatasetNameProviderFailure, type DatasetNameProviderState, type DatasetProjectionCommandResults, type DatasetNameProviderCommand } from '../../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
+import { captureDatasetNameProviderRequest, datasetNameOriginalStartSha256, DATASET_WORKBENCH_BOUNDS, datasetWorkbenchRequestMs, DATASET_NAME_PROVIDER_CONTENT_BYTES, datasetWorkbenchJson, datasetWorkbenchSha, DatasetNameProviderBridgeError, type DatasetNameProviderRequest, type DatasetNameProviderStart, type DatasetNameProviderRead, type DatasetNameProviderFailure, type DatasetNameProviderState, type DatasetProjectionCommandResults, type DatasetNameProviderCommand } from '../../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
 import { localLibraryManagementDigest } from '../../../../../packages/bridge-core/src/collection/local-library-workbench/owner-journal.js'
+import { traceLibraryRemoval } from '../../../../../packages/bridge-core/src/shared/library-operation-log.js'
 import { isTrackedLocalArtworkProviders } from './providers/artwork-providers.js'
 import { isTrackedLocalArtworkWebNavigation } from './providers/artwork-web-navigation.js'
 import { isTrackedLocalNameTransport, type TrackedLocalNameTransport, type LocalNamePrivateContent } from './providers/name-transport.js'
@@ -9,7 +10,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import * as dto from '@music-bridge/contracts'
 import type { PhotoDecoderImage } from '../collection-photos.js'
 import { LocalArtworkImageError } from '../local-artwork-image.js'
-import { normalizeImportedLocalArtwork, probeLocalArtworkImportFormats, type NormalizedImportedLocalArtwork } from './artwork-import-normalizer.js'
+import { normalizeImportedLocalArtworkInWorker, probeLocalArtworkImportFormats, type NormalizedImportedLocalArtwork } from './artwork-import-normalizer.js'
 import type { LocalWorkbenchMainContext, LocalWorkbenchMainRequest } from './workbench-ipc.js'
 import type { createLocalNameSettings } from './name-settings.js'
 import type { LocalWorkbenchReadService, LocalWorkbenchResolvedReadCapture } from '../../../../../packages/bridge-core/src/collection/local-library-workbench/read-service.js'
@@ -477,15 +478,17 @@ export function createLocalWorkbenchService(options: LocalWorkbenchServiceOption
           || !isLocalWorkbenchDenseArray(copies.items, 4)) return invalid('本地封面读取副本无效。')
         if (copies.status === 'source-unavailable') return invalid('本地封面来源当前不可读取，不能当作已确认没有封面。')
         let bytes = 0
-        const batch = copies.items.map(copy => {
+        const batch: ArtworkEntry[] = []
+        for (const copy of copies.items) {
           if (!isLocalWorkbenchDataRecord(copy, ['origin', 'sourceIdentity', 'sourceLabel', 'base64']) || !['local-independent', 'embedded'].includes(copy.origin)
             || !dto.isLocalWorkbenchIdentity(copy.sourceIdentity) || typeof copy.base64 !== 'string'
             || copy.base64.length > 4 * Math.ceil(dto.LOCAL_WORKBENCH_IMAGE_INPUT_BYTES / 3) || !/^[A-Za-z0-9+/]+={0,2}$/u.test(copy.base64)) return invalid('本地封面副本缺少真实来源绑定。')
           const input = Buffer.from(copy.base64, 'base64'); bytes += input.length
           if (!input.length || input.toString('base64') !== copy.base64 || bytes > 8 * 1024 * 1024) return invalid('本地封面副本超过读取预算。')
-          return entry(resolved, normalizeImportedLocalArtwork(input, options.decode), { origin: copy.origin, label: copy.sourceLabel,
-            sourceLabel: copy.sourceLabel, licenseLabel: '本地来源；仅整理 MusicBridge 副本', sourceIdentity: copy.sourceIdentity })
-        })
+          const normalized = await normalizeImportedLocalArtworkInWorker(input, context.signal); check(context)
+          batch.push(entry(resolved, normalized, { origin: copy.origin, label: copy.sourceLabel,
+            sourceLabel: copy.sourceLabel, licenseLabel: '本地来源；仅整理 Mousa 副本', sourceIdentity: copy.sourceIdentity }))
+        }
         const fresh = await resolve(request.payload, context)
         if (!same(binding(fresh), binding(resolved))) return invalid()
         remember(batch, 'artwork'); return batch.map(item => item.public)
@@ -525,7 +528,7 @@ export function createLocalWorkbenchService(options: LocalWorkbenchServiceOption
           if (batch.length >= 100) { const outcome = sources.find(item => item.source === candidate.source); if (outcome) outcome.truncated = true; continue }
           try {
             const captured = await artworkOperation(options.artwork.readCandidate(candidate.candidateId, context.signal),resolved.capture.rootId,context); check(context)
-            const normalized = normalizeImportedLocalArtwork(captured.bytes, options.decode)
+            const normalized = await normalizeImportedLocalArtworkInWorker(captured.bytes, context.signal); check(context)
             if (!same(normalized.image, captured.normalized)) return invalid('图搜候选与实际规范副本不一致。')
             batch.push(entry(resolved, normalized, { origin: candidate.origin, label: candidate.label, sourceLabel: candidate.sourceLabel,
               licenseLabel: candidate.licenseLabel, privateSource: captured.source }))
@@ -549,7 +552,8 @@ export function createLocalWorkbenchService(options: LocalWorkbenchServiceOption
         try {
           check(context)
           const input = await file.read(context); check(context)
-          const item = entry(resolved, normalizeImportedLocalArtwork(input, options.decode), { origin: 'manual', label: file.label,
+          const normalized = await normalizeImportedLocalArtworkInWorker(input, context.signal); check(context)
+          const item = entry(resolved, normalized, { origin: 'manual', label: file.label,
             sourceLabel: '原生文件选择', licenseLabel: '用户选择的图片；来源授权未核实' })
           const fresh = await resolve(request.payload, context); if (!same(binding(fresh), binding(resolved))) return invalid()
           remember([item], 'artwork'); return item.public
@@ -601,7 +605,7 @@ export function createLocalWorkbenchService(options: LocalWorkbenchServiceOption
           if (!imported.ok) throw imported.error
           input = imported.captured.bytes; privateSource = imported.captured.source
         }
-        const normalized = normalizeImportedLocalArtwork(input, options.decode)
+        const normalized = await normalizeImportedLocalArtworkInWorker(input, context.signal); check(context)
         requireAvailable(available.artworkImportFormats.find(item => item.mime === normalized.input.mime)?.availability, '此图片格式尚未取得实际解码资格。')
         if (mime !== null && normalized.input.mime !== mime) return invalid('声明图片格式与实际输入不一致。')
         const item = entry(resolved, normalized, { origin: 'manual', label: request.payload.label, sourceLabel: '拖放或粘贴导入',
@@ -765,7 +769,7 @@ export function createLocalWorkbenchService(options: LocalWorkbenchServiceOption
       requireAvailable(await artworkCallable('remote-import',scoped), '原远程图片transport尚未确认可调用。')
       const candidate = await artworkOperation(options.artwork.importRemoteSource(request.source, scoped.signal),resolved.capture.rootId,scoped)
       const captured = await artworkOperation(options.artwork.readCandidate(candidate.candidateId, scoped.signal),resolved.capture.rootId,scoped); check(scoped)
-      const normalized = normalizeImportedLocalArtwork(captured.bytes, options.decode)
+      const normalized = await normalizeImportedLocalArtworkInWorker(captured.bytes, scoped.signal); check(scoped)
       if (!same(normalized.image, captured.normalized)) return invalid('远程候选与规范副本不一致。')
       const item = entry(resolved, normalized, { origin: 'manual', label: candidate.label, sourceLabel: candidate.sourceLabel,
         licenseLabel: candidate.licenseLabel, privateSource: captured.source })
@@ -803,7 +807,7 @@ export function createLocalWorkbenchService(options: LocalWorkbenchServiceOption
       flight.associate(frozen.capture.rootId);if(retiredLibraries.has(frozen.capture.rootId))return invalid('原库新私有图读取已封。')
       // 恢复只读副本，不重签计划、不下载图片，也不用较小 display 冒充原图。
       const bytes = Buffer.from(frozen.artwork.originalBase64, 'base64')
-      const normalized = normalizeImportedLocalArtwork(bytes, options.decode)
+      const normalized = await normalizeImportedLocalArtworkInWorker(bytes)
       if (!same(normalized.image.original, frozen.artwork.image.original)) return invalid('原封面持久字节与原图身份不一致。')
       return { datasetId: frozen.datasetId, datasetRevision: frozen.datasetRevision,
         capture: { albumId: frozen.capture.albumId, readToken: frozen.capture.readToken }, captureRevision: frozen.capture.revision,
@@ -1017,6 +1021,8 @@ export interface LocalWorkbenchRootMainAuthor {
   readonly binding: Readonly<LocalWorkbenchRootAuthorBinding>
   /** 必须实查同一Owner identity/epoch及实际Utility generation；不能返回固定scope Promise。 */
   assertCurrent(binding: Readonly<LocalWorkbenchRootAuthorBinding>): Promise<void>
+  /** 仅本地专辑显示使用；仍实时核Owner身份，不取得工作台写入许可。 */
+  assertReadCurrent?(binding: Readonly<LocalWorkbenchRootAuthorBinding>): Promise<void>
   request(request: LocalWorkbenchRootMainRequest, context: LocalWorkbenchRootMainContext): Promise<LocalWorkbenchRootMainResult>
   requestOwner<C extends DatasetWorkbenchOwnerCommand>(command: C, payload: DatasetWorkbenchOwnerPayloads[C], context: LocalWorkbenchRootMainContext): Promise<DatasetWorkbenchOwnerResults[C]>
 }
@@ -1112,8 +1118,9 @@ export function createLocalWorkbenchManagementBoundary<E>(options: LocalWorkbenc
     if (flights.size >= 24) return mainBoundaryFailure('NOT_READY', '当前整理请求已达预算，请等待原回执。')
     const human = original.request.family === 'nameSettings' && original.request.command === 'name.settings.securityPrompt'
       || original.request.family === 'management' && original.request.command === 'library.import.prepare' && !droppedPreparation
+    const removalId=original.request.family==='management'&&original.request.command==='library.remove'?original.request.payload.commandId:null
     const controller = new AbortController()
-    let deadlineAtMs = human ? Number.POSITIVE_INFINITY : performance.now() + 2_000
+    let deadlineAtMs = human ? Number.POSITIVE_INFINITY : performance.now() + datasetWorkbenchRequestMs(original.request)
     let rejectRevoked!: (error: LocalWorkbenchMainBoundaryError) => void, rejectTimeout!: (error: LocalWorkbenchMainBoundaryError) => void
     const revoked = new Promise<never>((_resolve, reject) => { rejectRevoked = reject })
     const timeout = new Promise<never>((_resolve, reject) => { rejectTimeout = reject })
@@ -1127,7 +1134,7 @@ export function createLocalWorkbenchManagementBoundary<E>(options: LocalWorkbenc
     }
     const prepared: LocalWorkbenchMainPreparationContext = { binding, signal: controller.signal, assertCurrent }
     const task = Promise.resolve().then(async () => {
-      await assertCurrent()
+      if(removalId)await traceLibraryRemoval('main.initial',removalId,assertCurrent);else await assertCurrent()
       const request = structuredClone(original.request)
       let result: LocalWorkbenchMainManagedResult
       if (request.family === 'management' && request.command === 'library.import.cancel') {
@@ -1135,7 +1142,7 @@ export function createLocalWorkbenchManagementBoundary<E>(options: LocalWorkbenc
         result = await options.cancelLibraryImport(request.payload, prepared)
       } else {
       const directoryUiToken=await options.acceptDirectoryRequest?.(request,prepared);if(directoryUiToken)prepared.directoryUiToken=directoryUiToken
-      const nameUiToken=await options.acceptNameRequest?.(request,prepared);if(nameUiToken)prepared.nameUiToken=nameUiToken
+      const nameUiToken=removalId?await traceLibraryRemoval('main.intent',removalId,()=>options.acceptNameRequest?.(request,prepared)):await options.acceptNameRequest?.(request,prepared);if(nameUiToken)prepared.nameUiToken=nameUiToken
       if (request.family === 'nameSettings') {
         const settings = options.nameSettings
         if (!settings) return mainBoundaryFailure('NOT_READY', 'Main本地名称设置与独立安全保险库尚未装配。')
@@ -1151,12 +1158,12 @@ export function createLocalWorkbenchManagementBoundary<E>(options: LocalWorkbenc
         result = await prepare(prepared)
       } else {
         if (request.family === 'lyrics') await options.acceptLyricsRequest?.(request, prepared)
-        result = await author.request(request, { binding, signal: controller.signal, deadlineAtMs })
+        result = removalId?await traceLibraryRemoval('main.execute',removalId,()=>author.request(request, { binding, signal: controller.signal, deadlineAtMs })):await author.request(request, { binding, signal: controller.signal, deadlineAtMs })
       }
       }
       // 人工等待不计入Owner的原2000ms；只有选择/输入实际结束且原身份仍有效才开始最终回核。
       if (human) { deadlineAtMs = performance.now() + 2_000; armDeadline() }
-      await assertCurrent()
+      if(removalId)await traceLibraryRemoval('main.result',removalId,assertCurrent);else await assertCurrent()
       if (!mainFamilyResult(original.request, result, binding.datasetId)) return mainBoundaryFailure('INVALID_IPC_RESPONSE', '原整理结果身份或公开字段无效。')
       if (request.family === 'lyrics') await options.observeLyricsResult?.(request, result as LocalWorkbenchRootMainResult, prepared)
       if (!(request.family === 'management' && request.command === 'library.import.cancel')) await options.observeNameResult?.(request,result as LocalWorkbenchRootMainResult,prepared)
@@ -1278,13 +1285,14 @@ export function createLocalWorkbenchMainAssembly(options: {
     if (closed || readsClosed || !item || options.currentAuthor() !== item.author) return mainBoundaryFailure('NOT_READY', '当前Main整理资源尚未绑定真实Owner。')
     return item
   }
-  async function captureAuthor(datasetId: string): Promise<() => Promise<void>> {
+  async function captureAuthor(datasetId: string, readOnly = false): Promise<() => Promise<void>> {
     const item = original(), binding = item.author.binding
     if (binding.datasetId !== datasetId) return mainBoundaryFailure('OUTBOX_SCOPE_MISMATCH', '原Main整理资源不属于该工作库。')
     const check = async () => {
-      if (closed || current !== item || options.currentAuthor() !== item.author || !mainBindingEqual(binding,item.author.binding)) return mainBoundaryFailure('OUTBOX_SCOPE_MISMATCH', '原Main整理资源已换代。')
-      await item.author.assertCurrent(binding)
-      if (closed || current !== item || options.currentAuthor() !== item.author || !mainBindingEqual(binding,item.author.binding)) return mainBoundaryFailure('OUTBOX_SCOPE_MISMATCH', '原Main整理资源已换代。')
+      if (closed || readOnly && readsClosed || current !== item || options.currentAuthor() !== item.author || !mainBindingEqual(binding,item.author.binding)) return mainBoundaryFailure('OUTBOX_SCOPE_MISMATCH', '原Main整理资源已换代。')
+      if (readOnly && item.author.assertReadCurrent) await item.author.assertReadCurrent(binding)
+      else await item.author.assertCurrent(binding)
+      if (closed || readOnly && readsClosed || current !== item || options.currentAuthor() !== item.author || !mainBindingEqual(binding,item.author.binding)) return mainBoundaryFailure('OUTBOX_SCOPE_MISMATCH', '原Main整理资源已换代。')
     }
     await check(); return check
   }
@@ -1307,7 +1315,23 @@ export function createLocalWorkbenchMainAssembly(options: {
       })
       serial = task.then(() => undefined, () => undefined); return task
     },
-    captureAuthor,
+    captureAuthor: (datasetId: string) => captureAuthor(datasetId),
+    captureReadAuthor: (datasetId: string) => captureAuthor(datasetId, true),
+    /** 单次本地专辑显示的Main引用栅栏；真实Owner身份仍在操作首末分别核验。 */
+    captureLocalAlbumReadAuthor(datasetId: string) {
+      const item = original(), binding = Object.freeze({ ...item.author.binding })
+      if (binding.datasetId !== datasetId) return mainBoundaryFailure('OUTBOX_SCOPE_MISMATCH', '原Main整理资源不属于该工作库。')
+      const assertCurrent = () => {
+        if (closed || readsClosed || current !== item || options.currentAuthor() !== item.author || !mainBindingEqual(binding, item.author.binding))
+          return mainBoundaryFailure('OUTBOX_SCOPE_MISMATCH', '原本地专辑Main资源已换代。')
+      }
+      return { binding, assertCurrent, async verifyCurrent() {
+        assertCurrent()
+        if (item.author.assertReadCurrent) await item.author.assertReadCurrent(binding)
+        else await item.author.assertCurrent(binding)
+        assertCurrent()
+      } }
+    },
     async registerLibraryRemovalIntent(request:LocalWorkbenchRootMainRequest,context:LocalWorkbenchMainPreparationContext):Promise<LocalWorkbenchLibraryRemovalReference|undefined>{
       if(request.family!=='management'||request.command!=='library.remove')return undefined
       await context.assertCurrent();const item=original()

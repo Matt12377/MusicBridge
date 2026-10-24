@@ -1,5 +1,6 @@
+import { closeRustMediaWorkerPool } from '../../../packages/bridge-core/src/library/rust-media-worker.js'
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { randomUUID,createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { LocalArtworkCandidate,LocalArtworkContext,LocalArtworkTarget } from '@music-bridge/contracts';
@@ -66,3 +67,6 @@ test('首张坏图不挡后续好图，本地读取和远程检索均保留原�
   }
   assert.deepEqual(await readFile(file),good);
 });
+
+// 本测试进程拥有实际图片处理池；用例结束后等待原Rust子进程静止并释放句柄。
+after(async () => { await closeRustMediaWorkerPool() })

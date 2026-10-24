@@ -1,18 +1,24 @@
+import { captureMobileDirectoryPage, type MobileDirectoryQuery, type MobileDirectoryPage } from './directory-rpc.js';
+import { createMobileResourceCapacityProbe, MOBILE_RESOURCE_CAPACITY_FLAG } from './resource-capacity-trace.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { mobileCanonicalJson, type MobileJsonValue } from '@music-bridge/contracts';
+import { mobileRangeWindowCoreObserve } from './range-window-observer.js';
+import { mobileCanonicalJson, mobileTrackSelectionEquals, type MobileAlbum, type MobileSearchQuery, type MobileTrackPage, type MobileJsonValue, type MobileTrack, type MobileTrackSelection } from '@music-bridge/contracts';
 import { captureMobileContentReply } from './content-protocol.js';
 import { captureMobileContentScope, type MobileContentPort, type MobileContentScope, type MobileContentSnapshot } from './content-types.js';
 import { assertMobileContentRequestScope, sameMobileContentScope } from './content-service.js';
 import {
   captureMobileContentCoreRequest, captureMobileContentCoreResponse, captureMobileContentMainPrincipal,
   mobileContentPrincipalMatches, mobileContentRpcClosed, mobileContentRpcFailure, MOBILE_CONTENT_RPC_BOUNDS,
-  type MobileContentCoreRequest, type MobileContentCoreResponse, type MobileContentMainPrincipal,
+  captureMobileContentObservedTrack, mobileContentTrackFingerprint,
+  captureMobileContentAlbumBody, mobileContentAlbumFingerprint,
+  mobileContentLateSourceRequest, mobileContentLateResponseAllowed,
+  type MobileContentCoreRequest, type MobileContentCoreResponse, type MobileContentMainPrincipal, type MobileContentCoreSettlementObserver,
 } from './content-rpc.js';
 import type { MobileOwnerSourceRequest, MobileOwnerSourceResult } from './source-protocol.js';
 import { MobileAuthPersistenceError, MobileServiceError } from './types.js';
 import type { MobileNeteaseArtworkData } from '../netease/mobile-artwork.js';
 import {
-  createMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync,
+  createMobileCapabilityContext, captureMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync,
   mobileCapabilityReject, mobileCapabilityCache, mobileCapabilityRequestSha, closeMobileCapabilityContext,
   mobileContentDiagnosticAsync, mobileContentDiagnosticSync, mobileContentDiagnosticReject,
 } from './capability-trace.js';
@@ -27,15 +33,19 @@ export interface MobileContentRpcPortOptions {
     source: 'local' | 'netease'; result: MobileOwnerSourceResult;
   }>;
   neteasePlaybackQualified?(scope: Readonly<MobileContentScope>, signal: AbortSignal): boolean | Promise<boolean>;
+  readDirectory?(scope: Readonly<MobileContentScope>, query: MobileDirectoryQuery, signal: AbortSignal): Promise<MobileDirectoryPage>;
   readArtwork?(scope: Readonly<MobileContentScope>, artworkId: string, signal: AbortSignal): Promise<MobileNeteaseArtworkData>;
   assertArtwork?(scope: Readonly<MobileContentScope>, artworkId: string, signal: AbortSignal): Promise<string>;
+  readTrack?(scope: Readonly<MobileContentScope>, trackId: string, expectedSelection: Readonly<MobileTrackSelection> | null, signal: AbortSignal): Promise<Readonly<MobileTrack>>;
+  readAlbum?(scope: Readonly<MobileContentScope>, albumId: string, signal: AbortSignal): Promise<Readonly<MobileAlbum>>;
+  readAlbumTracks?(scope: Readonly<MobileContentScope>, albumId: string, query: Readonly<MobileSearchQuery>, expectedRevision: string | null, signal: AbortSignal): Promise<Readonly<MobileTrackPage>>;
   requestMs?: number;
   maxInflight?: number;
   maxSnapshots?: number;
   closeMs?: number;
 }
 export interface MobileContentRpcPort {
-  request(input: unknown, signal: AbortSignal): Promise<MobileContentCoreResponse>;
+  request(input: unknown, signal: AbortSignal, onSettled?: MobileContentCoreSettlementObserver): Promise<MobileContentCoreResponse>;
   close(): Promise<void>;
 }
 interface Active {
@@ -69,7 +79,7 @@ function cleanupRequest(request: MobileContentCoreRequest): boolean {
 }
 function principalOf(request: MobileContentCoreRequest): Readonly<MobileContentMainPrincipal> | null {
   if (request.action === 'scope') return request.principal;
-  if (request.action === 'dispatch' || request.action === 'source' || request.action === 'revalidate' || request.action === 'artwork') {
+  if (request.action === 'dispatch' || request.action === 'source' || request.action === 'revalidate' || request.action === 'artwork' || request.action === 'track' || request.action === 'album-catalog' || request.action === 'directory') {
     const scope = request.scope;
     return captureMobileContentMainPrincipal({ serverId: scope.serverId, datasetId: scope.datasetId,
       deviceId: scope.deviceId, deviceEpoch: scope.deviceEpoch, accessGeneration: scope.accessGeneration });
@@ -86,8 +96,36 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
   const active = new Map<string, Active>(), snapshots = new Map<string, Snapshot>();
   const revokedEpochs = new Map<string, number>();
   let closing = false, closeFlight: Promise<void> | undefined;
-  let privateDispatchDiagnostics = false, privateDispatchClaims = 0;
-  const privateFeeds = new Set(['getNeteaseDailyRecommendations','getNeteasePersonalFM','listNeteaseNewAlbums','listNeteaseCharts','listNeteaseRecommendedPlaylists']);
+  let privateRequestDiagnostics = false;
+  const privateRequestClaims = new Map<string, number>();
+  const resourceCapacity = createMobileResourceCapacityProbe({ enabled: process.argv.includes(MOBILE_RESOURCE_CAPACITY_FLAG) });
+  // 只沿原track.read八次私有预算保留哈希；不存DTO/URL，不参与原业务校验或回包。
+  const privateTrackBaselines = new Map<string, { withoutArtwork: string; readRequestSha256: string }>();
+  type TrackRequest = Extract<MobileContentCoreRequest, { action: 'track' }>;
+  const trackBaselineKey = (request: TrackRequest, fingerprint: string): string => createHash('sha256')
+    .update(mobileCanonicalJson(request.scope as unknown as MobileJsonValue)).update('\0').update(fingerprint).digest('hex');
+  const withoutArtworkFingerprint = (track: MobileTrack): string => {
+    const { artworkId: _artwork, ...rest } = track; return mobileContentTrackFingerprint(rest);
+  };
+  function rememberTrackBaseline(request: TrackRequest, track: MobileTrack, fingerprint: string): void {
+    try {
+      if (captureMobileCapabilityContext()?.privateContentDiagnostic !== true || privateTrackBaselines.size >= 8) return;
+      const readRequestSha256 = mobileCapabilityRequestSha('content', request.id);
+      if (readRequestSha256) privateTrackBaselines.set(trackBaselineKey(request, fingerprint), { withoutArtwork: withoutArtworkFingerprint(track), readRequestSha256 });
+    } catch { /* 哈希旁注失败不影响原已观测Track。 */ }
+  }
+  function noteTrackFingerprintFailure(request: TrackRequest, track: MobileTrack, error: unknown): void {
+    try {
+      if (captureMobileCapabilityContext()?.privateContentDiagnostic !== true) return;
+      // 原read回执fingerprint是既有revalidate字段；再绑定完整scope，不能跨epoch/账号/设备复用。
+      const prior = request.expectedFingerprint === null ? undefined : privateTrackBaselines.get(trackBaselineKey(request, request.expectedFingerprint));
+      const kind = prior === undefined ? 'baseline-missing' : prior.withoutArtwork === withoutArtworkFingerprint(track) ? 'artwork-only' : 'other';
+      mobileContentDiagnosticReject(`core.track.revalidate.fingerprint.${kind}`, error);
+    } catch { /* 分类失败仍保留原完整fingerprint拒绝。 */ }
+  }
+  // 八种内容方法与三种源/封面操作各保留八次，至多八十八个上下文。
+  const privateContentOperations = new Set(['getNeteaseDailyRecommendations','getNeteasePersonalFM','listNeteaseNewAlbums','listNeteaseCharts',
+    'listNeteaseRecommendedPlaylists','getNeteaseLikedPlaylist','listNeteaseLikedPlaylistTracks','getNeteaseDiscoveryCollectionTracks']);
   let identity: { serverId: string; datasetId: string; keyHash: string } | undefined;
   let initialization: { serverId: string; datasetId: string; keyHash: string; flight: Promise<void> } | undefined;
   let initializationTrace: { state: 'pending' | 'fulfilled' | 'rejected'; requestSha256: string | null } | undefined;
@@ -141,7 +179,7 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
             try { await options.initialize({ serverId: request.serverId, datasetId: request.datasetId, key,
               ...(request.privateProviderDiagnostics ? { privateProviderDiagnostics: true as const } : {}) }, signal); current(signal);
               identity = { serverId: request.serverId, datasetId: request.datasetId, keyHash };
-              privateDispatchDiagnostics = request.privateProviderDiagnostics === true; }
+              privateRequestDiagnostics = request.privateProviderDiagnostics === true; }
             finally { key.fill(0); }
           } catch (error) {
             trace.state = 'rejected'; mobileCapabilityCache('core.rpc.initialize.cache', 'rejected', trace.requestSha256); throw error;
@@ -238,25 +276,81 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
           signal.removeEventListener('abort', revoke); clearTimeout(entry.timer); entry.unlink(); snapshots.delete(request.snapshotId);
         }
       }
+      case 'directory': {
+        await assertScope(request.scope, 'acquire', signal);
+        if (!options.readDirectory) throw busy();
+        const page = captureMobileDirectoryPage(await options.readDirectory(request.scope, request.query, signal), request.query);
+        await assertScope(request.scope, 'acquire', signal); current(signal);
+        return { ...response(request), kind: 'directory', scope: request.scope, page };
+      }
+      case 'album-catalog': {
+        await assertScope(request.scope, 'acquire', signal);
+        let raw: unknown;
+        if (request.operation === 'getAlbum') {
+          if (!options.readAlbum) throw busy();
+          raw = await options.readAlbum(request.scope, request.albumId, signal);
+        } else {
+          if (!options.readAlbumTracks || !request.query) throw busy();
+          raw = await options.readAlbumTracks(request.scope, request.albumId, request.query, request.expectedRevision, signal);
+        }
+        await assertScope(request.scope, 'acquire', signal);
+        const body = captureMobileContentAlbumBody(request.operation, request.albumId, raw);
+        if (request.operation === 'listTracks' && request.expectedRevision !== null
+          && (body as MobileTrackPage).libraryRevision !== request.expectedRevision) throw changed();
+        const fingerprint = mobileContentAlbumFingerprint(request.operation, body);
+        if (request.mode === 'revalidate') {
+          if (fingerprint !== request.expectedFingerprint) throw changed();
+          return { ...response(request), kind: 'album-catalog-validated', operation: request.operation,
+            scope: request.scope, albumId: request.albumId, fingerprint };
+        }
+        return captureMobileContentCoreResponse({ ...response(request), kind: 'album-catalog', operation: request.operation,
+          scope: request.scope, albumId: request.albumId, body, fingerprint }, request);
+      }
+      case 'track': {
+        await mobileContentDiagnosticAsync(`core.track.${request.operation}.scope.before`, () => assertScope(request.scope, 'acquire', signal));
+        if (!options.readTrack) throw busy();
+        const track = captureMobileContentObservedTrack(await mobileContentDiagnosticAsync('core.provider.read', () =>
+          options.readTrack!(request.scope, request.trackId, request.expectedSelection, signal)), request.trackId);
+        await mobileContentDiagnosticAsync(`core.track.${request.operation}.scope.after`, () => assertScope(request.scope, 'acquire', signal));
+        const fingerprint = mobileContentTrackFingerprint(track);
+        if (request.operation === 'revalidate') {
+          mobileContentDiagnosticSync('core.track.revalidate.selection', () => {
+            if (!request.expectedSelection || !mobileTrackSelectionEquals(request.expectedSelection,
+              {trackId:track.id,source:track.source,versionId:track.versionId,contentRevision:track.contentRevision})) throw changed();
+          });
+          mobileContentDiagnosticSync('core.track.revalidate.fingerprint', () => {
+            if (fingerprint !== request.expectedFingerprint) {
+              const error = changed(); noteTrackFingerprintFailure(request, track, error); throw error;
+            }
+          });
+          return { ...response(request), kind:'track-validated', scope:request.scope, trackId:request.trackId, fingerprint };
+        }
+        rememberTrackBaseline(request, track, fingerprint);
+        return { ...response(request), kind:'track', scope:request.scope, trackId:request.trackId, track, fingerprint };
+      }
       case 'artwork': {
         await assertScope(request.scope, 'acquire', signal);
         if (request.operation === 'read') {
           if (!options.readArtwork) throw busy();
-          const image = await options.readArtwork(request.scope, request.artworkId, signal);
+          const image = await mobileContentDiagnosticAsync('core.provider.read', () => options.readArtwork!(request.scope, request.artworkId, signal));
           await assertScope(request.scope, 'acquire', signal);
           return captureMobileContentCoreResponse({ ...response(request), kind: 'artwork', scope: request.scope, ...image }, request);
         }
         if (!options.assertArtwork) throw busy();
-        const revision = await options.assertArtwork(request.scope, request.artworkId, signal);
+        const revision = await mobileContentDiagnosticAsync('core.provider.read', () => options.assertArtwork!(request.scope, request.artworkId, signal));
         await assertScope(request.scope, 'acquire', signal);
-        if (revision !== request.expectedRevision) throw changed();
+        if (revision !== request.expectedRevision) {
+          const error = changed(); mobileContentDiagnosticReject('provider.artwork.revision-changed', error); throw error;
+        }
         return captureMobileContentCoreResponse({ ...response(request), kind: 'artwork-validated', scope: request.scope,
           artworkId: request.artworkId, revision }, request);
       }
       case 'source': {
-        if (!cleanupRequest(request)) await assertScope(request.scope, request.request.operation === 'prepare' ? 'acquire' : 'lease', signal);
-        const selected = await options.source(request.scope, request.request, signal);
-        if (!cleanupRequest(request)) await assertScope(request.scope, request.request.operation === 'prepare' ? 'acquire' : 'lease', signal);
+        if (!cleanupRequest(request)) await mobileRangeWindowCoreObserve('core.source.scope.before', () => assertScope(request.scope, request.request.operation === 'prepare' ? 'acquire' : 'lease', signal));
+        const selected = request.request.operation === 'prepare'
+          ? await mobileContentDiagnosticAsync('core.provider.read', () => options.source(request.scope, request.request, signal))
+          : await mobileRangeWindowCoreObserve('core.source.execute', () => options.source(request.scope, request.request, signal));
+        if (!cleanupRequest(request)) await mobileRangeWindowCoreObserve('core.source.scope.after', () => assertScope(request.scope, request.request.operation === 'prepare' ? 'acquire' : 'lease', signal));
         return captureMobileContentCoreResponse({ ...response(request), kind: 'source', scope: request.scope, ...selected }, request);
       }
       case 'cancel': {
@@ -283,14 +377,22 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
     }
   }
   const port: MobileContentRpcPort = {
-    async request(raw, parentSignal) {
+    async request(raw, parentSignal, onSettled) {
       const request = captureMobileContentCoreRequest(raw);
-      const privateDispatch = privateDispatchDiagnostics && request.action === 'dispatch' && privateFeeds.has(request.operation) && privateDispatchClaims < 8;
-      if (privateDispatch) privateDispatchClaims++;
+      const diagnosticKey = request.action === 'dispatch' && privateContentOperations.has(request.operation) ? request.operation
+        : request.action === 'source' && request.request.operation === 'prepare' ? 'source.prepare'
+          : request.action === 'artwork' ? `artwork.${request.operation}`
+            : request.action === 'track' ? `track.${request.operation}` : undefined;
+      const diagnosticMaximum = diagnosticKey === 'listNeteaseLikedPlaylistTracks' ? 512 : 8;
+      const privateRequest = privateRequestDiagnostics && diagnosticKey !== undefined && (privateRequestClaims.get(diagnosticKey) ?? 0) < diagnosticMaximum;
+      if (privateRequest && diagnosticKey !== undefined) privateRequestClaims.set(diagnosticKey, (privateRequestClaims.get(diagnosticKey) ?? 0) + 1);
       const contextFor = (signal?: AbortSignal) => {
-        if (!(privateDispatch || request.action === 'initialize' || request.action === 'scope' || request.action === 'cancel')) return undefined;
-        const context = createMobileCapabilityContext(request.id, 'core', 'content', undefined, signal);
-        if (context && privateDispatch) context.privateContentDiagnostic = true;
+        const context = privateRequest || request.action === 'initialize' || request.action === 'scope' || request.action === 'cancel'
+          ? createMobileCapabilityContext(request.id, 'core', 'content', undefined, signal) : undefined;
+        if (context && privateRequest) context.privateContentDiagnostic = true;
+        if (request.action === 'source' && request.request.operation === 'prepare') {
+          return resourceCapacity.claim(request.id, 'core', 'content', signal, context) ?? context;
+        }
         return context;
       };
       const failure = (error: unknown): MobileContentCoreResponse => {
@@ -319,6 +421,11 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
         return earlyFailure(busy(), 'core.dispatch.admission.active-full');
       }
       const controller = new AbortController(), cancel = () => controller.abort(busy());
+      // cancel只为原媒体读/清理目标旁注；不借取消控制扩大initialize、scope或未知写入的语义。
+      const lateTarget = request.action === 'cancel' ? active.get(request.requestId)?.request : request;
+      const lateTargetMatches = mobileContentLateSourceRequest(lateTarget) && (request.action !== 'cancel'
+        || request.snapshotId === null && request.scope !== null && sameMobileContentScope(request.scope, lateTarget.scope));
+      const notifySettlement = typeof onSettled === 'function' && lateTargetMatches ? onSettled : undefined;
       const context = contextFor(controller.signal);
       return withMobileCapabilityContext(context, async () => {
         mobileContentDiagnosticSync('core.dispatch.admission', () => undefined);
@@ -331,13 +438,19 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
         const flight = Promise.resolve().then(() => execute(request, controller.signal, controller, parentSignal))
           .then(result => mobileContentDiagnosticSync('core.dispatch.reply.capture', () => captureMobileContentCoreResponse(result, request))).catch(failure);
         active.set(request.id, { request, controller, flight });
-        void flight.then(() => {
+        void flight.then(result => {
           try {
             active.delete(request.id); clearTimeout(timer); parentSignal.removeEventListener('abort', cancel);
             controller.signal.removeEventListener('abort', onAbort); if (request.action === 'initialize') request.key.fill(0);
           } catch (error) {
             mobileCapabilityReject('core.rpc.failure', error, 'cleanup'); throw error;
-          } finally { closeMobileCapabilityContext(context); }
+          } finally {
+            closeMobileCapabilityContext(context);
+            if (notifySettlement && mobileContentLateResponseAllowed(request, result)) {
+              try { notifySettlement(captureMobileContentCoreResponse(result, request)); }
+              catch { /* 结算旁注失败不改原业务、真实工作静止或槽位收口。 */ }
+            }
+          }
         });
         try { return await Promise.race([flight, aborted]); }
         catch (error) { return failure(error); }
@@ -349,7 +462,7 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
       for (const id of snapshots.keys()) discard(id);
       for (const entry of active.values()) entry.controller.abort(busy());
       const quiet = Promise.allSettled([...active.values()].map(entry => entry.flight)).then(() => {
-        identity = undefined; initialization = undefined; initializationTrace = undefined; revokedEpochs.clear();
+        identity = undefined; initialization = undefined; initializationTrace = undefined; revokedEpochs.clear(); privateTrackBaselines.clear();
       });
       closeFlight = new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => reject(new MobileAuthPersistenceError('unknown')), closeMs);

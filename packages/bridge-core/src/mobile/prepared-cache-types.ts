@@ -35,7 +35,8 @@ export type MobileDsdCacheStatus = MobilePlaybackPreparedSource | MobilePlayback
 export interface MobilePreparedCache {
   /** 只有固定后端、受控缓存根和真实源读取能力均合格才报告 true。 */
   readonly qualified: boolean;
-  begin(request: { resourceId: string; source: MobileDsdSourceAccess; window: MobilePlaybackPreparationWindow }, signal: AbortSignal): Promise<MobileDsdCacheStatus>;
+  /** beginActivity仅同Owner内使用，跟随共享job实际生命周期，不进入任何业务帧。 */
+  begin(request: { resourceId: string; source: MobileDsdSourceAccess; window: MobilePlaybackPreparationWindow; beginActivity?: () => () => void }, signal: AbortSignal): Promise<MobileDsdCacheStatus>;
   status(resourceId: string): Promise<MobileDsdCacheStatus>;
   verify(resourceId: string): Promise<void>;
   renew(resourceId: string): Promise<void>;

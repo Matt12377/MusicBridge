@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { createMobileResourceCapacityProbe } from '../../src/mobile/resource-capacity-trace.js';
+import { closeMobileCapabilityContext, withMobileCapabilityContext, MOBILE_CAPABILITY_TRACE_PREFIX } from '../../src/mobile/capability-trace.js';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import test, { type TestContext } from 'node:test';
@@ -7,15 +9,43 @@ import {
   type MobileResourceRequest, type MobileSession,
 } from '@music-bridge/contracts';
 import { createMobilePlaybackService } from '../../src/mobile/playback-service.js';
+import { decodePlaybackStorage, encodePlaybackStorage } from '../../src/mobile/playback-state-codec.js';
 import {
-  MobilePlaybackError, type MobilePlaybackControlOperation, type MobilePlaybackControlReply,
-  type MobilePlaybackLimits, type MobilePlaybackPreparedSource, type MobilePlaybackService, type MobilePlaybackSourcePort,
+  MOBILE_PLAYBACK_DEFAULT_LIMITS, MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET, MobilePlaybackError, type MobilePlaybackControlOperation, type MobilePlaybackControlReply,
+  type MobilePlaybackLimits, type MobilePlaybackPreparedSource, type MobilePlaybackService, type MobilePlaybackSourcePort, type MobilePlaybackStateCodecPort,
 } from '../../src/mobile/playback-types.js';
 import { MobileAuthPersistenceError, type MobileAuthCrypto, type MobileAuthPersistence, type MobilePrincipal,
   type MobileSealedSave, type MobileSealedState } from '../../src/mobile/types.js';
 
 // 本文件是逻辑 actor 的受控端口测试。AES 是真实算法；端口数据不是 Parser/FD/真机证据。
 const ORIGIN = 'https://127.0.0.1:43123', SERVER = 'server-1', DATASET = 'dataset-1';
+
+test('容量首拒旁注区分新scope遇到原回执满、历史resource满、live与迟到flight，不改业务拒绝', async t => {
+  for (const kind of ['receipts', 'stored', 'live', 'flight'] as const) await t.test(kind, async t => {
+    const f = fixture(t, kind === 'receipts' ? { maxReceipts: 2 } : kind === 'stored' ? { maxStoredResources: 1, maxLiveResources: 1 }
+      : { maxLiveResources: 1, ...(kind === 'flight' ? { prepareTimeoutMs: 15, readyWaitMs: 1 } : {}) });
+    const first = await createSession(f.actor);
+    if (kind === 'stored' || kind === 'live') {
+      const resource = await ready(f.actor, first);
+      if (kind === 'stored') await call(f.actor, 'releaseResource', request('releaseResource', null, first.id, resource.id));
+    } else if (kind === 'flight') {
+      f.sources.prepareGate = deferred<void>();
+      const failed = await call(f.actor, 'createResource', request('createResource', resourceRequest(), first.id, undefined, 'late-flight'));
+      assert.equal(failed.status, 429); assert.equal(f.sources.handles.size, 1);
+    }
+    const second = await createSession(f.actor, 'new-scope');
+    const lines: string[] = [], capacity = createMobileResourceCapacityProbe({ enabled: true, sink: line => lines.push(line) });
+    const context = capacity.claim('11111111-1111-4111-8111-111111111111', 'main', 'http'); assert.ok(context);
+    const prepares = f.sources.prepares;
+    await code(withMobileCapabilityContext(context, () => call(f.actor, 'createResource',
+      request('createResource', resourceRequest('new-track'), second.id, undefined, 'rejected-new-scope'))), 'RESOURCE_BUSY', 429);
+    assert.equal(f.sources.prepares, prepares, '准确准入guard命中后不得调用来源');
+    const records = lines.map(line => JSON.parse(line.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length)));
+    assert.deepEqual(records.map(row => row.stage), [{ receipts: 'capacity.actor.receipts-full', stored: 'capacity.actor.stored-resources-full',
+      live: 'capacity.actor.live-resources-full', flight: 'capacity.actor.live-flights-full' }[kind]]);
+    assert.equal(records[0].code, 'RESOURCE_BUSY'); closeMobileCapabilityContext(context);
+  });
+});
 function deferred<T>() {
   let resolve!: (value: T) => void, reject!: (error: unknown) => void;
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject };
@@ -61,9 +91,11 @@ class ControlledSources implements MobilePlaybackSourcePort {
   verifyGate: ReturnType<typeof deferred<void>> | undefined;
   readGate: ReturnType<typeof deferred<void>> | undefined;
   releaseGate: ReturnType<typeof deferred<void>> | undefined;
+  prepareFailure: unknown;
   changed = false;
   async prepare(request: { resourceId: string; trackId: string; versionId: string; contentRevision: string }, _signal: AbortSignal) {
     this.prepares++; assert.equal(request.versionId, 'version-1'); assert.equal(request.contentRevision, 'content-1');
+    if (this.prepareFailure !== undefined) throw this.prepareFailure;
     const source: MobilePlaybackPreparedSource = { handle: `handle-${request.resourceId}`,
       sourceAudio: { codec: 'pcm_s16le', container: 'wav', sampleRateHz: 44_100, bitsPerSample: 16, channels: 2 },
       actualAudio: { codec: 'pcm_s16le', container: 'wav', sampleRateHz: 44_100, bitsPerSample: 16, channels: 2 },
@@ -96,14 +128,14 @@ function principal(deviceId = 'device-1', epoch = 1, generation = 1): MobilePrin
   return Object.freeze({ serverId: SERVER, deviceId, datasetId: DATASET, accountDomain: `local:${DATASET}`,
     deviceEpoch: epoch, generation, accessTokenHash: 'a'.repeat(64), accessExpiresAt: '2030-01-01T00:00:00.000Z' });
 }
-function fixture(t: TestContext, limits?: Partial<MobilePlaybackLimits>) {
+function fixture(t: TestContext, limits?: Partial<MobilePlaybackLimits>, stateCodec?: MobilePlaybackStateCodecPort) {
   let now = Date.parse('2026-10-09T00:00:00.000Z');
   const persistence = new ControlledPersistence(), crypto = controlledCrypto(), sources = new ControlledSources();
   const devices = new Map([['device-1', 1], ['device-2', 1]]), actors: MobilePlaybackService[] = [];
   const create = () => {
     const actor = createMobilePlaybackService({ serverId: SERVER, datasetId: DATASET, responseOrigin: ORIGIN,
       auth: { async assertDeviceCurrent(deviceId, epoch) { if (devices.get(deviceId) !== epoch) throw new Error('受控设备已撤销'); } },
-      persistence, crypto, sourcePort: sources, nowMs: () => now, ...(limits ? { limits } : {}) }); actors.push(actor); return actor;
+      persistence, crypto, sourcePort: sources, nowMs: () => now, ...(limits ? { limits } : {}), ...(stateCodec ? { stateCodec } : {}) }); actors.push(actor); return actor;
   };
   const actor = create();
   t.after(async () => { sources.prepareGate?.resolve(); sources.verifyGate?.resolve(); sources.readGate?.resolve(); sources.releaseGate?.resolve();
@@ -158,6 +190,119 @@ function checkedWire(operation: 'createResource' | 'renewResource', reply: Mobil
   if (!invalidBytes.ok) assert.deepEqual(invalidBytes.issue, { code: 'INVALID_RESPONSE', field: 'response' });
 }
 
+function persistedPlayback(f: ReturnType<typeof fixture>) {
+  const value = f.persistence.value;
+  assert.equal(value.kind, 'sealed');
+  if (value.kind !== 'sealed') throw new Error('受控播放状态尚未持久化');
+  const plain = f.crypto.open(value.sealed, Buffer.from(JSON.stringify(['MBM002_PLAYBACK_STATE_V1', SERVER, DATASET, value.revision])));
+  try { return decodePlaybackStorage(plain, SERVER, DATASET, ORIGIN, MOBILE_PLAYBACK_DEFAULT_LIMITS).state; }
+  finally { plain.fill(0); }
+}
+
+test('expire零变化的控制与周期扫描不序列化整本历史，accepted观察仍逐次持久化', async t => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const f = fixture(t), s = await createSession(f.actor), r = await ready(f.actor, s);
+  await until(() => f.actor.resourceSnapshot().preparing === 0);
+  const original = JSON.stringify, before = structuredClone(f.persistence.value), saves = f.persistence.saves, loads = f.persistence.loads;
+  let ledgerSerializations = 0;
+  const observedStringify = function (value: unknown, ...rest: unknown[]) {
+    if (value !== null && typeof value === 'object' && 'schema' in value
+      && value.schema === 'musicbridge.mobile002.playback-state.v1') ledgerSerializations++;
+    return Reflect.apply(original, JSON, [value, ...rest]);
+  };
+  t.mock.method(JSON, 'stringify', observedStringify);
+  for (let i = 0; i < 3; i++) {
+    f.advance(1); t.mock.timers.tick(1_000);
+    assert.equal((await call(f.actor, 'getSession', request('getSession', null, s.id))).status, 200);
+  }
+  // 用确定的工作量计数代替耗时阈值；每次扫描均不得遍历序列化历史回执。
+  assert.equal(ledgerSerializations, 0);
+  assert.equal(f.persistence.saves, saves); assert.equal(f.persistence.loads, loads);
+  assert.deepEqual(f.persistence.value, before);
+  const observation: MobileObservation = { sequence: 1, playerGeneration: 1, queueItemId: 'expire-queue',
+    resourceId: r.id, trackId: r.trackId, positionMs: 100, state: 'playing' };
+  const observe = () => call(f.actor, 'reportObservation', request('reportObservation', observation, s.id));
+  assert.deepEqual((await observe()).body, { acceptedSequence: 1, accepted: true });
+  assert.equal(f.persistence.saves, saves + 1);
+  const committed = persistedPlayback(f).sessions.find(value => value.id === s.id)!;
+  assert.equal(committed.lastSequence, 1); assert.deepEqual(committed.observation, observation);
+  ledgerSerializations = 0;
+  assert.deepEqual((await observe()).body, { acceptedSequence: 1, accepted: false });
+  assert.equal(ledgerSerializations, 0); assert.equal(f.persistence.saves, saves + 1);
+});
+
+test('expire会话精确到期优先终止资源，等待原保存ACK且保留原201回执', async t => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const f = fixture(t, { sessionTtlMs: 1_000, resourceTtlMs: 1_000, ticketTtlMs: 1_000,
+    maximumResourceLifetimeMs: 1_000, orphanResourceMs: 1_000 });
+  const intent = request('createSession', { clientInstanceId: 'expire-client' }, undefined, undefined, 'expire-session');
+  const first = await call(f.actor, 'createSession', intent), s = first.body as MobileSession, r = await ready(f.actor, s);
+  await until(() => f.actor.resourceSnapshot().preparing === 0);
+  const media = await f.actor.openMedia('headMediaAsset', mediaRequest(r), new AbortController().signal); await media.close();
+  const before = persistedPlayback(f), saves = f.persistence.saves;
+  f.advance(999); assert.equal((await call(f.actor, 'getSession', request('getSession', null, s.id))).status, 200);
+  assert.equal(f.persistence.saves, saves);
+  const gate = deferred<void>(), save = f.persistence.save.bind(f.persistence);
+  let posted = false, settled = false;
+  t.mock.method(f.persistence, 'save', async (value: MobileSealedSave) => { posted = true; await gate.promise; return save(value); });
+  f.advance(1);
+  const expiring = call(f.actor, 'getSession', request('getSession', null, s.id))
+    .then(value => { settled = true; return { value }; }, error => { settled = true; return { error }; });
+  try {
+    await until(() => posted);
+    assert.equal(settled, false, 'Owner尚未确认保存时不能结算本次到期请求');
+    assert.equal(media.resourceAbortSignal.aborted, true);
+    assert.deepEqual(persistedPlayback(f), before);
+  } finally { gate.resolve(); }
+  const outcome = await expiring;
+  assert.ok('error' in outcome && outcome.error instanceof MobilePlaybackError
+    && outcome.error.status === 410 && outcome.error.code === 'SESSION_EXPIRED');
+  assert.equal(f.persistence.saves, saves + 1);
+  const after = persistedPlayback(f);
+  assert.equal(after.sessions.find(value => value.id === s.id)!.terminal, 'SESSION_EXPIRED');
+  const terminal = after.resources.find(value => value.id === r.id)!;
+  assert.equal(terminal.state, 'terminal'); assert.equal(terminal.failure, 'SESSION_EXPIRED');
+  assert.equal(terminal.media, null); assert.deepEqual(after.receipts, before.receipts);
+  assert.deepEqual((await call(f.actor, 'createSession', intent)).body, first.body);
+  assert.equal(f.persistence.saves, saves + 1); await until(() => f.sources.handles.size === 0);
+});
+
+test('expire资源TTL、续期硬上限与runtime活动孤儿期限保持原精确边界', async t => {
+  const scenarios: { name: string; limits: Partial<MobilePlaybackLimits>; edge: number; activity?: 'renew' | 'read' }[] = [
+    { name: '资源TTL', limits: { resourceTtlMs: 1_000, ticketTtlMs: 1_000 }, edge: 1_000 },
+    { name: '续期仍受硬上限约束', limits: { resourceTtlMs: 600, ticketTtlMs: 500, maximumResourceLifetimeMs: 1_000 }, edge: 1_000, activity: 'renew' },
+    { name: '孤儿期限使用runtime新活动而非旧持久时间', limits: { orphanResourceMs: 1_000 }, edge: 1_500, activity: 'read' },
+  ];
+  for (const scenario of scenarios) await t.test(scenario.name, async child => {
+    child.mock.timers.enable({ apis: ['setInterval'] });
+    const f = fixture(child, scenario.limits), started = f.now(), s = await createSession(f.actor), r = await ready(f.actor, s);
+    await until(() => f.actor.resourceSnapshot().preparing === 0);
+    if (scenario.activity) {
+      f.advance(500);
+      if (scenario.activity === 'renew') {
+        assert.equal((await call(f.actor, 'renewResource', request('renewResource', {}, s.id, r.id, 'expire-renew'))).status, 200);
+        const stored = persistedPlayback(f).resources.find(value => value.id === r.id)!;
+        assert.equal(stored.expiresAt, started + 1_000); assert.equal(stored.hardExpiresAt, started + 1_000);
+      } else {
+        const media = await f.actor.openMedia('getMediaAsset', mediaRequest(r), new AbortController().signal, { range: 'bytes=0-0' });
+        assert.equal((await media.reader!.read()).byteLength, 1); await media.close();
+        assert.equal(persistedPlayback(f).resources.find(value => value.id === r.id)!.lastActivityAt, started);
+      }
+    }
+    const before = persistedPlayback(f), saves = f.persistence.saves;
+    f.advance(started + scenario.edge - 1 - f.now());
+    assert.equal((await call(f.actor, 'getResource', request('getResource', null, s.id, r.id))).status, 200);
+    assert.equal(f.persistence.saves, saves);
+    f.advance(1); await code(call(f.actor, 'getResource', request('getResource', null, s.id, r.id)), 'RESOURCE_EXPIRED', 410);
+    assert.equal(f.persistence.saves, saves + 1);
+    const after = persistedPlayback(f), terminal = after.resources.find(value => value.id === r.id)!;
+    assert.equal(terminal.state, 'terminal'); assert.equal(terminal.failure, 'RESOURCE_EXPIRED'); assert.equal(terminal.media, null);
+    assert.equal(after.sessions.find(value => value.id === s.id)!.terminal, null); assert.deepEqual(after.receipts, before.receipts);
+    await code(call(f.actor, 'getResource', request('getResource', null, s.id, r.id)), 'RESOURCE_EXPIRED', 410);
+    assert.equal(f.persistence.saves, saves + 1); await until(() => f.sources.handles.size === 0);
+  });
+});
+
 test('会话原201完整回执保持，同key改body或scope拒绝，一设备只占两个会话', async t => {
   const f = fixture(t), firstRequest = request('createSession', { clientInstanceId: 'client-1' }, undefined, undefined, 'key-1');
   const first = await call(f.actor, 'createSession', firstRequest), again = await call(f.actor, 'createSession', firstRequest);
@@ -206,6 +351,90 @@ test('异步验证产生原202，完成后GET ready，但所有原回执字段�
   const current = await call(f.actor, 'getResource', request('getResource', null, s.id, id)); assert.ok(current.body && 'state' in current.body && current.body.state === 'ready');
   f.advance(61_000); const replay = await call(f.actor, 'createResource', r); assert.equal(replay.status, 202); assert.deepEqual(replay.body, first.body);
   assert.deepEqual(replay.resourceContext, first.resourceContext); checkedWire('createResource', replay); assert.equal(f.sources.prepares, 1);
+});
+
+test('准备事实合并提交：直通仍先持久UNKNOWN，完整ready事实只随终态ACK发布', async t => {
+  const f = fixture(t), s = await createSession(f.actor), before = f.persistence.saves;
+  const originalPrepare = f.sources.prepare.bind(f.sources);
+  t.mock.method(f.sources, 'prepare', async (input: Parameters<ControlledSources['prepare']>[0], signal: AbortSignal) => {
+    const saved = persistedPlayback(f), receipt = saved.receipts.find(value => value.operation === 'createResource');
+    assert.equal(receipt?.state, 'UNKNOWN'); assert.equal(receipt?.reply, null);
+    assert.equal(saved.resources[0]?.source, null);
+    return originalPrepare(input, signal);
+  });
+  const intent = request('createResource', resourceRequest(), s.id, undefined, 'combined-facts-ready');
+  const first = await call(f.actor, 'createResource', intent); checkedWire('createResource', first);
+  assert.equal(first.status, 201); assert.ok(first.body && 'state' in first.body && first.body.state === 'ready');
+  const saved = persistedPlayback(f);
+  assert.equal(saved.resources[0]?.state, 'ready'); assert.ok(saved.resources[0]?.source && 'actualAudio' in saved.resources[0].source);
+  assert.equal(saved.receipts.at(-1)?.state, 'RECORDED');
+  assert.equal(f.persistence.saves - before, 2, '同一成功准备只写UNKNOWN与包含完整来源事实的ready终态');
+  const replay = await call(f.actor, 'createResource', intent);
+  assert.equal(replay.status, first.status); assert.deepEqual(replay.body, first.body);
+  assert.deepEqual(replay.resourceContext, first.resourceContext); assert.equal(f.sources.prepares, 1);
+});
+
+test('准备事实合并提交：慢验证的202包含已ACK事实，后续ready不改原幂等回执', async t => {
+  const f = fixture(t), s = await createSession(f.actor), before = f.persistence.saves;
+  f.sources.verifyGate = deferred<void>();
+  const intent = request('createResource', resourceRequest(), s.id, undefined, 'combined-facts-preparing');
+  const first = await call(f.actor, 'createResource', intent); checkedWire('createResource', first);
+  assert.equal(first.status, 202);
+  const preparing = persistedPlayback(f);
+  assert.equal(preparing.resources[0]?.state, 'preparing'); assert.ok(preparing.resources[0]?.source && 'actualAudio' in preparing.resources[0].source);
+  assert.equal(preparing.receipts.at(-1)?.state, 'RECORDED');
+  assert.equal(f.persistence.saves - before, 2, '202与来源事实必须在同一次提交，不额外写事实');
+  f.sources.verifyGate.resolve(); await until(() => f.actor.resourceSnapshot().preparing === 0);
+  assert.equal(persistedPlayback(f).resources[0]?.state, 'ready');
+  const replay = await call(f.actor, 'createResource', intent);
+  assert.deepEqual(replay.body, first.body); assert.deepEqual(replay.resourceContext, first.resourceContext);
+  assert.equal(replay.status, 202); assert.equal(f.sources.prepares, 1);
+  assert.equal(f.persistence.saves - before, 3);
+});
+
+test('准备事实合并提交：验证或续期失败仍发布完整failed资源并保存原错误回执', async t => {
+  for (const stage of ['verify', 'renew'] as const) await t.test(stage, async t => {
+    const f = fixture(t), s = await createSession(f.actor);
+    if (stage === 'verify') f.sources.changed = true;
+    else t.mock.method(f.sources, 'renew', async () => { throw new MobilePlaybackError(409, 'SOURCE_CHANGED'); });
+    const intent = request('createResource', resourceRequest(), s.id, undefined, `combined-failure-${stage}`);
+    const first = await call(f.actor, 'createResource', intent);
+    assert.equal(first.status, 409);
+    await until(() => f.actor.resourceSnapshot().preparing === 0);
+    const saved = persistedPlayback(f), resource = saved.resources[0]!;
+    assert.equal(resource.state, 'failed'); assert.ok(resource.source && 'actualAudio' in resource.source);
+    const observed = await call(f.actor, 'getResource', request('getResource', null, s.id, resource.id));
+    assert.equal(observed.status, 200); assert.ok(observed.body && 'state' in observed.body && observed.body.state === 'failed');
+    const replay = await call(f.actor, 'createResource', intent);
+    assert.equal(replay.status, first.status); assert.deepEqual(replay.body, first.body);
+    assert.equal(f.sources.prepares, 1); assert.equal(f.sources.handles.size, 0);
+  });
+});
+
+test('准备事实合并提交：未发送的事实容量拒绝仍使用原UNKNOWN失败预留，不二次准备', async t => {
+  let factCapacityRefusals = 0;
+  const codec: MobilePlaybackStateCodecPort = {
+    async encode(value, context) {
+      if (value.resources.some(resource => resource.state === 'failed' && resource.source !== null)) {
+        factCapacityRefusals++; throw new MobilePlaybackError(429, 'RESOURCE_BUSY');
+      }
+      return encodePlaybackStorage(value, context.serverId, context.datasetId, context.responseOrigin, context.limits, context.terminalFailureBudget);
+    },
+    async decode(value, context) { return decodePlaybackStorage(value, context.serverId, context.datasetId, context.responseOrigin, context.limits); },
+    async close() {},
+  };
+  const f = fixture(t, undefined, codec), s = await createSession(f.actor), before = f.persistence.saves;
+  f.sources.changed = true;
+  const intent = request('createResource', resourceRequest(), s.id, undefined, 'combined-capacity-error');
+  const first = await call(f.actor, 'createResource', intent); assert.equal(first.status, 409);
+  await until(() => f.actor.resourceSnapshot().preparing === 0);
+  assert.equal(factCapacityRefusals, 1); assert.equal(f.persistence.saves - before, 2);
+  const saved = persistedPlayback(f);
+  assert.equal(saved.resources[0]?.source, null); assert.equal(saved.resources[0]?.state, 'failed');
+  assert.equal(saved.receipts.at(-1)?.state, 'RECORDED'); assert.equal(f.actor.resourceSnapshot().pendingPersistence, false);
+  assert.equal(f.sources.prepares, 1); assert.equal(f.sources.handles.size, 0);
+  const replay = await call(f.actor, 'createResource', intent);
+  assert.equal(replay.status, first.status); assert.deepEqual(replay.body, first.body); assert.equal(factCapacityRefusals, 1);
 });
 
 test('renew持久后发新票，旧票到原绝对期限退场，refresh代际不退当前device epoch票', async t => {
@@ -325,6 +554,127 @@ test('持久预算不驱逐原回执，拒绝额外键/跨dataset/损坏密文�
   await f.actor.close(); assert.equal(f.persistence.value.kind, 'sealed');
   if (f.persistence.value.kind === 'sealed') f.persistence.value.sealed[0] = f.persistence.value.sealed[0]! ^ 1;
   const corrupt = f.create(); await assert.rejects(createSession(corrupt, 'corrupt-key')); assert.equal(f.sources.prepares, 0);
+});
+
+test('终态预留：近满create在写UNKNOWN和准备来源之前稳定拒绝，不遗留同key的503', async t => {
+  const probe = fixture(t); probe.sources.prepareFailure = new MobilePlaybackError(409, 'SOURCE_CHANGED');
+  const probeSession = await createSession(probe.actor);
+  const failed = await call(probe.actor, 'createResource', request('createResource', resourceRequest(), probeSession.id, undefined, 'capacity-resource'));
+  assert.equal(failed.status, 409); await until(() => probe.actor.resourceSnapshot().preparing === 0);
+  const complete = probe.persistence.value; assert.equal(complete.kind, 'sealed');
+  if (complete.kind !== 'sealed') throw new Error('受控失败回执未持久化');
+  const plain = probe.crypto.open(complete.sealed, Buffer.from(JSON.stringify(['MBM002_PLAYBACK_STATE_V1', SERVER, DATASET, complete.revision])));
+  const failedState = decodePlaybackStorage(plain, SERVER, DATASET, ORIGIN, MOBILE_PLAYBACK_DEFAULT_LIMITS).state;
+  let minimum = 1, maximum = plain.byteLength; plain.fill(0);
+  // 用实际codec寻找原失败回执的最小表示边界；不把某个旧格式的长度当成未来格式的下限。
+  while (minimum < maximum) {
+    const stateBytes = Math.floor((minimum + maximum) / 2);
+    try {
+      const encoded = encodePlaybackStorage(failedState, SERVER, DATASET, ORIGIN, { ...MOBILE_PLAYBACK_DEFAULT_LIMITS, stateBytes });
+      encoded.bytes.fill(0); maximum = stateBytes;
+    } catch (error) {
+      if (!(error instanceof MobilePlaybackError) || error.code !== 'RESOURCE_BUSY' || error.status !== 429) throw error;
+      minimum = stateBytes + 1;
+    }
+  }
+  const stateBytes = minimum - 1;
+  const f = fixture(t, { stateBytes }); f.sources.prepareFailure = new MobilePlaybackError(409, 'SOURCE_CHANGED');
+  const s = await createSession(f.actor), before = structuredClone(f.persistence.value), saves = f.persistence.saves;
+  const intent = request('createResource', resourceRequest(), s.id, undefined, 'capacity-resource');
+  await code(call(f.actor, 'createResource', intent), 'RESOURCE_BUSY', 429);
+  assert.equal(f.sources.prepares, 0, '可失败结算空间不足时不能先碰来源');
+  assert.equal(f.persistence.saves, saves, '拒绝前不写UNKNOWN或失败占位记录');
+  assert.deepEqual(f.persistence.value, before); assert.equal(f.actor.resourceSnapshot().preparing, 0);
+  assert.equal(f.actor.resourceSnapshot().receipts, 1); assert.equal(f.actor.resourceSnapshot().pendingPersistence, false);
+  await code(call(f.actor, 'createResource', intent), 'RESOURCE_BUSY', 429);
+  assert.equal(f.sources.prepares, 0); assert.equal(f.persistence.saves, saves);
+});
+
+test('终态预留：并发准备期间普通session续期和observation写入也经过同一真实codec预算', async t => {
+  const encoded: { unknown: number; sessions: number; receipts: number; observed: boolean }[] = [];
+  const stateCodec: MobilePlaybackStateCodecPort = {
+    async encode(value, context) {
+      assert.deepEqual(context.terminalFailureBudget, MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET);
+      await Promise.resolve();
+      const result = encodePlaybackStorage(value, context.serverId, context.datasetId, context.responseOrigin, context.limits, context.terminalFailureBudget);
+      encoded.push({ unknown: result.state.receipts.filter(r => r.operation === 'createResource' && r.state === 'UNKNOWN').length,
+        sessions: result.state.sessions.length, receipts: result.state.receipts.length,
+        observed: result.state.sessions.some(s => s.observation !== null) });
+      return result;
+    },
+    async decode(plain, context) {
+      assert.deepEqual(context.terminalFailureBudget, MOBILE_PLAYBACK_TERMINAL_FAILURE_BUDGET);
+      return decodePlaybackStorage(plain, context.serverId, context.datasetId, context.responseOrigin, context.limits);
+    },
+    async close() {},
+  };
+  const f = fixture(t, undefined, stateCodec), s = await createSession(f.actor), current = await ready(f.actor, s);
+  f.sources.prepareGate = deferred<void>();
+  const intent = request('createResource', resourceRequest('pending-track'), s.id, undefined, 'pending-key');
+  const pending = call(f.actor, 'createResource', intent); await until(() => f.sources.prepares === 2);
+  const before = encoded.length;
+  await createSession(f.actor, 'peer-session', principal('device-2'));
+  const renewed = await call(f.actor, 'renewResource', request('renewResource', {}, s.id, current.id, 'current-renew'));
+  assert.equal(renewed.status, 200);
+  const observation: MobileObservation = { sequence: 1, playerGeneration: 1, queueItemId: 'current-queue', resourceId: current.id,
+    trackId: current.trackId, positionMs: 1, state: 'playing' };
+  assert.equal((await call(f.actor, 'reportObservation', request('reportObservation', observation, s.id))).status, 200);
+  const concurrent = encoded.slice(before); assert.equal(concurrent.length, 3);
+  assert.ok(concurrent.every(row => row.unknown === 1 && row.sessions === 2));
+  assert.equal(concurrent.at(-1)!.observed, true); assert.equal(concurrent.at(-1)!.receipts, concurrent[0]!.receipts + 1);
+  f.sources.changed = true; f.sources.prepareGate.resolve();
+  const failed = await pending; assert.equal(failed.status, 409); await until(() => f.actor.resourceSnapshot().preparing === 0);
+  assert.equal(encoded.at(-1)!.unknown, 0); assert.equal(f.actor.resourceSnapshot().pendingPersistence, false);
+  const replay = await call(f.actor, 'createResource', intent); assert.equal(replay.status, failed.status); assert.deepEqual(replay.body, failed.body);
+  assert.equal(f.sources.prepares, 2);
+});
+
+test('终态预留：非法端口错误转为可编码闭集失败，合法最大retry提示与原回执保留', async t => {
+  const f = fixture(t), s = await createSession(f.actor);
+  const failures = [new MobilePlaybackError(503, 'BUSY', true, Number.MAX_SAFE_INTEGER + 1),
+    new MobilePlaybackError(503, 'SOURCE_INTERNAL' as 'BUSY'), new MobilePlaybackError(418 as 503, 'BUSY')];
+  for (const [index, failure] of failures.entries()) {
+    f.sources.prepareFailure = failure;
+    const intent = request('createResource', resourceRequest(), s.id, undefined, `malformed-error-${index}`);
+    const first = await call(f.actor, 'createResource', intent);
+    assert.equal(first.status, 503); assert.ok(first.body && 'error' in first.body);
+    assert.equal(first.body.error.code, 'BUSY'); assert.equal(first.body.error.retryable, true); assert.equal(first.body.error.retryAfterMs, 1_000);
+    const replay = await call(f.actor, 'createResource', intent); assert.equal(replay.status, 503); assert.deepEqual(replay.body, first.body);
+  }
+  f.sources.prepareFailure = new MobilePlaybackError(503, 'BUSY', false, Number.MAX_SAFE_INTEGER);
+  const exact = await call(f.actor, 'createResource', request('createResource', resourceRequest(), s.id, undefined, 'valid-largest-hint'));
+  assert.equal(exact.status, 503); assert.ok(exact.body && 'error' in exact.body);
+  assert.equal(exact.body.error.retryable, false); assert.equal(exact.body.error.retryAfterMs, Number.MAX_SAFE_INTEGER);
+  await until(() => f.actor.resourceSnapshot().preparing === 0);
+  assert.equal(f.sources.prepares, failures.length + 1); assert.equal(f.actor.resourceSnapshot().pendingPersistence, false);
+});
+
+test('终态预留：冷启动只终止旧resource并保留原UNKNOWN，不重做来源或改写历史回执', async t => {
+  const f = fixture(t); f.sources.prepareFailure = new MobilePlaybackError(409, 'SOURCE_CHANGED');
+  const s = await createSession(f.actor), intent = request('createResource', resourceRequest(), s.id, undefined, 'historical-unknown');
+  assert.equal((await call(f.actor, 'createResource', intent)).status, 409); await until(() => f.actor.resourceSnapshot().preparing === 0);
+  await f.actor.close();
+  const before = f.persistence.value; assert.equal(before.kind, 'sealed');
+  if (before.kind !== 'sealed') throw new Error('受控历史缺少密文');
+  const aad = Buffer.from(JSON.stringify(['MBM002_PLAYBACK_STATE_V1', SERVER, DATASET, before.revision]));
+  const plain = f.crypto.open(before.sealed, aad), state = decodePlaybackStorage(plain, SERVER, DATASET, ORIGIN, MOBILE_PLAYBACK_DEFAULT_LIMITS).state;
+  plain.fill(0); const receipt = state.receipts.find(r => r.operation === 'createResource')!, resource = state.resources.find(r => r.id === receipt.resourceId)!;
+  resource.state = 'preparing'; resource.failure = null;
+  receipt.state = 'UNKNOWN'; receipt.reply = null; receipt.resourceContext = null;
+  const originalReceipt = structuredClone(receipt), encoded = encodePlaybackStorage(state, SERVER, DATASET, ORIGIN, MOBILE_PLAYBACK_DEFAULT_LIMITS);
+  f.persistence.value = { ...before, sealed: f.crypto.seal(encoded.bytes, aad) }; encoded.bytes.fill(0);
+  const prepares = f.sources.prepares, cold = f.create();
+  await code(call(cold, 'createResource', intent), 'RESOURCE_BUSY', 503);
+  const current = f.persistence.value; assert.equal(current.kind, 'sealed');
+  if (current.kind !== 'sealed') throw new Error('受控冷恢复缺少密文');
+  const recoveredPlain = f.crypto.open(current.sealed, Buffer.from(JSON.stringify(['MBM002_PLAYBACK_STATE_V1', SERVER, DATASET, current.revision])));
+  const recovered = decodePlaybackStorage(recoveredPlain, SERVER, DATASET, ORIGIN, MOBILE_PLAYBACK_DEFAULT_LIMITS).state; recoveredPlain.fill(0);
+  assert.deepEqual(recovered.receipts.find(r => r.id === receipt.id), originalReceipt);
+  const terminal = recovered.resources.find(r => r.id === resource.id)!;
+  assert.equal(terminal.state, 'terminal'); assert.equal(terminal.failure, 'SERVICE_RESTARTED');
+  const saves = f.persistence.saves; await code(call(cold, 'createResource', intent), 'RESOURCE_BUSY', 503);
+  assert.equal(f.persistence.saves, saves); assert.equal(f.sources.prepares, prepares);
+  assert.equal(cold.resourceSnapshot().preparing, 0); assert.equal(cold.resourceSnapshot().pendingPersistence, false);
 });
 
 test('prepare超时保存原失败回执，迟到handle保持原flight直到实际release静止，关闭不伪报成功', async t => {

@@ -52,16 +52,15 @@ function history(value: unknown): value is PreparationZipHistory {
 
 /** 沙盒只收短时目标句柄与公开回执；路径、目录身份和私有授权留在 Main/Core。 */
 export function createPreparationZipClient(invoke: (channel: string, value?: unknown) => Promise<unknown>, getDatasetId: DatasetScope): PreparationZipPublicApi {
-  const scope = getDatasetId().catch(() => { throw new Error('[OUTBOX_SCOPE_MISMATCH] 工作库身份未获确认，请重新加载录音窗口。') })
-  void scope.catch(() => undefined)
+  const scope = () => getDatasetId().catch(() => { throw new Error('[OUTBOX_SCOPE_MISMATCH] 工作库身份未获确认，请重新加载录音窗口。') })
   const invalid = (kind: 'REQUEST' | 'RESPONSE') => new Error(`[INVALID_IPC_${kind}] Logic ZIP ${kind === 'REQUEST' ? '请求' : '回执'}无效。`)
   async function request(command: string, payload: unknown): Promise<unknown> {
-    return invoke('recordingPreparationZip:request', { datasetId: await scope, command, payload: structuredClone(payload) })
+    return invoke('recordingPreparationZip:request', { datasetId: await scope(), command, payload: structuredClone(payload) })
   }
   return {
     async choosePreparationZipTarget(workspaceId) {
       if (!uuid(workspaceId)) throw invalid('REQUEST')
-      const result = await invoke('recordingPreparationZip:choose', { datasetId: await scope, workspaceId })
+      const result = await invoke('recordingPreparationZip:choose', { datasetId: await scope(), workspaceId })
       if (result !== null && !target(result)) throw invalid('RESPONSE')
       return result
     },

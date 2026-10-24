@@ -52,7 +52,7 @@ async function domainParts(dependencies: Record<string, unknown>): Promise<Domai
   const confirm = between(source, '        async confirm(request,context){', '\n        async readOriginal(commandId){');
   const original = between(source, '        async readOriginal(commandId){', '\n      },\n      watch:');
   const initial = between(source, '      async startInitialScan(commandId,root,context){', '\n      async removeResources(');
-  const legacy = between(source, 'onRegistered:', '});\n  const localArtwork').slice('onRegistered:'.length);
+  const legacy = between(source, 'onRegistered:', ',onRelinked:').slice('onRegistered:'.length);
   const body = `${start}\n${consume}\nconst imports={${confirm}\n${original}};\nconst callbacks={${initial}};\n`
     + `return {imports,consumeLibraryDirectory,startInitialLibraryScan,legacyOnRegistered:(${legacy}),startCallback:callbacks.startInitialScan};`;
   const compiled = ts.transpileModule(body, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;

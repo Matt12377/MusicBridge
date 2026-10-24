@@ -6,10 +6,15 @@ import { createRequire } from 'node:module'
 import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import type { LocalRootView } from '@music-bridge/contracts'
+import { isLocalAlbumArtworkGrid } from '@music-bridge/contracts'
 import type { LocalAlbumBrowserSnapshot, LocalAlbumSummary, LocalAlbumTrackItem } from '../src/renderer/src/composables/application/local-library-browser/types.js'
 import * as albumTypes from '../src/renderer/src/composables/application/local-library-browser/types.js'
 import * as albumFacts from '../src/renderer/src/composables/application/local-library-browser/presentation.js'
 import * as albumUi from '../src/renderer/src/components/library/local-browser/presentation.js'
+import * as desktopArtworkTrace from '../../../packages/bridge-core/src/shared/desktop-artwork-trace.js'
+import * as libraryOperationLog from '../../../packages/bridge-core/src/shared/library-operation-log.js'
+import * as gridArtworkCache from '../src/renderer/src/composables/application/local-library-browser/grid-artwork-cache.js'
+import * as gridDisplayBudget from '../src/renderer/src/composables/application/local-library-browser/grid-display-budget.js'
 import { useGridWindow } from '../src/renderer/src/composables/useGridWindow.js'
 import { calculateVirtualWindow } from '../src/renderer/src/composables/virtualWindow.js'
 import { installSyntheticDocumentRealm, syntheticRootNode } from './helpers/synthetic-dom-realm.js'
@@ -36,6 +41,7 @@ interface Host {
   closest(selector: string): Host | null; querySelector(selector: string): Host | null; querySelectorAll(selector: string): Host[]
   getAttribute(name: string): string | null; addEventListener(name: string, fn: (event: any) => void): void; removeEventListener(name: string): void
   getRootNode(): unknown
+  getBoundingClientRect(): { top: number; left: number; bottom: number; right: number; width: number; height: number }
   readonly ownerDocument: object
 }
 async function mounted(t: test.TestContext, filename: string, initial: Record<string, unknown>) {
@@ -64,6 +70,7 @@ async function mounted(t: test.TestContext, filename: string, initial: Record<st
       // Vue v-model 在更新时按所属文档核对输入焦点，保留正式 directive 的执行路径。
       ownerDocument: document,
       getRootNode() { return syntheticRootNode(el, mountedRoot, document) },
+      getBoundingClientRect() { return { top: 0, left: 0, bottom: 54, right: 1000, width: 1000, height: 54 } },
       addEventListener(name, fn) { el.listeners[name] = fn }, removeEventListener(name) { delete el.listeners[name] },
     }
     Object.defineProperties(el, {
@@ -88,6 +95,10 @@ async function mounted(t: test.TestContext, filename: string, initial: Record<st
       if (resolved.endsWith('/components/library/local-browser/presentation.js')) return albumUi
       if (resolved.endsWith('/composables/application/local-library-browser/presentation.js')) return albumFacts
       if (resolved.endsWith('/composables/application/local-library-browser/types.js')) return albumTypes
+      if (resolved.endsWith('/shared/desktop-artwork-trace.js')) return desktopArtworkTrace
+      if (resolved.endsWith('/shared/library-operation-log.js')) return libraryOperationLog
+      if (resolved.endsWith('/local-library-browser/grid-artwork-cache.js')) return gridArtworkCache
+      if (resolved.endsWith('/local-library-browser/grid-display-budget.js')) return gridDisplayBudget
       if (name.endsWith('/useGridWindow.js')) return { useGridWindow }
       if (name.endsWith('/virtualWindow.js')) return { calculateVirtualWindow }
       return localRequire(name)
@@ -99,12 +110,14 @@ async function mounted(t: test.TestContext, filename: string, initial: Record<st
     const component = { ...module.exports.default, render: renderModule.exports.render }; modules.set(file, component); return component
   }
   const remove = (el: Host) => { if (el.parent) el.parent.children.splice(el.parent.children.indexOf(el), 1); el.parent = null }
+  const portal = node('root')
   const renderer = vue.createRenderer<Host, Host>({ createElement: node, createText: text => ({ ...node('text'), text }), createComment: () => node('comment'), setText: (el, text) => { el.text = text }, setElementText: (el, text) => { el.text = text; el.children = [] }, patchProp: (el, key, _old, value) => {
     el.props[key] = value
     if (key === 'style' && value) Object.assign(el.style, value)
     if (['value', 'checked', 'selected'].includes(key)) (el as any)[key] = value
     if (key.startsWith('data-')) el.dataset[key.slice(5).replace(/-([a-z])/gu, (_match, char: string) => char.toUpperCase())] = String(value)
-  }, insert: (el, parent, anchor) => { remove(el); el.parent = parent; const index = anchor ? parent.children.indexOf(anchor) : -1; parent.children.splice(index < 0 ? parent.children.length : index, 0, el) }, remove, parentNode: el => el.parent, nextSibling: el => el.parent?.children[el.parent.children.indexOf(el) + 1] ?? null })
+  }, insert: (el, parent, anchor) => { remove(el); el.parent = parent; const index = anchor ? parent.children.indexOf(anchor) : -1; parent.children.splice(index < 0 ? parent.children.length : index, 0, el) }, remove, parentNode: el => el.parent, nextSibling: el => el.parent?.children[el.parent.children.indexOf(el) + 1] ?? null,
+    querySelector: selector => selector === 'body' ? portal : null })
   const props = vue.reactive(initial), host = node('root'), app = renderer.createApp({ render: () => vue.h('div', { class: 'content-scroll' }, [vue.h(load(path.join(componentRoot, filename)), props)]) })
   mountedRoot = host
   app.mount(host); t.after(() => app.unmount())
@@ -114,7 +127,7 @@ async function mounted(t: test.TestContext, filename: string, initial: Record<st
   const click = async (el: Host | undefined, extra: Record<string, unknown> = {}) => { assert.ok(el, '缺少点击目标'); const handlers = Array.isArray(el.props.onClick) ? el.props.onClick : [el.props.onClick]; for (const handler of handlers) handler?.(event(el, '', extra)); await settle() }
   const input = async (el: Host | undefined, value: string) => { assert.ok(el, '缺少输入目标'); el.value = value; el.listeners.input?.(event(el)); await settle() }
   await settle()
-  return { props, all: (el: Host = host) => all(el), text, settle, event, click, input, active: () => document.activeElement, scroll: () => all(host).find(el => el.props.class === 'content-scroll')! }
+  return { props, all: (el?: Host) => el ? all(el) : [...all(host), ...all(portal)], text, settle, event, click, input, active: () => document.activeElement, scroll: () => all(host).find(el => el.props.class === 'content-scroll')! }
 }
 
 test('本地专辑浏览的搜索和原七类筛选按读取事实派发，缺图入口保留准确身份', async t => {
@@ -132,6 +145,31 @@ test('本地专辑浏览的搜索和原七类筛选按读取事实派发，缺�
   assert.deepEqual(actions, [{ action: 'artwork', albumId: 'local-album-1', editionId: id(101), trackId: id(1001) }])
 })
 
+test('普通本地浏览页隐藏管理入口，缺封面只保留占位且修饰键仍可打开专辑', async t => {
+  const selected: string[] = [], actions: unknown[] = []
+  const f = await mounted(t, 'LocalAlbumBrowser.vue', { state: snapshot(), roots: [libraryRoot], showControls: false,
+    onSelect: (value: LocalAlbumSummary) => selected.push(value.id), onWorkbench: (value: unknown) => actions.push(value) })
+  assert.equal(f.all().some(el => el.props.role === 'checkbox'), false)
+  assert.doesNotMatch(f.text(), /整理工作台|选择封面|查找封面|批量整理|刷新/u)
+  await f.click(f.all().find(el => el.props['data-local-album-id'] === 'local-album-1'), { shiftKey: true })
+  assert.deepEqual(selected, ['local-album-1'])
+  assert.deepEqual(actions, [])
+  Object.assign(f.props.state as LocalAlbumBrowserSnapshot, { items: [], total: 0, status: 'empty' })
+  f.props.emptyTitle = '正在建立音乐库'; f.props.emptyCopy = '扫描中的专辑会陆续显示。'; await f.settle()
+  assert.match(f.text(), /正在建立音乐库.*扫描中的专辑会陆续显示/u)
+  assert.doesNotMatch(f.text(), /加入目录|打开整理工作台/u)
+})
+
+test('普通专辑详情保留播放与版本来源，管理动作由设置整理入口承担', async t => {
+  const selected = album(), plays: string[] = []
+  const f = await mounted(t, 'LocalAlbumBrowser.vue', { state: snapshot({ selectedAlbum: selected, tracks: [track()], trackTotal: 1, detailStatus: 'ready' }),
+    roots: [libraryRoot], showControls: false, onPlay: (value: string) => plays.push(value) })
+  assert.doesNotMatch(f.text(), /选择封面|查找封面|整理这张专辑|AI 整理|整理信息|整理工作台尚未接入/u)
+  assert.match(f.text(), /版本与来源/u)
+  await f.click(f.all().find(el => el.type === 'button' && f.text(el).includes('播放首曲')))
+  assert.deepEqual(plays, [track().facts.track.id])
+})
+
 test('进入专辑后返回恢复原滚动和焦点，搜索筛选条件保留', async t => {
   const state = snapshot({ query: '具体版本', filter: 'missing-artwork', scrollTop: 480 }), selection: unknown[] = []
   const f = await mounted(t, 'LocalAlbumBrowser.vue', { state, roots: [libraryRoot], onSelect: (value: LocalAlbumSummary, top: number) => { selection.push([value.id, top]); (f.props.state as LocalAlbumBrowserSnapshot).selectedAlbum = value }, onBack: () => { (f.props.state as LocalAlbumBrowserSnapshot).selectedAlbum = null } })
@@ -142,6 +180,24 @@ test('进入专辑后返回恢复原滚动和焦点，搜索筛选条件保留',
   await f.click(f.all().find(el => el.type === 'button' && f.text(el).trim() === '本地专辑'))
   assert.equal(f.scroll().scrollTop, 480); assert.equal(f.active(), trigger)
   assert.equal((f.props.state as LocalAlbumBrowserSnapshot).query, '具体版本'); assert.equal((f.props.state as LocalAlbumBrowserSnapshot).filter, 'missing-artwork')
+})
+
+test('4.1 专辑父来源返回标签沿 Browser 透传，点击与 Escape 发出同一返回事件', async t => {
+  let backs = 0
+  const f = await mounted(t, 'LocalAlbumBrowser.vue', { state: snapshot({ selectedAlbum: album(), tracks: [], detailStatus: 'ready' }),
+    roots: [libraryRoot], backLabel: '返回周杰伦', onBack: () => { backs++ } })
+  await f.click(f.all().find(el => el.type === 'button' && f.text(el).trim() === '返回周杰伦'))
+  const detail = f.all().find(el => el.matches('.local-album-detail'))!
+  assert.ok(detail)
+  const heading = f.all(detail).find(el => el.props.id === 'local-album-detail-heading')!
+  assert.ok(heading)
+  let prevented = false, stopped = false
+  detail.props.onKeydown(f.event(heading, 'Escape', { currentTarget: detail,
+    preventDefault() { prevented = true }, stopPropagation() { stopped = true } })); await f.settle()
+  assert.equal(backs, 2); assert.equal(prevented, true); assert.equal(stopped, true)
+  f.props.backLabel = undefined; await f.settle()
+  await f.click(f.all().find(el => el.type === 'button' && f.text(el).trim() === '本地专辑'))
+  assert.equal(backs, 3)
 })
 
 test('首次读错误、初始加载、确认空结果和服务未接入各有独立状态', async t => {
@@ -169,21 +225,43 @@ test('混合专辑逐轨禁用CUE，名称整理失败不禁普通轨，忙和�
   const regular = track(1), cue = track(2, true); regular.statuses = ['parse-failed']
   const plays: string[] = [], queues: string[] = [], nexts: string[] = [], details: string[] = []
   const f = await mounted(t, 'LocalAlbumDetail.vue', { album: album(), tracks: [regular, cue], sourceStatus: '目录可读取', onPlay: (value: string) => plays.push(value), onQueue: (value: string) => queues.push(value), 'onPlay-next': (value: string) => nexts.push(value), 'onOpen-track': (value: string) => details.push(value) })
-  const normalPlay = f.all().find(el => el.props['aria-label'] === '播放 合成曲目 1')!, cuePlay = f.all().find(el => el.props['aria-label'] === '播放 合成曲目 2')!
-  assert.equal(!!normalPlay.props.disabled, false); assert.equal(cuePlay.props.disabled, true)
-  await f.click(normalPlay); await f.click(cuePlay); assert.deepEqual(plays, [regular.facts.track.id])
+  const more = (n: number) => f.all().find(el => el.props['aria-label'] === `打开 合成曲目 ${n} 的更多操作`)
+  const menu = (name: string) => f.all().find(el => el.props.role === 'menuitem' && f.text(el).trim() === name)
+  await f.click(more(1)); assert.equal(!!menu('播放')?.props.disabled, false)
+  await f.click(menu('播放'))
+  await f.click(more(2)); assert.equal(menu('播放')?.props.disabled, true)
+  await f.click(menu('播放')); assert.deepEqual(plays, [regular.facts.track.id])
   await f.click(f.all().find(el => el.props['aria-label'] === '打开 合成曲目 1 的更多操作'))
-  await f.click(f.all().find(el => el.props.role === 'menuitem' && f.text(el) === '加入队列')); assert.deepEqual(queues, [regular.facts.track.id])
+  await f.click(menu('加入队列')); assert.deepEqual(queues, [regular.facts.track.id])
   await f.click(f.all().find(el => el.props['aria-label'] === '打开 合成曲目 2 的更多操作'))
-  const cueNext = f.all().find(el => el.props.role === 'menuitem' && f.text(el) === '下一首播放')!
+  const cueNext = menu('下一首播放')!
   assert.equal(cueNext.props.disabled, true); await f.click(cueNext); assert.deepEqual(nexts, [])
   await f.click(f.all().find(el => el.props['aria-label'] === '查看 合成曲目 2 的版本与文件详情')); assert.deepEqual(details, [cue.facts.track.id])
-  f.props.playbackPending = true; await f.settle(); await f.click(normalPlay); assert.equal(plays.length, 1)
-  f.props.playbackPending = false; f.props.sourceUnavailable = true; await f.settle(); await f.click(normalPlay); assert.equal(plays.length, 1)
+  f.props.playbackPending = true; await f.settle(); await f.click(more(1)); assert.equal(menu('播放')?.props.disabled, true); await f.click(menu('播放')); assert.equal(plays.length, 1)
+  f.props.playbackPending = false; f.props.sourceUnavailable = true; await f.settle(); await f.click(more(1)); assert.equal(menu('播放')?.props.disabled, true); await f.click(menu('播放')); assert.equal(plays.length, 1)
   await f.click(f.all().find(el => el.props['aria-label'] === '打开 合成曲目 1 的更多操作'))
-  const offlineQueue = f.all().find(el => el.props.role === 'menuitem' && f.text(el) === '加入队列')!
+  const offlineQueue = menu('加入队列')!
   assert.equal(offlineQueue.props.disabled, true); await f.click(offlineQueue); assert.deepEqual(queues, [regular.facts.track.id])
   assert.match(f.text(), /源目录离线或许可已撤销/u)
+})
+
+test('本地紧凑曲目行保留双击和Enter播放，更多菜单Escape返回原按钮且不派发CUE', async t => {
+  const regular = track(1), cue = track(2, true), plays: string[] = []
+  const f = await mounted(t, 'LocalAlbumDetail.vue', { album: album(), tracks: [regular, cue], onPlay: (value: string) => plays.push(value) })
+  const row = (n: number) => f.all().find(el => el.matches('.local-album-track-row') && f.text(el).includes(`合成曲目 ${n}`))!
+  row(1).props.onDblclick(f.event(row(1))); await f.settle()
+  row(1).props.onKeydown(f.event(row(1), 'Enter')); await f.settle()
+  assert.deepEqual(plays, [regular.facts.track.id, regular.facts.track.id])
+  row(2).props.onDblclick(f.event(row(2))); row(2).props.onKeydown(f.event(row(2), 'Enter')); await f.settle()
+  assert.equal(plays.length, 2)
+  const trigger = f.all().find(el => el.props['aria-label'] === '打开 合成曲目 1 的更多操作')!
+  await f.click(trigger)
+  assert.equal(f.active()?.props.role, 'menuitem')
+  const menu = f.all().find(el => el.props.role === 'menu')!
+  let stopped = false
+  menu.props.onKeydown(f.event(menu, 'Escape', { stopPropagation() { stopped = true } })); await f.settle()
+  assert.equal(stopped, true); assert.equal(f.all().some(el => el.props.role === 'menu'), false)
+  assert.equal(f.active(), trigger); assert.equal(plays.length, 2)
 })
 
 test('专辑墙只挂载窗口内卡片并按需请求封面，隐藏墙不启动读取', async t => {
@@ -195,13 +273,104 @@ test('专辑墙只挂载窗口内卡片并按需请求封面，隐藏墙不启�
   f.props.albums = albums.map(value => ({ ...value, revision: '2' })); await f.settle(); assert.equal(requested.length, count)
 })
 
-test('封面使用安全显示图和lazy加载，图片解码失败可显式重试', async t => {
+test('虚拟窗口内封面立即展示安全显示图，图片解码失败可显式重试', async t => {
   const value = album(1, { artworkAvailable: true, statuses: ['has-artwork'] }), retries: string[] = [], dataUrl = 'data:image/png;base64,aGVsbG8='
   const f = await mounted(t, 'LocalAlbumGrid.vue', { albums: [value], artwork: { [value.id]: { status: 'ready', dataUrl, error: '', canRetry: false } }, loaded: true, 'onRetry-artwork': (item: LocalAlbumSummary) => retries.push(item.id) })
-  const image = f.all().find(el => el.type === 'img')!; assert.equal(image.props.src, dataUrl); assert.equal(image.props.loading, 'lazy')
+  const image = f.all().find(el => el.type === 'img')!; assert.equal(image.props.src, dataUrl); assert.equal(image.props.loading, 'eager')
   const wrapper = f.all().find(el => el.props.onErrorCapture)!; wrapper.props.onErrorCapture({ ...f.event(wrapper), target: image }); image.props.onError?.(f.event(image)); await f.settle()
   assert.match(f.text(), /封面暂未读取/u)
   await f.click(f.all().find(el => el.props['aria-label'] === '重试读取 合成专辑 1 的封面')); assert.deepEqual(retries, [value.id])
+})
+
+test('专辑墙无手动续页按钮，活动虚拟窗自动补齐连续页且同页不重复派发', async t => {
+  const values = Array.from({ length: 24 }, (_, index) => album(index + 1)), requests: number[] = []
+  const props = vue.reactive({ albums: values.slice(0, 8), artwork: {}, loaded: true, hasMore: true, total: 24,
+    active: false, initialLoading: false, refreshing: false, loadingMore: false, loadMoreError: '',
+    'onLoad-more': () => { requests.push(props.albums.length); props.loadingMore = true },
+  })
+  const f = await mounted(t, 'LocalAlbumGrid.vue', props)
+  assert.equal(f.all().some(element => element.type === 'button' && f.text(element).trim() === '加载更多专辑'), false)
+  assert.deepEqual(requests, [], '隐藏专辑墙不能通过填满视口偷偷续页')
+  props.active = true; props.refreshing = true; await f.settle()
+  assert.deepEqual(requests, [], '刷新期间不能启动尾部续页')
+  props.refreshing = false; await f.settle()
+  assert.deepEqual(requests, [8]); assert.match(f.text(), /正在加载更多专辑/u)
+  for (let turn = 0; turn < 4; turn++) await f.settle()
+  assert.deepEqual(requests, [8], '同一页等待中只能发出一次自动请求')
+  props.albums = values.slice(0, 16); props.loadingMore = false; await f.settle()
+  assert.deepEqual(requests, [8, 16], '追加后仍不足兴趣窗口时继续补页，无需滚动或点击')
+  props.albums = values; props.loadingMore = false; props.hasMore = false; await f.settle()
+  assert.deepEqual(requests, [8, 16]); assert.equal(f.all().filter(element => element.props['data-local-album-id']).length < values.length, true)
+})
+
+test('自动续页失败保留原卡片，停止自重试并可显式恢复', async t => {
+  const values = Array.from({ length: 8 }, (_, index) => album(index + 1)), requests: number[] = []
+  const props = vue.reactive({ albums: values, artwork: {}, loaded: true, hasMore: true, total: 60,
+    active: true, loadingMore: false, loadMoreError: '合成下一页读取失败',
+    'onLoad-more': () => { requests.push(props.albums.length); props.loadMoreError = ''; props.loadingMore = true },
+  })
+  const f = await mounted(t, 'LocalAlbumGrid.vue', props)
+  assert.equal(f.all().filter(element => element.props['data-local-album-id']).length, values.length)
+  assert.match(f.text(), /合成下一页读取失败/u); assert.deepEqual(requests, [])
+  for (let turn = 0; turn < 4; turn++) await f.settle()
+  assert.deepEqual(requests, [], '错误页不能被自动链持续重试')
+  await f.click(f.all().find(element => element.type === 'button' && f.text(element).trim() === '重试加载'))
+  assert.deepEqual(requests, [8]); assert.match(f.text(), /正在加载更多专辑/u)
+  props.loadingMore = false; await f.settle()
+  assert.deepEqual(requests, [8], '未追加成功时同一页不能持续派发')
+  assert.equal(f.all().filter(element => element.props['data-local-album-id']).length, values.length)
+})
+
+test('非诊断模式同身份封面刷新保留IMG，identityKey变化后新修订不借旧图', async t => {
+  const dataUrl = 'data:image/png;base64,aGVsbG8='
+  const identity = (revision: string) => JSON.stringify(['同专辑', libraryRoot.root.id, id(101), id(1001), revision])
+  const f = await mounted(t, 'LocalAlbumArtwork.vue', { artwork: { status: 'ready', dataUrl, error: '', canRetry: false }, identityKey: identity('1'), traceKey: null, sourceState: 'available', eager: true })
+  const image = f.all().find(element => element.type === 'img')!, wrapper = f.all().find(element => element.props.onLoadCapture)!
+  wrapper.props.onLoadCapture({ ...f.event(wrapper), target: image }); await f.settle()
+  f.props.artwork = { status: 'loading', dataUrl, error: '', canRetry: false }; await f.settle()
+  assert.ok(f.all().find(element => element.type === 'img') === image, '只改读取状态不能以key重建IMG')
+  f.props.artwork = { status: 'loading', dataUrl: null, error: '', canRetry: false }; await f.settle()
+  assert.ok(f.all().find(element => element.type === 'img') === image, '相同身份重新读取期间保留实际加载成功的图')
+  assert.doesNotMatch(f.text(), /封面待加载|封面尚未探测/u)
+  f.props.identityKey = identity('2'); await f.settle()
+  assert.equal(f.all().some(element => element.type === 'img'), false, '身份变化后不能把上一修订图片继续当作当前图')
+  f.props.artwork = { status: 'error', dataUrl: null, error: '合成读取失败', canRetry: true }; await f.settle()
+  assert.match(f.text(), /封面暂未读取/u)
+})
+
+for (const filename of ['LocalAlbumGrid.vue', 'LocalAlbumDetail.vue']) {
+  test(`${filename}把真实五元身份传给封面，非诊断修订变化隔离旧图`, async t => {
+    const value = album(1, { artworkAvailable: true, artworkState: 'available', statuses: ['has-artwork'] })
+    const dataUrl = 'data:image/png;base64,aGVsbG8=', ready = { status: 'ready', dataUrl, error: '', canRetry: false }
+    const loading = { status: 'loading', dataUrl: null, error: '', canRetry: false }
+    const isGrid = filename === 'LocalAlbumGrid.vue'
+    const f = await mounted(t, filename, isGrid ? { albums: [value], artwork: { [value.id]: ready }, loaded: true } : { album: value, artwork: ready, tracks: [] })
+    const image = f.all().find(element => element.type === 'img')!, wrapper = f.all().find(element => element.props.onLoadCapture)!
+    assert.ok(image); wrapper.props.onLoadCapture({ ...f.event(wrapper), target: image }); await f.settle()
+    f.props.artwork = isGrid ? { [value.id]: loading } : loading; await f.settle()
+    assert.ok(f.all().find(element => element.type === 'img') === image, '相同五元身份loading期间保留成功图')
+    if (isGrid) f.props.albums = [{ ...value, revision: '2' }]
+    else f.props.album = { ...value, revision: '2' }
+    await f.settle()
+    assert.equal(f.all().some(element => element.type === 'img'), false, '同album.id的新revision不能继续显示旧修订封面')
+  })
+}
+
+test('后台目录与封面准备展示真实进度，下一页失败可在专辑墙上方恢复', async t => {
+  const current = snapshot({ items: [album(1), album(2)], total: 60, hasMore: true, loadingMore: true,
+    backgroundArtwork: { completed: 1, total: 2, running: true } }), requests: number[] = []
+  const f = await mounted(t, 'LocalAlbumBrowser.vue', { state: current, showControls: false,
+    'onLoad-more': () => requests.push(1) })
+  const progress = () => f.all().find(element => element.matches('.local-album-background-status'))
+  assert.ok(progress(), '普通本地音乐页也要展示后台工作状态')
+  assert.match(f.text(progress()), /已载入 2 \/ 60 张专辑/u)
+  assert.match(f.text(progress()), /正在准备封面.*1 \/ 2/u)
+  assert.doesNotMatch(f.text(progress()), /已有封面/u)
+  Object.assign(f.props.state as LocalAlbumBrowserSnapshot, { loadingMore: false, loadMoreError: '合成后台下一页失败',
+    backgroundArtwork: { completed: 2, total: 2, running: false } }); await f.settle()
+  assert.match(f.text(progress()), /合成后台下一页失败/u)
+  await f.click(f.all(progress()).find(element => element.type === 'button' && f.text(element).trim() === '重试载入专辑'))
+  assert.deepEqual(requests, [1])
 })
 
 test('未探测与来源不可用不显示成确认缺图，零轨目录仍请求真实封面读取', async t => {
@@ -283,12 +452,12 @@ test('跨虚拟窗口连续选择超正式100上限时原子拒绝，不截取�
 
 // Stage3：正式 Browser → 正式 Grid → 正式 model；所有 API 回复仅为内存合成事实。
 import { createHash } from 'node:crypto'
-import type { LocalArtworkImage } from '@music-bridge/contracts'
+import type { LocalAlbumArtworkGrid, LocalArtworkImage } from '@music-bridge/contracts'
 import { createLocalAlbumBrowserModel, LOCAL_ALBUM_ARTWORK_CACHE_BYTES, LOCAL_ALBUM_ARTWORK_CACHE_ENTRIES, LOCAL_ALBUM_ARTWORK_CONCURRENCY } from '../src/renderer/src/composables/application/local-library-browser/model.js'
 import type { LocalAlbumArtworkReply, LocalAlbumArtworkRequest, LocalAlbumArtworkWindow, LocalAlbumFilterCounts, LocalAlbumPage, LocalAlbumQuery, LocalAlbumTrackQuery, LocalAlbumTrackPage } from '../src/renderer/src/composables/application/local-library-browser/types.js'
 
-function connectedArtworkReply(request: LocalAlbumArtworkRequest, image: LocalArtworkImage | null): LocalAlbumArtworkReply {
-  return { albumKey: request.albumKey, rootId: request.rootId, editionId: request.editionId, representativeTrackId: request.representativeTrackId, revision: request.revision, image }
+function connectedArtworkReply(request: LocalAlbumArtworkRequest, image: LocalArtworkImage | null, grid?: LocalAlbumArtworkGrid): LocalAlbumArtworkReply {
+  return { albumKey: request.albumKey, rootId: request.rootId, editionId: request.editionId, representativeTrackId: request.representativeTrackId, revision: request.revision, image, ...(grid ? { grid } : {}), ...(request.variant ? { variant: request.variant } : {}) }
 }
 
 function connectedDisplayImage(targetBytes = 512 * 1024): LocalArtworkImage {
@@ -323,6 +492,53 @@ function connectedTrackPage(request: LocalAlbumTrackQuery, selected: LocalAlbumS
   const items = values.slice(request.offset, request.offset + request.limit)
   return { ...request, album: selected, items, total: values.length, hasMore: request.offset + items.length < values.length }
 }
+
+test('真实Browser进入已有grid的详情只请求一次高清，无关publish不重入且等待完成后停稳', async t => {
+  const value = album(900, { artworkAvailable: true, artworkState: 'available', artworkPrepared: true, statuses: ['has-artwork'] })
+  const full = connectedDisplayImage(64 * 1024), grid: LocalAlbumArtworkGrid = connectedDisplayImage(16 * 1024).display
+  const requests: LocalAlbumArtworkRequest[] = [], ensured: { album: string; detail: boolean }[] = [], tasks: Promise<void>[] = []
+  let liveProps: Record<string, unknown> | undefined, publications = 0
+  let releaseDetail: (() => void) | undefined
+  const model = createLocalAlbumBrowserModel({ compactGridArtwork: true, api: {
+    queryAlbums: async request => connectedPage(request, [value]),
+    queryAlbumTracks: async request => connectedTrackPage(request, value),
+    getArtwork: request => {
+      requests.push({ ...request })
+      if (request.variant === 'grid') return Promise.resolve(connectedArtworkReply(request, full, grid))
+      return new Promise(resolve => { releaseDetail = () => resolve(connectedArtworkReply(request, full, grid)) })
+    },
+  }, onChange: state => { publications++; if (liveProps) liveProps.state = state } })
+  liveProps = vue.reactive({ state: model.getSnapshot(), showControls: false,
+    onSelect: (selected: LocalAlbumSummary) => { tasks.push(model.openAlbum(selected)) }, onBack: model.closeAlbum,
+    'onArtwork-window': (window: LocalAlbumArtworkWindow) => model.setArtworkWindow(window),
+    'onEnsure-artwork': (selected: LocalAlbumSummary) => {
+      ensured.push({ album: selected.id, detail: !!model.getSnapshot().selectedAlbum })
+      // 旧实现会同步自激；保险丝使RED有界，不用OOM充当测试结果。
+      if (ensured.length <= 12) tasks.push(model.ensureArtwork(selected))
+    },
+  })
+  const f = await mounted(t, 'LocalAlbumBrowser.vue', liveProps)
+  t.after(async () => { model.dispose(); releaseDetail?.(); await Promise.all(tasks); await f.settle() })
+  await model.activate(); await f.settle()
+  assert.ok(model.getSnapshot().artwork[value.id]?.dataUrl === grid.dataUrl, '夹具必须先通过正式grid DTO校验')
+  await f.click(f.all().find(element => element.props['data-local-album-id'] === value.id))
+  assert.equal(model.getSnapshot().selectedAlbum?.id, value.id); assert.equal(model.getSnapshot().detailStatus, 'ready')
+  assert.equal(model.getSnapshot().artwork[value.id]?.dataUrl, grid.dataUrl, '高清在途仍保留已ready的网格图')
+  assert.equal(requests.filter(request => request.variant !== 'grid').length, 1)
+  assert.equal(ensured.filter(request => request.detail).length, 1, '详情监听不能把每次快照发布当作新读取意图')
+  for (let index = 0; index < 20; index++) { model.setScrollTop(index + 1); await f.settle() }
+  assert.equal(ensured.filter(request => request.detail).length, 1, '高清等待期间的滚动/后台状态发布不得重新ensure')
+  assert.ok(releaseDetail); releaseDetail(); await Promise.all(tasks); await f.settle()
+  assert.equal(model.getSnapshot().artwork[value.id]?.dataUrl, full.display.dataUrl)
+  const stableAt = publications
+  for (let turn = 0; turn < 8; turn++) await f.settle()
+  assert.equal(publications, stableAt, '高清完成后必须停止状态发布，不能靠持续响应维持显示')
+  await f.click(f.all().find(element => element.type === 'button' && f.text(element).trim() === '本地专辑'))
+  assert.equal(model.getSnapshot().selectedAlbum, null); assert.equal(model.getSnapshot().artwork[value.id]?.dataUrl, grid.dataUrl)
+  assert.equal(requests.length, 2, '返回继续复用grid，不额外取高清或重查封面')
+  t.diagnostic(JSON.stringify({ scope: '正式Browser/Grid/Detail/model与合成Host', publications, ensured, variants: requests.map(request => request.variant ?? 'detail') }))
+})
+
 async function connectedBrowser(t: test.TestContext) {
   const image = connectedDisplayImage(), values = Array.from({ length: 7 }, (_, index) => album(index + 1, { artworkAvailable: true, artworkState: 'available', statuses: ['has-artwork'] }))
   const requests: { request: LocalAlbumArtworkRequest; resolve: (reply: LocalAlbumArtworkReply) => void; returned: boolean }[] = []
@@ -370,7 +586,7 @@ async function connectedBrowser(t: test.TestContext) {
   }
   const stable = async (expected: number) => { for (let turn = 0; turn < 8; turn++) { await f.settle(); recordUsage() }; assert.equal(requests.length, expected, '同一可见窗口不能因 LRU 淘汰自动重读') }
   const initialSeven = async () => {
-    assert.equal(LOCAL_ALBUM_ARTWORK_CONCURRENCY, 2)
+    assert.equal(LOCAL_ALBUM_ARTWORK_CONCURRENCY, 8)
     assert.equal(image.display.bytes, 524_288); assert.equal(image.display.dataUrl.length, 699_075)
     assert.equal(image.display.dataUrl.length * 2, 1_398_150); assert.equal(6 * image.display.dataUrl.length * 2 - 8 * 1024 * 1024, 292)
     for (let index = 0; index < 7; index++) await release(index)
@@ -485,9 +701,99 @@ test('公共封面组件：DTO-ready不会自发变解码错误，只有同src�
   assert.equal(f.all().find(el=>el.type==='img')?.props.src,dataUrl);assert.doesNotMatch(f.text(),/封面暂未读取/u);assert.equal(imageErrors,1);
 });
 
+
+// 合成Host执行正式Grid/Artwork/缩略图租约；像素解码受控，不宣称真实浏览器或来源读取。
+function variantThumbnailDecoder(t: test.TestContext): void {
+  const originals = new Map(['createImageBitmap', 'OffscreenCanvas'].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]))
+  const jpeg = Buffer.from(connectedDisplayImage(4 * 1024).display.dataUrl.split(',')[1]!, 'base64')
+  Object.defineProperty(globalThis, 'createImageBitmap', { configurable: true, value: async (_source: Blob, options: { resizeWidth: number; resizeHeight: number }) => ({
+    width: options.resizeWidth, height: options.resizeHeight, close() {},
+  }) })
+  Object.defineProperty(globalThis, 'OffscreenCanvas', { configurable: true, value: class {
+    constructor(public width: number, public height: number) {}
+    getContext() { return { drawImage() {} } }
+    async convertToBlob() { return new Blob([jpeg], { type: 'image/jpeg' }) }
+  } })
+  t.after(() => { for (const [name, original] of originals) { if (original) Object.defineProperty(globalThis, name, original); else Reflect.deleteProperty(globalThis, name) } })
+}
+function variantImageEvent(f: Awaited<ReturnType<typeof mounted>>, image: Host, kind: 'load' | 'error'): void {
+  const wrapper = image.closest('.local-album-artwork'); assert.ok(wrapper)
+  Object.assign(image, { naturalWidth: 16, naturalHeight: 16 })
+  const event = { ...f.event(wrapper), target: image }
+  if (kind === 'load') wrapper.props.onLoadCapture(event)
+  else { wrapper.props.onErrorCapture(event); image.props.onError?.(f.event(image)) }
+}
+for (const route of ['direct-grid→direct-grid', 'Blob→Blob', 'direct-grid→Blob'] as const) {
+  test('封面展示变体：' + route + '同原图恢复只清当前图像错误，不增加读取', async t => {
+    variantThumbnailDecoder(t)
+    const value = album(960, { artworkAvailable: true, artworkState: 'available', artworkPrepared: true, statuses: ['has-artwork'] })
+    const original = connectedDisplayImage(64 * 1024).display
+    const firstGrid = connectedDisplayImage(8 * 1024).display, nextGrid = connectedDisplayImage(12 * 1024).display
+    const ready = (grid?: LocalAlbumArtworkGrid) => ({ status: 'ready' as const, dataUrl: original.dataUrl, display: original,
+      error: '', canRetry: false, ...(grid ? { grid } : {}) })
+    const first = route.startsWith('Blob') ? ready() : ready(firstGrid)
+    // 原窗口预算保持路线；后来补到的grid只替换Blob输入，不借机扩展示预算。
+    const second = route === 'direct-grid→Blob' ? ready() : ready(nextGrid)
+    const ensured: string[] = [], retried: string[] = []
+    const f = await mounted(t, 'LocalAlbumGrid.vue', { albums: [value], artwork: { [value.id]: first }, loaded: true,
+      'onEnsure-artwork': (item: LocalAlbumSummary) => ensured.push(item.id),
+      'onRetry-artwork': (item: LocalAlbumSummary) => retried.push(item.id) })
+    const card = () => { const element = f.all().find(el => el.props['data-local-album-id'] === value.id); assert.ok(element); return element }
+    const image = () => { const element = f.all(card()).find(el => el.type === 'img'); assert.ok(element); return element }
+    const retry = () => f.all().find(el => el.props['aria-label'] === '重试读取 合成专辑 960 的封面')
+    const oldImage = image(), oldSource = oldImage.props.src, oldWrapper = oldImage.closest('.local-album-artwork')!
+    assert.equal(oldSource.startsWith('blob:'), route.startsWith('Blob'))
+    assert.equal(ensured.length, 1)
+    variantImageEvent(f, oldImage, 'error'); await f.settle()
+    assert.ok(retry(), '当前实际src失败仍须提供重试，不能因DTO-ready隐藏')
+    f.props.artwork = { [value.id]: { ...first } }; await f.settle()
+    assert.ok(retry(), '相同src的无关发布不能清除真实失败')
+    f.props.artwork = { [value.id]: second }; await f.settle()
+    const recovered = image()
+    assert.notEqual(recovered.props.src, oldSource)
+    assert.equal(recovered.props.src.startsWith('blob:'), route.endsWith('Blob'))
+    assert.equal((f.props.artwork as Record<string, { dataUrl: string }>)[value.id]!.dataUrl, original.dataUrl, '只换展示变体，原图字符串不变')
+    variantImageEvent(f, recovered, 'load'); await f.settle()
+    assert.equal(retry() === undefined, true, '同身份当前新src真实load后必须清除旧变体错误')
+    oldWrapper.props.onErrorCapture({ ...f.event(oldWrapper), target: oldImage }); await f.settle()
+    assert.equal(retry() === undefined, true, '被替换IMG的迟到error不得污染已恢复变体')
+    variantImageEvent(f, recovered, 'error'); await f.settle()
+    assert.ok(retry(), '恢复后同一src再次真实失败不能被旧成功记录隐藏')
+    oldWrapper.props.onLoadCapture({ ...f.event(oldWrapper), target: oldImage }); await f.settle()
+    assert.ok(retry(), '旧IMG迟到load不能清除当前失败')
+    assert.deepEqual(ensured, [value.id], '展示错误与恢复不派发额外ensure/API读取')
+    assert.deepEqual(retried, [], '没有人工重试不得派发来源重读')
+  })
+}
+test('封面展示变体：同src换album身份替换IMG，旧节点load/error均不得清除或污染新代', async t => {
+  const dataUrl = connectedDisplayImage(4 * 1024).display.dataUrl
+  const firstIdentity = JSON.stringify(['同封面', libraryRoot.root.id, id(101), id(1001), '1'])
+  const nextIdentity = JSON.stringify(['同封面', libraryRoot.root.id, id(101), id(1001), '2'])
+  const loads: unknown[] = [], errors: unknown[] = []
+  const ready = { status: 'ready', dataUrl, error: '', canRetry: false }
+  const f = await mounted(t, 'LocalAlbumArtwork.vue', { artwork: ready, identityKey: firstIdentity, sourceState: 'available',
+    'onImage-load': (image: unknown) => loads.push(image), 'onImage-error': (image: unknown) => errors.push(image) })
+  const previous = f.all().find(el => el.type === 'img')!; assert.ok(previous)
+  const wrapper = previous.closest('.local-album-artwork')!; assert.ok(wrapper)
+  f.props.identityKey = nextIdentity; await f.settle()
+  const current = f.all().find(el => el.type === 'img')!; assert.ok(current)
+  assert.equal(current === previous, false, '同URL的新album身份仍须隔离旧IMG回调')
+  wrapper.props.onLoadCapture({ ...f.event(wrapper), target: previous })
+  wrapper.props.onErrorCapture({ ...f.event(wrapper), target: previous }); await f.settle()
+  assert.deepEqual(loads, []); assert.deepEqual(errors, []); assert.doesNotMatch(f.text(), /封面暂未读取/u)
+  variantImageEvent(f, current, 'load'); await f.settle()
+  assert.deepEqual(loads, [{ identityKey: nextIdentity, src: dataUrl }])
+  variantImageEvent(f, current, 'error'); await f.settle()
+  assert.deepEqual(errors, [{ identityKey: nextIdentity, src: dataUrl }]); assert.match(f.text(), /封面暂未读取/u)
+  wrapper.props.onLoadCapture({ ...f.event(wrapper), target: previous }); await f.settle()
+  assert.equal(loads.length, 1); assert.match(f.text(), /封面暂未读取/u)
+})
+
 test('1132返回封面：七小图ready后经正式Browser按钮进详情并返回两轮，缓存与IMG保留', async t => {
   const values = Array.from({ length: 7 }, (_, index) => album(index + 1, { artworkAvailable: true, artworkState: 'available', statuses: ['has-artwork'] }))
-  const image = connectedDisplayImage(64 * 1024), expectedBytes = values.length * image.display.dataUrl.length * 2
+  const image = connectedDisplayImage(64 * 1024), grid: LocalAlbumArtworkGrid = connectedDisplayImage(16 * 1024).display
+  assert.equal(isLocalAlbumArtworkGrid(grid), true); assert.notEqual(grid.dataUrl, image.display.dataUrl)
+  const expectedBytes = values.length * (image.display.dataUrl.length + grid.dataUrl.length) * 2
   assert.ok(expectedBytes < LOCAL_ALBUM_ARTWORK_CACHE_BYTES, '本例七图必须全部低于正式预算，不能以LRU淘汰替代返回缺图')
   const requests: LocalAlbumArtworkRequest[] = [], queries: LocalAlbumQuery[] = [], details: LocalAlbumTrackQuery[] = []
   const trace: unknown[] = []
@@ -501,7 +807,7 @@ test('1132返回封面：七小图ready后经正式Browser按钮进详情并返�
         assert.ok(selected, '详情读取必须命中实际点击的专辑身份')
         return connectedTrackPage(request, selected)
       },
-      getArtwork: async request => { requests.push({ ...request }); return { ...request, image } },
+      getArtwork: async request => { requests.push({ ...request }); return connectedArtworkReply(request, image, grid) },
     },
     onChange: state => { if (liveProps) liveProps.state = state },
   })
@@ -531,7 +837,7 @@ test('1132返回封面：七小图ready后经正式Browser按钮进详情并返�
       albums: state.items.map(value => {
         const card = cardFor(value), images = card ? f.all(card).filter(el => el.type === 'img') : []
         return { ...requestFor(value), artworkStatus: state.artwork[value.id]?.status ?? 'idle', dataUrlMatches: state.artwork[value.id]?.dataUrl === image.display.dataUrl,
-          imageCount: images.length, imagesShown: images.every(shown), imageSourcesMatch: images.every(element => element.props.src === image.display.dataUrl) }
+          imageCount: images.length, imagesShown: images.every(shown), imageSourcesMatch: images.every(element => element.props.src === grid.dataUrl) }
       }) })
   }
   const assertGallery = (phase: string) => {
@@ -544,10 +850,11 @@ test('1132返回封面：七小图ready后经正式Browser按钮进详情并返�
     for (const value of values) {
       assert.equal(state.artwork[value.id]?.status, 'ready', `${phase}：${value.id}的缓存必须保留ready`)
       assert.equal(state.artwork[value.id]?.dataUrl, image.display.dataUrl)
+      assert.deepEqual(state.artwork[value.id]?.grid, grid)
       const card = cardFor(value); assert.ok(card)
       const images = f.all(card).filter(el => el.type === 'img')
       assert.equal(images.length, 1, `${phase}：${value.id}必须保留唯一IMG`)
-      assert.equal(images[0]!.props.src, image.display.dataUrl)
+      assert.equal(images[0]!.props.src, grid.dataUrl, '普通窗口IMG必须直接消费持久grid，大图仍留在model供详情使用')
       assert.equal(shown(images[0]!), true, `${phase}：${value.id}不能仍藏在v-show的详情前祖先下`)
     }
     assert.doesNotMatch(f.text(), /封面暂未读取|封面待加载|封面尚未探测/u)
@@ -560,6 +867,8 @@ test('1132返回封面：七小图ready后经正式Browser按钮进详情并返�
     await f.click(cardFor(selected))
     record(`第${round}轮详情`)
     assert.equal(model.getSnapshot().selectedAlbum?.id, selected.id); assert.equal(model.getSnapshot().detailStatus, 'ready')
+    const detail = f.all().find(el => el.matches('.local-album-detail')); assert.ok(detail)
+    assert.equal(f.all(detail).find(el => el.type === 'img')?.props.src, image.display.dataUrl, '进入详情继续使用原大图，不能拿grid冒充display')
     assert.equal(f.all().find(el => el.matches('.local-album-gallery'))?.style.display, 'none')
     assert.equal(requests.length, before, '同修订进入详情必须复用已ready封面')
     await f.click(f.all().find(el => el.type === 'button' && f.text(el).trim() === '本地专辑'))
@@ -615,14 +924,16 @@ test('MBF封面窗口复用：ready入窗只触碰一次，搜索重入刷新LRU
 })
 
 test('MBF可见封面默认预算：七张512KiB成功图在64MiB与128项内完整保留且不循环', async t => {
-  assert.equal(LOCAL_ALBUM_ARTWORK_CACHE_BYTES, 64 * 1024 * 1024); assert.equal(LOCAL_ALBUM_ARTWORK_CACHE_ENTRIES, 128); assert.equal(LOCAL_ALBUM_ARTWORK_CONCURRENCY, 2)
+  assert.equal(LOCAL_ALBUM_ARTWORK_CACHE_BYTES, 64 * 1024 * 1024); assert.equal(LOCAL_ALBUM_ARTWORK_CACHE_ENTRIES, 128); assert.equal(LOCAL_ALBUM_ARTWORK_CONCURRENCY, 8)
   const values = Array.from({ length: 7 }, (_, index) => album(101 + index, { artworkAvailable: true, artworkState: 'available', statuses: ['has-artwork'] }))
-  const image = connectedDisplayImage(), requests: LocalAlbumArtworkRequest[] = [], tasks: Promise<void>[] = []
+  const image = connectedDisplayImage(), grid: LocalAlbumArtworkGrid = connectedDisplayImage(16 * 1024).display
+  assert.equal(image.display.bytes, 512 * 1024); assert.equal(isLocalAlbumArtworkGrid(grid), true); assert.notEqual(grid.dataUrl, image.display.dataUrl)
+  const requests: LocalAlbumArtworkRequest[] = [], tasks: Promise<void>[] = []
   let liveProps: Record<string, unknown> | undefined
   const model = createLocalAlbumBrowserModel({ api: {
     queryAlbums: async request => connectedPage(request, values),
     queryAlbumTracks: async request => connectedTrackPage(request, values.find(value => value.id === request.albumKey)!),
-    getArtwork: async request => { requests.push({ ...request }); return connectedArtworkReply(request, image) },
+    getArtwork: async request => { requests.push({ ...request }); return connectedArtworkReply(request, image, grid) },
   }, onChange: state => { if (liveProps) liveProps.state = state } })
   t.after(async () => { model.dispose(); await Promise.all(tasks) })
   liveProps = vue.reactive({ state: model.getSnapshot(), readAvailable: true,
@@ -634,13 +945,66 @@ test('MBF可见封面默认预算：七张512KiB成功图在64MiB与128项内完
   await model.activate(); for (let turn = 0; turn < 4; turn++) { await f.settle(); await Promise.all(tasks) }
   assert.equal(requests.length, 7); assert.ok(requests.every(request => !Object.hasOwn(request, 'refresh')))
   assert.equal(values.every(value => model.artworkFor(value).status === 'ready'), true)
+  for (const value of values) {
+    assert.equal(model.artworkFor(value).dataUrl, image.display.dataUrl, '持久grid不能替换model内的原512KiB大图')
+    assert.deepEqual(model.artworkFor(value).grid, grid)
+  }
   const usage = model.getArtworkCacheUsage()
-  assert.deepEqual(usage, { entries: 7, bytes: 7 * image.display.dataUrl.length * 2, running: 0, queued: 0 })
+  assert.deepEqual(usage, { entries: 7, bytes: 7 * (image.display.dataUrl.length + grid.dataUrl.length) * 2, running: 0, queued: 0 })
+  assert.ok(7 * image.display.dataUrl.length * 2 > 8 * 1024 * 1024, '仅原大图引用就超过旧8MiB，不能用小grid掩盖原缓存回归')
   assert.ok(usage.bytes > 8 * 1024 * 1024 && usage.bytes < LOCAL_ALBUM_ARTWORK_CACHE_BYTES)
-  assert.equal(f.all().filter(el => el.type === 'img' && el.props.src === image.display.dataUrl).length, 7, 'Host只核正式IMG挂载与src，不冒浏览器decode')
+  assert.equal(f.all().filter(el => el.type === 'img' && el.props.src === grid.dataUrl).length, 7, 'Host核七张正式IMG消费持久grid，不冒浏览器decode')
   await f.click(f.all().find(el => el.type === 'button' && f.text(el).trim() === '刷新')); await Promise.all(tasks); await f.settle()
   assert.equal(requests.length, 14); assert.ok(requests.slice(7).every(request => request.refresh === true), '实际Browser刷新按钮要把显式意图传入原读口')
-  assert.equal(f.all().filter(el => el.type === 'img' && el.props.src === image.display.dataUrl).length, 7)
+  assert.equal(f.all().filter(el => el.type === 'img' && el.props.src === grid.dataUrl).length, 7)
+  assert.equal(values.every(value => model.artworkFor(value).dataUrl === image.display.dataUrl), true)
+  assert.deepEqual(model.getArtworkCacheUsage(), usage, '显式刷新后原大图与grid仍按完整引用计费并全部保留')
+})
+
+test('本地封面预取：默认提前准备三行，DOM仍保持原虚拟窗口', async t => {
+  const values = Array.from({ length: 64 }, (_, index) => album(501 + index))
+  const windows: LocalAlbumArtworkWindow[] = []
+  const f = await mounted(t, 'LocalAlbumGrid.vue', { albums: values, artwork: {}, active: true, loaded: true, total: values.length,
+    'onArtwork-window': (window: LocalAlbumArtworkWindow) => windows.push(window) })
+  await f.settle()
+  const window = windows.at(-1)!
+  assert.equal(window.visible.length, 12)
+  assert.equal(window.nearby.length, 12)
+  const rendered = f.all().filter(element => element.props['data-grid-index'] !== undefined)
+  assert.ok(rendered.length < window.visible.length + window.nearby.length, '预取不要求为全部近邻挂载DOM')
+})
+
+test('同窗第25张512封面完成不使前24张成功图一起切换展示路径', async t => {
+  // 合成几何只验证Vue图片引用与正式预算选择，不冒充Chromium像素解码或GPU测量。
+  const values = Array.from({ length: 60 }, (_, index) => album(601 + index, { artworkAvailable: true, artworkState: 'available', statuses: ['has-artwork'] }))
+  const image = { ...connectedDisplayImage(4 * 1024).display, width: 512, height: 512 }
+  const ready = { status: 'ready' as const, dataUrl: image.dataUrl, error: '', canRetry: false, grid: image, display: image }
+  const images = Object.fromEntries(values.slice(0, 24).map(value => [value.id, ready]))
+  const windows: LocalAlbumArtworkWindow[] = []
+  const f = await mounted(t, 'LocalAlbumGrid.vue', { albums: values, artwork: images, loaded: true,
+    'onArtwork-window': (window: LocalAlbumArtworkWindow) => windows.push(window) })
+  const grid = f.all().find(element => element.props['data-grid-window'] === 'true')!, scroll = f.scroll()
+  const originalStyle = Object.getOwnPropertyDescriptor(globalThis, 'getComputedStyle')
+  Object.defineProperty(globalThis, 'getComputedStyle', { configurable: true, value: () => ({ gridTemplateColumns: '212px 212px 212px 212px', columnGap: '24px', rowGap: '28px' }) })
+  t.after(() => { if (originalStyle) Object.defineProperty(globalThis, 'getComputedStyle', originalStyle); else Reflect.deleteProperty(globalThis, 'getComputedStyle') })
+  const rect = (top: number, height: number) => ({ x: 0, y: top, top, bottom: top + height, left: 0, right: 920, width: 920, height, toJSON: () => ({}) })
+  Object.assign(scroll, { clientHeight: 980, getBoundingClientRect: () => rect(0, 980) })
+  Object.assign(grid, { getBoundingClientRect: () => rect(-scroll.scrollTop, Number.parseFloat(grid.style.height) || 0) })
+  const query = grid.querySelector.bind(grid)
+  grid.querySelector = selector => selector === '[data-grid-index]' ? null : query(selector)
+  f.props.albums = [...values]; await f.settle()
+  assert.equal(windows.at(-1)!.visible.length + windows.at(-1)!.nearby.length, 28)
+  const visibleImages = values.slice(0, 16).map(value => {
+    const card = f.all().find(element => element.props['data-local-album-id'] === value.id)
+    assert.ok(card); const picture = f.all(card).find(element => element.type === 'img'); assert.ok(picture); return picture
+  })
+  assert.equal(f.all().filter(element => element.type === 'img').length, 24)
+  f.props.artwork = { ...images, [values[24]!.id]: ready }; await f.settle()
+  for (const picture of visibleImages) {
+    assert.ok(f.all().includes(picture), '第25张近邻图完成不能移除当前成功的IMG')
+    assert.equal(picture.props.src, image.dataUrl)
+  }
+  assert.equal(f.all().filter(element => element.type === 'img').length, 24, '近邻预备不为第25张图额外挂DOM或解码引用')
 })
 
 test('MBF可见封面滚动：真实Grid测量窗口撤旧队列，迟到不回填且成功淘汰回屏自动复用读口', async t => {
@@ -661,7 +1025,7 @@ test('MBF可见封面滚动：真实Grid测量窗口撤旧队列，迟到不回�
   }, onChange: state => { if (liveProps) Object.assign(liveProps, { albums: state.items, artwork: state.artwork, active: state.active, loaded: state.loaded, total: state.total }) } })
   t.after(async () => { model.dispose(); for (const job of jobs) if (!job.returned) { job.returned = true; job.resolve(connectedArtworkReply(job.request, image)) }; await Promise.all(tasks) })
   await model.activate()
-  liveProps = vue.reactive({ albums: model.getSnapshot().items, artwork: model.getSnapshot().artwork, active: true, loaded: true, total: 60,
+  liveProps = vue.reactive({ albums: model.getSnapshot().items, artwork: model.getSnapshot().artwork, active: true, loaded: true, total: 60, artworkPrefetchRows: 1,
     'onArtwork-window': (window: LocalAlbumArtworkWindow) => { windows.push(window); model.setArtworkWindow(window) },
     'onEnsure-artwork': (value: LocalAlbumSummary) => tasks.push(model.ensureArtwork(value)),
   })

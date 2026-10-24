@@ -1,6 +1,9 @@
+import { captureMobileDirectoryQuery, type MobileDirectoryQuery } from '../../../../packages/bridge-core/src/mobile/directory-rpc.js';
+import { observeMobileOwnerLoadTrace } from '../../../../packages/bridge-core/src/mobile/owner-load-trace.js';
 import { mobileRangeWindowRpc } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js';
 import { randomUUID } from 'node:crypto';
-import { captureMobileCapabilityContext, createMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync, mobileCapabilitySync, mobileCapabilityReject, mobileCapabilityCache, mobileCapabilityRequestSha, closeMobileCapabilityContext } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
+import { mobileCatalogRequestSnapshot, type MobileSearchQuery } from '@music-bridge/contracts';
+import { captureMobileCapabilityContext, createMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync, mobileCapabilitySync, mobileCapabilityReject, mobileCapabilityCache, mobileCapabilityRequestSha, closeMobileCapabilityContext, observeMobileCapabilityTrace, mobileContentDiagnosticSync, type MobileCapabilityContext, type MobileCapabilityStage } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
 import { captureMobileContentReply } from '../../../../packages/bridge-core/src/mobile/content-protocol.js';
 import { captureMobileContentScope, type MobileContentOperation, type MobileContentPort, type MobileContentScope } from '../../../../packages/bridge-core/src/mobile/content-types.js';
 import { sameMobileContentScope } from '../../../../packages/bridge-core/src/mobile/content-service.js';
@@ -12,13 +15,19 @@ import {
 import type { MobileOwnerSourceRequest, MobileOwnerSourceResult } from '../../../../packages/bridge-core/src/mobile/source-protocol.js';
 import { MobileAuthPersistenceError, MobileServiceError, type MobilePrincipal } from '../../../../packages/bridge-core/src/mobile/types.js';
 
+/** 仅可信Main传输使用，不进入Core线协议或公开HTTP。 */
+export interface MobileContentCancelRecheck {
+  readonly previousCancelId: string;
+}
 export interface MainMobileContentPortOptions {
   serverId: string;
   datasetId: string;
   /** 由组合根的原 authKey 分域派生；只复制到此 Main 内存。 */
   key: Uint8Array;
   privateProviderDiagnostics?: boolean;
-  requestRpc(request: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse>;
+  /** 只补原失败请求的私有关闭旁注，不参与关闭准入。 */
+  privateCloseDiagnostics?: boolean;
+  requestRpc(request: MobileContentCoreRequest, signal: AbortSignal, recheck?: MobileContentCancelRecheck): Promise<MobileContentCoreResponse>;
   assertCurrent(): void;
   requestMs?: number;
   closeMs?: number;
@@ -43,14 +52,26 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
     serverId: options.serverId, datasetId: options.datasetId, key: options.key,
     ...(options.privateProviderDiagnostics ? { privateProviderDiagnostics: true as const } : {}) });
   if (init.action !== 'initialize') throw new MobileServiceError(400, 'INVALID_REQUEST');
-  const key = init.key;
+  const key = init.key, privateProviderDiagnostics = init.privateProviderDiagnostics;
   const active = new Map<string, { request: MobileContentCoreRequest; controller: AbortController; flight: Promise<Success> }>();
-  const cleanup = new Map<string, Promise<void>>(), held = new Map<string, { cancel(): Promise<void>; unlink(): void }>();
+  type CleanupEntry = {
+    request: MobileContentCoreRequest;
+    snapshotId: string | null;
+    cancelId: string;
+    task: Promise<void>;
+    closeRecheck?: Promise<void>;
+  };
+  const cleanup = new Map<string, CleanupEntry>(), held = new Map<string, { cancel(): Promise<void>; unlink(): void }>();
   const knownEpochs = new Map<string, Set<number>>();
   const revokedEpochs = new Map<string, number>();
   let closing = false, closeFlight: Promise<void> | undefined, initialization: Promise<void> | undefined;
+  let closeDeadlineAt: number | undefined;
+  let closeDiagnosticContext: MobileCapabilityContext | undefined;
   let initializationState: 'pending' | 'fulfilled' | 'rejected' = 'pending', initializationSha: string | null = null;
   const current = () => { if (closing) throw busy(); options.assertCurrent(); };
+  const assertCloseDeadline = () => {
+    if (closeDeadlineAt !== undefined && performance.now() >= closeDeadlineAt) throw new MobileAuthPersistenceError('unknown');
+  };
   const base = () => ({ type: 'mobile-content-core-request' as const, id: randomUUID() });
   function remember(principal: Readonly<MobileContentMainPrincipal>): void {
     if (principal.serverId !== options.serverId || principal.datasetId !== options.datasetId) throw new MobileServiceError(409, 'SOURCE_CHANGED');
@@ -59,31 +80,51 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
     if (!knownEpochs.has(principal.deviceId) && knownEpochs.size >= 16 || !epochs.has(principal.deviceEpoch) && epochs.size >= 16) throw busy();
     epochs.add(principal.deviceEpoch); knownEpochs.set(principal.deviceId, epochs);
   }
-  function cancelOriginal(request: MobileContentCoreRequest, snapshotId: string | null = null): Promise<void> {
-    if (request.action === 'initialize' || request.action === 'invalidate-device' || request.action === 'cancel') return Promise.resolve();
-    const cleanupId = request.id + ':' + (snapshotId ?? 'pending');
-    const previous = cleanup.get(cleanupId); if (previous) return previous;
+  function cancellation(request: MobileContentCoreRequest, snapshotId: string | null, recheck?: MobileContentCancelRecheck): { id: string; task: Promise<void> } {
     const scope = 'scope' in request ? request.scope : null;
     const packet: MobileContentCoreRequest = { ...base(), action: 'cancel', requestId: request.id, snapshotId, scope };
-    const task = exchange(packet, new AbortController().signal, true).then(result => {
+    const task = observeMobileOwnerLoadTrace('main', 'cleanup', () => exchange(packet, new AbortController().signal, true, recheck).then(result => {
       mobileCapabilitySync('content.rpc.cancel', () => {
         if (result.action !== 'cancel' || result.kind !== 'cancelled') throw new MobileAuthPersistenceError('unknown');
       }, 'cleanup');
-    });
-    cleanup.set(cleanupId, task);
-    // 没有真实 quiet ACK 的失败保留，不用删除 Promise 冒充已收口。
-    void task.then(() => cleanup.delete(cleanupId), () => {});
+    }), 'cleanup');
+    return { id: packet.id, task };
+  }
+  function cancelOriginal(request: MobileContentCoreRequest, snapshotId: string | null = null): Promise<void> {
+    if (request.action === 'initialize' || request.action === 'invalidate-device' || request.action === 'cancel') return Promise.resolve();
+    const cleanupId = request.id + ':' + (snapshotId ?? 'pending');
+    const previous = cleanup.get(cleanupId); if (previous) return previous.task;
+    const { id: cancelId, task } = cancellation(request, snapshotId), entry: CleanupEntry = { request, snapshotId, cancelId, task };
+    cleanup.set(cleanupId, entry);
+    // 原失败任务保持原拒绝结果，只有同目标的真实 quiet ACK 才能移除条目。
+    void task.then(() => { if (cleanup.get(cleanupId) === entry) cleanup.delete(cleanupId); }, () => {});
     return task;
   }
-  async function exchange(input: MobileContentCoreRequest, parentSignal: AbortSignal, isCleanup = false): Promise<Success> {
+  async function closeCleanup(): Promise<void> {
+    const entries = [...cleanup.entries()];
+    const outcomes = await Promise.allSettled(entries.map(([, entry]) => entry.task));
+    for (let index = 0; index < entries.length; index++) {
+      const [id, entry] = entries[index]!;
+      if (outcomes[index]!.status === 'fulfilled' || cleanup.get(id) !== entry) continue;
+      assertCloseDeadline();
+      // 只在唯一 closeFlight 中复核一次原取消目标；不重放 scope、dispatch 或来源业务。
+      // Core 的 cancel 会等待原 flight/校验真实静止。未知回应本身不能替代该 ACK。
+      entry.closeRecheck ??= cancellation(entry.request, entry.snapshotId, { previousCancelId: entry.cancelId }).task;
+      await entry.closeRecheck;
+      assertCloseDeadline();
+      if (cleanup.get(id) === entry) cleanup.delete(id);
+    }
+  }
+  async function exchange(input: MobileContentCoreRequest, parentSignal: AbortSignal, isCleanup = false, recheck?: MobileContentCancelRecheck): Promise<Success> {
     if (!isCleanup) current();
     const request = captureMobileContentCoreRequest(input);
     const parentContext = captureMobileCapabilityContext();
-    const stage = request.action === 'initialize' ? 'content.rpc.initialize' : request.action === 'scope' ? 'content.rpc.scope'
+    const stage: MobileCapabilityStage = request.action === 'initialize' ? 'content.rpc.initialize' : request.action === 'scope' ? 'content.rpc.scope'
       : request.action === 'cancel' ? 'content.rpc.cancel'
         : options.privateProviderDiagnostics === true ? request.action === 'dispatch' ? 'content.rpc.dispatch'
           : request.action === 'revalidate' ? 'content.rpc.revalidate' : request.action === 'artwork' ? 'content.rpc.artwork'
-            : request.action === 'source' ? 'content.rpc.source' : 'content.rpc.other' : 'content.rpc.other';
+            : request.action === 'source' ? 'content.rpc.source' : request.action === 'track' ? `content.rpc.track.${request.operation}`
+              : 'content.rpc.other' : 'content.rpc.other';
     const role = isCleanup ? 'cleanup' : 'business';
     const admission = isCleanup ? MOBILE_CONTENT_RPC_BOUNDS.inflight : MOBILE_CONTENT_RPC_BOUNDS.inflight - 1;
     if (!(parentSignal instanceof AbortSignal) || parentSignal.aborted || active.size >= admission) {
@@ -111,7 +152,7 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
     controller.signal.addEventListener('abort', onAbort, { once: true }); if (controller.signal.aborted) onAbort();
     const flight = Promise.resolve().then(() => withMobileCapabilityContext(context, () => mobileCapabilityAsync(stage, async () => {
       try {
-        const response = captureMobileContentCoreResponse(await options.requestRpc(request, controller.signal), request);
+        const response = captureMobileContentCoreResponse(await options.requestRpc(request, controller.signal, recheck), request);
         if (controller.signal.aborted || closing && !isCleanup) {
           if (response.action === 'dispatch' && 'kind' in response && response.kind === 'snapshot') {
             void withMobileCapabilityContext(parentContext, () => cancelOriginal(request, response.snapshotId)).catch(() => {});
@@ -140,7 +181,8 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
   async function initialize(signal: AbortSignal): Promise<void> {
     current(); signal.throwIfAborted();
     if (!initialization) {
-      const request: MobileContentCoreRequest = { ...base(), action: 'initialize', serverId: options.serverId, datasetId: options.datasetId, key };
+      const request: MobileContentCoreRequest = { ...base(), action: 'initialize', serverId: options.serverId, datasetId: options.datasetId, key,
+        ...(privateProviderDiagnostics ? { privateProviderDiagnostics: true as const } : {}) };
       const context = captureMobileCapabilityContext();
       initializationSha = mobileCapabilityRequestSha('content', request.id);
       mobileCapabilityCache('content.initialize.cache', 'new-pending', initializationSha);
@@ -157,14 +199,38 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
       });
     } else mobileCapabilityCache('content.initialize.cache', initializationState === 'pending' ? 'reuse-pending'
       : initializationState === 'fulfilled' ? 'reuse-fulfilled' : 'reuse-rejected', initializationSha);
-    await mobileCapabilityAsync('content.initialize.wait', () => initialization!); current(); signal.throwIfAborted();
+    await observeMobileOwnerLoadTrace('main', 'main.content.initialize', () => mobileCapabilityAsync('content.initialize.wait', () => initialization!)); current(); signal.throwIfAborted();
   }
   async function scopeForIdentity(input: Readonly<MobileContentMainPrincipal>, signal: AbortSignal) {
     const principal = captureMobileContentMainPrincipal(input); remember(principal);
-    await initialize(signal);
-    const result = await exchange({ ...base(), action: 'scope', principal }, signal);
-    if (result.action !== 'scope' || result.kind !== 'scope') throw new MobileAuthPersistenceError('unknown');
-    return { scope: result.scope, neteasePlayback: result.neteasePlayback };
+    const diagnostic = options.privateCloseDiagnostics === true ? captureMobileCapabilityContext() : undefined;
+    try {
+      await initialize(signal);
+      const result = await observeMobileOwnerLoadTrace('main', 'main.content.scope', () => exchange({ ...base(), action: 'scope', principal }, signal));
+      if (result.action !== 'scope' || result.kind !== 'scope') throw new MobileAuthPersistenceError('unknown');
+      return { scope: result.scope, neteasePlayback: result.neteasePlayback };
+    } catch (error) {
+      // 仅记住原首错的诊断关联；不缓存授权，也不改变原异常或取消。
+      closeDiagnosticContext ??= diagnostic; throw error;
+    }
+  }
+  async function albumCatalog(principal: MobilePrincipal, operation: 'getAlbum' | 'listTracks', albumId: string,
+    query: Readonly<MobileSearchQuery> | null, signal: AbortSignal) {
+    const identity = mobileContentPrincipalFields(principal), selected = await scopeForIdentity(identity, signal), scope = selected.scope;
+    if (scope.providerEpoch === null) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
+    const result = await exchange({ ...base(), action: 'album-catalog', operation, mode: 'read', scope,
+      albumId, query, expectedFingerprint: null, expectedRevision: null }, signal);
+    if (result.action !== 'album-catalog' || result.kind !== 'album-catalog' || result.operation !== operation) throw new MobileAuthPersistenceError('unknown');
+    const expectedRevision = result.operation === 'listTracks' ? result.body.libraryRevision : null;
+    return { result, beforeSend: async () => {
+      current(); signal.throwIfAborted();
+      const latest = await scopeForIdentity(identity, signal);
+      if (!sameMobileContentScope(scope, latest.scope)) throw new MobileServiceError(409, 'SOURCE_CHANGED');
+      const checked = await exchange({ ...base(), action: 'album-catalog', operation, mode: 'revalidate', scope,
+        albumId, query, expectedFingerprint: result.fingerprint, expectedRevision }, signal);
+      if (checked.action !== 'album-catalog' || checked.kind !== 'album-catalog-validated') throw new MobileAuthPersistenceError('unknown');
+      current(); signal.throwIfAborted();
+    } };
   }
   const content: MobileContentPort = {
     async dispatch<O extends MobileContentOperation>(input: import('../../../../packages/bridge-core/src/mobile/content-types.js').MobileContentServiceInput<O>) {
@@ -196,6 +262,47 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
   };
   return {
     content,
+    async directory(principal: MobilePrincipal, query: MobileDirectoryQuery, signal: AbortSignal) {
+      const identity = mobileContentPrincipalFields(principal), { scope } = await scopeForIdentity(identity, signal);
+      if (scope.providerEpoch === null) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
+      const result = await exchange({ ...base(), action: 'directory', scope, query: captureMobileDirectoryQuery(query) }, signal);
+      if (result.action !== 'directory' || result.kind !== 'directory') throw new MobileAuthPersistenceError('unknown');
+      return { page: result.page, beforeSend: async () => {
+        current(); signal.throwIfAborted();
+        const latest = await scopeForIdentity(identity, signal);
+        if (!sameMobileContentScope(scope, latest.scope)) throw new MobileServiceError(409, 'SOURCE_CHANGED');
+      } };
+    },
+    async album(principal: MobilePrincipal, albumId: string, signal: AbortSignal) {
+      const selected = await albumCatalog(principal, 'getAlbum', albumId, null, signal);
+      if (selected.result.operation !== 'getAlbum') throw new MobileAuthPersistenceError('unknown');
+      return { album: selected.result.body, beforeSend: selected.beforeSend };
+    },
+    async albumTracks(principal: MobilePrincipal, query: MobileSearchQuery, signal: AbortSignal) {
+      const captured = mobileCatalogRequestSnapshot('search', query);
+      if (!captured.ok || captured.value.source !== 'netease' || typeof captured.value.albumId !== 'string'
+        || !captured.value.albumId.startsWith('na:')) throw new MobileServiceError(400, 'INVALID_REQUEST');
+      const selected = await albumCatalog(principal, 'listTracks', captured.value.albumId, captured.value, signal);
+      if (selected.result.operation !== 'listTracks') throw new MobileAuthPersistenceError('unknown');
+      return { page: selected.result.body, beforeSend: selected.beforeSend };
+    },
+    async track(principal: MobilePrincipal, trackId: string, signal: AbortSignal) {
+      const identity = mobileContentPrincipalFields(principal), selected = await scopeForIdentity(identity, signal), scope = selected.scope;
+      if (scope.providerEpoch === null) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
+      const result = await exchange({ ...base(), action:'track', operation:'read', scope, trackId, expectedSelection:null, expectedFingerprint:null }, signal);
+      if (result.action !== 'track' || result.kind !== 'track') throw new MobileAuthPersistenceError('unknown');
+      const expectedSelection = {trackId:result.track.id,source:'netease' as const,versionId:result.track.versionId,contentRevision:result.track.contentRevision};
+      return { track:result.track, beforeSend:async()=>{
+        current(); signal.throwIfAborted(); const latest = await scopeForIdentity(identity, signal);
+        mobileContentDiagnosticSync('main.track.revalidate.scope', () => {
+          if (!sameMobileContentScope(scope, latest.scope)) throw new MobileServiceError(409,'SOURCE_CHANGED');
+        });
+        const checked = await exchange({ ...base(), action:'track', operation:'revalidate', scope, trackId,
+          expectedSelection, expectedFingerprint:result.fingerprint }, signal);
+        if (checked.action !== 'track' || checked.kind !== 'track-validated') throw new MobileAuthPersistenceError('unknown');
+        current(); signal.throwIfAborted();
+      } };
+    },
     async artwork(principal: MobilePrincipal, artworkId: string, signal: AbortSignal) {
       const identity = mobileContentPrincipalFields(principal), selected = await scopeForIdentity(identity, signal), scope = selected.scope;
       if (scope.providerEpoch === null) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
@@ -246,19 +353,28 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
       }
       if (!epochs.size) knownEpochs.delete(deviceId);
     },
+    getCloseDiagnosticContext: () => closeDiagnosticContext,
     close(): Promise<void> {
       if (closeFlight) return closeFlight;
-      closing = true; key.fill(0);
+      closing = true; closeDeadlineAt = performance.now() + closeMs; key.fill(0);
       for (const snapshot of held.values()) void snapshot.cancel().catch(() => {});
       for (const pending of active.values()) if (pending.request.action !== 'cancel' && pending.request.action !== 'invalidate-device') pending.controller.abort(busy());
       const quiet = (async () => {
-        while (active.size) await Promise.allSettled([...active.values()].map(entry => entry.flight));
-        await Promise.all([...cleanup.values()]);
+        while (active.size) await observeMobileCapabilityTrace('main.close.content.active', () => Promise.allSettled([...active.values()].map(entry => entry.flight)), 'cleanup');
+        await observeMobileCapabilityTrace('main.close.content.cleanup', closeCleanup, 'cleanup');
         knownEpochs.clear(); revokedEpochs.clear();
       })();
       closeFlight = new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new MobileAuthPersistenceError('unknown')), closeMs);
-        void quiet.then(() => { clearTimeout(timer); resolve(); }, error => { clearTimeout(timer); reject(error); });
+        const timer = setTimeout(() => {
+          const error = new MobileAuthPersistenceError('unknown');
+          // 原期限只报告失败，旁注不结算原工作，也不授 quiet。
+          mobileCapabilityReject('main.close.content.deadline', error, 'cleanup'); reject(error);
+        }, closeMs);
+        void quiet.then(() => {
+          clearTimeout(timer);
+          try { assertCloseDeadline(); resolve(); }
+          catch (error) { mobileCapabilityReject('main.close.content.deadline', error, 'cleanup'); reject(error); }
+        }, error => { clearTimeout(timer); reject(error); });
       });
       return closeFlight;
     },

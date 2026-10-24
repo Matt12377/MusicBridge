@@ -15,6 +15,7 @@ import { DatasetScopeError } from '../recording/dataset-identity.js';
 import { CollectionError } from '../collection/repository.js';
 import { SpreadsheetReadError } from '../collection/spreadsheet-files.js';
 import { SpreadsheetParseError } from '../collection/spreadsheet-parser.js';
+import { LocalArtistSearchError } from '../collection/local-artist-search.js';
 
 // 线程内领域异常只在持有原型的所有者处投影；跨线程传递沿用原公开错误合同。
 export function responseFailure(
@@ -32,6 +33,11 @@ export function responseFailure(
 
 
 export function failureForError(id: string, error: unknown, command: IpcRequest['command']): IpcFailure {
+  if (error instanceof LocalArtistSearchError) {
+    const code = error.code === 'PREPARING' ? 'ARTIST_INDEX_PREPARING' : error.code === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST'
+      : error.code === 'SNAPSHOT_CHANGED' ? 'INVENTORY_CONFLICT' : error.code === 'CLOSED' ? 'NOT_READY' : 'INVENTORY_UNAVAILABLE';
+    return responseFailure(id, code, error.code === 'PREPARING' ? '正在准备本地艺术家与搜索，请稍候。' : '本地艺术家读取未完成，请重新读取。');
+  }
   if(error instanceof SourceWritesError){const observed=Object.getOwnPropertyDescriptor(error,'code')?.value,issue=typeof observed==='string'&&(LOCAL_SOURCE_WRITES_ISSUES as readonly string[]).includes(observed)?observed:'RECOVERY_REQUIRED';const code=issue==='INVALID_REQUEST'?'INVALID_IPC_REQUEST':issue==='DATASET_SCOPE_MISMATCH'?'OUTBOX_SCOPE_MISMATCH':['RECOVERY_REQUIRED','COMMIT_UNKNOWN','RELEASE_UNKNOWN','INVENTORY_UNAVAILABLE','BUDGET_EXCEEDED'].includes(issue)?'INVENTORY_UNAVAILABLE':'INVENTORY_CONFLICT';return responseFailure(id,code,`本地源写操作未获确认。[${issue}]`);}
   if (error instanceof LegacyLinksError) {
     const observed = Object.getOwnPropertyDescriptor(error, 'code')?.value;

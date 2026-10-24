@@ -1,10 +1,22 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { createGridRows, gridWindowIndices, gridRowAt } from './gridWindow.js'
 
+const mountedLayouts = new WeakMap<HTMLElement, (signal?: AbortSignal) => Promise<boolean>>()
+/** 仅等待当前容器内真实挂载的虚拟墙；测量提交前不按默认列数恢复像素位置。 */
+export async function waitForGridWindowLayout(container: HTMLElement | null, signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted) return false
+  if (!container || typeof container.querySelectorAll !== 'function') return true
+  const grids = [...container.querySelectorAll<HTMLElement>('[data-grid-window="true"]')]
+  const ready = await Promise.all(grids.map(element => mountedLayouts.get(element)?.(signal) ?? false))
+  return !signal?.aborted && ready.every(Boolean)
+}
+
 export interface GridWindowOptions<T> {
   profile?: (item: T) => string
   prepareProbe?: (element: HTMLElement, item: T) => void
   enabled?: () => boolean
+  /** 图片预取范围与 DOM 虚拟窗口独立，其他页面沿用一行。 */
+  nearbyRows?: number
 }
 /** 与原CSS网格使用相同列宽和逐行最大高度。无图像/IPC的少量probe覆盖所有当前布局变体。 */
 export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<HTMLElement | null>, options: GridWindowOptions<T> = {}) {
@@ -14,6 +26,9 @@ export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<H
   const revision = ref(0), focused = ref<number>(), heights = new Map<string, number>()
   const observedCards = new Set<HTMLElement>()
   let scrollRoot: HTMLElement | null = null, resize: ResizeObserver | undefined, disposed = false, queued = false
+  let layoutGeneration = 0, fontsReady = typeof document === 'undefined' || !document.fonts
+  const layoutWaiters = new Set<{ complete(ready: boolean): void }>()
+  const finishLayouts = (ready: boolean) => { for (const waiter of [...layoutWaiters]) waiter.complete(ready) }
   const profile = (item: T) => options.profile?.(item) ?? 'default'
   const profiles = computed(() => items.value.map(profile))
   const representatives = computed(() => {
@@ -40,11 +55,23 @@ export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<H
     .map(index => ({ item: items.value[index]!, index })))
   const nearby = computed(() => {
     const current = new Set(visible.value.map(entry => entry.index))
-    return gridWindowIndices(rows.value, items.value.length, viewport.value.start, viewport.value.end, 1, focused.value)
+    const nearbyRows = Number.isSafeInteger(options.nearbyRows) && options.nearbyRows! >= 0 && options.nearbyRows! <= 4 ? options.nearbyRows! : 1
+    return gridWindowIndices(rows.value, items.value.length, viewport.value.start, viewport.value.end, nearbyRows, focused.value)
       .filter(index => !current.has(index)).map(index => ({ item: items.value[index]!, index }))
   })
   const rootStyle = computed(() => enabled() ? { position: 'relative' as const, height: `${rows.value.totalHeight}px` } : undefined)
   const attrs = computed(() => ({ 'data-grid-window': enabled() ? 'true' : 'false', 'data-grid-start': indices.value[0] ?? 0, 'data-grid-end': (indices.value.at(-1) ?? -1) + 1, 'data-grid-columns': layout.value.columns, 'data-grid-total-height': rows.value.totalHeight, 'data-grid-rendered': indices.value.length, 'data-grid-measured': heights.size > 0 ? 'true' : 'false' }))
+  function waitForLayout(signal?: AbortSignal): Promise<boolean> {
+    if (disposed || signal?.aborted || !enabled()) return Promise.resolve(false)
+    return new Promise(resolve => {
+      const abort = () => waiter.complete(false)
+      const waiter = { complete(ready: boolean) { layoutWaiters.delete(waiter); signal?.removeEventListener('abort', abort); resolve(ready) } }
+      layoutWaiters.add(waiter); signal?.addEventListener('abort', abort, { once: true }); schedule()
+    })
+  }
+  function releaseLayoutRoot(element: HTMLElement | null | undefined): void {
+    if (element && mountedLayouts.get(element) === waitForLayout) mountedLayouts.delete(element)
+  }
 
   // 测量副本从不克隆IMG/SOURCE，避免在移除前启动额外图片请求/解码。
   function cloneWithoutImages(element: Node): Node {
@@ -54,6 +81,7 @@ export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<H
   }
   function measure(): void {
     queued = false
+    const current = ++layoutGeneration
     const element = root.value
     if (disposed || !element || typeof element.getBoundingClientRect !== 'function' || typeof getComputedStyle !== 'function' || !enabled()) return
     if (!scrollRoot) {
@@ -100,6 +128,9 @@ export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<H
     const cards = new Set(element.querySelectorAll<HTMLElement>('[data-grid-index]'))
     for (const card of observedCards) if (!cards.has(card)) { resize?.unobserve(card); observedCards.delete(card) }
     for (const card of cards) if (!observedCards.has(card)) { resize?.observe(card); observedCards.add(card) }
+    if (fontsReady && representatives.value.every(({ index }) => heights.has(measurementKey(index)))) void nextTick(() => {
+      if (!disposed && root.value === element && current === layoutGeneration && !queued && fontsReady) finishLayouts(true)
+    })
   }
   function schedule(): void {
     if (disposed || queued) return
@@ -131,10 +162,14 @@ export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<H
     schedule()
     void nextTick(() => { const nextCard = root.value?.querySelector<HTMLElement>(`[data-grid-index="${next}"]`); if (nextCard) { const choices = focusable(nextCard); (event.shiftKey ? choices.at(-1) : choices[0])?.focus() } })
   }
-  watch(root, () => {
+  watch(root, (element, previous) => {
+    layoutGeneration++; finishLayouts(false)
+    releaseLayoutRoot(previous)
     scrollRoot?.removeEventListener('scroll', schedule); scrollRoot = null; resize?.disconnect(); resize = undefined; observedCards.clear(); schedule()
-  })
+    if (element) mountedLayouts.set(element, waitForLayout)
+  }, { flush: 'sync', immediate: true })
   watch(items, (next, previous) => {
+    layoutGeneration++
     if (focused.value !== undefined) {
       const key = (item: T | undefined) => { const value = item as { key?: string; reference?: string; favoriteId?: string; id?: string } | undefined; return value?.key ?? value?.reference ?? value?.favoriteId ?? value?.id }
       const currentKey = key(previous[focused.value]), nextIndex = currentKey === undefined ? -1 : next.findIndex(item => key(item) === currentKey)
@@ -142,11 +177,12 @@ export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<H
     }
     void nextTick(schedule)
   })
-  watch(() => options.enabled?.(), () => { heights.clear(); revision.value++; void nextTick(schedule) })
+  watch(() => options.enabled?.(), () => { layoutGeneration++; finishLayouts(false); heights.clear(); revision.value++; void nextTick(schedule) })
   onMounted(() => {
     schedule(); if (typeof window !== 'undefined') window.addEventListener?.('resize', schedule)
-    if (typeof document !== 'undefined') void document.fonts?.ready.then(() => { if (!disposed) { heights.clear(); revision.value++; schedule() } })
+    const fontLayoutReady = () => { if (!disposed) { fontsReady = true; layoutGeneration++; heights.clear(); revision.value++; schedule() } }
+    if (typeof document !== 'undefined') void document.fonts?.ready.then(fontLayoutReady, fontLayoutReady)
   })
-  onUnmounted(() => { disposed = true; resize?.disconnect(); observedCards.clear(); scrollRoot?.removeEventListener('scroll', schedule); if (typeof window !== 'undefined') window.removeEventListener?.('resize', schedule) })
+  onUnmounted(() => { disposed = true; layoutGeneration++; finishLayouts(false); releaseLayoutRoot(root.value); resize?.disconnect(); observedCards.clear(); scrollRoot?.removeEventListener('scroll', schedule); if (typeof window !== 'undefined') window.removeEventListener?.('resize', schedule) })
   return { rendered, visible, nearby, rootStyle, attrs, onFocusIn, onFocusOut, onKeydown, refresh: schedule }
 }

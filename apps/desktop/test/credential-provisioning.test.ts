@@ -10,6 +10,7 @@ import {
   provisionProviderCredential,
   restoreProviderCredential,
 } from '../src/main/credential-provisioning.js'
+import { readLibraryOperationLine } from '../../../packages/bridge-core/src/shared/library-operation-log.js'
 
 class FakeSafeStorage implements AsyncSafeStorage {
   available = true
@@ -224,4 +225,48 @@ test('restore keeps the encrypted credential when Core injection is temporarily 
     status: 'configured',
     credential: 'fixture-credential',
   })
+})
+
+test('恢复诊断区分保险库不可用、Core校验和注入结果，失败不扩大凭据下发', async t => {
+  const lines: string[] = []
+  t.mock.method(console, 'info', (line: unknown) => { if (typeof line === 'string') lines.push(line) })
+  for (const mode of ['vault-unavailable', 'authorized', 'unavailable', 'expired', 'verify-reject', 'set-reject'] as const) {
+    const storage = new FakeSafeStorage(), vault = await makeVault(storage), core = makeSupervisor()
+    await vault.save('diagnostic-synthetic-only')
+    let verifyCalls = 0, setCalls = 0, errorReads = 0
+    const failure = Object.defineProperty({}, 'message', { get() { errorReads++; return 'synthetic-private-provider-error' } })
+    if (mode === 'vault-unavailable') storage.available = false
+    core.verifyCredential = async () => {
+      verifyCalls++
+      if (mode === 'verify-reject') throw failure
+      return mode === 'unavailable' || mode === 'expired' ? mode : 'authorized'
+    }
+    const setCredential = core.setCredential.bind(core)
+    core.setCredential = async credential => { setCalls++; if (mode === 'set-reject') throw failure; return setCredential(credential) }
+    lines.length = 0
+    const result = await provisionProviderCredential({ vault, core, environment: {} })
+    assert.equal(result, mode === 'authorized' ? 'configured' : mode === 'expired' ? 'expired' : 'unavailable', mode)
+    assert.equal(verifyCalls, mode === 'vault-unavailable' ? 0 : 1)
+    assert.equal(setCalls, mode === 'authorized' || mode === 'set-reject' ? 1 : 0)
+    assert.equal(errorReads, 0)
+    const events = lines.map(readLibraryOperationLine), stages = events.map(event => event?.action)
+    assert.ok(events.every(event => event !== null && Number.isFinite(event.elapsedMs) && event.elapsedMs! >= 0))
+    assert.equal(events[0]?.action, 'startup.provider-auth.migration'); assert.equal(events[0]?.code, 'NONE')
+    assert.equal(stages.includes('startup.provider-auth.core-verify'), mode !== 'vault-unavailable')
+    assert.equal(stages.includes('startup.provider-auth.core-set'), mode === 'authorized' || mode === 'set-reject')
+    const verify = events.find(event => event?.action === 'startup.provider-auth.core-verify')
+    if (verify) assert.equal(verify.code, mode === 'verify-reject' ? 'VERIFY_FAILED' : mode === 'unavailable' ? 'UNAVAILABLE' : mode === 'expired' ? 'EXPIRED' : 'AUTHORIZED')
+    const serialized = lines.join('\n')
+    assert.ok(!serialized.includes('diagnostic-synthetic-only') && !serialized.includes('synthetic-private-provider-error') && !serialized.includes('enc:'))
+    storage.available = true
+    assert.equal((await vault.read()).status, mode === 'expired' ? 'missing' : 'configured', '保留原过期删除和临时失败保留语义')
+  }
+})
+
+test('恢复诊断输出故障仍只沿原校验成功路径配置Core', async t => {
+  const storage = new FakeSafeStorage(), vault = await makeVault(storage), core = makeSupervisor()
+  await vault.save('diagnostic-synthetic-only')
+  t.mock.method(console, 'info', () => { throw new Error('受控诊断输出故障') })
+  assert.equal(await restoreProviderCredential({ vault, core }), 'configured')
+  assert.deepEqual(core.calls.map(call => call.command), ['auth.verifyCredential', 'auth.setCredential'])
 })

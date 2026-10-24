@@ -23,7 +23,7 @@ function planFor(request: PreviewLocalOrganizer, state: LocalOrganizerPlan['stat
     item.before = { fields: { title: '旧人工标题', artist: '旧人工作者', year: '2010' }, annotations: { versionDescription: '此前说明' } }
     item.after = copy(item.before)
     for (const [field, change] of Object.entries(request.patch.fields)) {
-      const key = field as keyof typeof item.after.fields
+      const key = field as keyof typeof request.patch.fields
       if (change.action === 'clear') delete item.after.fields[key]; else item.after.fields[key] = change.value
     }
     const annotations = request.patch.annotations

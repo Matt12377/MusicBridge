@@ -34,12 +34,12 @@ const DEFAULT_HEALTH: PublicBridgeState = {
 
 const PLAYBACK_STARTUP_EVENT_RESERVE = 32
 const SHUTDOWN_STAGE_PREFIX = 'MUSICBRIDGE_SHUTDOWN_STAGE '
-// 闭集26个phase及其清理错误共用单行；4KiB足够，超界整条丢弃而不截断JSON。
+// 闭集28个phase及其清理错误共用单行；4KiB足够，超界整条丢弃而不截断JSON。
 const SHUTDOWN_STAGE_MAX_BYTES = 4 * 1024
 const SHUTDOWN_EVENTS = ['local_workbench_shutdown_phase_start', 'local_workbench_shutdown_phase_settled',
   'local_workbench_shutdown_failure', 'local_workbench_shutdown_cleanup_failure', 'local_workbench_shutdown_not_verified'] as const
-const SHUTDOWN_PHASES = ['stop_display', 'seal_artwork_ipc', 'seal_source_writes_ipc', 'seal_relocation_ipc', 'remote_stop', 'mobile_close',
-  'prepare_name', 'prepare_lyrics', 'prepare_reads', 'prepare_normalizer', 'owner_shutdown', 'join_name', 'join_lyrics_grant',
+const SHUTDOWN_PHASES = ['stop_display', 'seal_artwork_ipc', 'seal_source_writes_ipc', 'seal_relocation_ipc', 'close_artist_catalog', 'remote_stop', 'mobile_close',
+  'prepare_name', 'prepare_lyrics', 'prepare_reads', 'prepare_normalizer', 'prepare_media_worker', 'owner_shutdown', 'join_name', 'join_lyrics_grant',
   'join_lyrics_provider', 'join_directory', 'join_readers', 'revoke_author', 'close_management', 'close_legacy', 'close_assembly',
   'close_lyrics_main', 'close_lyrics_provider', 'close_name', 'core_shutdown_complete', 'close_outbox', 'flush_core_evidence'] as const
 const SHUTDOWN_CODES = ['NOT_READY', 'OUTBOX_SCOPE_MISMATCH', 'TIMEOUT', 'INVALID_IPC_RESPONSE', 'INTERNAL_ERROR', 'CHANGED', 'CLOSED', 'UNKNOWN'] as const

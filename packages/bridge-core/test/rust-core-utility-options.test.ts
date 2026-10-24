@@ -29,6 +29,7 @@ async function until(check: () => boolean, timeoutMs = 2_000): Promise<void> {
 }
 class Port implements UtilityPort {
   readonly messages: unknown[] = [];
+  private readonly shutdownRequests = new Set<string>();
   listener?: (event: { data: unknown }) => void;
   on(_event: 'message', listener: (event: { data: unknown }) => void) { this.listener = listener; }
   start() {}
@@ -36,12 +37,25 @@ class Port implements UtilityPort {
   get ready() { return this.messages.some(message => (message as { event?: string }).event === 'core.ready'); }
   request(command: IpcRequest['command'], payload: unknown = {}) {
     const id = randomUUID();
+    if (command === 'core.shutdown') this.shutdownRequests.add(id);
     this.listener?.({ data: { version: 1, id, command, payload } });
     return id;
   }
   async response(id: string): Promise<IpcResponse> {
     await until(() => this.messages.some(message => (message as { id?: string }).id === id));
     return this.messages.find(message => (message as { id?: string }).id === id) as IpcResponse;
+  }
+  acknowledgeShutdown(): string {
+    // 显式模拟Main核收；按原端口实际发送次序确认首个关闭成功回包，不自动确认其它ok结果。
+    const response = this.messages.find(message => {
+      const value = message as { id?: string; ok?: boolean };
+      return value.ok === true && typeof value.id === 'string' && this.shutdownRequests.has(value.id);
+    }) as IpcResponse | undefined;
+    assert.ok(response, '必须先收到原关闭请求的成功回包');
+    assert.deepEqual(response, { version: 1, id: response.id, ok: true, result: { stopped: true } });
+    assert.ok(this.listener, 'ACK必须返回原Utility端口');
+    this.listener({ data: { version: 1, type: 'musicbridge.core-shutdown-received', requestId: response.id } });
+    return response.id;
   }
 }
 function source(hooks: { prepare?: () => Promise<void>; boot?: () => Promise<void>; close?: () => Promise<void>; dispatch?: () => Promise<unknown>; export?: () => Promise<void> } = {}) {
@@ -115,7 +129,12 @@ async function start(t: test.TestContext, factory?: DatasetOwnerFactory, options
 async function shutdown(port: Port, exits: unknown[]) {
   const response = await port.response(port.request('core.shutdown'));
   assert.equal(response.ok, true);
+  assert.deepEqual(response, { version: 1, id: response.id, ok: true, result: { stopped: true } });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.deepEqual([...exits], [], '关闭回包发出后，Main接收ACK之前不能退出');
+  assert.equal(port.acknowledgeShutdown(), response.id);
   await until(() => exits.includes(0));
+  assert.deepEqual([...exits], [0]);
 }
 
 test('旧六参数默认链保留 legacy owner，无导出、探测与 Rust child', async t => {
@@ -216,8 +235,12 @@ test('早期 shutdown 消费迟到 boot，不随后发布 ready 或建立 Rust c
   await until(() => s.counts.closes === 1);
   boot.resolve();
   assert.equal((await port.response(request)).ok, true);
+  assert.deepEqual(await port.response(request), { version: 1, id: request, ok: true, result: { stopped: true } });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.deepEqual([...exits], [], '提前关闭的stopped回包也必须等待Main接收ACK');
+  assert.equal(port.acknowledgeShutdown(), request);
   await until(() => exits.includes(0));
-  assert.deepEqual(exits, [0], '已确认 stopped 的显式关闭不能再被启动 catch 改成失败退出。');
+  assert.deepEqual([...exits], [0], '已确认 stopped 的显式关闭不能再被启动 catch 改成失败退出。');
   assert.equal(port.ready, false); assert.equal(s.counts.closes, 1); assert.equal(rust.spawn.mock.callCount(), 0);
 });
 

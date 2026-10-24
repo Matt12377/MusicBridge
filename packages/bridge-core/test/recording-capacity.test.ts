@@ -175,6 +175,45 @@ test('容量clone仅在持久receipt及关闭后按owner删除；失败、错mar
   assert.throws(() => api.createCapacityClone(directory, '../outside', seed));
 });
 
+test('容量clone收尾识别真实Repository的四个旁库，但未知对象和链接仍完整保留', async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const { createCollectionRepository } = await import('../src/collection/repository.js');
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-sidecars-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const seed = path.join(directory, 'seed.sqlite');
+  const repository = createCollectionRepository({ filePath: seed }); repository.list({ offset: 0, limit: 1 }); repository.close();
+  const clone = api.createCapacityClone(directory, 'success', seed);
+  const actual = createCollectionRepository({ filePath: clone.filePath });
+  actual.list({ offset: 0, limit: 1 });
+  const retiredRoot = randomUUID();
+  actual.privateLocalAlbumDisplayCache!.removeRoot(retiredRoot);
+  actual.privateLocalAlbumArtworkResources!.removeRoot(retiredRoot);
+  actual.privateLocalAlbumArtworkObservations!.removeRoot(retiredRoot);
+  actual.close();
+  const sidecars = ['album-display-cache', 'album-artwork-resources', 'album-artwork-queue', 'album-artwork-observations']
+    .map(kind => `sample.sqlite.${kind}.sqlite`).sort();
+  const observed = readdirSync(clone.directory).filter(name => name.startsWith('sample.sqlite.')).sort();
+  assert.deepEqual(observed, sidecars);
+  t.diagnostic('真实Repository关闭后的合成旁库：' + JSON.stringify(observed));
+  api.finishCapacityClone(clone, { outcome: 'ok', resourcesClosed: true, samples: [] });
+  assert.equal(existsSync(clone.directory), false);
+  assert.equal(existsSync(seed), true);
+  // 先建立独立反例，再放入异常对象；前一保留的符号链接不得阻止下一反例的容量预检。
+  const rejectedCases = (['unknown', 'directory', 'symlink', 'hardlink'] as const)
+    .map(kind => ({ kind, rejected: api.createCapacityClone(directory, kind, seed) }));
+  for (const { kind, rejected } of rejectedCases) {
+    const target = path.join(rejected.directory, kind === 'unknown' ? 'sample.sqlite.album-unknown.sqlite' : sidecars[0]!);
+    if (kind === 'directory') mkdirSync(target);
+    else if (kind === 'symlink') symlinkSync(seed, target);
+    else if (kind === 'hardlink') linkSync(seed, target);
+    else writeFileSync(target, '合成未知对象');
+    assert.throws(() => api.finishCapacityClone(rejected, { outcome: 'ok', resourcesClosed: true, samples: [] }), /非预期对象/u);
+    assert.equal(existsSync(rejected.filePath), true);
+    assert.equal(existsSync(target), true);
+    assert.equal(existsSync(path.join(directory, kind + '.receipt.json')), false);
+  }
+});
+
 test('measure output aggregate预算写前及阶段复核，失败clone保留后禁止第二clone，超额稳定停止', async t => {
   const api = await import('./helpers/recording-capacity-fixture.js');
   const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-aggregate-')));

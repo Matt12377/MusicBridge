@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { isLocalAlbumPage } from '@music-bridge/contracts'
-import { createLocalAlbumBrowserModel, LOCAL_ALBUM_ARTWORK_COUNT_QUIET_MS, LOCAL_ALBUM_ARTWORK_COUNT_MAX_WAIT_MS } from '../src/renderer/src/composables/application/local-library-browser/model.js'
+import { createLocalAlbumBrowserModel, LOCAL_ALBUM_PAGE_SIZE, LOCAL_ALBUM_ARTWORK_COUNT_QUIET_MS, LOCAL_ALBUM_ARTWORK_COUNT_MAX_WAIT_MS } from '../src/renderer/src/composables/application/local-library-browser/model.js'
 import { LOCAL_ALBUM_STATUSES, type LocalAlbumArtworkReply, type LocalAlbumArtworkRequest, type LocalAlbumBrowserApi, type LocalAlbumBrowserOptions, type LocalAlbumFilterCounts, type LocalAlbumPage, type LocalAlbumQuery, type LocalAlbumSummary } from '../src/renderer/src/composables/application/local-library-browser/types.js'
 
 // 只执行正式Renderer model；Source/SQL/持久缓存与Native均不由这个内存夹具代证。
@@ -168,7 +168,7 @@ test('MBF封面计数UI：封面筛选多成员变化只重建一次首页且不
   const albums = Array.from({ length: 2 }, (_, index) => album(index + 1, { artworkAvailable: true, artworkState: 'available', statuses: ['has-artwork'] }))
   const refreshed = deferred<LocalAlbumPage>(); let refreshRequest: LocalAlbumQuery | undefined, selectedReads = 0
   const f = fixture(albums, { queryAlbums: request => {
-    if (request.filter === 'has-artwork' && request.limit === 60 && ++selectedReads === 2) { refreshRequest = request; return refreshed.promise }
+    if (request.filter === 'has-artwork' && request.limit === LOCAL_ALBUM_PAGE_SIZE && ++selectedReads === 2) { refreshRequest = request; return refreshed.promise }
     return Promise.resolve(page(request, albums))
   }, getArtwork: async request => { observed(albums, request, false); return reply(request, false) } }); t.after(f.model.dispose)
   await f.model.activate(); await f.model.setFilter('has-artwork')

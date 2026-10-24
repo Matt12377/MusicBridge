@@ -58,6 +58,20 @@ function createSession(
 
 const tick = () => new Promise<void>(resolve => setImmediate(resolve))
 
+test('4.1 网易云结果的指定来源贯穿初始队列及后台全部续页', async t => {
+  const preferred: unknown[][] = [], reads: number[] = []
+  const harness = createSession({ replaceQueue: async items => { preferred.push(items.map(item => item.preferredSource)); return snapshot(track('1')) },
+    appendQueue: async items => { preferred.push(items.map(item => item.preferredSource)); return snapshot(track('1')) } })
+  t.after(() => harness.session.dispose())
+  await harness.session.replaceAndPlayCollection(async page => {
+    reads.push(page.offset)
+    return { items: [track(String(page.offset + 1))], ...page, total: 41, hasMore: page.offset < 40 }
+  }, '1', undefined, false, 'netease')
+  for (let n = 0; n < 8; n++) await tick()
+  assert.deepEqual(reads, [0, 20, 40])
+  assert.deepEqual(preferred, [['netease'], ['netease'], ['netease']])
+})
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   const promise = new Promise<T>(onResolve => { resolve = onResolve })

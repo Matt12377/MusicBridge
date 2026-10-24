@@ -293,7 +293,15 @@ test('移动准备首因：成功能力回包才开启窗口，保留会话资�
   const intermediate = await request('/mobile/v1/sessions', true); assert.equal(intermediate.status, 401); assert.equal(posts, 1);
   assert.equal(wireProbe.snapshot().scopes[1]!.terminal, 'intermediate');
   const sessionFailure = await request('/mobile/v1/sessions', true); assert.equal(sessionFailure.status, 503); assert.equal(posts, 2);
+  const resources = await Promise.all(Array.from({ length: 3 }, () => request('/mobile/v1/sessions/session.preparation-fixture/resources', true)));
+  assert.deepEqual(resources.map(value => value.status), [400, 400, 400]); assert.equal(posts, 2);
   const wire = wireProbe.snapshot(); assert.equal(wire.scopes.length, 3); assert.equal(wire.scopes[2]!.terminal, 'reject');
+  assert.equal(wire.resourceScopes.length, 2); assert.equal(wire.resourceClaims, 2); assert.equal(wire.resourceDropped, 1);
+  for (const resource of wire.resourceScopes) {
+    assert.equal(resource.trace.firstBusinessFailures[0]?.stage, 'preparation.http.resource-capabilities');
+    assert.equal(resource.trace.firstBusinessFailures[0]?.code, 'INVALID_REQUEST'); assert.equal(resource.httpStatus, 400);
+    assert.ok(resource.trace.records.some(row => row.stage === 'preparation.http.terminal' && row.phase === 'ok'));
+  }
   assert.equal(wire.scopes[2]!.trace.firstBusinessFailures[0]?.outcome, 'unknown');
   assert.equal(wire.scopes[1]!.intentSha256, wire.scopes[2]!.intentSha256); assert.ok(wire.sessionIntentSha256);
   const identityNonce = JSON.parse(identityFailure.body.toString('utf8')).error.requestId as string;

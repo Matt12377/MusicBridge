@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -8,6 +8,7 @@ import { datasetOwnerEnvironment, parseDatasetOwnerWorkerData } from '../src/mai
 import { loadRecordingDependenciesForOwner, type RecordingBootstrapContext } from '../src/main/recording-bootstrap.js'
 import { ffmpegBuildPolicy } from '../../../packages/bridge-core/src/recording/ffmpeg-build-policy.js'
 import type { GateBCandidateIdentity } from '../../../packages/bridge-core/src/recording/gate-b-admission.js'
+import { PHYSICAL_RESOURCE_BUFFER_BYTES } from '../../../packages/bridge-core/src/stream/physical-resource-locks.js'
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 const pinNames = ['__MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__', '__MUSIC_BRIDGE_OUTPUT_MANIFEST_SHA256__',
@@ -82,6 +83,56 @@ test('受信任worker启动数据只接受两个有界绝对路径，不从额�
     { ...valid, resourcesDirectory: '/' + 'x'.repeat(1024) }, { ...valid, dataDirectory: undefined }]) {
     assert.throws(() => parseDatasetOwnerWorkerData(invalid), /启动身份无效/u)
   }
+})
+
+test('私有专辑撤销闩仅传递原固定4字节SAB，已撤销输入原样保留且不重置', () => {
+  const buffer = new SharedArrayBuffer(4), state = new Int32Array(buffer)
+  const physicalResourceBuffer = new SharedArrayBuffer(PHYSICAL_RESOURCE_BUFFER_BYTES)
+  const input = { dataDirectory: '/synthetic/data', resourcesDirectory: '/synthetic/resources', physicalResourceBuffer, albumReadRevocationBuffer: buffer }
+  const active = parseDatasetOwnerWorkerData(input)
+  assert.notEqual(active, input); assert.equal(active.albumReadRevocationBuffer, buffer); assert.equal(active.physicalResourceBuffer, physicalResourceBuffer)
+  assert.deepEqual(Object.keys(active).sort(), ['albumReadRevocationBuffer', 'dataDirectory', 'physicalResourceBuffer', 'resourcesDirectory'])
+  assert.equal(Atomics.load(state, 0), 0)
+  Atomics.store(state, 0, 1)
+  const revoked = parseDatasetOwnerWorkerData(input)
+  assert.equal(revoked.albumReadRevocationBuffer, buffer); assert.equal(Atomics.load(state, 0), 1)
+})
+
+test('私有专辑撤销闩拒绝普通ArrayBuffer、错长度SAB及伪buffer，不以字段存在替代身份', () => {
+  const base = { dataDirectory: '/synthetic/data', resourcesDirectory: '/synthetic/resources' }
+  const invalid = [new ArrayBuffer(4), new SharedArrayBuffer(0), new SharedArrayBuffer(1), new SharedArrayBuffer(3), new SharedArrayBuffer(5), new SharedArrayBuffer(8), new Int32Array(new SharedArrayBuffer(4)), { byteLength: 4, growable: false }, undefined, null]
+  for (const buffer of invalid) assert.throws(() => parseDatasetOwnerWorkerData({ ...base, albumReadRevocationBuffer: buffer }), /启动身份无效/u)
+})
+
+test('私有专辑撤销闩拒绝真实可增长SAB，即使当前长度恰好4且伪装growable为false', () => {
+  const growable = Reflect.construct(SharedArrayBuffer, [4, { maxByteLength: 8 }]) as SharedArrayBuffer
+  const getter = Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype, 'growable')?.get
+  assert.equal(typeof getter, 'function', '本Gate要求项目Node22实际可构造可增长SAB，不能用普通对象代替')
+  assert.equal(getter!.call(growable), true); assert.equal(growable.byteLength, 4)
+  const input = { dataDirectory: '/synthetic/data', resourcesDirectory: '/synthetic/resources', albumReadRevocationBuffer: growable }
+  assert.throws(() => parseDatasetOwnerWorkerData(input), /启动身份无效/u)
+  Object.defineProperty(growable, 'growable', { value: false })
+  assert.equal(getter!.call(growable), true)
+  assert.throws(() => parseDatasetOwnerWorkerData(input), /启动身份无效/u)
+})
+
+test('新增撤销闩不放宽WorkerData闭字段，额外字段和闩getter均拒绝且零取值', () => {
+  const input = { dataDirectory: '/synthetic/data', resourcesDirectory: '/synthetic/resources', albumReadRevocationBuffer: new SharedArrayBuffer(4) }
+  assert.throws(() => parseDatasetOwnerWorkerData({ ...input, qualification: true }), /启动身份无效/u)
+  assert.throws(() => parseDatasetOwnerWorkerData({ ...input, [Symbol('额外资格')]: true }), /启动身份无效/u)
+  let reads = 0
+  const accessor = { dataDirectory: input.dataDirectory, resourcesDirectory: input.resourcesDirectory }
+  Object.defineProperty(accessor, 'albumReadRevocationBuffer', { enumerable: true, get() { reads++; return input.albumReadRevocationBuffer } })
+  assert.throws(() => parseDatasetOwnerWorkerData(accessor), /启动身份无效/u); assert.equal(reads, 0)
+})
+
+test('真实Owner入口仅绑定一次原闩，将稳定assertActive交给Domain且不另造或复位', async () => {
+  const entry = await readFile(new URL('../src/main/dataset-owner-entry.ts', import.meta.url), 'utf8')
+  assert.match(entry, /const\s*\{[^}]*\balbumReadRevocationBuffer\b[^}]*\}\s*=\s*parseDatasetOwnerWorkerData\(workerData\)/u)
+  assert.match(entry, /const albumReadRevocation\s*=\s*albumReadRevocationBuffer\s*\?\s*createDatasetOwnerReadRevocation\(albumReadRevocationBuffer\)\s*:\s*undefined/u)
+  assert.equal((entry.match(/createDatasetOwnerReadRevocation\(albumReadRevocationBuffer\)/gu) ?? []).length, 1)
+  assert.match(entry, /prepareOwnedDatasetDomain\(\{[\s\S]*?assertAlbumReadActive:\s*albumReadRevocation\.assertActive/u)
+  assert.doesNotMatch(entry, /new SharedArrayBuffer|Atomics\.(?:store|exchange|compareExchange)/u)
 })
 
 test('worker环境只复制既有12项白名单，凭据、路径覆盖和资格变量不穿过线程边界', () => {

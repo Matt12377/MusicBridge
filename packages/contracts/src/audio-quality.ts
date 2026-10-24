@@ -1,6 +1,6 @@
 /** 文件解析报告，不是Roon实际输出或设备位精确证明。 */
 export interface FileAudioParameters {
-  container: 'FLAC' | 'MPEG' | 'MP4' | 'WAVE' | 'AIFF' | 'DSF' | 'DFF'; codec: string; lossless: boolean | null;
+  container: 'FLAC' | 'MPEG' | 'MP4' | 'WAVE' | 'AIFF' | 'DSF' | 'DFF' | 'APE'; codec: string; lossless: boolean | null;
   sampleRateHz: number; channels: number; bitsPerSample: number | null; durationMs: number | null;
   evidence: 'bounded-parser-reported';
 }
@@ -15,7 +15,7 @@ export function isFileAudioParameters(value: unknown): value is FileAudioParamet
   const v = value as Record<string, unknown>, keys = ['container','codec','lossless','sampleRateHz','channels','bitsPerSample','durationMs','evidence'];
   const integer = (n: unknown, min: number, max: number): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n >= min && n <= max;
   return keys.every(k => Object.hasOwn(v,k)) && Object.keys(v).every(k => keys.includes(k))
-    && ['FLAC','MPEG','MP4','WAVE','AIFF','DSF','DFF'].includes(v.container as string)
+    && ['FLAC','MPEG','MP4','WAVE','AIFF','DSF','DFF','APE'].includes(v.container as string)
     && (!['DSF','DFF'].includes(v.container as string) || v.codec === 'DSD' && v.bitsPerSample === 1
       && v.lossless === true && [2822400,3072000,5644800,6144000,11289600,12288000,22579200,24576000].includes(v.sampleRateHz as number)
       && integer(v.channels,1,6))
