@@ -1,16 +1,20 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { parse } from '@vue/compiler-sfc'
+import ts from 'typescript'
 import { computed, createRenderer, markRaw, nextTick, ref, watch } from 'vue'
-import { LOCAL_ALBUM_STATUSES, type LocalAlbumFilterCounts, type LocalAlbumPage, type LocalAlbumQuery, type LocalAlbumReadPort, type LocalAlbumSummary, type LocalAlbumTrackPage, type LocalAlbumTrackQuery, type LocalArtistSummary } from '@music-bridge/contracts'
+import { LOCAL_ALBUM_STATUSES, type LocalAlbumFilterCounts, type LocalAlbumPage, type LocalAlbumQuery, type LocalAlbumReadPort, type LocalAlbumSummary, type LocalAlbumTrackPage, type LocalAlbumTrackQuery, type LocalArtistSummary, type RoonLibraryItem } from '@music-bridge/contracts'
 import type { MusicBridgePublicApi } from '../src/preload/api.js'
 import { useAggregatedSearch } from '../src/renderer/src/composables/application/useAggregatedSearch.js'
 import { useRoonBrowse } from '../src/renderer/src/composables/application/useRoonBrowse.js'
 import { usePageJourney } from '../src/renderer/src/composables/application/usePageJourney.js'
 import { useLocalAlbumBrowser } from '../src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.js'
-import { localAlbumItem, localArtistItem, localTrackItem, type CatalogItem, type CatalogPage } from '../src/renderer/src/composables/catalog/catalog-presentation.js'
+import { localAlbumItem, localArtistItem, localTrackItem, roonCatalogItem, type CatalogItem, type CatalogPage } from '../src/renderer/src/composables/catalog/catalog-presentation.js'
 import { useCatalogExperience, type CatalogDataPort } from '../src/renderer/src/composables/catalog/useCatalogExperience.js'
 import { useCatalogAlbumNavigation } from '../src/renderer/src/composables/catalog/useCatalogAlbumNavigation.js'
 import { useGridWindow } from '../src/renderer/src/composables/useGridWindow.js'
+import { mountVueSfc } from './support/mbf-vue-host.js'
 
 const album: LocalAlbumSummary = { id: 'catalog-return-album', kind: 'source-directory', rootId: '44444444-4444-4444-8444-000000000001',
   editionId: null, title: '七里香', artists: ['周杰伦'], year: '2004', versionLabel: null, trackCount: 0,
@@ -27,14 +31,31 @@ const track = (title: string, n: number): CatalogItem => localTrackItem({ rootId
   metadata: { title, artist: '周杰伦', album: album.title }, versionTokens: [] })
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(yes => { resolve = yes }); return { promise, resolve } }
 const turn = () => new Promise<void>(yes => setImmediate(yes))
+const appScript = parse(readFileSync(new URL('../src/renderer/src/App.vue', import.meta.url), 'utf8')).descriptor.scriptSetup?.content
+assert.ok(appScript)
+const appSource = ts.createSourceFile('App.ts', appScript, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS)
+function appCatalogSearch(catalog: ReturnType<typeof useCatalogExperience>) {
+  const declaration = appSource.statements.flatMap(node => ts.isVariableStatement(node) ? [...node.declarationList.declarations] : [])
+    .find(node => ts.isIdentifier(node.name) && node.name.text === 'journey')
+  assert.ok(declaration?.initializer && ts.isCallExpression(declaration.initializer))
+  const options = declaration.initializer.arguments[0]
+  assert.ok(options && ts.isObjectLiteralExpression(options))
+  const property = options.properties.find(node => ts.isPropertyAssignment(node) && node.name.getText(appSource) === 'catalogSearch')
+  assert.ok(property && ts.isPropertyAssignment(property), 'App必须把真实Catalog返回port接入journey')
+  const script = ts.transpileModule(`return (${property.initializer.getText(appSource)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  return new Function('catalog', script)(catalog) as NonNullable<Parameters<typeof usePageJourney>[0]['catalogSearch']>
+}
 
-function fixture(t: test.TestContext, options: { port?: Partial<CatalogDataPort>; albumApi?: Partial<LocalAlbumReadPort>; afterRender?: () => Promise<void> } = {}) {
+function fixture(t: test.TestContext, options: { port?: Partial<CatalogDataPort>; albumApi?: Partial<LocalAlbumReadPort>; roonApi?: Partial<MusicBridgePublicApi>; afterRender?: () => Promise<void> } = {}) {
   const searches: { source: string; kind: string; query: string; offset: number }[] = [], albumReads: LocalAlbumTrackQuery[] = []
   const catalog = useCatalogExperience({
-    search: async (source, kind, query, window) => { searches.push({ source, kind, query, offset: window.offset }); return source === 'local' && kind === 'albums' ? page([localAlbumItem(album)]) : empty() },
     suggest: async () => [], artists: async () => page([localArtistItem(artist)]), artist: async () => ({ artist }),
     artistAlbums: async () => page([localAlbumItem(album)]), artistTracks: async () => empty(), remoteDetail: async () => empty(),
     artistMatches: async () => [], bindArtist: async () => { throw new Error('导航不得写入关联') }, ...options.port,
+    search: async (source, kind, query, window) => {
+      searches.push({ source, kind, query, offset: window.offset })
+      return options.port?.search ? options.port.search(source, kind, query, window) : source === 'local' && kind === 'albums' ? page([localAlbumItem(album)]) : empty()
+    },
   })
   const browser = useLocalAlbumBrowser({ reuseLoadedOnActivate: true, api: {
     queryAlbums: async request => albumPage(request), queryAlbumTracks: async request => { albumReads.push(request); return trackPage(request) },
@@ -42,14 +63,15 @@ function fixture(t: test.TestContext, options: { port?: Partial<CatalogDataPort>
   } })
   const emptyLegacyPage = { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
   const api = { listRoonAlbums: async () => emptyLegacyPage, searchRoonLibrary: async () => emptyLegacyPage,
-    getRoonAlbumTracks: async () => emptyLegacyPage, checkFavorite: async () => ({ favorite: false }),
-    searchArtists: async () => emptyLegacyPage, searchTracks: async () => emptyLegacyPage, searchAlbums: async () => emptyLegacyPage } as unknown as MusicBridgePublicApi
+    getRoonAlbumTracks: async () => emptyLegacyPage, getRoonArtistAlbums: async () => emptyLegacyPage, checkFavorite: async () => ({ favorite: false }),
+    searchArtists: async () => emptyLegacyPage, searchTracks: async () => emptyLegacyPage, searchAlbums: async () => emptyLegacyPage, ...options.roonApi } as unknown as MusicBridgePublicApi
   let journey!: ReturnType<typeof usePageJourney>
   const browse = useRoonBrowse({ api, formatError: () => '合成读取失败', onError() {}, onToast() {}, getView: () => journey.currentView.value,
     onDetailOpening: view => journey.setDetailView(view), onDetailReady: (view, source) => journey.setDetailView(view, source),
     onNavigateSource: source => journey.navigateSource(source), onPlayTrack() {} })
-  const search = useAggregatedSearch({ api, getZoneId: () => undefined, getScrollTop: () => 0, scrollTo() {}, classifyError: () => 'generic', onResetSearchOrigin() {}, onInvalidateRoonDetails() {} })
+  const search = useAggregatedSearch({ api, getZoneId: () => undefined, getScrollTop: () => 0, scrollTo() {}, classifyError: () => 'generic', onResetSearchOrigin() { journey.roonSearchOrigin.value = false }, onInvalidateRoonDetails() {} })
   journey = usePageJourney({ browse, search, localArtistsEnabled: true,
+    catalogSearch: appCatalogSearch(catalog),
     library: { hasLikedItems: () => true, isPlaylistReady: () => true, getPlaylistScrollTop: () => 0, setPlaylistScrollTop() {}, async loadLiked() {}, async loadPlaylists() {}, async loadPlaylist() {} },
     onPlayRoonTrack() {}, onCloseInspector() {}, onClearActionError() {} })
   const scrolls: number[] = [], scroll = { scrollTop: 0, scrollTo({ top }: { top: number }) { this.scrollTop = top; scrolls.push(top) } }
@@ -68,10 +90,10 @@ function fixture(t: test.TestContext, options: { port?: Partial<CatalogDataPort>
     }
   }, { flush: 'sync' })
   t.after(() => { stop(); navigation.dispose(); catalog.dispose(); browser.dispose(); journey.dispose(); browse.dispose(); search.dispose() })
-  return { catalog, browser, journey, navigation, scroll, scrolls, searches, albumReads, selectedAlbumView: () => selectedAlbumView }
+  return { catalog, browser, journey, browse, search, navigation, scroll, scrolls, searches, albumReads, selectedAlbumView: () => selectedAlbumView }
 }
 
-function returnedWall(t: test.TestContext, f: ReturnType<typeof fixture>) {
+function returnedWall(t: test.TestContext, f: ReturnType<typeof fixture>, source: 'local' | 'roon' = 'local') {
   const frames: FrameRequestCallback[] = [], old = new Map<string, PropertyDescriptor | undefined>()
   for (const [name, value] of Object.entries({
     getComputedStyle: () => ({ gridTemplateColumns: '222px 222px 222px', columnGap: '24px', rowGap: '28px' }),
@@ -88,8 +110,8 @@ function returnedWall(t: test.TestContext, f: ReturnType<typeof fixture>) {
     querySelectorAll: () => [], remove() {}, getBoundingClientRect: () => rect(0, 0, 222, 301) }) as unknown as HTMLElement
   const prototype = probe()
   const element = markRaw({ getBoundingClientRect: () => rect(0, 200 - top, 714, height), closest: () => f.scroll, parentElement: null,
-    querySelector: () => f.catalog.searchSections.local.albums.items.length ? prototype : null,
-    querySelectorAll: () => f.catalog.searchSections.local.albums.items.length ? [prototype] : [], append() {},
+    querySelector: () => f.catalog.searchSections[source].albums.items.length ? prototype : null,
+    querySelectorAll: () => f.catalog.searchSections[source].albums.items.length ? [prototype] : [], append() {},
   }) as unknown as HTMLElement
   Object.assign(f.scroll, { clientHeight: 600, clientTop: 0, getBoundingClientRect: () => rect(0, 0, 714, 600), addEventListener() {}, removeEventListener() {},
     querySelectorAll: () => mounted ? [element] : [] })
@@ -100,7 +122,7 @@ function returnedWall(t: test.TestContext, f: ReturnType<typeof fixture>) {
     if (view !== 'search') return
     mounted = true
     app = renderer.createApp({ setup() {
-      grid = useGridWindow(computed(() => f.catalog.searchSections.local.albums.items), ref(element))
+      grid = useGridWindow(computed(() => f.catalog.searchSections[source].albums.items), ref(element))
       // 只有 Vue 提交本次 rootStyle 后，浏览器才取得新的 scrollHeight；不能让赋值越过当前可滚范围。
       watch(grid.rootStyle, style => { height = Number.parseFloat(style?.height ?? '0') }, { immediate: true, flush: 'post' })
       return () => null
@@ -124,6 +146,181 @@ function elevenAlbumPort(): Partial<CatalogDataPort> {
   return { search: async (source, kind) => source === 'local' && kind === 'albums'
     ? page(Array.from({ length: 11 }, (_, index) => localAlbumItem({ ...album, id: index === 6 ? album.id : `return-wall-${index}` }))) : empty() }
 }
+
+// 执行真实App接线函数，避免夹具自行复制一条“正确”的导航路径而漏掉集成回归。
+function catalogApp(f: ReturnType<typeof fixture>) {
+  const names = ['submitCatalogSearch', 'navigateCatalogSource', 'openCatalogItem', 'seedCurrentRoonDescriptor', 'openRoonLibraryItem', 'selectAggregatedRoonItem']
+  const functions = names.map(name => {
+    const declaration = appSource.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name)
+    assert.ok(declaration, `App缺少真实导航函数${name}`)
+    return declaration.getText(appSource)
+  }).join('\n')
+  const compiled = ts.transpileModule(`
+    const { catalog, browse, journey, navigation: catalogAlbumNavigation } = f;
+    const { currentView, contentScroll, sidebar, roonSearchOrigin, navigate, navigateSource, selectAggregatedRoonItem: selectAggregatedRoonItemInJourney } = journey;
+    let catalogActionGeneration = 0; const catalogActionPending = { value: false };
+    const playCatalogItem = async () => { throw new Error('返回路径测试不得播放'); };
+    ${functions}
+    return { submitCatalogSearch, navigateCatalogSource, openCatalogItem, openRoonLibraryItem, selectAggregatedRoonItem };
+  `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
+  return new Function('f', 'nextTick', compiled)(f, nextTick) as {
+    submitCatalogSearch(query: string): void
+    navigateCatalogSource(source: { type: 'home' | 'roon-albums' | 'roon-artists' }): void
+    openCatalogItem(item: CatalogItem): Promise<void>
+    openRoonLibraryItem(item: RoonLibraryItem): void
+    selectAggregatedRoonItem(item: RoonLibraryItem): void
+  }
+}
+const roonAlbum: RoonLibraryItem = { kind: 'album', reference: 'musicbridge-v2-entity-44444444-4444-4444-8444-000000000901', title: '我很忙', artist: '周杰伦' }
+const roonArtist: RoonLibraryItem = { kind: 'artist', reference: 'musicbridge-v2-entity-44444444-4444-4444-8444-000000000902', title: '周杰伦' }
+function roonAlbumPort(): Partial<CatalogDataPort> {
+  return { search: async (source, kind) => source === 'roon' && kind === 'albums'
+    ? page(Array.from({ length: 11 }, (_, index) => roonCatalogItem(index === 6 ? roonAlbum : { ...roonAlbum, reference: `roon-return-${index}` }))) : empty() }
+}
+
+for (const entry of ['back', 'home'] as const) test(`4.1 Catalog旧搜索词为空，Roon专辑经${entry}返回原来源、类别、结果及测量后位置`, async t => {
+  const f = fixture(t, { port: roonAlbumPort() }), app = catalogApp(f)
+  app.submitCatalogSearch('周杰伦'); await turn()
+  assert.equal(f.search.searchQuery.value, '', '真实新Catalog无需写入旧聚合搜索模型')
+  f.catalog.selectSource('roon'); f.catalog.category.value = 'albums'; f.scroll.scrollTop = 716
+  const items = f.catalog.searchSections.roon.albums.items, albumReads = () => f.searches.filter(read => read.source === 'roon' && read.kind === 'albums').length, readCount = albumReads()
+  await app.openCatalogItem(roonCatalogItem(roonAlbum)); await turn()
+  assert.equal(f.journey.currentView.value, 'roon-album-detail'); assert.equal(f.browse.selectedRoonAlbum.value?.reference, roonAlbum.reference)
+  assert.equal(f.scroll.scrollTop, 0, '先保存父级位置，再把新详情置顶，不能继承搜索滚动把返回入口带出视口')
+  f.scroll.scrollTop = 0
+  const wall = returnedWall(t, f, 'roon')
+  if (entry === 'back') f.journey.returnFromRoonDetail('album')
+  else app.navigateCatalogSource({ type: 'home' })
+  await turn()
+  if (entry === 'home') assert.equal(f.journey.currentView.value, 'roon-album-detail', '主页恢复此前搜索详情路径，原返回按钮再退回搜索')
+  if (entry === 'home') { f.journey.returnFromRoonDetail('album'); await turn() }
+  assert.equal(f.journey.currentView.value, 'search')
+  assert.ok(!f.scrolls.includes(716), '真实三列测量提交前不能按默认四列写入原位置')
+  await wall.frame(); await turn()
+  assert.equal(f.catalog.query.value, '周杰伦'); assert.equal(f.catalog.draft.value, '周杰伦')
+  assert.equal(f.catalog.sourceFilter.value, 'roon'); assert.equal(f.catalog.category.value, 'albums')
+  assert.equal(f.catalog.searchSections.roon.albums.items, items); assert.equal(albumReads(), readCount)
+  assert.equal(f.scroll.scrollTop, 716); assert.deepEqual(f.journey.sidebar.activeSource.value, { type: 'home' })
+})
+
+test('4.1 Catalog Roon艺术家进入专辑逐级返回，普通Roon专辑入口仍回原列表', async t => {
+  const f = fixture(t, { port: roonAlbumPort(), roonApi: {
+    getRoonArtistAlbums: async () => ({ items: [roonAlbum], offset: 0, limit: 24, total: 1, hasMore: false }),
+  } }), app = catalogApp(f)
+  app.submitCatalogSearch('周杰伦'); await turn(); f.catalog.selectSource('roon'); f.catalog.category.value = 'artists'; f.scroll.scrollTop = 313
+  await app.openCatalogItem(roonCatalogItem(roonArtist)); await turn()
+  assert.equal(f.journey.roonSearchOrigin.value, true)
+  const artistPage = f.browse.selectedRoonArtistPage.value
+  f.scroll.scrollTop = 88; app.selectAggregatedRoonItem(roonAlbum); await turn()
+  f.journey.returnFromRoonDetail('album'); await turn()
+  assert.equal(f.journey.currentView.value, 'roon-artist-detail'); assert.equal(f.browse.selectedRoonArtistPage.value, artistPage); assert.equal(f.scroll.scrollTop, 88)
+  f.journey.returnFromRoonDetail('artist'); await turn()
+  assert.equal(f.journey.currentView.value, 'search'); assert.equal(f.catalog.query.value, '周杰伦')
+  assert.equal(f.catalog.sourceFilter.value, 'roon'); assert.equal(f.catalog.category.value, 'artists'); assert.equal(f.scroll.scrollTop, 313)
+  f.journey.discardPageSearch(); app.navigateCatalogSource({ type: 'roon-albums' }); app.openRoonLibraryItem(roonAlbum); await turn()
+  f.journey.returnFromRoonDetail('album'); await turn()
+  assert.equal(f.journey.currentView.value, 'roon-albums'); assert.deepEqual(f.journey.sidebar.activeSource.value, { type: 'roon-albums' })
+})
+
+test('4.1 Catalog Roon详情入页回顶不能覆盖立即切换后的页面', async t => {
+  const f = fixture(t, { port: roonAlbumPort() }), app = catalogApp(f)
+  app.submitCatalogSearch('周杰伦'); await turn()
+  const opening = app.openCatalogItem(roonCatalogItem(roonAlbum))
+  f.journey.navigate('settings', false); f.scroll.scrollTop = 74
+  await opening; await turn()
+  assert.equal(f.journey.currentView.value, 'settings'); assert.equal(f.scroll.scrollTop, 74)
+})
+
+for (const invalidation of ['new-query', 'same-query', 'source', 'epoch', 'leave', 'dispose'] as const)
+  test(`4.1 Catalog→Roon返回测量期间${invalidation}使旧位置失效`, async t => {
+    const f = fixture(t, { port: roonAlbumPort() }), app = catalogApp(f)
+    app.submitCatalogSearch('周杰伦'); await turn(); f.catalog.selectSource('roon'); f.catalog.category.value = 'albums'; f.scroll.scrollTop = 716
+    await app.openCatalogItem(roonCatalogItem(roonAlbum)); await turn(); f.scroll.scrollTop = 0
+    const wall = returnedWall(t, f, 'roon')
+    f.journey.returnFromRoonDetail('album'); await turn()
+    assert.equal(f.journey.currentView.value, 'search'); assert.ok(!f.scrolls.includes(716))
+    if (invalidation === 'new-query' || invalidation === 'same-query') {
+      app.submitCatalogSearch(invalidation === 'same-query' ? '周杰伦' : '新查询')
+      await turn()
+      assert.equal(f.scroll.scrollTop, 0, '新搜索自己的回顶先完成，再检查旧返回不能覆盖用户的新位置')
+    }
+    else if (invalidation === 'source') f.catalog.selectSource('netease')
+    else if (invalidation === 'epoch') f.catalog.invalidateSource('roon')
+    else if (invalidation === 'leave') f.journey.navigate('settings', false)
+    else f.journey.dispose()
+    f.scroll.scrollTop = 74
+    await wall.frame(); await turn()
+    assert.ok(!f.scrolls.includes(716)); assert.equal(f.scroll.scrollTop, 74)
+    assert.equal(f.journey.currentView.value, invalidation === 'leave' ? 'settings' : 'search')
+    if (invalidation === 'new-query' || invalidation === 'same-query') {
+      assert.equal(f.catalog.query.value, invalidation === 'same-query' ? '周杰伦' : '新查询')
+      assert.equal(f.catalog.sourceFilter.value, 'all'); assert.equal(f.catalog.category.value, 'all')
+      assert.equal(f.journey.roonDetailParents.value.length, 0)
+    }
+    if (invalidation === 'epoch') { assert.equal(f.catalog.searchSections.roon.albums.items.length, 0); assert.ok(f.catalog.searchSections.roon.albums.error) }
+  })
+
+test('4.1 Roon旧详情未完成时新Catalog搜索清旧路径，迟到回包不能复活原专辑', async t => {
+  const pending = deferred<Awaited<ReturnType<MusicBridgePublicApi['getRoonAlbumTracks']>>>()
+  const f = fixture(t, { port: roonAlbumPort(), roonApi: { getRoonAlbumTracks: () => pending.promise } }), app = catalogApp(f)
+  app.submitCatalogSearch('周杰伦'); await turn(); f.catalog.selectSource('roon'); f.catalog.category.value = 'albums'
+  await app.openCatalogItem(roonCatalogItem(roonAlbum)); await turn()
+  assert.equal(f.journey.currentView.value, 'roon-album-detail')
+  app.submitCatalogSearch('新查询'); await turn()
+  assert.equal(f.journey.currentView.value, 'search'); assert.equal(f.journey.roonDetailParents.value.length, 0)
+  assert.equal(f.journey.roonSearchOrigin.value, false)
+  pending.resolve({ items: [], offset: 0, limit: 24, total: 0, hasMore: false }); await turn()
+  app.navigateCatalogSource({ type: 'home' }); await turn()
+  assert.equal(f.journey.currentView.value, 'search'); assert.equal(f.catalog.query.value, '新查询')
+  assert.equal(f.catalog.sourceFilter.value, 'all'); assert.equal(f.catalog.category.value, 'all')
+})
+
+test('4.1 Roon会话失效后不能经主页恢复旧详情，Catalog不复活旧结果', async t => {
+  const f = fixture(t, { port: roonAlbumPort() }), app = catalogApp(f)
+  app.submitCatalogSearch('周杰伦'); await turn(); f.catalog.selectSource('roon')
+  await app.openCatalogItem(roonCatalogItem(roonAlbum)); await turn()
+  f.browse.resetSession(); f.journey.resetRoonPath(); f.catalog.invalidateSource('roon')
+  app.navigateCatalogSource({ type: 'home' }); await turn()
+  assert.equal(f.journey.currentView.value, 'home'); assert.equal(f.journey.roonDetailParents.value.length, 0)
+  assert.equal(f.catalog.searchSections.roon.albums.items.length, 0)
+})
+
+test('4.1 实际App的Roon专辑分支及真实SFC back事件接回Catalog，不代替窗口AX验收', async t => {
+  const f = fixture(t, { port: roonAlbumPort() }), app = catalogApp(f)
+  app.submitCatalogSearch('周杰伦'); await turn(); f.catalog.selectSource('roon'); f.catalog.category.value = 'albums'
+  await app.openCatalogItem(roonCatalogItem(roonAlbum)); await turn()
+  const ast = parse(readFileSync(new URL('../src/renderer/src/App.vue', import.meta.url), 'utf8')).descriptor.template?.ast
+  assert.ok(ast)
+  type Element = Extract<typeof ast.children[number], { type: 1 }>
+  let branch: Element | undefined, component: Element | undefined
+  const visit = (nodes: typeof ast.children, parents: Element[] = []) => {
+    for (const node of nodes) if (node.type === 1) {
+      if (node.tag === 'RoonAlbumDetail') { component = node; branch = parents.at(-1) }
+      visit(node.children, [...parents, node])
+    }
+  }
+  visit(ast.children); assert.ok(branch && component)
+  const condition = branch.props.find(prop => prop.type === 7 && prop.name === 'else-if')
+  assert.ok(condition?.type === 7 && condition.exp?.type === 4)
+  assert.equal(Boolean(new Function('currentView', 'selectedRoonAlbum', `return (${condition.exp.content});`)(f.journey.currentView.value, f.browse.selectedRoonAlbum.value)), true)
+  const back = component.props.find(prop => prop.type === 7 && prop.name === 'on' && prop.arg?.type === 4 && prop.arg.content === 'back')
+  assert.ok(back?.type === 7 && back.exp?.type === 4)
+  const context = { selectedRoonAlbum: f.browse.selectedRoonAlbum.value, selectedRoonAlbumPage: f.browse.selectedRoonAlbumPage.value,
+    roonDetailBackLabel: f.journey.roonDetailBackLabel.value, roonAlbumInitialLoading: f.browse.roonAlbumInitialLoading.value,
+    roonAlbumLoadingMore: f.browse.roonAlbumLoadingMore.value, roonAlbumLoadMoreError: f.browse.roonAlbumLoadMoreError.value,
+    roonAlbumError: f.browse.roonAlbumError.value, roonAlbumFavoriteState: f.browse.roonAlbumFavoriteState.value, playbackStartPending: false }
+  const props: Record<string, unknown> = {}
+  for (const prop of component.props) if (prop.type === 7 && prop.name === 'bind' && prop.arg?.type === 4 && prop.exp?.type === 4) {
+    props[prop.arg.content.replace(/-([a-z])/gu, (_match, letter: string) => letter.toUpperCase())] = new Function(...Object.keys(context), `return (${prop.exp.content});`)(...Object.values(context))
+  }
+  props.onBack = () => new Function('returnFromRoonDetail', back.exp!.loc.source)(f.journey.returnFromRoonDetail)
+  const ui = await mountVueSfc(t, new URL('../src/renderer/src/components/RoonAlbumDetail.vue', import.meta.url).pathname, props)
+  const button = ui.all().find(node => node.type === 'button' && String(node.props.class).split(' ').includes('back-link'))
+  assert.ok(button); assert.match(ui.text(button), /搜索结果/u)
+  await ui.dispatch(button, 'onClick'); await turn()
+  assert.equal(f.journey.currentView.value, 'search'); assert.equal(f.catalog.query.value, '周杰伦')
+  assert.equal(f.catalog.sourceFilter.value, 'roon'); assert.equal(f.catalog.category.value, 'albums')
+})
 
 test('4.1 返回等待三列真实墙几何提交，默认四列 scrollHeight 不截断原位置', async t => {
   const f = fixture(t, { port: elevenAlbumPort() })

@@ -1,9 +1,11 @@
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { RoonLibraryItem } from '@music-bridge/contracts'
 import type { SidebarSource, ViewId } from '../../components/navigation.js'
 import { useSidebarState } from '../useSidebarState.js'
 import type { useAggregatedSearch } from './useAggregatedSearch.js'
 import type { useRoonBrowse } from './useRoonBrowse.js'
+import type { CatalogReturnLocation } from '../catalog/useCatalogExperience.js'
+import { waitForGridWindowLayout } from '../useGridWindow.js'
 
 export interface LibraryJourneyPort {
   hasLikedItems: () => boolean
@@ -46,6 +48,8 @@ export interface PageJourneyOptions {
   canLeaveCollection?: () => boolean
   /** 本地艺术家页独立加载；Roon目录等到用户切换来源后读取。 */
   localArtistsEnabled?: boolean
+  /** 新Catalog只提供当前搜索的返回快照，不向旧聚合搜索复制词或结果。 */
+  catalogSearch?: { query(): string; captureReturnLocation(): CatalogReturnLocation }
   /** 所有侧栏、设置、搜索与播放页出入共用原工作台离开门禁。 */
   beforeLeave?: (destination: ViewId, resume: () => void) => boolean
 }
@@ -58,6 +62,21 @@ export function usePageJourney(options: PageJourneyOptions) {
   const searchReturnSource = ref<SidebarSource>({ type: 'home' })
   const roonSearchOrigin = ref(false)
   const contentScroll = ref<HTMLElement | null>(null)
+  let catalogScroll: AbortController | undefined
+  const cancelCatalogScroll = () => { catalogScroll?.abort(); catalogScroll = undefined }
+  const stopCatalogScroll = watch(currentView, cancelCatalogScroll, { flush: 'sync' })
+  function restoreScroll(scrollTop: number, location?: CatalogReturnLocation): void {
+    if (!location) { void nextTick(() => contentScroll.value?.scrollTo({ top: scrollTop })); return }
+    cancelCatalogScroll()
+    const controller = new AbortController(), view = currentView.value
+    catalogScroll = controller
+    const valid = () => !controller.signal.aborted && currentView.value === view && location.isCurrent()
+    void nextTick(async () => {
+      try {
+        if (valid() && await waitForGridWindowLayout(contentScroll.value, controller.signal) && valid()) contentScroll.value?.scrollTo({ top: scrollTop })
+      } finally { if (catalogScroll === controller) catalogScroll = undefined; controller.abort() }
+    })
+  }
   let resumingDeparture = false
   function guardDeparture(destination: ViewId, resume: () => void): boolean {
     if (!allowLeaveRecording(destination)) return false
@@ -269,6 +288,7 @@ export function usePageJourney(options: PageJourneyOptions) {
     searchOrigin: boolean
     localOrigin: 'album' | 'artist' | null
     details?: ReturnType<BrowseJourneyPort['captureDetail']>
+    catalogReturn?: CatalogReturnLocation
   }>>([])
   const roonDetailBackLabel = computed(() => {
     const parent = roonDetailParents.value.at(-1)
@@ -287,17 +307,19 @@ export function usePageJourney(options: PageJourneyOptions) {
       scrollTop: contentScroll.value?.scrollTop ?? 0,
       searchOrigin: roonSearchOrigin.value, localOrigin: localSearchScope.value,
       details: browse.captureDetail(),
+      ...(currentView.value === 'search' && options.catalogSearch ? { catalogReturn: options.catalogSearch.captureReturnLocation() } : {}),
     })
   }
 
   // 只暂存当前搜索路径；在其他页面发起新搜索后，这份路径才失效。
-  let rememberedSearchPage: { source: SidebarSource; restore: () => void } | undefined
+  let rememberedSearchPage: { source: SidebarSource; restore: () => boolean } | undefined
 
   function rememberSearchPage(): void {
     const scope = localSearchScope.value
+    const catalogSearch = currentView.value === 'search' || roonSearchOrigin.value ? options.catalogSearch : undefined
     const query = scope === 'album' ? browse.localAlbumQuery.value
       : scope === 'artist' ? browse.localArtistQuery.value
-      : currentView.value === 'search' || roonSearchOrigin.value ? search.searchQuery.value : ''
+      : catalogSearch ? catalogSearch.query() : currentView.value === 'search' || roonSearchOrigin.value ? search.searchQuery.value : ''
     if (!query.trim()) return
     const source: SidebarSource = scope ? { type: scope === 'album' ? 'roon-albums' : 'roon-artists' }
       : searchReturnSource.value
@@ -308,7 +330,9 @@ export function usePageJourney(options: PageJourneyOptions) {
     const searchOrigin = roonSearchOrigin.value
     const localOrigin = localSearchOrigin.value
     const details = browse.captureDetail()
+    const catalogReturn = catalogSearch?.captureReturnLocation()
     rememberedSearchPage = { source, restore: () => {
+      if (catalogReturn && (!catalogReturn.isCurrent() || !catalogReturn.restore())) return false
       leaveOwnedReads(view)
       browse.restoreDetail(details)
       roonDetailParents.value = [...parents]
@@ -323,7 +347,8 @@ export function usePageJourney(options: PageJourneyOptions) {
         if (view === 'roon-artist-detail' && details.artistPending && details.artist) void browse.loadRoonArtist(details.artist.reference)
       }
       resumeRoonDetailFavorite()
-      void nextTick(() => contentScroll.value?.scrollTo({ top: scrollTop }))
+      restoreScroll(scrollTop, catalogReturn)
+      return true
     } }
   }
 
@@ -337,8 +362,7 @@ export function usePageJourney(options: PageJourneyOptions) {
 
   function restoreSearchPage(source: SidebarSource): boolean {
     if (!rememberedSearchPage || JSON.stringify(rememberedSearchPage.source) !== JSON.stringify(source)) return false
-    rememberedSearchPage.restore()
-    return true
+    return rememberedSearchPage.restore()
   }
 
   function resumeRoonDetailFavorite(): void {
@@ -350,6 +374,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function discardPageSearch(): void {
+    cancelCatalogScroll()
     rememberedSearchPage = undefined
     roonDetailParents.value = []
     localSearchOrigin.value = null
@@ -360,7 +385,9 @@ export function usePageJourney(options: PageJourneyOptions) {
 
   function returnFromRoonDetail(fallback: 'album' | 'artist'): void {
     if (!guardDeparture(fallback === 'album' ? 'roon-albums' : 'roon-artists', () => returnFromRoonDetail(fallback))) return
-    const parent = roonDetailParents.value.pop()
+    const parent = roonDetailParents.value.at(-1)
+    if (parent?.catalogReturn && (!parent.catalogReturn.isCurrent() || !parent.catalogReturn.restore())) return
+    roonDetailParents.value.pop()
     if (!parent) {
       navigateSource({ type: fallback === 'album' ? 'roon-albums' : 'roon-artists' })
       return
@@ -376,7 +403,7 @@ export function usePageJourney(options: PageJourneyOptions) {
     roonSearchOrigin.value = parent.searchOrigin
     localSearchOrigin.value = parent.localOrigin
     resumeRoonDetailFavorite()
-    void nextTick(() => contentScroll.value?.scrollTo({ top: parent.scrollTop }))
+    restoreScroll(parent.scrollTop, parent.catalogReturn)
   }
 
   function updateSearchQuery(query: string): void {
@@ -447,6 +474,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function resetRoonPath(): void {
+    cancelCatalogScroll()
     rememberedSearchPage = undefined
     roonDetailParents.value = []
     localSearchOrigin.value = null
@@ -486,6 +514,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function resetPrivatePath(): void {
+    cancelCatalogScroll()
     rememberedSearchPage = undefined
     roonDetailParents.value = []
     roonSearchOrigin.value = false
@@ -499,6 +528,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function dispose(): void {
+    stopCatalogScroll()
     leaveOwnedReads('queue')
     resetPrivatePath()
   }

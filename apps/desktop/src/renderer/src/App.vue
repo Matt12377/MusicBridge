@@ -1171,6 +1171,7 @@ const journey = usePageJourney({
   search,
   browse,
   localArtistsEnabled: true,
+  catalogSearch: { query: () => catalog.query.value, captureReturnLocation: () => catalog.captureReturnLocation('search') },
   library: {
     hasLikedItems: () => likedPage.value.items.length > 0,
     isPlaylistReady: () => playlistState.value === 'ready',
@@ -1207,9 +1208,12 @@ const catalogAlbumNavigation = useCatalogAlbumNavigation({ journey, catalog, bro
 function updateCatalogDraft(value: string): void { catalog.invalidatePreview(value) }
 function submitCatalogSearch(value: string): void {
   if (!value.trim()) return
+  const origin = currentView.value === 'search' || roonSearchOrigin.value ? journey.searchReturnSource.value : sidebar.activeSource.value
   catalogAlbumNavigation.clear()
   navigate('search', false)
   if (currentView.value !== 'search') return
+  journey.discardPageSearch()
+  journey.searchReturnSource.value = origin
   catalogActionGeneration++; catalogActionPending.value = false
   void catalog.search(value)
   void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
@@ -1230,7 +1234,17 @@ function selectCatalogSuggestion(suggestion: SidebarSearchSuggestion): void {
 }
 async function openCatalogItem(item: CatalogItem): Promise<void> {
   if (item.kind === 'tracks') { await playCatalogItem(item); return }
-  if (item.identity.type === 'roon') { openRoonLibraryItem(item.identity.value); return }
+  if (item.identity.type === 'roon') {
+    const selected = item.identity.value
+    selectAggregatedRoonItem(selected)
+    const generation = catalogActionGeneration, view = selected.kind === 'artist' ? 'roon-artist-detail' : 'roon-album-detail'
+    // 父栈先保存原位置；新详情不能继承搜索滚动，也不能由迟到回顶覆盖后来的页面。
+    void nextTick(() => {
+      const active = selected.kind === 'artist' ? browse.selectedRoonArtist.value : browse.selectedRoonAlbum.value
+      if (generation === catalogActionGeneration && currentView.value === view && active?.reference === selected.reference) contentScroll.value?.scrollTo({ top: 0 })
+    })
+    return
+  }
   if (item.identity.type === 'local-album') {
     await catalogAlbumNavigation.open(item.identity.value)
     return
