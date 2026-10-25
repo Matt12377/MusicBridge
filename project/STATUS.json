@@ -50579,7 +50579,7 @@
   },
   "lyricsFix20261025": {
     "baseSha": "796712dbba3d22b6c6b643d9b4287816dfbdf267",
-    "status": "SE_LOCAL_VISUAL_VERIFIED_NETEASE_PHYSICAL_PENDING_MAC_KEYCHAIN",
+    "status": "IMPLEMENTED_AND_SE_LYRICS_VISUAL_VERIFIED",
     "validationDevice": "iPhone SE",
     "changes": [
       "兼容原目录mt曲目身份并保留lt校验",
@@ -50596,7 +50596,7 @@
       "macVerifyExitCode": 0,
       "iosProductionBuild": "119",
       "iosInstalledDevice": "iPhone SE",
-      "physicalLyricsVisual": "SE_LOCAL_NOCTURNE_AND_HEAVY_TASTE_VISIBLE_ON_82874B7",
+      "physicalLyricsVisual": "SE_FINAL_R2_LOCAL_NOCTURNE_READY_PLAYING_SEEK_FOLLOW",
       "macVerifyRevision": "d7d60536c77ec5768a1ccb111b58dddc06954c2b",
       "neteaseFormatRegression": {
         "redTests": 123,
@@ -50608,10 +50608,12 @@
         "before": "BUSY",
         "after": "READY_67_LINES"
       },
-      "neteasePhysicalVisual": "PENDING_MAC_KEYCHAIN_RESTORE",
+      "neteasePhysicalVisual": "SE_FINAL_R2_MOON_READY_PLAYING_SEEK_FOLLOW",
       "macInstalledBuild": "20261025.043501",
-      "physicalAudio": "CONNECTION_FAILED_ORIGIN_UNCONFIRMED",
-      "ordinaryMacStartup": "CORE_READY_UI_PENDING_KEYCHAIN"
+      "physicalAudio": "VISUAL_PROGRESS_VERIFIED_LISTENING_ACCEPTANCE_NOT_CLAIMED",
+      "ordinaryMacStartup": "FINAL_READY_AFTER_OWNER_SYSTEM_AUTHORIZATION",
+      "sePreviewAudioComparison": "SYSTEM_OUTPUT_ON_OFF_ON_OFF_DESKTOP_PLAYER_IDLE",
+      "finalSeTestPreview": "CLOSED_KEYBOARD_CAPTURE_RELEASED"
     },
     "report": "reports/MOUSA41_LYRICS_FIX_2026-10-25.md",
     "implementationCommits": {
@@ -50624,10 +50626,10 @@
       ]
     },
     "carryover": [
-      "新版网易云 SE 真机视觉待 Mac 系统钥匙串读取恢复",
-      "测试中播放连接失败，来源未确认；未扩展为大型播放修复",
-      "实际出声、持续播放、拖动及歌词跟随未通过验证",
-      "Owner 视觉与听感验收未代行"
+      "前一窗口曾出现独立播放连接失败，来源未确认；本次窗口通过不代表所有连接恢复场景已修复",
+      "SE 屏幕预览与系统音频输出存在开关对应；未操作 Duo，未将其报告的全部原因定论",
+      "冷启动其余约80秒尚未细分，未修改启动或索引实现",
+      "主观听感、长时间播放稳定性与Owner验收未代行"
     ]
   }
 }
