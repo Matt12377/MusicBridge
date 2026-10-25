@@ -377,7 +377,7 @@ test('Main实际earlyWindow先完成document时，旧启动Gate只在最终boots
     result, nativeTheme: {}, BrowserWindow: Window, DISPLAY_NAME: 'Mousa', isStartupTest: true, isUiE2e: false, isCoreCrashGate: false,
     collectionReadonlyProbe: { observeWindow() { calls.push('observe-window') } }, collectionScaleProbe: undefined, packagedRendererProbe: undefined,
     buildBrowserWindowWebPreferences: () => ({}), path: { join: (...parts: string[]) => parts.join('/') }, currentDirectory: '/合成/未执行',
-    process: { env: {}, stdout: { write(value: string) { calls.push(value.trim()) } } }, isLibraryReadTrace: false,
+    process: { env: {} }, writeDiagnosticStdout(value: string) { calls.push(value.trim()) }, isLibraryReadTrace: false,
     mainWindow: undefined, quitAfterCoreShutdown: false, localWorkbenchShutdownConfirmed: false,
     getWindowOpenDecision: () => ({ action: 'deny' }), lifecycleProbe: { mark() {} },
     RENDERER_SCHEME: 'musicbridge', RENDERER_HOST: 'app', RENDERER_ENTRY_PATH: '/index.html',
