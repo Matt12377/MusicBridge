@@ -50631,5 +50631,20 @@
       "冷启动其余约80秒尚未细分，未修改启动或索引实现",
       "主观听感、长时间播放稳定性与Owner验收未代行"
     ]
+  },
+  "streamingStalls20261025": {
+    "baseSha": "5187ea2c43342335b63a53e311ebb67d8fcd50a7",
+    "status": "IMPLEMENTED_AWAITING_PACKAGED_SE_VERIFICATION",
+    "changes": [
+      "减少手机直接源读取中的重复目录与文件验证",
+      "诊断标准输出失效不阻断主进程与退出"
+    ],
+    "validation": {
+      "sourceRegressionPassed": 37,
+      "sourceRegressionExitCode": 0,
+      "physicalDevice": "iPhone SE",
+      "physicalPlayback": "PENDING",
+      "packagedExit": "PENDING"
+    }
   }
 }

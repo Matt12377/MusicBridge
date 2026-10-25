@@ -33,6 +33,7 @@ import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, MOBI
 import { createLibraryReadTraceStreamReader, emitLibraryReadTrace, libraryReadTraceFailure, type LibraryReadTraceSink } from '../shared/library-read-trace.js'
 import { createPlaybackFailureTraceStreamReader } from '../shared/playback-failure-trace.js'
 import { createLibraryOperationLogReader, logLibraryOperation } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { writeDiagnosticStdout, writeDiagnosticStderr } from './diagnostic-stdio.js'
 import { sameMobileContentScope } from '../../../../packages/bridge-core/src/mobile/content-service.js'
 import type { MobileContentCancelRecheck } from './mobile-content-port.js'
 
@@ -1271,7 +1272,7 @@ export class CoreSupervisor {
     const consumeLocalAlbum = createLocalAlbumSafeTraceReader(collectLocalAlbumSafeTrace)
     const consumeArtwork = createDesktopArtworkReader(row => { if (this.child === child) collectDesktopArtwork(row) })
     const privateMobileRelay = createMobilePrivateContentTraceRelay({ enabled: this.options.onMobileCapabilityTrace !== undefined,
-      sink: line => { process.stdout.write(line) } })
+      sink: writeDiagnosticStdout })
     this.mobileCatalogRelay = privateMobileRelay
     const consumeMobileCapability = createMobileCapabilityTraceReader(row => {
       if (this.child !== child) return
@@ -1279,7 +1280,7 @@ export class CoreSupervisor {
       privateMobileRelay.capability(row)
       try { this.options.onMobileCapabilityTrace?.(row) } catch { /* 旁注分发失败不改变当前Core或原业务。 */ }
     })
-    const consumeLibraryOperation = createLibraryOperationLogReader(line => { if (this.child === child) process.stdout.write(line) })
+    const consumeLibraryOperation = createLibraryOperationLogReader(line => { if (this.child === child) writeDiagnosticStdout(line) })
     const writeLocalPlaybackGuard = this.options.dependencies.writeLocalPlaybackGuard ?? writeLocalPlaybackGuardSync
     const forwardLocalPlaybackGuard: LocalPlaybackGuardSink = row => {
       if (this.child !== child) return false
@@ -1291,7 +1292,7 @@ export class CoreSupervisor {
     if (this.options.libraryReadTrace) {
       const consume = createLibraryReadTraceStreamReader(this.options.libraryReadTrace)
       child.stdout?.on('data', chunk => { try { consume(chunk.toString()) } catch { /* 只允许封闭诊断行进入父终端。 */ } })
-      const consumePlaybackFailure = createPlaybackFailureTraceStreamReader(line => { process.stderr.write(line) })
+      const consumePlaybackFailure = createPlaybackFailureTraceStreamReader(writeDiagnosticStderr)
       child.stderr?.on('data', chunk => { try { consumePlaybackFailure(String(chunk)) } catch { /* 其他 SDK 输出和错误栈只消费、不转发。 */ } })
     }
     this.shutdownReceipt = undefined

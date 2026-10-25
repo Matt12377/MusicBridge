@@ -50,6 +50,7 @@ import type {CommandOutboxPickOptions} from './command-outbox-executor.js'
 import { createLibraryReadBroker } from './library-read-ipc.js'
 import { createPerformanceIpcBridge } from "./performance-ipc.js"
 import { createLibraryReadTraceWriter, isLibraryReadTraceEnabled } from '../shared/library-read-trace.js'
+import { installDiagnosticStdioProtection, writeDiagnosticStdout, writeDiagnosticStderr } from './diagnostic-stdio.js'
 
 import { createCollectionReadonlySettings, installCollectionReadonlyHandlers } from './collection-readonly-settings.js'
 import { createCollectionReadonlyControlClient, type CollectionReadonlyControlChild, type CollectionReadonlyControlPort } from './collection-readonly-control-client.js'
@@ -63,23 +64,24 @@ declare const __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: boolean
 declare const __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: boolean
 declare const __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: boolean
 declare const __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__: boolean
+installDiagnosticStdioProtection()
 const mobileRangeTimingProbe = typeof __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__ === 'boolean' && __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__
   ? createMobileRangeTimingProbe({ enabled: true }) : undefined
 const mobileRangeWindowProbe = typeof __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__ === 'boolean' && __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__
   ? process.argv.includes('--mb-private-range-continuity') && process.argv.includes('--mb-private-content-trace')
     ? createMobileRangeWindowProbe({ enabled: true, continuous: true,
-      windowSink: createMobileRangeWindowTraceWriter({ enabled: true, sink: line => { process.stdout.write(line) } }) })
+      windowSink: createMobileRangeWindowTraceWriter({ enabled: true, sink: writeDiagnosticStdout }) })
     : createMobileRangeWindowProbe({ enabled: true, ...(process.argv.includes('--mb-private-content-trace')
-      ? { windowSink: createMobileRangeWindowTraceWriter({ enabled: true, sink: line => { process.stdout.write(line) } }) } : {}) }) : undefined
+      ? { windowSink: createMobileRangeWindowTraceWriter({ enabled: true, sink: writeDiagnosticStdout }) } : {}) }) : undefined
 // 仅显式本地启动参数启用；不读取环境、Renderer或配对内容。
 const mobileOwnerLoadTraceProbe = process.argv.includes('--mb-private-owner-load-trace')
-  ? createMobileOwnerLoadTraceProbe({ enabled: true, sink: line => { process.stdout.write(line) } }) : undefined
+  ? createMobileOwnerLoadTraceProbe({ enabled: true, sink: writeDiagnosticStdout }) : undefined
 // 内容诊断可在正式构建中显式启用；不连带打开媒体 Range 探针，也不改变正常启动。
 const mobilePreparationProbe = (typeof __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__ === 'boolean' && __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__)
   || process.argv.includes('--mb-private-content-trace') || process.argv.includes(MOBILE_RESOURCE_CAPACITY_FLAG)
   ? createMobilePreparationProbe({ enabled: true, sink: record => {
       // 仅输出原闭集计时事件；探针自身限制会话/资源数，不包含曲目、凭据或错误正文。
-      process.stdout.write(MOBILE_CAPABILITY_TRACE_PREFIX + JSON.stringify(record) + '\n')
+      writeDiagnosticStdout(MOBILE_CAPABILITY_TRACE_PREFIX + JSON.stringify(record) + '\n')
     } }) : undefined
 // 显式连接诊断从首次身份读取开始取证；沿用原八次/首败停止预算。
 if (process.argv.includes('--mb-private-owner-load-trace')) mobilePreparationProbe?.arm()
@@ -272,7 +274,7 @@ const collectionReadonlyProbe = __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__
 const collectionScaleProbe = typeof __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__ === 'boolean' && __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__ ? createCollectionScaleMainProbe() : undefined
 let collectionReadonlySettings: ReturnType<typeof createCollectionReadonlySettings> | undefined
 const lifecycleProbe = createLifecycleProbe({ enabled: isUiE2e, sink: line => {
-  console.log(line.trimEnd())
+  writeDiagnosticStdout(line.trimEnd() + '\n')
   if (collectionScaleProbe) { try { const value = JSON.parse(line.slice('TASK078_LIFECYCLE '.length)); collectionScaleProbe.observeLifecycle(value.phase, value.exitCode) } catch { /* 被动观察不改变原生命周期。 */ } }
   if (collectionReadonlyProbe) { try { const value = JSON.parse(line.slice('TASK078_LIFECYCLE '.length)); collectionReadonlyProbe.observeLifecycle(value.phase, value.exitCode) } catch { /* 被动观察不改变原生命周期。 */ } }
   if (packagedRendererProbe) {
@@ -292,7 +294,7 @@ const isElectronColdStartGate = electronColdStartStage !== undefined
 const isRoonTimeGate = process.env.MUSIC_BRIDGE_ROON_TIME_GATE === '1'
 const isRoonBrowseGate = process.env.MUSIC_BRIDGE_ROON_BROWSE_GATE === '1'
 const isLibraryReadTrace = isLibraryReadTraceEnabled(process.env, __MUSIC_BRIDGE_DEVELOPMENT_BUILD__ && !app.isPackaged && process.env.NODE_ENV !== 'production' && !isStartupTest && !isUiE2e)
-const libraryReadTrace = isLibraryReadTrace ? createLibraryReadTraceWriter({ enabled: true, write: line => { process.stdout.write(line) } }) : undefined
+const libraryReadTrace = isLibraryReadTrace ? createLibraryReadTraceWriter({ enabled: true, write: writeDiagnosticStdout }) : undefined
 const isRoonImageGate = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE === '1'
 const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 
@@ -509,10 +511,10 @@ async function restoreLocalCoreAfterTunnelFailure(state: RemoteCoreTunnelState):
   try {
     await remoteCoreModeController.unavailable(state)
     mainDiagnostics.recordLifecycle('remote_core_fallback_checked', 'info', { state: coreMode })
-    process.stdout.write(`[remote-core] fallback state=${coreMode}\n`)
+    writeDiagnosticStdout(`[remote-core] fallback state=${coreMode}\n`)
   } catch (error) {
     mainDiagnostics.recordLifecycle('remote_core_fallback_failed', 'error', { code: 'CORE_RESTART_FAILED' })
-    process.stderr.write('[remote-core] fallback failed code=CORE_RESTART_FAILED\n')
+    writeDiagnosticStderr('[remote-core] fallback failed code=CORE_RESTART_FAILED\n')
     throw error
   }
 }
@@ -526,7 +528,7 @@ const remoteCoreTunnelManager = new RemoteCoreTunnelManager({
         state.status === 'failed' ? 'error' : 'warn',
         { code, state: state.status },
       )
-      process.stderr.write(
+      writeDiagnosticStderr(
         `[remote-core] ${state.status} code=${code} port=${state.remoteStreamPort ?? '-'}\n`,
       )
     }
@@ -2477,7 +2479,7 @@ function createWindow(supervisor: CoreSupervisor, startup?: ReturnType<typeof cr
               ping.pong === true &&
               healthValid &&
               stateValid
-            process.stdout.write(`${passed ? 'DESKTOP_STARTUP_READY' : 'DESKTOP_STARTUP_FAIL'}\n`)
+            writeDiagnosticStdout(`${passed ? 'DESKTOP_STARTUP_READY' : 'DESKTOP_STARTUP_FAIL'}\n`)
             if (passed) {
               setTimeout(() => app.quit(), 25)
             } else {
@@ -2485,7 +2487,7 @@ function createWindow(supervisor: CoreSupervisor, startup?: ReturnType<typeof cr
             }
           })
           .catch(() => {
-            process.stdout.write('DESKTOP_STARTUP_FAIL\n')
+            writeDiagnosticStdout('DESKTOP_STARTUP_FAIL\n')
             app.exit(1)
           })
       }
@@ -2813,11 +2815,11 @@ async function bootstrap(): Promise<void> {
   if (isCredentialVaultGate && !isCoreRestartCredentialRecoveryGate && !isElectronColdStartGate) {
     try {
       const passed = await runCredentialVaultGate(prepared.credentialVault)
-      process.stdout.write(`${passed ? 'CREDENTIAL_VAULT_GATE_PASS' : 'CREDENTIAL_VAULT_GATE_FAIL'}\n`)
+      writeDiagnosticStdout(`${passed ? 'CREDENTIAL_VAULT_GATE_PASS' : 'CREDENTIAL_VAULT_GATE_FAIL'}\n`)
       if (passed) app.quit()
       else app.exit(1)
     } catch {
-      process.stdout.write('CREDENTIAL_VAULT_GATE_FAIL\n')
+      writeDiagnosticStdout('CREDENTIAL_VAULT_GATE_FAIL\n')
       app.exit(1)
     }
     return
@@ -2973,7 +2975,7 @@ async function bootstrap(): Promise<void> {
     )
     await prepared.credentialVault.delete().catch(() => undefined)
     await supervisor.shutdown()
-    process.stdout.write(
+    writeDiagnosticStdout(
       `${passed ? 'CORE_RESTART_CREDENTIAL_RECOVERY_GATE_PASS' : 'CORE_RESTART_CREDENTIAL_RECOVERY_GATE_FAIL'}\n`,
     )
     if (passed) app.quit()
@@ -2990,7 +2992,7 @@ async function bootstrap(): Promise<void> {
       electronColdStartStage === 'seed'
         ? 'ELECTRON_COLD_START_SEED'
         : 'ELECTRON_COLD_START_RESTORE'
-    process.stdout.write(`${passed ? `${marker}_PASS` : `${marker}_FAIL`}\n`)
+    writeDiagnosticStdout(`${passed ? `${marker}_PASS` : `${marker}_FAIL`}\n`)
     if (passed) app.quit()
     else app.exit(1)
     return
@@ -3056,7 +3058,7 @@ async function bootstrap(): Promise<void> {
   if (isCoreCrashGate) {
     const armed = armInitialCrashGate?.() === true
     const passed = armed && await waitForCoreCrashFailure(() => ({ status: supervisor.status, restarts: supervisor.restarts, lifecycle: crashGateLifecycle }))
-    process.stdout.write(`${passed ? 'CORE_CRASH_GATE_PASS' : 'CORE_CRASH_GATE_FAIL'}\n`)
+    writeDiagnosticStdout(`${passed ? 'CORE_CRASH_GATE_PASS' : 'CORE_CRASH_GATE_FAIL'}\n`)
     if (passed) app.quit()
     else app.exit(1)
     return
@@ -3077,7 +3079,7 @@ void bootstrap().catch(error => {
   remoteCoreStartup?.fail(error)
   if (quitAfterCoreShutdown) return
   if (cancelled) { app.quit(); return }
-  process.stderr.write('DESKTOP_STARTUP_FAIL\n')
+  writeDiagnosticStderr('DESKTOP_STARTUP_FAIL\n')
   app.exit(1)
 })
 

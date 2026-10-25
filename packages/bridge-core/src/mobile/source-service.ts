@@ -145,14 +145,18 @@ export function createMobileOwnerSourceService(options: {
     if (root.role !== 'library' || root.revision !== detail.asset.rootRevision) return fail(409, 'SOURCE_CHANGED');
     return detail;
   }
-  function current(record: SourceRecord, preparing = false): void {
+  function currentLease(record: SourceRecord, preparing = false): void {
     if (record.explicitRelease || record.controller.signal.aborted || record.state !== 'active' && !(preparing && record.state === 'preparing')) {
       if (!record.explicitRelease && record.failure) throw new SourceError(record.failure);
       return released();
     }
     ownerCurrent();
     if (!record.lane || record.lane.record !== record || record.lane.attempt !== record.attempt) return fail(409, 'SOURCE_CHANGED');
-    if (!record.capture || !record.fence?.current || !mobileRangeWindowCoreFacts(() => tickets.revalidate(record.capture!.ticketId))) return fail(409, 'SOURCE_CHANGED');
+    if (!record.capture || !record.fence?.current) return fail(409, 'SOURCE_CHANGED');
+  }
+  function current(record: SourceRecord, preparing = false): void {
+    currentLease(record, preparing);
+    if (!mobileRangeWindowCoreFacts(() => tickets.revalidate(record.capture!.ticketId))) return fail(409, 'SOURCE_CHANGED');
     try { selected(record.selection!); }
     catch (error) { if (error instanceof SourceError && error.failure.status === 404) return fail(409, 'SOURCE_CHANGED'); throw error; }
   }
@@ -232,7 +236,8 @@ export function createMobileOwnerSourceService(options: {
         current(record,true);return source;
       }
       const lease = await pool.prepare({ source_kind: 'local_file', status: 'prepared_descriptor', facts: captured.facts }, {
-        ownerId: record.lane!.ownerId, attempt: record.attempt, isCurrent() { try { current(record, true); return true; } catch { return false; } },
+        // 租约内部反复核验原子撤销/Owner；完整目录事实由每次源操作前后核验。
+        ownerId: record.lane!.ownerId, attempt: record.attempt, isCurrent() { try { currentLease(record, true); return true; } catch { return false; } },
       });
       record.lease = lease;
       lease.signal.addEventListener('abort', () => retireOnSignal(record), { once: true });
@@ -335,14 +340,15 @@ export function createMobileOwnerSourceService(options: {
       } else {
         read.last = { start: request.start, maxBytes: request.maxBytes, bytes: null };
         const pending = (async () => {
-          current(record); read.controller.signal.throwIfAborted();
-          await verifyRecord(record); read.controller.signal.throwIfAborted();
-          if(record.cached){const result=await options.preparedCache!.read(record.handle,request.start,request.maxBytes,read.controller.signal);
+          currentLease(record); read.controller.signal.throwIfAborted();
+          if(record.cached){await verifyRecord(record);read.controller.signal.throwIfAborted();
+            const result=await options.preparedCache!.read(record.handle,request.start,request.maxBytes,read.controller.signal);
             current(record);read.controller.signal.throwIfAborted();if(read.closed)return released();
             read.nextOffset=request.start+result.byteLength;read.last!.bytes=result;return result;}
           const lease = record.lease!;
           let result = new Uint8Array(0);
           if (request.start < lease.size) {
+            // readSlice 在实际 FD 读前后已核验文件，外层不再重复相同的异步验证。
             const end = Math.min(lease.size - 1, request.start + Math.min(request.maxBytes, lease.size - request.start) - 1);
             const iterator = lease.readSlice(request.start, end, read.controller.signal);
             try {
@@ -350,8 +356,8 @@ export function createMobileOwnerSourceService(options: {
               if (next.done || next.value.byteLength !== end - request.start + 1) return fail(409, 'SOURCE_CHANGED');
               result = new Uint8Array(next.value);
             } finally { await iterator.return(undefined); }
-          }
-          await lease.verify(); current(record); read.controller.signal.throwIfAborted();
+          } else await lease.verify(); // EOF 没有进入 readSlice，仍需真实文件核验。
+          current(record); read.controller.signal.throwIfAborted();
           if (read.closed) return released();
           read.nextOffset = request.start + result.byteLength; read.last!.bytes = result;
           return result;
