@@ -163,7 +163,8 @@ if (!isMainThread) {
       for (const worker of workers) worker.unref()
     })
     await supervisor.start()
-    await until(() => Atomics.load(signals, 0) > 0, '冷恢复扫描必须实际取得许可并打开自有音频 FD。')
+    // FD 已打开时，异步撤权订阅仍可能在主线程队列中；两项均就绪后才开始验证重启。
+    await until(() => Atomics.load(signals, 0) > 0 && projections.includes('scanReadWatchRevocation'), '冷恢复扫描必须打开自有音频 FD，并完成真实撤权订阅。')
     assert.ok(projections.includes('scanReadAcquire')); assert.ok(projections.includes('scanReadWatchRevocation'))
     try { await supervisor.restart() }
     catch (error) {
