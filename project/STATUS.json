@@ -50576,5 +50576,16 @@
     "sealRef": "docs/integration/V39-INTEGRATION-002/SEALED_BASELINE.json",
     "realApplicationServiceDeviceAudio": "NOT_RUN",
     "ownerAcceptance": "NOT_RUN"
+  },
+  "lyricsFix20261025": {
+    "baseSha": "796712dbba3d22b6c6b643d9b4287816dfbdf267",
+    "status": "IMPLEMENTED_PENDING_VALIDATION",
+    "validationDevice": "iPhone SE",
+    "changes": [
+      "兼容原目录mt曲目身份并保留lt校验",
+      "读取标准LRC偏移和合法空同步标记"
+    ],
+    "productionAudioSourceUnchanged": true,
+    "publicContractUnchanged": true
   }
 }

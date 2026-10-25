@@ -37,6 +37,44 @@ test('本地歌词：精确同stem完整LRC保留重复时间戳并按时间排�
   assert.deepEqual(physicalResourceLocks.combinedSnapshot(), baseline, '完整读和发送前重读均已释放真实物理/命名保护。');
 });
 
+test('本地歌词：读取器接受目录已核实的mt身份，并保持精确内容修订', async t => {
+  const f = await ownerFixture(t);
+  await writeFile(sidecar(f), '[00:01]自有正文\n', { flag: 'wx', mode: 0o600 });
+  // 本用例只验证私有读取器的身份兼容；组归属仍由调用前的目录服务负责。
+  const selection: MobileTrackSelection = { ...f.selection,
+    trackId: `mt:${f.datasetId}:${f.detail.track.id}:${'a'.repeat(64)}` };
+  const track = { ...f.track, id: selection.trackId };
+  const reader = readerFor(f), proof = await reader.read(selection, track, f.detail, new AbortController().signal);
+  assert.equal(proof.lyrics.status, 'ready'); assert.equal(proof.lyrics.trackId, selection.trackId);
+  await proof.beforeSend();
+  const stale = { ...selection, contentRevision: 'lc:other' };
+  await assert.rejects(reader.read(stale, { ...track, contentRevision: stale.contentRevision }, f.detail,
+    new AbortController().signal), rejected('SOURCE_CHANGED', 409));
+  await sourceUnchanged(f);
+});
+
+test('本地歌词：标准offset和空同步标记不阻断完整正文，偏移仅作用于原时间轴', async t => {
+  const f = await ownerFixture(t);
+  await writeFile(sidecar(f), '[ti:自有夹具]\n[offset:+250]\n[00:00]\n[00:01][00:02]自有正文\n[00:03.00]\n',
+    { flag: 'wx', mode: 0o600 });
+  const proof = await read(f);
+  assert.equal(proof.lyrics.status, 'ready'); assert.equal(proof.lyrics.synchronized, true);
+  assert.deepEqual(proof.lyrics.lines.map(row => [row.startMs, row.text]), [[1250, '自有正文'], [2250, '自有正文']]);
+  await proof.beforeSend(); await sourceUnchanged(f);
+});
+
+test('本地歌词：重复或非法offset、偏移越界和超量空标记仍拒绝', async t => {
+  const f = await ownerFixture(t);
+  for (const text of ['[offset:0]\n[offset:0]\n[00:01]自有正文', '[offset:坏值]\n[00:01]自有正文',
+    '[offset:-2000]\n[00:01]自有正文', '[offset:99999999]\n[00:01]自有正文']) {
+    await writeFile(sidecar(f), text);
+    await assert.rejects(read(f), rejected('BUSY', 503));
+  }
+  await writeFile(sidecar(f), '[00:00]\n'.repeat(2000) + '[00:01]自有正文');
+  await assert.rejects(read(f), rejected('CONTENT_LIMIT_EXCEEDED', 503));
+  await sourceUnchanged(f);
+});
+
 test('本地歌词：plain歌词不造时间轴或instrumental，完整原bytes决定lyricRevision', async t => {
   const f = await ownerFixture(t), file = sidecar(f);
   await writeFile(file, '第一句\n第二句\n', { flag: 'wx', mode: 0o600 });

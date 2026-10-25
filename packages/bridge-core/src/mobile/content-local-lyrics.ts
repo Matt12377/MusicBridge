@@ -12,9 +12,10 @@ import {
   withCheckedReadonlyMetadataSource,
 } from '../recording/source-files.js';
 import { MobileServiceError } from './types.js';
+import { mobileLocalContentDigest, parseMobileTrackId } from './local-album-identity.js';
 
 export const MOBILE_LOCAL_LYRICS_MAX_SOURCE_BYTES = 1024 * 1024;
-const maxLines = 2000, maxLineBytes = 4096, maxReadMs = 10_000;
+const maxLines = 2000, maxLineBytes = 4096, maxReadMs = 10_000, maxTimeMs = 24 * 60 * 60 * 1000;
 const sourceChanged = (): never => { throw new MobileServiceError(409, 'SOURCE_CHANGED'); };
 const unavailable = (): never => { throw new MobileServiceError(503, 'BUSY'); };
 const limited = (): never => { throw new MobileServiceError(503, 'CONTENT_LIMIT_EXCEEDED'); };
@@ -38,14 +39,14 @@ export function createMobileContentLocalLyrics(options: {
     assertCurrent();
     const captured = mobileContentRequestSnapshot('favoriteTrackSelection', selection);
     if (!captured.ok) return unavailable();
-    selection = captured.value; const parts = selection.trackId.split(':');
-    if (selection.source !== 'local' || parts.length !== 4 || parts[0] !== 'lt' || parts[1] !== datasetId
-      || parts[2] !== detail.track.id || !detail.editions.some(e => e.id === parts[3]) || detail.track.segment !== null) return unavailable();
+    selection = captured.value; const selected = parseMobileTrackId(selection.trackId, datasetId);
+    // mt分组/成员与lt发行关系已由调用前的原目录核实；解析地址不新增文件授权。
+    if (selection.source !== 'local' || !selected || selected.trackId !== detail.track.id || detail.track.segment !== null
+      || selected.kind === 'legacy' && !detail.editions.some(e => e.id === selected.editionId)) return unavailable();
     const original = collection.localCatalog.trackDetail(detail.track.id);
     if (!same(original.track, detail.track) || !same(original.asset, detail.asset)
-      || !original.editions.some(e => e.id === parts[3])) return sourceChanged();
-    const identity = digest(JSON.stringify([datasetId, original.asset.id, original.asset.fileRevision,
-      original.track.selectionRevision, original.track.segment]));
+      || selected.kind === 'legacy' && !original.editions.some(e => e.id === selected.editionId)) return sourceChanged();
+    const identity = mobileLocalContentDigest(datasetId, original);
     if (selection.versionId !== `lv:${identity}` || selection.contentRevision !== `lc:${identity}`) return sourceChanged();
     const value = captureLocalFactsByIdentityReadonly({ local_track_id: detail.track.id, asset_id: detail.asset.id,
       expected_asset_revision: detail.asset.fileRevision }, collection);
@@ -57,32 +58,42 @@ export function createMobileContentLocalLyrics(options: {
     if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
     if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text)) return unavailable();
     const rawLines = text.split(/\r\n|\n|\r/u), rows: MobileLyricLine[] = [];
-    let timed: boolean | undefined;
+    let timed: boolean | undefined, offset = 0, offsetSeen = false, entries = 0;
     const pattern = /^\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/u;
     for (const raw of rawLines) {
       const line = raw.trim(); if (!line) continue;
       // 已知 LRC 元数据是完整独立行；不把未知 bracket 或坏时间戳当作 missing。
       if (/^\[(?:ar|al|ti|au|by|re|ve):[^\]\r\n]*\]$/iu.test(line)) continue;
+      const shift = /^\[offset:([+-]?\d{1,8})\]$/iu.exec(line);
+      if (shift) { if (offsetSeen) return unavailable(); offsetSeen = true; offset = Number(shift[1]); continue; }
       const starts: number[] = []; let remaining = line;
       for (;;) {
         const match = pattern.exec(remaining); if (!match) break;
         const minutes = Number(match[1]), seconds = Number(match[2]);
         const fraction = Number((match[3] ?? '').padEnd(3, '0'));
         const start = minutes * 60_000 + seconds * 1000 + fraction;
-        if (seconds >= 60 || !Number.isSafeInteger(start) || start > 24 * 60 * 60 * 1000) return unavailable();
+        if (seconds >= 60 || !Number.isSafeInteger(start) || start > maxTimeMs) return unavailable();
         starts.push(start); remaining = remaining.slice(match[0].length);
       }
       const isTimed = starts.length > 0;
       if (timed !== undefined && timed !== isTimed || !isTimed && line.startsWith('[')) return unavailable();
       timed = isTimed;
       const body = remaining.trim();
-      if (!body || Buffer.byteLength(body, 'utf8') > maxLineBytes) return body ? limited() : unavailable();
-      if (rows.length + (starts.length || 1) > maxLines) return limited();
+      if (Buffer.byteLength(body, 'utf8') > maxLineBytes) return limited();
+      entries += starts.length || 1; if (entries > maxLines) return limited();
+      // 合法空同步行是间奏/起止标记；校验并计预算后不把它当成正文或坏文件。
+      if (!body) { if (isTimed) continue; return unavailable(); }
       if (isTimed) for (const startMs of starts) rows.push({ id: `line:${rows.length}`, text: body, startMs });
       else rows.push({ id: `line:${rows.length}`, text: body });
     }
     if (!rows.length) return unavailable();
-    if (timed) rows.sort((a, b) => a.startMs! - b.startMs!);
+    if (timed) {
+      for (const row of rows) {
+        row.startMs! += offset;
+        if (row.startMs! < 0 || row.startMs! > maxTimeMs) return unavailable();
+      }
+      rows.sort((a, b) => a.startMs! - b.startMs!);
+    }
     const result = mobileContentResponseSnapshot('lyrics', { ...selection, status: 'ready',
       lyricRevision: `ll:${digest(JSON.stringify([selection, wholeHash]))}`, synchronized: timed === true, lines: rows });
     if (!result.ok) return limited(); return result.value;
