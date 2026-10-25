@@ -50579,13 +50579,37 @@
   },
   "lyricsFix20261025": {
     "baseSha": "796712dbba3d22b6c6b643d9b4287816dfbdf267",
-    "status": "IMPLEMENTED_PENDING_VALIDATION",
+    "status": "SE_LOCAL_LYRICS_VERIFIED_NETEASE_FORMAT_FIX_PENDING_REBUILD",
     "validationDevice": "iPhone SE",
     "changes": [
       "兼容原目录mt曲目身份并保留lt校验",
-      "读取标准LRC偏移和合法空同步标记"
+      "读取标准LRC偏移和合法空同步标记",
+      "兼容网易云JSON署名与空同步标记，署名正文和原时间保留"
     ],
     "productionAudioSourceUnchanged": true,
-    "publicContractUnchanged": true
+    "publicContractUnchanged": true,
+    "validation": {
+      "targetedLyricsPassed": 140,
+      "iosStateMapperPassed": 16,
+      "macVerifyPassed": 7104,
+      "macVerifySkipped": 2,
+      "macVerifyExitCode": 0,
+      "iosProductionBuild": "119",
+      "iosInstalledDevice": "iPhone SE",
+      "physicalLyricsVisual": "SE_LOCAL_NOCTURNE_AND_HEAVY_TASTE_VISIBLE",
+      "macVerifyRevision": "82874b7072786affd8130e7dfa546c73068d634e",
+      "neteaseFormatRegression": {
+        "redTests": 123,
+        "redPassed": 121,
+        "redFailed": 2,
+        "greenPassed": 140
+      },
+      "neteasePublicPayloadParser": {
+        "before": "BUSY",
+        "after": "READY_67_LINES"
+      },
+      "neteasePhysicalVisual": "PENDING_MAC_REBUILD"
+    },
+    "report": "reports/MOUSA41_LYRICS_FIX_2026-10-25.md"
   }
 }

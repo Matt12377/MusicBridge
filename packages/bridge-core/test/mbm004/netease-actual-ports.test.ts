@@ -414,6 +414,38 @@ test('完整歌词超过旧500行仍保全，4096UTF8边界与末行变化进入
   f.lyrics({ code: 200, lrc: { lyric: '完整纯文本\n第二行' } }); const plain = await f.actual.resolveLyrics(f.scope, selected, signal());
   assert.equal(plain.body.synchronized, false); assert.deepEqual(plain.body.lines.map(v => v.startMs), [null, null]);
 });
+test('网易云JSON署名保留时间和正文，链接附注不进入歌词，LRC与YRC均可读取', async t => {
+  const f = await fixture(t), selected = selection((await f.daily()).reply.body.items[0]!);
+  const credit = JSON.stringify({ t: 0, c: [{ tx: '作词 : ' }, { tx: '合成作者', li: 'synthetic-author', or: '合成来源' }] });
+  for (const field of ['lrc', 'yrc'] as const) {
+    f.lyrics({ code: 200, [field]: { lyric: credit + '\n' + (field === 'lrc'
+      ? '[00:01.000]完整正文' : '[1000,500](1000,500,0)完整正文') } });
+    const result = await f.actual.resolveLyrics(f.scope, selected, signal());
+    assert.equal(result.body.status, 'ready'); assert.equal(result.body.synchronized, true);
+    assert.deepEqual(result.body.lines.map(line => [line.startMs, line.text]), [[0, '作词 : 合成作者'], [1000, '完整正文']]);
+  }
+});
+test('网易云LRC与音译允许空同步标记，空标记仍计入完整行数预算', async t => {
+  const f = await fixture(t), selected = selection((await f.daily()).reply.body.items[0]!);
+  f.lyrics({ code: 200, lrc: { lyric: '[00:00.000]第一句\n[00:00.500] \n[00:01.000]第二句' },
+    romalrc: { lyric: '[00:00.000]di yi ju\n[00:00.500]\n[00:01.000]di er ju' } });
+  const result = await f.actual.resolveLyrics(f.scope, selected, signal());
+  assert.deepEqual(result.body.lines.map(line => [line.startMs, line.text]), [[0, '第一句'], [1000, '第二句']]);
+  f.lyrics({ code: 200, lrc: { lyric: '[00:00.000]正文\n' + '[00:00.500]\n'.repeat(1999) } });
+  assert.equal((await f.actual.resolveLyrics(f.scope, selected, signal())).body.lines.length, 1);
+  f.lyrics({ code: 200, lrc: { lyric: '[00:00.000]正文\n' + '[00:00.500]\n'.repeat(2000) } });
+  await assert.rejects(f.actual.resolveLyrics(f.scope, selected, signal()), safeError('BUSY', 503));
+});
+test('网易云署名时间、文字形状和完整行数继续受原合同约束', async t => {
+  const f = await fixture(t), selected = selection((await f.daily()).reply.body.items[0]!);
+  for (const bad of [{ t: -1, c: [{ tx: '署名' }] }, { t: 0, c: [{ tx: 123 }] }, { t: 0, c: [{ tx: '字'.repeat(1366) }] }]) {
+    f.lyrics({ code: 200, lrc: { lyric: JSON.stringify(bad) + '\n[00:01.000]正文' } });
+    await assert.rejects(f.actual.resolveLyrics(f.scope, selected, signal()), safeError('BUSY', 503));
+  }
+  const credit = JSON.stringify({ t: 0, c: [{ tx: '署名' }] });
+  f.lyrics({ code: 200, yrc: { lyric: (credit + '\n').repeat(2001) } });
+  await assert.rejects(f.actual.resolveLyrics(f.scope, selected, signal()), safeError('BUSY', 503));
+});
 test('歌词坏行/2001行/单行或整份越预算安全失败，仅真实缺失和纯音乐标志返回对应状态', async t => {
   const f = await fixture(t), track = (await f.daily()).reply.body.items[0]!, selected = selection(track);
   for (const lyric of ['[00:61.000]坏秒数', '[00:00.000]正常\n[broken]坏行', `[00:00.000]${'字'.repeat(1366)}`,

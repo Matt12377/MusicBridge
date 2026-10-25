@@ -122,12 +122,31 @@ function lyricText(value: string): string {
     || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u.test(value)) return busy();
   return value;
 }
+/** 新版接口把作词、作曲等署名放在带毫秒时间的JSON行中；只取文字，不呈现链接附注。 */
+function completeCreditLine(raw: string): CompleteLyricLine | null {
+  if (!raw.trimStart().startsWith('{')) return null;
+  let value: unknown;
+  try { value = JSON.parse(raw); } catch { return null; }
+  if (!mobileRecord(value) || !Object.hasOwn(value, 't') && !Object.hasOwn(value, 'c')) return null;
+  if (!mobileInteger(value.t) || !Array.isArray(value.c)) return busy();
+  let joined = '';
+  for (const part of value.c) {
+    if (!mobileRecord(part) || typeof part.tx !== 'string') return busy();
+    joined += part.tx;
+  }
+  return { text: lyricText(joined), startMs: value.t };
+}
 /** 本域完整 LRC 视图；旧 fuzzy parser 的裁剪、跳坏行和去重不进入手机合同。 */
 function completeLrc(source: string): CompleteLyricLine[] {
   if (mobileUtf8Bytes(source) > LYRIC_BODY_BYTES || /\r(?!\n)|[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u.test(source)) return busy();
-  const parsed: CompleteLyricLine[] = []; let offset = 0, hasOffset = false;
+  const parsed: CompleteLyricLine[] = []; let offset = 0, hasOffset = false, entries = 0;
   for (const raw of source.split(/\r?\n/u)) {
     if (!raw.trim()) continue;
+    const credit = completeCreditLine(raw);
+    if (credit) {
+      if (++entries > LYRIC_LINES) return busy();
+      parsed.push(credit); continue;
+    }
     const metadata = /^\[(ar|ti|al|by|re|ve|length|offset):([^\]\r\n]*)\](?![\s\S])/u.exec(raw);
     if (metadata) {
       if (mobileUtf8Bytes(metadata[2]!) > LYRIC_TEXT_BYTES) return busy();
@@ -145,15 +164,18 @@ function completeLrc(source: string): CompleteLyricLine[] {
       if (Number(match[2]) >= 60 || !mobileInteger(start)) return busy();
       times.push(start); at += match[0].length;
     }
+    entries += times.length || 1;
+    if (entries > LYRIC_LINES) return busy();
     if (times.length === 0) {
       // 损坏的时间戳不能被降级成无时间文本；完整纯文本正文仍可准确表达。
       if (/^\[[0-9]+[:.,]/u.test(raw)) return busy();
       parsed.push({ text: lyricText(raw), startMs: null });
     } else {
+      // 空同步标记是正常的间奏或结束位置；校验时间并计数后，不伪造显示正文。
+      if (!raw.slice(at).trim()) continue;
       const lineText = lyricText(raw.slice(at));
       for (const startMs of times) parsed.push({ text: lineText, startMs });
     }
-    if (parsed.length > LYRIC_LINES) return busy();
   }
   const timed = parsed.some(line => line.startMs !== null);
   if (timed && parsed.some(line => line.startMs === null)) return busy();
@@ -167,6 +189,11 @@ function completeYrc(source: string): CompleteLyricLine[] {
   const output: CompleteLyricLine[] = [];
   for (const raw of source.split(/\r?\n/u)) {
     if (!raw.trim()) continue;
+    const credit = completeCreditLine(raw);
+    if (credit) {
+      output.push(credit); if (output.length > LYRIC_LINES) return busy();
+      continue;
+    }
     const header = /^\[([0-9]+),([0-9]+)\]/u.exec(raw);
     if (!header) return busy();
     const start = Number(header[1]), duration = Number(header[2]), end = start + duration;
