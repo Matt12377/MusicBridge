@@ -48,6 +48,7 @@ attachDatasetOwnerWorkerPort(parentPort, {
           ...options,
           stdout: true,
           workerData: { ...options.workerData, testSqlGate: gate, testSqlGatePort: channel.port2,
+            ...(workerData.auditPause ? { testAuditPause: workerData.auditPause } : {}),
             ...(workerData.startupSqlFault ? { testStartupSqlFault: workerData.startupSqlFault } : {}) },
           transferList: [...options.transferList ?? [], channel.port2],
         });

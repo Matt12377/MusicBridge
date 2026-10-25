@@ -453,5 +453,5 @@ test('MAC72 只读审计两条合成媒体量级按真实阶段记录', {timeout
   t.diagnostic(JSON.stringify({事件:'只读审计非空合成量级',轨道数:2,根数:1,
     catalog阶段观察毫秒:catalog-begin,scan阶段观察毫秒:scan-catalog,
     口径:'Owner接收真实Worker阶段的单调时钟差；不是大库保证或SQL纯执行时间。',
-    取消边界:'审计同步调用内部不可SAB打断；作业完成须实际ROLLBACK，整个actor关闭另须连接close及自然exit。'}));
+    取消边界:'逐行审计检查原SAB，单条同步SQLite调用仍须返回；作业完成须实际ROLLBACK，整个actor关闭另须连接close及自然exit。'}));
 });

@@ -96,10 +96,12 @@ test('扫描冷核memo：多文件真实批每行实读batch，24行只解析3�
   const first = completion(logged)
   assert.equal(first.total, 24); assert.equal(first.count, 3); assert.equal(first.active, 3)
   assert.ok(first.bytes! > 0 && first.bytes! <= 32 * 1024 * 1024)
-  logged.length = 0; f.verify()
+  let checkpoints = 0
+  logged.length = 0; verifyLocalScanDatabase(f.db, () => { checkpoints++ })
   assert.equal(reads.reads(), 48); assert.equal(completion(logged).count, 3)
   assert.equal(reads.prepares(), 2, '下一次完整核验必须重新准备语句，不跨调用保留')
   assert.equal(f.db.prepare('SELECT total_changes() n').get()!.n, before, 'memo及诊断不能写数据库')
+  assert.ok(checkpoints > 0, '带取消检查点仍须逐行实读与重建本次memo')
   t.diagnostic('24项仍有24次真实batch点读，每次verify只解析3对batch JSON；count不是源读取次数。')
 })
 

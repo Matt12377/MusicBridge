@@ -86,8 +86,8 @@ function runJob(input: Input, databaseFile: string, fileIdentity: string): void 
     }
     if (!audited || !same(audited, snapshot)) {
       invalidate(); stage('audit-begin');
-      verifyLocalCatalogDatabase(db); assertCurrent(); stage('audit-catalog');
-      verifyLocalScanDatabase(db); assertCurrent(); stage('audit-scan');
+      verifyLocalCatalogDatabase(db, assertCurrent); assertCurrent(); stage('audit-catalog');
+      verifyLocalScanDatabase(db, assertCurrent); assertCurrent(); stage('audit-scan');
       if (!same(snapshot, point())) throw unavailable();
       audited = snapshot;
     }

@@ -89,9 +89,10 @@ function cueLatest(db:DatabaseSync,rootId:string,relative:string):CueSnapshot|nu
   const row=db.prepare('SELECT data FROM local_cue_sources WHERE library_root_id=? AND relative=? ORDER BY rowid DESC LIMIT 1').get(rootId,relative);
   return row ? parse(row.data,isCueSnapshot):null;
 }
-function verifyCueBatch(db:DatabaseSync,batch:ScanPreparedBatch,committed:ScanCommittedBatch,job:dto.ScanJobRecord):void {
+function verifyCueBatch(db:DatabaseSync,batch:ScanPreparedBatch,committed:ScanCommittedBatch,job:dto.ScanJobRecord,assertReadActive?:()=>void):void {
   if(!cueSchema(db) || committed.kind !== 'cue-sidecars-v1' || committed.cueSnapshotIds?.length !== batch.cueItems?.length) return corrupt();
   for(const [index,item] of (batch.cueItems ?? []).entries()) {
+    assertReadActive?.();
     const id=committed.cueSnapshotIds![index]!,row=db.prepare('SELECT * FROM local_cue_sources WHERE id=?').get(id);
     if(!row) return corrupt();const snapshot=parse(row.data,isCueSnapshot);
     if(snapshot.id !== id || snapshot.libraryRootId !== job.libraryRootId || snapshot.sourceRootId !== job.sourceRootId || snapshot.rootRevision !== job.rootRevision
@@ -102,6 +103,7 @@ function verifyCueBatch(db:DatabaseSync,batch:ScanPreparedBatch,committed:ScanCo
     const trackRows=db.prepare('SELECT * FROM local_cue_tracks WHERE snapshot_id=? ORDER BY ordinal LIMIT 100').all(id),tracks=snapshot.item.result?.tracks ?? [];
     if(trackRows.length !== tracks.length) return corrupt();
     for(const [ordinal,track] of tracks.entries()) {
+      assertReadActive?.();
       const selected=trackRows[ordinal]!;if(selected.ordinal !== ordinal || selected.asset_id !== track.assetReference.assetId || !equal(JSON.parse(String(selected.data)),track)
         || !db.prepare('SELECT id FROM local_catalog_assets WHERE id=?').get(track.assetReference.assetId)) return corrupt();
     }
@@ -400,34 +402,37 @@ export function updateSourceWriteScanFacts(db:DatabaseSync,rootId:string,relativ
   const first=parse(before,isScanFileState,65536),next=parse(after,isScanFileState,65536);if(next.libraryRootId!==rootId||next.relative!==relative||next.assetId!==first.assetId||next.trackId!==first.trackId||next.parserVersion!==first.parserVersion||next.outcome!=='accepted'||next.failureCode!==null||!next.readFacts)return corrupt();
   const audit=scanAuditFor(db);const changed=db.prepare('UPDATE local_scan_file_state SET data=? WHERE library_root_id=? AND relative=? AND job_id=? AND batch_id=? AND data=?').run(after,rootId,relative,jobId,batchId,before);if(changed.changes!==1)return corrupt();audit.replace('local_scan_file_state',row,db.prepare('SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(rootId,relative)!);return ()=>audit.publish();
 }
-function sourceUpdatedScanState(db:DatabaseSync,row:Row,initial:ScanFileState):ScanFileState|null{
+function sourceUpdatedScanState(db:DatabaseSync,row:Row,initial:ScanFileState,assertReadActive?:()=>void):ScanFileState|null{
   const projection=sourceWritesProjectionForDatabase(db);let previous=initial,found=false;
   const updates:{before:string;after:string;sequence:number}[]=[];
-  for(const event of projection?.events??[]){if(event.kind!=='facts'||event.fact.scanJobId!==row.job_id||event.fact.scanBatchId!==row.batch_id)continue;
+  for(const event of projection?.events??[]){assertReadActive?.();if(event.kind!=='facts'||event.fact.scanJobId!==row.job_id||event.fact.scanBatchId!==row.batch_id)continue;
     const f=event.fact,next=parse(f.scanAfter,isScanFileState,65536);if(next.libraryRootId!==row.library_root_id||next.relative!==row.relative)continue;
     const ordinal=Number(db.prepare('SELECT rowid n FROM local_catalog_ledger WHERE command_id=?').get(event.eventId)?.n);if(!Number.isSafeInteger(ordinal)||ordinal<1)return corrupt();updates.push({before:f.scanBefore,after:f.scanAfter,sequence:ordinal});
   }
-  for(const item of lyricsPhysicalPublicationsForDatabase(db)){const scan=item.publication.scan;if(!scan||scan.jobId!==row.job_id||scan.batchId!==row.batch_id||scan.rootId!==row.library_root_id||scan.relative!==row.relative)continue;updates.push({before:scan.before,after:scan.after,sequence:item.sequence});}
-  for(const update of updates.sort((a,b)=>a.sequence-b.sequence)){const next=parse(update.after,isScanFileState,65536),before=parse(update.before,isScanFileState,65536);if(!equal(before,previous)||next.assetId!==initial.assetId||next.trackId!==initial.trackId||next.parserVersion!==initial.parserVersion)return corrupt();previous=next;found=true;}
+  for(const item of lyricsPhysicalPublicationsForDatabase(db)){assertReadActive?.();const scan=item.publication.scan;if(!scan||scan.jobId!==row.job_id||scan.batchId!==row.batch_id||scan.rootId!==row.library_root_id||scan.relative!==row.relative)continue;updates.push({before:scan.before,after:scan.after,sequence:item.sequence});}
+  for(const update of updates.sort((a,b)=>a.sequence-b.sequence)){assertReadActive?.();const next=parse(update.after,isScanFileState,65536),before=parse(update.before,isScanFileState,65536);if(!equal(before,previous)||next.assetId!==initial.assetId||next.trackId!==initial.trackId||next.parserVersion!==initial.parserVersion)return corrupt();previous=next;found=true;}
   return found?previous:null;
 }
 const relocationOriginIndexes = new WeakMap<DatabaseSync, { projection: RelocationProjection; origins: ReadonlyMap<string, RelocationLocationFact> }>();
-function relocationOriginFact(db: DatabaseSync, jobId: string, batchId: string, index: number): RelocationLocationFact | null {
+function relocationOriginFact(db: DatabaseSync, jobId: string, batchId: string, index: number, assertReadActive?: () => void): RelocationLocationFact | null {
   const projection = relocationProjectionForDatabase(db); if (!projection) return null;
   let cache = relocationOriginIndexes.get(db);
   if (!cache || cache.projection !== projection) {
     const origins = new Map<string, RelocationLocationFact>();
-    for (const event of projection.events) if (event.kind === 'location-facts') {
-      const fact = event.fact, key = `${fact.scan.origin.job.jobId}/${fact.scan.origin.batchId}/${fact.scan.origin.itemIndex}`;
-      if (origins.has(key)) return corrupt(); origins.set(key, fact);
+    for (const event of projection.events) {
+      assertReadActive?.();
+      if (event.kind === 'location-facts') {
+        const fact = event.fact, key = `${fact.scan.origin.job.jobId}/${fact.scan.origin.batchId}/${fact.scan.origin.itemIndex}`;
+        if (origins.has(key)) return corrupt(); origins.set(key, fact);
+      }
     }
     cache = { projection, origins }; relocationOriginIndexes.set(db, cache);
   }
   return cache.origins.get(`${jobId}/${batchId}/${index}`) ?? null;
 }
 /** 只接目录已认证013事件，再逐一核原四张receipt、batch和真实Reader事实；不补造register子账本。 */
-function verifyRelocationOrigin(db: DatabaseSync, job: dto.ScanJobRecord, batch: ScanPreparedBatch, index: number, file: ScanFileState): RelocationLocationFact | null {
-  const fact = relocationOriginFact(db, job.jobId, batch.batchId, index); if (!fact) return null;
+function verifyRelocationOrigin(db: DatabaseSync, job: dto.ScanJobRecord, batch: ScanPreparedBatch, index: number, file: ScanFileState, assertReadActive?: () => void): RelocationLocationFact | null {
+  const fact = relocationOriginFact(db, job.jobId, batch.batchId, index, assertReadActive); if (!fact) return null;
   const origin = fact.scan.origin, item = batch.items[index];
   if (!item || item.reused || item.outcome !== 'accepted' || !equal(item.fields, {}) || !isScanReadFacts(item.readFacts)
     || !equal(origin.job, job) || !equal(fact.scan.state, file) || file.libraryRootId !== fact.target.libraryRootId
@@ -440,6 +445,7 @@ function verifyRelocationOrigin(db: DatabaseSync, job: dto.ScanJobRecord, batch:
     ['prepare-batch', origin.prepareCommandId, origin.prepareFingerprint], ['commit-batch', origin.commitCommandId, origin.commitFingerprint],
   ] as const;
   for (const [operation, commandId, fingerprint] of receipts) {
+    assertReadActive?.();
     const row = db.prepare('SELECT * FROM local_scan_receipts WHERE command_id=? AND job_id=? AND operation=?').get(commandId, job.jobId, operation);
     if (!row || row.fingerprint !== fingerprint) return corrupt();
     const request = parse(row.request, (value): value is Row & { commandId: string; jobId: string } => isScanReceiptRequest(operation, value));
@@ -454,10 +460,11 @@ function verifyRelocationOrigin(db: DatabaseSync, job: dto.ScanJobRecord, batch:
 }
 
 /** 冷开、迁移及隔离备份/恢复全量流式核验；热批提交不调用此函数。 */
-export function verifyLocalScanDatabase(db: DatabaseSync): void {
+export function verifyLocalScanDatabase(db: DatabaseSync, assertReadActive?: () => void): void {
   // 只保留本次完整核验的最多32条语句；每次仍实读SQLite，不缓存行或跨调用续用。
   const statements = new Map<string, StatementSync>();
   const prepare = (sql: string): StatementSync => {
+    assertReadActive?.();
     const saved = statements.get(sql);
     if (saved) return saved;
     const statement = db.prepare(sql);
@@ -466,6 +473,8 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     return statement;
   };
   scanAudits.delete(db); discardScanOriginIndex(db);
+  // 只沿原取消异常退出；调用方负责真实回滚，不把未完成全核当成损坏或成功。
+  assertReadActive?.();
   const originIndex = createScanOriginIndex(), originStartedAtMs = performance.now();
   const initialVersion = scanDataVersion(db); const counts = new Map<Table, number>(); let bytes = 0;
   if (prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || prepare('PRAGMA foreign_key_check').get()) return corrupt();
@@ -485,6 +494,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
   const jobs = new Map<string, dto.ScanJobRecord>();
   const latest = new Map<string, dto.ScanJobRecord>();
   for (const row of prepare('SELECT * FROM local_scan_jobs ORDER BY rowid').iterate()) {
+    assertReadActive?.();
     const job = parse(row.data, dto.isScanJobRecord, 65_536);
     if (row.id !== job.jobId || row.dataset_id !== job.datasetId || row.library_root_id !== job.libraryRootId
       || row.source_root_id !== job.sourceRootId || !text(row.parser_version)) return corrupt();
@@ -494,6 +504,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     jobs.set(job.jobId, job);
   }
   for (const row of prepare('SELECT * FROM local_scan_receipts ORDER BY rowid').iterate()) {
+    assertReadActive?.();
     const operation = row.operation as ScanReceiptOperation;
     const request = parse(row.request, (v): v is Row & { commandId: string; jobId: string } => isScanReceiptRequest(operation, v));
     const result = parse(row.result, dto.isScanJobRecord, 65_536), current = jobs.get(result.jobId), previous = latest.get(result.jobId);
@@ -520,8 +531,9 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     }
     latest.set(result.jobId, result);
   }
-  for (const [id, job] of jobs) if (!equal(job, latest.get(id))) return corrupt();
+  for (const [id, job] of jobs) { assertReadActive?.(); if (!equal(job, latest.get(id))) return corrupt(); }
   for (const row of prepare('SELECT rowid AS _origin_ordinal,* FROM local_scan_batches ORDER BY rowid').iterate()) {
+    assertReadActive?.();
     const batch = parse(row.request, isScanPreparedBatch), job = jobs.get(batch.jobId);
     if(batch.kind === 'cue-sidecars-v1' && !hasCue) return corrupt();
     const parserVersion = job ? prepare('SELECT parser_version FROM local_scan_jobs WHERE id=?').get(job.jobId)?.parser_version : undefined;
@@ -533,17 +545,18 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     if (row.phase === 'prepared') { if (row.result !== null) return corrupt(); }
     else if (row.phase === 'committed') {
       const committedBatch = parse(row.result, isScanCommittedBatch), result = committedBatch.job;
-      if(batch.kind === 'cue-sidecars-v1') verifyCueBatch(db,batch,committedBatch,job);
+      if(batch.kind === 'cue-sidecars-v1') verifyCueBatch(db,batch,committedBatch,job,assertReadActive);
       else if(committedBatch.kind !== undefined) return corrupt();
       if (committedBatch.files.length !== batch.items.length) return corrupt();
       for (const [index, item] of batch.items.entries()) {
+        assertReadActive?.();
         const file = committedBatch.files[index]!;
         if (file.libraryRootId !== job.libraryRootId || file.relative !== item.relative || file.signature !== item.signature
           || file.parserVersion !== item.parserVersion || file.outcome !== item.outcome || file.failureCode !== item.failureCode
           || !item.reused && !equal(file.readFacts, item.readFacts)) return corrupt();
         const registered = prepare('SELECT request,result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'register-asset'), 'register-asset');
         const replaced = prepare('SELECT request,result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'replace-asset'), 'replace-asset');
-        const relocated = verifyRelocationOrigin(db, job, batch, index, file);
+        const relocated = verifyRelocationOrigin(db, job, batch, index, file, assertReadActive);
         if (relocated && (registered || replaced || prepare('SELECT command_id FROM local_catalog_ledger WHERE command_id IN (?,?)').get(childCommand(batch.batchId, index, 'create-track'), childCommand(batch.batchId, index, 'observe-metadata')))) return corrupt();
         if (registered || replaced) {
           const child = registered ?? replaced!; const childRequest = JSON.parse(String(child.request)) as Row;
@@ -574,6 +587,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     } else return corrupt();
   }
   for (const row of prepare('SELECT * FROM local_scan_checkpoints ORDER BY rowid').iterate()) {
+    assertReadActive?.();
     const checkpoint = parse(row.data, isScanCheckpoint);
     const batchRow = prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(checkpoint.batchId, checkpoint.jobId);
     if (!batchRow || row.id !== checkpoint.checkpointId || row.job_id !== checkpoint.jobId || row.batch_id !== checkpoint.batchId) return corrupt();
@@ -597,6 +611,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
   let memoBytes = 0, memoAllocation = 0, peakMemoAllocation = 0, peakMemoEntries = 0, parsedFileBatches = 0, uncachedFileBatches = 0, verifiedFileRows = 0;
   const fileStateStarted = performance.now();
   for (const row of prepare('SELECT * FROM local_scan_file_state ORDER BY rowid').iterate()) {
+    assertReadActive?.();
     const state = parse(row.data, isScanFileState, 65_536), job = jobs.get(String(row.job_id));
     const batchRow = prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(String(row.batch_id), String(row.job_id));
     if (!job || !batchRow || row.library_root_id !== state.libraryRootId || state.libraryRootId !== job.libraryRootId
@@ -608,7 +623,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     }
     const committed = memo?.committed ?? parse(batchRow.result, isScanCommittedBatch);
     const committedFile = committed.files.find(file => file.relative === state.relative);
-    if (!committedFile || !equal(committedFile, state)&&!equal(sourceUpdatedScanState(db,row,committedFile),state)) return corrupt();
+    if (!committedFile || !equal(committedFile, state)&&!equal(sourceUpdatedScanState(db,row,committedFile,assertReadActive),state)) return corrupt();
     const batch = memo?.batch ?? parse(batchRow.request, isScanPreparedBatch);
     const item = batch.items.find(item => item.relative === state.relative);
     if (!item || item.signature !== committedFile.signature || item.parserVersion !== state.parserVersion || item.outcome !== state.outcome || item.failureCode !== state.failureCode) return corrupt();
@@ -643,30 +658,34 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
   if(hasCue) {
     const priorCue=new Map<string,CueSnapshot>();
     for(const row of prepare('SELECT * FROM local_cue_sources ORDER BY rowid').iterate()) {
+      assertReadActive?.();
       const snapshot=parse(row.data,isCueSnapshot),parent=prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND phase='committed'").get(String(row.batch_id));
       if(!parent || snapshot.id !== row.id || snapshot.sidecarId !== row.sidecar_id || snapshot.libraryRootId !== row.library_root_id || snapshot.item.relative !== row.relative) return corrupt();
       const key=scanCanonical([snapshot.libraryRootId,snapshot.item.relative]),prior=priorCue.get(key);
       if(snapshot.item.previousSnapshotId !== (prior?.id ?? null) || prior && snapshot.sidecarId !== prior.sidecarId || snapshot.item.reused) return corrupt();priorCue.set(key,snapshot);
       const batch=parse(parent.request,isScanPreparedBatch),result=parse(parent.result,isScanCommittedBatch),job=jobs.get(batch.jobId);
-      if(!job || batch.kind !== 'cue-sidecars-v1' || !result.cueSnapshotIds?.includes(snapshot.id)) return corrupt();verifyCueBatch(db,batch,result,job);
+      if(!job || batch.kind !== 'cue-sidecars-v1' || !result.cueSnapshotIds?.includes(snapshot.id)) return corrupt();verifyCueBatch(db,batch,result,job,assertReadActive);
       if(snapshot.item.result?.tracks.some(track=>track.assetReference.libraryRootId !== snapshot.libraryRootId || track.assetReference.sourceRootId !== snapshot.sourceRootId || track.assetReference.rootRevision !== snapshot.rootRevision)) return corrupt();
     }
     for(const row of prepare('SELECT * FROM local_cue_tracks ORDER BY rowid').iterate()) {
+      assertReadActive?.();
       const source=prepare('SELECT data FROM local_cue_sources WHERE id=?').get(String(row.snapshot_id));if(!source) return corrupt();
       const tracks=parse(source.data,isCueSnapshot).item.result?.tracks ?? [];
       if(typeof row.ordinal !== 'number' || !Number.isSafeInteger(row.ordinal) || row.ordinal<0 || row.ordinal>=tracks.length
         || row.asset_id !== tracks[row.ordinal]!.assetReference.assetId || !equal(JSON.parse(String(row.data)),tracks[row.ordinal])) return corrupt();
     }
   }
-  for (const event of relocationProjectionForDatabase(db)?.events ?? []) if (event.kind === 'location-facts') {
+  for (const event of relocationProjectionForDatabase(db)?.events ?? []) {
+    assertReadActive?.(); if (event.kind !== 'location-facts') continue;
     const fact = event.fact, job = jobs.get(fact.scan.origin.job.jobId);
     const row = prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(fact.scan.origin.batchId, fact.scan.origin.job.jobId);
     if (!job || !row) return corrupt();
     const batch = parse(row.request, isScanPreparedBatch), files = parse(row.result, isScanCommittedBatch).files;
-    const file = files[fact.scan.origin.itemIndex]; if (!file || !verifyRelocationOrigin(db, job, batch, fact.scan.origin.itemIndex, file)) return corrupt();
+    const file = files[fact.scan.origin.itemIndex]; if (!file || !verifyRelocationOrigin(db, job, batch, fact.scan.origin.itemIndex, file, assertReadActive)) return corrupt();
   }
-  verifyCompletedScanSnapshotDatabase(db);
+  verifyCompletedScanSnapshotDatabase(db, assertReadActive);
   if (scanDataVersion(db) !== initialVersion) return corrupt();
+  assertReadActive?.();
   scanAudits.set(db, { rows: counts, bytes, dataVersion: initialVersion });
   stageScanOriginIndex(db, originIndex);
   logLibraryOperation('cache', 'scan.origin-index', originIndex.overflow ? 'skipped' : 'complete', {

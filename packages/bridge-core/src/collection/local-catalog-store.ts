@@ -347,7 +347,8 @@ const resultTable = (operation: dto.LocalCatalogOperation): Table => {
 interface HistoryRelations { tracks: Map<string, Map<string, dto.LocalTrack>>; editionSequences: Map<string, Set<number>> }
 /** 逐回执重放身份与修订关系，防止只改实体和末条JSON便伪造一条有效历史。 */
 function verifyHistoryStep(db: DatabaseSync, operation: dto.LocalCatalogOperation, request: Row, result: dto.LocalCatalogResult,
-  latest: Map<string, dto.LocalCatalogResult>, privateAssets: Map<string, { relative: unknown; sha256: unknown }>, observations: Map<string, string>, relations?: HistoryRelations): void {
+  latest: Map<string, dto.LocalCatalogResult>, privateAssets: Map<string, { relative: unknown; sha256: unknown }>, observations: Map<string, string>, relations?: HistoryRelations,
+  assertReadActive?: () => void): void {
   const history = <T extends dto.LocalCatalogResult>(table: Table, id: unknown, guard: (v: unknown) => v is T): T => {
     const value = latest.get(`${table}:${String(id)}`); return guard(value) ? value : corrupt();
   };
@@ -382,7 +383,7 @@ function verifyHistoryStep(db: DatabaseSync, operation: dto.LocalCatalogOperatio
       const moved = location.relative !== request.relative || old.sourceRootId !== selected.sourceRootId;
       equal({ ...old, sourceRootId: selected.sourceRootId, rootRevision: selected.revision, fileRevision: next(old.fileRevision), locationRevision: moved ? next(old.locationRevision) : old.locationRevision, sampleFrames: request.sampleFrames, timebaseHz: request.timebaseHz });
       if (relations) {
-        for (const selected of relations.tracks.get(old.id)?.values() ?? []) checkSegment(selected, result as dto.AudioAsset);
+        for (const selected of relations.tracks.get(old.id)?.values() ?? []) { assertReadActive?.(); checkSegment(selected, result as dto.AudioAsset); }
       } else for (const [key, value] of latest) if (key.startsWith('local_catalog_tracks:') && dto.isLocalTrack(value) && value.assetId === old.id) checkSegment(value, result as dto.AudioAsset);
       break;
     }
@@ -427,10 +428,11 @@ function verifyHistoryStep(db: DatabaseSync, operation: dto.LocalCatalogOperatio
 }
 
 /** 同连接/只读备份均核真实DDL、关系、私有位置和全部回执；不打开第二写连接。 */
-export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
+export function verifyLocalCatalogDatabase(db: DatabaseSync, assertReadActive?: () => void): void {
   // 只保留本次完整核验的最多32条语句；每次仍实读SQLite，不缓存行或跨调用续用。
   const statements = new Map<string, StatementSync>();
   const prepare = (sql: string): StatementSync => {
+    assertReadActive?.();
     const saved = statements.get(sql);
     if (saved) return saved;
     const statement = db.prepare(sql);
@@ -444,6 +446,8 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   sourceWritesAudits.delete(db);
   relocationAudits.delete(db);
   workbenchAudits.delete(db);
+  // 取消只中断本次核验，异常沿调用方原回滚链传播；不能发表部分审计证书。
+  assertReadActive?.();
   const initialDataVersion = dataVersion(db);
   const initialObservationPoint = observationHistoryPoint(db);
   for (const [name, sql] of Object.entries(tables)) if (prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
@@ -475,6 +479,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   const rootFactsObligations = new Map<string, { before: dto.LibraryRoot; after: dto.LibraryRoot;
     pending: Map<string, { operationId: string; resourceId: string }> }>();
   for (const row of prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger ORDER BY rowid').iterate()) {
+    assertReadActive?.();
     boundedRow(row);
     const ledgerRowId=Number(row._ledger_rowid);if(!Number.isSafeInteger(ledgerRowId)||ledgerRowId<1)return corrupt();
     if(typeof legacy!=='string')legacy.highWater=ledgerRowId;
@@ -487,8 +492,11 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
         if (!stored || !relocationRootReassociationMatches(relocation, stored, event.beforeRoot, event.afterRoot)) return corrupt();
         // 只按此历史点重放出的成员核闭集；最终SQL成员不能代替迁移当时的集合。
         const members = new Set<string>();
-        for (const value of latest.values()) if (dto.isAudioAsset(value) && value.libraryRootId === event.beforeRoot.id) {
-          members.add(value.id); if (members.size > dto.LOCAL_RELOCATION_PLAN_BUDGET.operations) return corrupt();
+        for (const value of latest.values()) {
+          assertReadActive?.();
+          if (dto.isAudioAsset(value) && value.libraryRootId === event.beforeRoot.id) {
+            members.add(value.id); if (members.size > dto.LOCAL_RELOCATION_PLAN_BUDGET.operations) return corrupt();
+          }
         }
         const audio = stored.resources.filter(resource => resource.frozen.role === 'AUDIO');
         const operationAssets = stored.operations.map(operation => operation.source?.asset.id);
@@ -525,7 +533,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
         }
         const members = relations.tracks.get(fact.beforeAsset.id);
         if (!members || members.size !== fact.tracks.length || fact.tracks.some(track => !same(members.get(track.id), track))) return corrupt();
-        for (const track of fact.tracks) checkSegment(track, fact.afterAsset);
+        for (const track of fact.tracks) { assertReadActive?.(); checkSegment(track, fact.afterAsset); }
         latest.set(`local_catalog_assets:${fact.afterAsset.id}`, fact.afterAsset);
         privateAssets.set(fact.afterAsset.id, { relative: fact.target.relative, sha256: fact.catalogSha256 });
         rootObligation?.pending.delete(fact.beforeAsset.id);
@@ -538,7 +546,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
         const fact=event.fact,child=prepare("SELECT result,request FROM local_catalog_ledger WHERE command_id=? AND operation='replace-asset'").get(fact.replaceCommandId);
         if(!child||!same(JSON.parse(String(child.result)),fact.afterAsset)||!same(latest.get(`local_catalog_assets:${fact.afterAsset.id}`),fact.afterAsset))return corrupt();
         const request=JSON.parse(String(child.request)) as Row;if(request.sha256!==fact.observation.sha256||request.expectedFileRevision!==fact.beforeAsset.fileRevision)return corrupt();
-        for(const id of fact.affectedTrackIds){const t=latest.get(`local_catalog_tracks:${id}`);if(!dto.isLocalTrack(t)||t.assetId!==fact.afterAsset.id||t.segment!==null)return corrupt();}
+        for(const id of fact.affectedTrackIds){assertReadActive?.();const t=latest.get(`local_catalog_tracks:${id}`);if(!dto.isLocalTrack(t)||t.assetId!==fact.afterAsset.id||t.segment!==null)return corrupt();}
       }
       projectSourceWritesEvent(sourceWrites,event,ledgerRowId);continue;
     }
@@ -584,11 +592,11 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
     }
     if(row.operation===LOCAL_WORKBENCH_MB_ONLY_OPERATION){
       const e=readLocalWorkbenchMBOnlyEvent(row),p=workbench.mbOnly.get(e.datasetId)??emptyLocalWorkbenchMBOnlyProjection(e.datasetId),value=projectLocalWorkbenchMBOnlyEvent(p,e,ledgerRowId);
-      if(value){verifyMBOnlyHistoricalRecord(db,value,workbench,ledgerRowId);for(const update of value.editionUpdates){if(!same(latest.get(`local_catalog_editions:${update.before.id}`),update.before))return corrupt();latest.set(`local_catalog_editions:${update.after.id}`,update.after)}}
+      if(value){verifyMBOnlyHistoricalRecord(db,value,workbench,ledgerRowId);for(const update of value.editionUpdates){assertReadActive?.();if(!same(latest.get(`local_catalog_editions:${update.before.id}`),update.before))return corrupt();latest.set(`local_catalog_editions:${update.after.id}`,update.after)}}
       workbench.mbOnly.set(e.datasetId,p);continue;
     }
     if (row.operation === ORGANIZER_JOURNAL) { verifyOrganizerJournalRow(db, row, latest); continue; }
-    if(['relink-root','move-asset','replace-asset','select-asset'].includes(String(row.operation)))for(const p of workbench.lyrics.values()){p.inventory.clear();p.highWater=ledgerRowId}
+    if(['relink-root','move-asset','replace-asset','select-asset'].includes(String(row.operation)))for(const p of workbench.lyrics.values()){assertReadActive?.();p.inventory.clear();p.highWater=ledgerRowId}
     const operation = row.operation as dto.LocalCatalogOperation;
     if (!(dto.LOCAL_CATALOG_OPERATIONS as readonly unknown[]).includes(operation) || !dto.isCollectionId(row.command_id)
       || typeof row.created_at !== 'string' || !Number.isFinite(Date.parse(row.created_at))) return corrupt();
@@ -599,7 +607,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
     const key = `${resultTable(operation)}:${id}`, previous = latest.get(key);
     if (['register-root', 'register-asset', 'create-track', 'create-edition', 'link-edition-track', 'observe-metadata'].includes(operation) && previous) return corrupt();
     if (['relink-root', 'move-asset', 'replace-asset', 'select-asset', 'remove-edition-track'].includes(operation) && !previous) return corrupt();
-    verifyHistoryStep(db, operation, request, result, latest, privateAssets, observations, relations);
+    verifyHistoryStep(db, operation, request, result, latest, privateAssets, observations, relations, assertReadActive);
     if(operation==='relink-root'){if(!dto.isLibraryRoot(previous))return corrupt();workbench.rootRelinks.set(id,readRootRelinkReceipt(row,previous));}
     if (operation === 'create-track' || operation === 'select-asset') {
       const selected = result as dto.LocalTrack;
@@ -627,10 +635,11 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
     } else latest.set(key, result);
   }
   // 同一根CAS的全成员位置事实必须齐全；完整READY声明和旧rootRevision不能掩盖部分账本。
-  for (const obligation of rootFactsObligations.values()) if (obligation.pending.size) return corrupt();
+  for (const obligation of rootFactsObligations.values()) { assertReadActive?.(); if (obligation.pending.size) return corrupt(); }
   let entities = 0;
   for (const table of Object.keys(tables).filter(name => name !== 'local_catalog_ledger') as Exclude<Table, 'local_catalog_ledger'>[]) {
     for (const row of prepare(`SELECT * FROM ${table}`).iterate()) {
+      assertReadActive?.();
       const id = String(table === 'local_catalog_overrides' ? row.track_id : row.id);
       boundedRow(row);
       const stored = latest.get(`${table}:${id}`);
@@ -655,20 +664,22 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   if (immutableObservations !== counts.get('local_catalog_observations') || entities !== latest.size + immutableObservations || prepare('PRAGMA foreign_key_check').get()
     || prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok') return corrupt();
   if (dataVersion(db) !== initialDataVersion || !same(observationHistoryPoint(db),initialObservationPoint)) return corrupt();
-  for(const p of workbench.workbench.values())assertLocalWorkbenchJournalComplete(p);
-  for(const p of workbench.lyrics.values())assertLocalLyricsJournalComplete(p);
-  for(const p of workbench.cue.values())assertLocalCueOwnerComplete(p);
-  for(const p of workbench.mbOnly.values())assertLocalWorkbenchMBOnlyComplete(p);
-  for(const p of workbench.lyricsPhysical.values())assertLocalLyricsPhysicalComplete(p);
-  for(const p of workbench.management.values())assertLocalLibraryManagementComplete(p);
-  for(const p of workbench.lyricsRoot.values())assertLocalLyricsRootComplete(p);
+  for(const p of workbench.workbench.values()){assertReadActive?.();assertLocalWorkbenchJournalComplete(p);}
+  for(const p of workbench.lyrics.values()){assertReadActive?.();assertLocalLyricsJournalComplete(p);}
+  for(const p of workbench.cue.values()){assertReadActive?.();assertLocalCueOwnerComplete(p);}
+  for(const p of workbench.mbOnly.values()){assertReadActive?.();assertLocalWorkbenchMBOnlyComplete(p);}
+  for(const p of workbench.lyricsPhysical.values()){assertReadActive?.();assertLocalLyricsPhysicalComplete(p);}
+  for(const p of workbench.management.values()){assertReadActive?.();assertLocalLibraryManagementComplete(p);}
+  for(const p of workbench.lyricsRoot.values()){assertReadActive?.();assertLocalLyricsRootComplete(p);}
   workbench.highWater=Number(prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);
+  sourceWrites.highWater=Math.max(sourceWrites.highWater,Number(prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));
+  relocation.highWater = Math.max(relocation.highWater, Number(prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));
+  assertReadActive?.();
   workbenchAudits.set(db,workbench);
   const certificate:AuditCertificate = { rows: counts, bytes, dataVersion: initialDataVersion };
   audits.set(db, certificate);
   legacyAudits.set(db,legacy);
-  sourceWrites.highWater=Math.max(sourceWrites.highWater,Number(prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));sourceWritesAudits.set(db,sourceWrites);
-  relocation.highWater = Math.max(relocation.highWater, Number(prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));
+  sourceWritesAudits.set(db,sourceWrites);
   relocationAudits.set(db, relocation);
   if(managementObservations.byTrack!==null)publishObservationHistory(db,certificate,initialObservationPoint,managementObservations);
 }

@@ -14,7 +14,8 @@ const query: MobileOwnerCatalogRequest = { operation: 'listAlbums', serverId: 's
   offset: 0, limit: 10, q: '', albumId: null, itemId: null, expectedRevision: null, catalogPlaybackEnabled: true };
 
 /** 复用真实 Owner、合成扫描批与真实 SQLite UDF 闸门；本夹具刻意在 prepare 后不自动 commitBoot。 */
-async function fixture(t: test.TestContext, fault?: 'audit' | 'snapshot-without-change', seedContentEdition = false) {
+async function fixture(t: test.TestContext, fault?: 'audit' | 'snapshot-without-change', seedContentEdition = false,
+  auditPause?: 'catalog-ledger' | 'scan-file-state') {
   const temporary = process.env.TMPDIR;
   if (typeof temporary !== 'string' || !temporary.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/')) {
     throw new Error('合成启动库只能写外置临时根。');
@@ -40,7 +41,7 @@ async function fixture(t: test.TestContext, fault?: 'audit' | 'snapshot-without-
   const fatal: string[] = [], ownerExits: number[] = [];
   const worker = new Worker(new URL('../helpers/mobile-sql-owner-isolation-fixture.ts', import.meta.url), {
     execArgv: ['--import', 'tsx'], workerData: { dataDirectory: directory, gate: gate.buffer,
-      control: channel.port2, completeLibrary: true, backgroundWarm: true, startupSqlFault: fault, seedContentEdition,
+      control: channel.port2, completeLibrary: true, backgroundWarm: true, startupSqlFault: fault, seedContentEdition, auditPause,
       readRevocation: revocation.buffer }, transferList: [channel.port2],
   });
   worker.on('exit', code => ownerExits.push(code));
@@ -171,6 +172,27 @@ test('启动预热：boot 已确认后关闭仍可取消在途 SQL，close 等�
     assert.equal(f.events.some(value => value.type === 'sql.worker.exit'), false);
   } finally { f.release(); }
   assert.deepEqual(await committing, { ok: true }); await closing; await f.event('sql.worker.exit'); assertClosed(f);
+});
+
+for (const auditPause of ['catalog-ledger', 'scan-file-state'] as const) test(`启动预热：${auditPause} 全核逐行途中关闭停止余下核验，真实回滚并自然退出`, { timeout: 20_000 }, async t => {
+  const f = await fixture(t, undefined, false, auditPause); f.arm();
+  await f.endpoint.commitBoot(); await f.event('sql.audit.row');
+  const closing = f.close();
+  try {
+    await f.event('sql.audit.cancel-seen');
+    assert.equal(await f.beforeRelease(closing), false, '当前真实迭代尚未归还，不能提前回执关闭。');
+    assert.equal(f.events.some(value => value.type === 'sql.stage.rollback' || value.type === 'sql.worker.exit'), false);
+  } finally { f.release(); }
+  await closing; await f.event('sql.worker.exit');
+  assert.equal(Atomics.load(f.gate, 6), 1, '取消后不能继续迭代剩余全核行。');
+  assert.ok(f.events.some(value => value.type === 'sql.audit.iterator-returned'), '中断迭代必须归还真实 SQLite 游标。');
+  assert.equal(f.events.some(value => value.type === 'sql.audit.exhausted'), false, '不能等遍历完整库后才承认取消。');
+  assert.equal(f.events.some(value => value.type === 'sql.stage.audit-scan' || value.type === 'sql.stage.entered' || value.type === 'warm.complete'), false);
+  assert.equal(f.events.some(value => value.type === 'sql.stage.audit-catalog'), auditPause === 'scan-file-state');
+  const stage = (type: string) => f.events.findIndex(value => value.type === type);
+  assert.ok(stage('sql.stage.rollback') < stage('sql.stage.closed'));
+  assert.ok(stage('sql.stage.closed') < stage('sql.worker.exit'));
+  assertClosed(f);
 });
 
 for (const change of ['queue.change', 'metadata.change']) test(`启动预热：同 Owner 的 ${change} 推进实际水位后重新全核，不误报 fatal`, { timeout: 20_000 }, async t => {

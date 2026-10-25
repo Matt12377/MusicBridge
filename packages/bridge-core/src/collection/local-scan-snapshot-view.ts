@@ -111,9 +111,10 @@ function job(db: DatabaseSync, id: string): { job: dto.ScanJobRecord; raw: strin
   if (value.jobId !== id || value.phase !== 'completed') return corrupt();
   return { job: value, raw: row.data, watermark: Number(row.ordinal) };
 }
-function batches(db: DatabaseSync, jobId: string): CompletedScanSnapshot['batches'] {
+function batches(db: DatabaseSync, jobId: string, current?: () => void): CompletedScanSnapshot['batches'] {
   const result: CompletedScanSnapshot['batches'] = []; let bytes = 0;
   for (const row of db.prepare("SELECT id,request,result FROM local_scan_batches WHERE job_id=? AND phase='committed' ORDER BY rowid").iterate(jobId)) {
+    current?.();
     if (typeof row.id !== 'string' || typeof row.request !== 'string' || typeof row.result !== 'string') return corrupt();
     const value = { batchId: row.id, request: row.request, result: row.result };
     bytes += Buffer.byteLength(completedScanCanonical(value));
@@ -124,17 +125,21 @@ function batches(db: DatabaseSync, jobId: string): CompletedScanSnapshot['batche
   if (!result.length) return corrupt();
   return result;
 }
-function batchFacts(parts: CompletedScanSnapshot['batches']): { count: number; targets: { assetId: string; trackId: string }[] } {
+function batchFacts(parts: CompletedScanSnapshot['batches'], current?: () => void): { count: number; targets: { assetId: string; trackId: string }[] } {
   let count = 0; const targets = new Map<string, { assetId: string; trackId: string }>();
   for (const part of parts) {
+    current?.();
     const request = JSON.parse(part.request) as { batchId: string; items: unknown[]; cueItems?: dto.LocalCuePreparedItem[] };
     const result = JSON.parse(part.result) as { files: { outcome: string; assetId: string | null; trackId: string | null }[] };
     if (request.batchId !== part.batchId || !Array.isArray(request.items) || !Array.isArray(result.files) || request.items.length !== result.files.length) return corrupt();
     count += result.files.length;
-    for (const cue of request.cueItems ?? []) count += Math.max(1, cue.result?.tracks.length ?? 0);
-    for (const file of result.files) if (file.outcome === 'accepted') {
-      if (!dto.isCollectionId(file.assetId) || !dto.isCollectionId(file.trackId)) return corrupt();
-      const value = { assetId: file.assetId, trackId: file.trackId }; targets.set(value.assetId + '/' + value.trackId, value);
+    for (const cue of request.cueItems ?? []) { current?.(); count += Math.max(1, cue.result?.tracks.length ?? 0); }
+    for (const file of result.files) {
+      current?.();
+      if (file.outcome === 'accepted') {
+        if (!dto.isCollectionId(file.assetId) || !dto.isCollectionId(file.trackId)) return corrupt();
+        const value = { assetId: file.assetId, trackId: file.trackId }; targets.set(value.assetId + '/' + value.trackId, value);
+      }
     }
   }
   return { count, targets: [...targets.values()] };
@@ -150,6 +155,7 @@ function isSnapshot(value: unknown): value is CompletedScanSnapshot {
       && dto.isLocalMetadata(member.rawMetadata) && dto.isLocalMetadata(member.effectiveMetadata));
 }
 function readWhole(db: DatabaseSync, record: Attempt, current?: () => void): CompletedScanSnapshot {
+  current?.();
   const parts: Buffer[] = []; let index = 0, size = 0;
   for (const row of db.prepare('SELECT ordinal,data FROM local_scan_snapshot_chunks WHERE snapshot_id=? ORDER BY ordinal').iterate(record.attemptId)) {
     current?.();
@@ -160,16 +166,19 @@ function readWhole(db: DatabaseSync, record: Attempt, current?: () => void): Com
       || index < record.chunks - 1 && bytes.length !== LOCAL_SCAN_SNAPSHOT_LIMITS.chunkBytes) return corrupt();
     size += bytes.length; if (size > record.bytes || ++index > record.chunks) return corrupt(); parts.push(bytes);
   }
+  current?.();
   const bytes = Buffer.concat(parts);
   if (index !== record.chunks || size !== record.bytes || digest(bytes) !== record.sha256) return corrupt();
   const raw = new TextDecoder('utf-8', { fatal: true }).decode(bytes), snapshot = parse(raw, isSnapshot, LOCAL_SCAN_SNAPSHOT_LIMITS.bytes);
   if (completedScanCanonical(snapshot) !== raw) return corrupt();
-  const source = job(db, record.jobId), originalBatches = batches(db, record.jobId), facts = batchFacts(snapshot.batches);
+  current?.();
+  const source = job(db, record.jobId), originalBatches = batches(db, record.jobId, current), facts = batchFacts(snapshot.batches, current);
   if (!same(snapshot.job, source.job) || digest(source.raw) !== record.jobHash || source.watermark !== record.jobWatermark
     || !same(snapshot.frozen, record.frozen) || !same(record.frozen, readFrozen(db, record.datasetId, record.jobId))
     || !same(snapshot.batches, originalBatches) || facts.count !== record.facts || facts.count > LOCAL_SCAN_SNAPSHOT_LIMITS.facts) return corrupt();
-  const members = new Map(snapshot.members.map(member => [member.asset.id + '/' + member.track.id, member]));
+  const members = new Map(snapshot.members.map(member => { current?.(); return [member.asset.id + '/' + member.track.id, member] as const; }));
   if (members.size !== snapshot.members.length || members.size !== facts.targets.length || facts.targets.some(target => {
+    current?.();
     const member = members.get(target.assetId + '/' + target.trackId);
     return !member || member.asset.libraryRootId !== record.libraryRootId || member.asset.sourceRootId !== record.sourceRootId || member.asset.rootRevision !== record.rootRevision;
   })) return corrupt();
@@ -184,21 +193,25 @@ function resources(db: DatabaseSync): { commits: number; chunks: number; bytes: 
   return { commits, chunks, bytes };
 }
 /** 原scan冷核之后完整消费本可选域；未创建两表的旧schema32仍有效，partial禁止自动修补。 */
-export function verifyCompletedScanSnapshotDatabase(db: DatabaseSync): void {
+export function verifyCompletedScanSnapshotDatabase(db: DatabaseSync, current?: () => void): void {
+  current?.();
   if (!schema(db)) return;
+  current?.();
   resources(db); const previous = new Map<string, Attempt>(); let chunkCount = 0;
   for (const row of db.prepare('SELECT * FROM local_scan_snapshot_commits ORDER BY rowid').iterate()) {
+    current?.();
     const record = parse(row.data, attempt, 65536), source = job(db, record.jobId), prior = previous.get(record.jobId);
     if (row.id !== record.attemptId || row.job_id !== record.jobId || record.datasetId !== source.job.datasetId
       || record.libraryRootId !== source.job.libraryRootId || record.sourceRootId !== source.job.sourceRootId || record.rootRevision !== source.job.rootRevision
       || record.jobHash !== digest(source.raw) || record.jobWatermark !== source.watermark || record.attempt !== (prior?.attempt ?? 0) + 1
       || record.previousAttemptId !== (prior?.attemptId ?? null) || !same(record.frozen, readFrozen(db, record.datasetId, record.jobId))) return corrupt();
-    if (record.status === 'ready') { readWhole(db, record); chunkCount += record.chunks; }
+    if (record.status === 'ready') { readWhole(db, record, current); chunkCount += record.chunks; }
     else if (db.prepare('SELECT 1 FROM local_scan_snapshot_chunks WHERE snapshot_id=?').get(record.attemptId)) return corrupt();
     previous.set(record.jobId, record);
   }
   if (Number(db.prepare('SELECT count(*) n FROM local_scan_snapshot_chunks').get()!.n) !== chunkCount
     || db.prepare('SELECT 1 FROM local_scan_snapshot_chunks c LEFT JOIN local_scan_snapshot_commits s ON s.id=c.snapshot_id WHERE s.id IS NULL LIMIT 1').get()) return corrupt();
+  current?.();
 }
 export interface CompletedScanSnapshotOptions {
   repository: CollectionRepository; identity: DatasetIdentity;

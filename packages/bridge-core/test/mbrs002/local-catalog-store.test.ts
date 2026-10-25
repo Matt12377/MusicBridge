@@ -250,14 +250,16 @@ test('MBRS002 audit：冷核语句只在本次复用，24项仍逐次实读且�
     return statement;
   });
   const before = database.prepare('SELECT total_changes() n').get()!.n;
+  let checkpoints = 0;
   for (let pass = 1; pass <= 2; pass++) {
-    verifyLocalCatalogDatabase(database);
+    verifyLocalCatalogDatabase(database, pass === 2 ? () => { checkpoints++; } : undefined);
     for (const [sql, counts] of targets) {
       assert.equal(counts.prepares, pass, `每次完整核验只准备一次：${sql}`);
       assert.equal(counts.reads, 24 * pass, `不能复用同根或其他实体的读取结果：${sql}`);
     }
     assert.equal(database.prepare('SELECT total_changes() n').get()!.n, before, '复用语句不能写数据库');
   }
+  assert.ok(checkpoints > 0, '带取消检查点的完整核验仍须执行原全部实体实读。');
 });
 
 test('MBRS002 audit：复用语句仍消费第二次真实根读取，变化后拒绝且下一次重新核验', async t => {
