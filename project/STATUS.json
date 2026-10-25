@@ -50634,7 +50634,7 @@
   },
   "streamingStalls20261025": {
     "baseSha": "5187ea2c43342335b63a53e311ebb67d8fcd50a7",
-    "status": "IMPLEMENTED_AWAITING_PACKAGED_SE_VERIFICATION",
+    "status": "PACKAGED_SE_PLAYBACK_AND_NORMAL_EXIT_VERIFIED",
     "changes": [
       "减少手机直接源读取中的重复目录与文件验证",
       "诊断标准输出失效不阻断主进程与退出"
@@ -50643,8 +50643,38 @@
       "sourceRegressionPassed": 37,
       "sourceRegressionExitCode": 0,
       "physicalDevice": "iPhone SE",
-      "physicalPlayback": "PENDING",
-      "packagedExit": "PENDING"
-    }
+      "physicalPlayback": "SAME_LOCAL_SELECTION_FULL_DURATION_AND_NATURAL_ADVANCE",
+      "packagedExit": "CMD_Q_EXIT_ZERO_NO_FORCE_ALL_EIGHT_PROCESSES_CLOSED",
+      "fullVerifyExitCode": 0,
+      "fullVerifyPassed": 7115,
+      "fullVerifySkipped": 2,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "diagnosticRegressionPassed": 14,
+      "vmFixtureRegressionPassed": 37,
+      "macBuild": "20261025.080059",
+      "iosBuild": "119",
+      "installedCompiledFilesMatched": 38,
+      "targetWaitingBeforeMs": 120661,
+      "targetWaitingAfterMs": 0,
+      "targetRangeP50BeforeMs": 2187.509,
+      "targetRangeP50AfterMs": 390.837,
+      "targetRangeP95BeforeMs": 4002.782,
+      "targetRangeP95AfterMs": 1213.886,
+      "brokenStdoutRealApplication": "VERIFIED",
+      "ordinaryStartupFromSealedBuild": "PASSED_MOCK_KEYCHAIN",
+      "utilityCrashRestartFromSealedBuild": "PASSED_MOCK_KEYCHAIN"
+    },
+    "implementationSha": "019112ad2dc015454b5a4e94cc1c43316900372a",
+    "validationRevision": "cc04d54",
+    "report": "reports/MOUSA41_STREAMING_STALLS_FIX_2026-10-25.md",
+    "carryover": [
+      "LOCAL_ARTISTS_AND_SEARCH_WAIT_DURING_INDEX_PREPARATION",
+      "DIRECT_DUO_ALL_ALBUMS_AND_OWNER_AUDIO_ACCEPTANCE_NOT_CLAIMED",
+      "LEGACY_STARTUP_GATE_MISSES_NATIVE_BUILD_RECEIPT_SEAL"
+    ],
+    "audioFilesModified": false,
+    "playbackSourceChanged": false,
+    "iosSourceChanged": false
   }
 }
