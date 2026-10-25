@@ -36,7 +36,8 @@ export interface DatasetOwnerWorkerOptions {
   privateSourceWritesPort?:MessagePort;
   privateRelocationMainPort?: MessagePort;
   // factory、converter和helper只在worker本地创建，端口上不接受函数或任意方法名。
-  prepare(epoch: string, projection: DatasetProjectionPort, sourceWritesMainActor?: SourceWritesMainActor): Promise<OwnedDatasetDomain>;
+  prepare(epoch: string, projection: DatasetProjectionPort, sourceWritesMainActor: SourceWritesMainActor | undefined,
+    onBackgroundFatal: () => void): Promise<OwnedDatasetDomain>;
 }
 
 interface PendingProjection {
@@ -372,7 +373,10 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     if (closing || failed) { reject(request, new DatasetOwnerDispatchError(responseFailure(request.request?.id ?? request.requestId, 'NOT_READY', '领域所有者正在关闭。'))); return; }
     if (request.operation === 'prepare') {
       try {
-        preparation ??= Promise.resolve().then(() => options.prepare(request.epoch, projection, sourceActor)).then(prepared => {
+        preparation ??= Promise.resolve().then(() => options.prepare(request.epoch, projection, sourceActor, () => {
+          // close 已封入口时，撤销可先于 domain.close 到达；真实 Actor 收尾失败仍由 close-failed 报告。
+          if (!closing) protocolFailure();
+        })).then(prepared => {
           if (!isDatasetOwnerIdentity({ epoch: request.epoch, datasetId: prepared.datasetId })) throw new Error('领域身份无效。');
           domain = prepared; boundDatasetId = prepared.datasetId; return prepared;
         });

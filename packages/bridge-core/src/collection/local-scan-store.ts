@@ -328,13 +328,19 @@ function scanAuditFor(db: DatabaseSync) {
 }
 type ScanAudit = ReturnType<typeof scanAuditFor>;
 const originRebuilds = new WeakMap<DatabaseSync, Promise<void>>();
+// 只记住本连接这个实际SQL点的预算失败，不是候选索引，也不证明任何文件事实。
+const originOverflowPoints = new WeakMap<DatabaseSync, string>();
 /** 仅后台重建纯候选位置；逐段让出事件循环，首末SQL点不同便完整丢弃，绝不续用未知写入前缀。 */
 function rebuildScanOrigins(db: DatabaseSync, read: ScanAccess['read']): Promise<void> {
   if (db.isTransaction || currentScanOriginIndex(db)) return Promise.resolve();
   const saved = originRebuilds.get(db); if (saved) return saved;
-  const initial = localAlbumScanPoint(db), started = performance.now(), index = createScanOriginIndex();
+  const initial = localAlbumScanPoint(db);
   if (!initial) return Promise.resolve();
-  const same = (): boolean => !db.isTransaction && JSON.stringify(localAlbumScanPoint(db)) === JSON.stringify(initial);
+  const initialPoint = JSON.stringify(initial);
+  if (originOverflowPoints.get(db) === initialPoint) return Promise.resolve();
+  originOverflowPoints.delete(db);
+  const started = performance.now(), index = createScanOriginIndex();
+  const same = (): boolean => !db.isTransaction && JSON.stringify(localAlbumScanPoint(db)) === initialPoint;
   let processed = 0;
   const work = (async () => {
     await new Promise<void>(resolve => setImmediate(resolve));
@@ -347,7 +353,7 @@ function rebuildScanOrigins(db: DatabaseSync, read: ScanAccess['read']): Promise
         if (!dto.isCollectionId(row.id) || !dto.isCollectionId(row.library_root_id)) return corrupt();
         result.set(row.id, row.library_root_id); index.bytes += (row.id.length + row.library_root_id.length) * 2 + 128;
       }
-      if (index.bytes > 32 * 1024 * 1024) throw new Error('扫描候选超过内存预算。');
+      if (index.bytes > 32 * 1024 * 1024) { index.overflow = true; throw new Error('扫描候选超过内存预算。'); }
       return result;
     });
     let cursor = 0;
@@ -382,6 +388,8 @@ function rebuildScanOrigins(db: DatabaseSync, read: ScanAccess['read']): Promise
     });
     logLibraryOperation('cache', 'scan.origin-rebuild', 'complete', { elapsedMs: performance.now() - started, count: index.entries.size, visited: processed, bytes: index.bytes });
   })().catch(() => {
+    // 预算失败的首末物理水位仍须完全闭合；READ_CHANGED、未闭合事务及未知写入不能留下抑制重试的记录。
+    if (index.overflow && same()) originOverflowPoints.set(db, initialPoint);
     logLibraryOperation('cache', 'scan.origin-rebuild', 'cancelled', { elapsedMs: performance.now() - started, visited: processed, code: index.overflow ? 'BUDGET_EXCEEDED' : 'READ_CHANGED' });
   }).finally(() => { if (originRebuilds.get(db) === work) originRebuilds.delete(db); });
   originRebuilds.set(db, work); return work;
@@ -447,35 +455,45 @@ function verifyRelocationOrigin(db: DatabaseSync, job: dto.ScanJobRecord, batch:
 
 /** 冷开、迁移及隔离备份/恢复全量流式核验；热批提交不调用此函数。 */
 export function verifyLocalScanDatabase(db: DatabaseSync): void {
+  // 只保留本次完整核验的最多32条语句；每次仍实读SQLite，不缓存行或跨调用续用。
+  const statements = new Map<string, StatementSync>();
+  const prepare = (sql: string): StatementSync => {
+    const saved = statements.get(sql);
+    if (saved) return saved;
+    const statement = db.prepare(sql);
+    if (statements.size >= 32) statements.delete(statements.keys().next().value!);
+    statements.set(sql, statement);
+    return statement;
+  };
   scanAudits.delete(db); discardScanOriginIndex(db);
   const originIndex = createScanOriginIndex(), originStartedAtMs = performance.now();
   const initialVersion = scanDataVersion(db); const counts = new Map<Table, number>(); let bytes = 0;
-  if (db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').get()) return corrupt();
-  for (const [name, sql] of Object.entries(tables)) if (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
+  if (prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || prepare('PRAGMA foreign_key_check').get()) return corrupt();
+  for (const [name, sql] of Object.entries(tables)) if (prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
   for (const [type, statements] of [['index', indexes], ['trigger', triggers]] as const) for (const sql of statements) {
-    const name = sql.split(' ')[2]!; if (db.prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get(type, name)?.sql !== sql) return corrupt();
+    const name = sql.split(' ')[2]!; if (prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get(type, name)?.sql !== sql) return corrupt();
   }
   const hasCue=cueSchema(db);
   for (const table of [...Object.keys(tables),...(hasCue ? Object.keys(cueTables):[])] as Table[]) {
-    const count = Number(db.prepare(`SELECT count(*) n FROM ${table}`).get()?.n); checkScanBudget(`${table}行数`, count, budgets[table]); counts.set(table, count);
-    const columns = db.prepare(`PRAGMA table_info(${table})`).all().filter(c => c.type === 'TEXT').map(c => String(c.name));
+    const count = Number(prepare(`SELECT count(*) n FROM ${table}`).get()?.n); checkScanBudget(`${table}行数`, count, budgets[table]); counts.set(table, count);
+    const columns = prepare(`PRAGMA table_info(${table})`).all().filter(c => c.type === 'TEXT').map(c => String(c.name));
     const size = columns.map(c => `COALESCE(length(CAST(${c} AS BLOB)),0)`).join('+');
-    const resources = db.prepare(`SELECT COALESCE(max(${size}),0) largest,COALESCE(sum(${size}),0) bytes FROM ${table}`).get()!;
+    const resources = prepare(`SELECT COALESCE(max(${size}),0) largest,COALESCE(sum(${size}),0) bytes FROM ${table}`).get()!;
     checkScanBudget(`${table}单行文本字节`, Number(resources.largest), 16 * 1024 * 1024); bytes += Number(resources.bytes);
   }
   checkScanBudget('全域文本字节', bytes, 64 * 1024 * 1024 * 1024);
   const jobs = new Map<string, dto.ScanJobRecord>();
   const latest = new Map<string, dto.ScanJobRecord>();
-  for (const row of db.prepare('SELECT * FROM local_scan_jobs ORDER BY rowid').iterate()) {
+  for (const row of prepare('SELECT * FROM local_scan_jobs ORDER BY rowid').iterate()) {
     const job = parse(row.data, dto.isScanJobRecord, 65_536);
     if (row.id !== job.jobId || row.dataset_id !== job.datasetId || row.library_root_id !== job.libraryRootId
       || row.source_root_id !== job.sourceRootId || !text(row.parser_version)) return corrupt();
     // 历史任务不要求来源仍授权；当前根可以已重关联，恢复不能复活旧许可。
-    if (!db.prepare('SELECT id FROM local_catalog_roots WHERE id=?').get(job.libraryRootId)
-      || !db.prepare('SELECT id FROM source_roots WHERE id=?').get(job.sourceRootId)) return corrupt();
+    if (!prepare('SELECT id FROM local_catalog_roots WHERE id=?').get(job.libraryRootId)
+      || !prepare('SELECT id FROM source_roots WHERE id=?').get(job.sourceRootId)) return corrupt();
     jobs.set(job.jobId, job);
   }
-  for (const row of db.prepare('SELECT * FROM local_scan_receipts ORDER BY rowid').iterate()) {
+  for (const row of prepare('SELECT * FROM local_scan_receipts ORDER BY rowid').iterate()) {
     const operation = row.operation as ScanReceiptOperation;
     const request = parse(row.request, (v): v is Row & { commandId: string; jobId: string } => isScanReceiptRequest(operation, v));
     const result = parse(row.result, dto.isScanJobRecord, 65_536), current = jobs.get(result.jobId), previous = latest.get(result.jobId);
@@ -497,20 +515,20 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
       || operation === 'fail' && (result.phase !== 'failed' || result.failureCode !== request.code)) return corrupt();
     if (operation === 'abandon-batch') {
       if (!dto.isCollectionId(request.batchId)) return corrupt();
-      const abandoned = db.prepare("SELECT request FROM local_scan_batches WHERE id=? AND job_id=? AND phase='prepared'").get(request.batchId,result.jobId);
+      const abandoned = prepare("SELECT request FROM local_scan_batches WHERE id=? AND job_id=? AND phase='prepared'").get(request.batchId,result.jobId);
       if (!abandoned || parse(abandoned.request,isScanPreparedBatch).checkpointBefore !== result.checkpointRef) return corrupt();
     }
     latest.set(result.jobId, result);
   }
   for (const [id, job] of jobs) if (!equal(job, latest.get(id))) return corrupt();
-  for (const row of db.prepare('SELECT rowid AS _origin_ordinal,* FROM local_scan_batches ORDER BY rowid').iterate()) {
+  for (const row of prepare('SELECT rowid AS _origin_ordinal,* FROM local_scan_batches ORDER BY rowid').iterate()) {
     const batch = parse(row.request, isScanPreparedBatch), job = jobs.get(batch.jobId);
     if(batch.kind === 'cue-sidecars-v1' && !hasCue) return corrupt();
-    const parserVersion = job ? db.prepare('SELECT parser_version FROM local_scan_jobs WHERE id=?').get(job.jobId)?.parser_version : undefined;
+    const parserVersion = job ? prepare('SELECT parser_version FROM local_scan_jobs WHERE id=?').get(job.jobId)?.parser_version : undefined;
     if (!job || row.id !== batch.batchId || row.job_id !== batch.jobId || row.fingerprint !== scanFingerprint('batch', batch)
       || batch.items.some(item => !scanItemMatchesParser(item, parserVersion))) return corrupt();
-    if (batch.checkpointBefore !== null && !db.prepare('SELECT id FROM local_scan_checkpoints WHERE id=? AND job_id=?').get(batch.checkpointBefore, job.jobId)) return corrupt();
-    const prepared = db.prepare("SELECT request FROM local_scan_receipts WHERE job_id=? AND operation='prepare-batch' AND json_extract(request,'$.batch.batchId')=?").get(job.jobId, batch.batchId);
+    if (batch.checkpointBefore !== null && !prepare('SELECT id FROM local_scan_checkpoints WHERE id=? AND job_id=?').get(batch.checkpointBefore, job.jobId)) return corrupt();
+    const prepared = prepare("SELECT request FROM local_scan_receipts WHERE job_id=? AND operation='prepare-batch' AND json_extract(request,'$.batch.batchId')=?").get(job.jobId, batch.batchId);
     if (!prepared || !equal(parse(prepared.request, (v): v is Row & { commandId: string; jobId: string } => isScanReceiptRequest('prepare-batch', v)).batch, batch)) return corrupt();
     if (row.phase === 'prepared') { if (row.result !== null) return corrupt(); }
     else if (row.phase === 'committed') {
@@ -523,10 +541,10 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
         if (file.libraryRootId !== job.libraryRootId || file.relative !== item.relative || file.signature !== item.signature
           || file.parserVersion !== item.parserVersion || file.outcome !== item.outcome || file.failureCode !== item.failureCode
           || !item.reused && !equal(file.readFacts, item.readFacts)) return corrupt();
-        const registered = db.prepare('SELECT request,result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'register-asset'), 'register-asset');
-        const replaced = db.prepare('SELECT request,result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'replace-asset'), 'replace-asset');
+        const registered = prepare('SELECT request,result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'register-asset'), 'register-asset');
+        const replaced = prepare('SELECT request,result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'replace-asset'), 'replace-asset');
         const relocated = verifyRelocationOrigin(db, job, batch, index, file);
-        if (relocated && (registered || replaced || db.prepare('SELECT command_id FROM local_catalog_ledger WHERE command_id IN (?,?)').get(childCommand(batch.batchId, index, 'create-track'), childCommand(batch.batchId, index, 'observe-metadata')))) return corrupt();
+        if (relocated && (registered || replaced || prepare('SELECT command_id FROM local_catalog_ledger WHERE command_id IN (?,?)').get(childCommand(batch.batchId, index, 'create-track'), childCommand(batch.batchId, index, 'observe-metadata')))) return corrupt();
         if (registered || replaced) {
           const child = registered ?? replaced!; const childRequest = JSON.parse(String(child.request)) as Row;
           const childAsset = parse(child.result, dto.isAudioAsset);
@@ -534,34 +552,34 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
             || childRequest.expectedRootRevision !== job.rootRevision || childRequest.relative !== item.relative || childRequest.sha256 !== null
             || childRequest.sampleFrames !== null || childRequest.timebaseHz !== null) return corrupt();
           if (registered) {
-            const created = db.prepare('SELECT result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'create-track'), 'create-track');
+            const created = prepare('SELECT result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'create-track'), 'create-track');
             if (!created) return corrupt(); const track = parse(created.result, dto.isLocalTrack);
             if (track.id !== file.trackId || track.assetId !== file.assetId || track.segment !== null) return corrupt();
           }
         }
-        const observed = db.prepare('SELECT result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'observe-metadata'), 'observe-metadata');
+        const observed = prepare('SELECT result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'observe-metadata'), 'observe-metadata');
         if (observed) { const value = parse(observed.result, dto.isLocalMetadataObservation);
           if (item.outcome !== 'accepted' || item.reused || value.trackId !== file.trackId || value.source !== 'tag'
             || value.parserVersion !== item.parserVersion || !equal(value.fields, item.fields)) return corrupt();
         }
       }
-      const checkpoint = db.prepare('SELECT * FROM local_scan_checkpoints WHERE batch_id=? AND job_id=?').get(batch.batchId, batch.jobId);
+      const checkpoint = prepare('SELECT * FROM local_scan_checkpoints WHERE batch_id=? AND job_id=?').get(batch.batchId, batch.jobId);
       if (!checkpoint || result.jobId !== batch.jobId || result.checkpointRef !== checkpoint.id
         || batch.completed !== (result.phase === 'completed')) return corrupt();
-      const committed = db.prepare("SELECT request,result FROM local_scan_receipts WHERE job_id=? AND operation='commit-batch' AND json_extract(request,'$.batchId')=?").get(batch.jobId, batch.batchId);
+      const committed = prepare("SELECT request,result FROM local_scan_receipts WHERE job_id=? AND operation='commit-batch' AND json_extract(request,'$.batchId')=?").get(batch.jobId, batch.batchId);
       if (!committed || !equal(parse(committed.result, dto.isScanJobRecord), result)) return corrupt();
       const committedRequest = parse(committed.request, (v): v is Row & { commandId: string; jobId: string } => isScanReceiptRequest('commit-batch', v));
       if (BigInt(result.jobRevision) !== BigInt(String(committedRequest.expectedRevision)) + 1n) return corrupt();
       addScanOriginBatch(originIndex, { ordinal: Number(row._origin_ordinal), batchId: batch.batchId, jobId: batch.jobId }, job.libraryRootId, batch.items, committedBatch.files);
     } else return corrupt();
   }
-  for (const row of db.prepare('SELECT * FROM local_scan_checkpoints ORDER BY rowid').iterate()) {
+  for (const row of prepare('SELECT * FROM local_scan_checkpoints ORDER BY rowid').iterate()) {
     const checkpoint = parse(row.data, isScanCheckpoint);
-    const batchRow = db.prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(checkpoint.batchId, checkpoint.jobId);
+    const batchRow = prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(checkpoint.batchId, checkpoint.jobId);
     if (!batchRow || row.id !== checkpoint.checkpointId || row.job_id !== checkpoint.jobId || row.batch_id !== checkpoint.batchId) return corrupt();
     const batch = parse(batchRow.request, isScanPreparedBatch), result = parse(batchRow.result, isScanCommittedBatch).job;
     if (!equal(batch.frontier, checkpoint.frontier) || !equal(result.progress, checkpoint.progress) || result.checkpointRef !== checkpoint.checkpointId) return corrupt();
-    const prior = batch.checkpointBefore === null ? null : db.prepare('SELECT data FROM local_scan_checkpoints WHERE id=?').get(batch.checkpointBefore);
+    const prior = batch.checkpointBefore === null ? null : prepare('SELECT data FROM local_scan_checkpoints WHERE id=?').get(batch.checkpointBefore);
     const previous = prior ? parse(prior.data, isScanCheckpoint) : null;
     const counted=batchCount(batch), accepted = BigInt(counted.filter(item => item.outcome === 'accepted').length), rejected = BigInt(counted.length) - accepted;
     if (BigInt(checkpoint.sequence) !== (previous ? BigInt(previous.sequence) : 0n) + 1n
@@ -570,7 +588,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
       || BigInt(checkpoint.progress.rejected) !== (previous ? BigInt(previous.progress.rejected) : 0n) + rejected) return corrupt();
   }
   for (const job of jobs.values()) if (job.checkpointRef !== null) {
-    const checkpoint = db.prepare('SELECT data FROM local_scan_checkpoints WHERE id=? AND job_id=?').get(job.checkpointRef, job.jobId);
+    const checkpoint = prepare('SELECT data FROM local_scan_checkpoints WHERE id=? AND job_id=?').get(job.checkpointRef, job.jobId);
     if (!checkpoint || !equal(parse(checkpoint.data, isScanCheckpoint).progress, job.progress)) return corrupt();
   }
   // 仅本次同步冷核有效。每行仍实读原batch，原始文本完全一致才复用已通过原guard的对象。
@@ -578,9 +596,9 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
   const memoMaxEntries = 64, memoMaxBytes = 4 * 1024 * 1024, memoMaxAllocation = 32 * 1024 * 1024;
   let memoBytes = 0, memoAllocation = 0, peakMemoAllocation = 0, peakMemoEntries = 0, parsedFileBatches = 0, uncachedFileBatches = 0, verifiedFileRows = 0;
   const fileStateStarted = performance.now();
-  for (const row of db.prepare('SELECT * FROM local_scan_file_state ORDER BY rowid').iterate()) {
+  for (const row of prepare('SELECT * FROM local_scan_file_state ORDER BY rowid').iterate()) {
     const state = parse(row.data, isScanFileState, 65_536), job = jobs.get(String(row.job_id));
-    const batchRow = db.prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(String(row.batch_id), String(row.job_id));
+    const batchRow = prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(String(row.batch_id), String(row.job_id));
     if (!job || !batchRow || row.library_root_id !== state.libraryRootId || state.libraryRootId !== job.libraryRootId
       || row.relative !== state.relative || row.asset_id !== state.assetId || row.track_id !== state.trackId) return corrupt();
     const memoKey = JSON.stringify([row.job_id, row.batch_id]);
@@ -611,8 +629,8 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
       } else uncachedFileBatches++;
     }
     if (state.outcome === 'accepted') {
-      const asset = db.prepare('SELECT root_id,relative FROM local_catalog_assets WHERE id=?').get(state.assetId!);
-      const track = db.prepare('SELECT asset_id FROM local_catalog_tracks WHERE id=?').get(state.trackId!);
+      const asset = prepare('SELECT root_id,relative FROM local_catalog_assets WHERE id=?').get(state.assetId!);
+      const track = prepare('SELECT asset_id FROM local_catalog_tracks WHERE id=?').get(state.trackId!);
       // 后续人工选择/重定位不会改写扫描历史；仅核稳定实体仍存在。
       if (!asset || !track) return corrupt();
     }
@@ -624,8 +642,8 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
   if (uncachedFileBatches) logLibraryOperation('cache', 'scan.verify-file-state.memo', 'skipped', { code: 'CAPACITY', count: uncachedFileBatches, total: parsedFileBatches });
   if(hasCue) {
     const priorCue=new Map<string,CueSnapshot>();
-    for(const row of db.prepare('SELECT * FROM local_cue_sources ORDER BY rowid').iterate()) {
-      const snapshot=parse(row.data,isCueSnapshot),parent=db.prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND phase='committed'").get(String(row.batch_id));
+    for(const row of prepare('SELECT * FROM local_cue_sources ORDER BY rowid').iterate()) {
+      const snapshot=parse(row.data,isCueSnapshot),parent=prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND phase='committed'").get(String(row.batch_id));
       if(!parent || snapshot.id !== row.id || snapshot.sidecarId !== row.sidecar_id || snapshot.libraryRootId !== row.library_root_id || snapshot.item.relative !== row.relative) return corrupt();
       const key=scanCanonical([snapshot.libraryRootId,snapshot.item.relative]),prior=priorCue.get(key);
       if(snapshot.item.previousSnapshotId !== (prior?.id ?? null) || prior && snapshot.sidecarId !== prior.sidecarId || snapshot.item.reused) return corrupt();priorCue.set(key,snapshot);
@@ -633,8 +651,8 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
       if(!job || batch.kind !== 'cue-sidecars-v1' || !result.cueSnapshotIds?.includes(snapshot.id)) return corrupt();verifyCueBatch(db,batch,result,job);
       if(snapshot.item.result?.tracks.some(track=>track.assetReference.libraryRootId !== snapshot.libraryRootId || track.assetReference.sourceRootId !== snapshot.sourceRootId || track.assetReference.rootRevision !== snapshot.rootRevision)) return corrupt();
     }
-    for(const row of db.prepare('SELECT * FROM local_cue_tracks ORDER BY rowid').iterate()) {
-      const source=db.prepare('SELECT data FROM local_cue_sources WHERE id=?').get(String(row.snapshot_id));if(!source) return corrupt();
+    for(const row of prepare('SELECT * FROM local_cue_tracks ORDER BY rowid').iterate()) {
+      const source=prepare('SELECT data FROM local_cue_sources WHERE id=?').get(String(row.snapshot_id));if(!source) return corrupt();
       const tracks=parse(source.data,isCueSnapshot).item.result?.tracks ?? [];
       if(typeof row.ordinal !== 'number' || !Number.isSafeInteger(row.ordinal) || row.ordinal<0 || row.ordinal>=tracks.length
         || row.asset_id !== tracks[row.ordinal]!.assetReference.assetId || !equal(JSON.parse(String(row.data)),tracks[row.ordinal])) return corrupt();
@@ -642,7 +660,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
   }
   for (const event of relocationProjectionForDatabase(db)?.events ?? []) if (event.kind === 'location-facts') {
     const fact = event.fact, job = jobs.get(fact.scan.origin.job.jobId);
-    const row = db.prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(fact.scan.origin.batchId, fact.scan.origin.job.jobId);
+    const row = prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(fact.scan.origin.batchId, fact.scan.origin.job.jobId);
     if (!job || !row) return corrupt();
     const batch = parse(row.request, isScanPreparedBatch), files = parse(row.result, isScanCommittedBatch).files;
     const file = files[fact.scan.origin.itemIndex]; if (!file || !verifyRelocationOrigin(db, job, batch, fact.scan.origin.itemIndex, file)) return corrupt();

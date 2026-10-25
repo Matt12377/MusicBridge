@@ -48,7 +48,7 @@ import { readLocalAlbumScanState, readLocalAlbumScanStateProjected, readLocalAlb
 import type { LocalWorkbenchMetadataProvenanceFact } from './local-library-workbench/read-service.js';
 import { MobileServiceError } from '../mobile/types.js';
 import path from 'node:path';
-import type { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { readSourceRootForDatabase, type SourceStore } from '../recording/source-store.js';
 import { CollectionError } from './repository.js';
@@ -428,6 +428,16 @@ function verifyHistoryStep(db: DatabaseSync, operation: dto.LocalCatalogOperatio
 
 /** 同连接/只读备份均核真实DDL、关系、私有位置和全部回执；不打开第二写连接。 */
 export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
+  // 只保留本次完整核验的最多32条语句；每次仍实读SQLite，不缓存行或跨调用续用。
+  const statements = new Map<string, StatementSync>();
+  const prepare = (sql: string): StatementSync => {
+    const saved = statements.get(sql);
+    if (saved) return saved;
+    const statement = db.prepare(sql);
+    if (statements.size >= 32) statements.delete(statements.keys().next().value!);
+    statements.set(sql, statement);
+    return statement;
+  };
   audits.delete(db);
   observationHistoryAudits.delete(db);
   legacyAudits.delete(db);
@@ -436,17 +446,17 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   workbenchAudits.delete(db);
   const initialDataVersion = dataVersion(db);
   const initialObservationPoint = observationHistoryPoint(db);
-  for (const [name, sql] of Object.entries(tables)) if (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
+  for (const [name, sql] of Object.entries(tables)) if (prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
   for (const [type, statements] of [['index', indexes], ['trigger', triggers]] as const) for (const sql of statements) {
     const name = sql.split(' ')[type === 'index' && sql.startsWith('CREATE UNIQUE') ? 3 : 2]!;
-    if (db.prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get(type, name)?.sql !== sql) return corrupt();
+    if (prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get(type, name)?.sql !== sql) return corrupt();
   }
   let bytes = 0;
   const counts = new Map<Table, number>();
   for (const table of Object.keys(tables) as Table[]) {
-    const textColumns = db.prepare(`PRAGMA table_info(${table})`).all().filter(c => c.type === 'TEXT').map(c => String(c.name));
+    const textColumns = prepare(`PRAGMA table_info(${table})`).all().filter(c => c.type === 'TEXT').map(c => String(c.name));
     const rowTextSize = textColumns.map(c => `COALESCE(length(CAST(${c} AS BLOB)),0)`).join('+');
-    const size = db.prepare(`SELECT count(*) n,COALESCE(sum(${rowTextSize}),0) bytes,COALESCE(max(${rowTextSize}),0) largest FROM ${table}`).get()!;
+    const size = prepare(`SELECT count(*) n,COALESCE(sum(${rowTextSize}),0) bytes,COALESCE(max(${rowTextSize}),0) largest FROM ${table}`).get()!;
     if (Number(size.largest) > maxRowTextBytes) return corrupt();
     const count = Number(size.n); checkBudget(`${table}行数`, count, rowBudgets[table]); counts.set(table, count); bytes += Number(size.bytes);
   }
@@ -464,7 +474,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   const relocation = emptyRelocationProjection();
   const rootFactsObligations = new Map<string, { before: dto.LibraryRoot; after: dto.LibraryRoot;
     pending: Map<string, { operationId: string; resourceId: string }> }>();
-  for (const row of db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger ORDER BY rowid').iterate()) {
+  for (const row of prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger ORDER BY rowid').iterate()) {
     boundedRow(row);
     const ledgerRowId=Number(row._ledger_rowid);if(!Number.isSafeInteger(ledgerRowId)||ledgerRowId<1)return corrupt();
     if(typeof legacy!=='string')legacy.highWater=ledgerRowId;
@@ -525,7 +535,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
     if(row.operation===SOURCE_WRITES_OPERATION){
       const event=readSourceWritesEvent(row);
       if(event.kind==='facts'){
-        const fact=event.fact,child=db.prepare("SELECT result,request FROM local_catalog_ledger WHERE command_id=? AND operation='replace-asset'").get(fact.replaceCommandId);
+        const fact=event.fact,child=prepare("SELECT result,request FROM local_catalog_ledger WHERE command_id=? AND operation='replace-asset'").get(fact.replaceCommandId);
         if(!child||!same(JSON.parse(String(child.result)),fact.afterAsset)||!same(latest.get(`local_catalog_assets:${fact.afterAsset.id}`),fact.afterAsset))return corrupt();
         const request=JSON.parse(String(child.request)) as Row;if(request.sha256!==fact.observation.sha256||request.expectedFileRevision!==fact.beforeAsset.fileRevision)return corrupt();
         for(const id of fact.affectedTrackIds){const t=latest.get(`local_catalog_tracks:${id}`);if(!dto.isLocalTrack(t)||t.assetId!==fact.afterAsset.id||t.segment!==null)return corrupt();}
@@ -608,7 +618,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
     }
     if (operation === 'observe-metadata') {
       // raw永不更新：逐回执按PK核当前行，不在重放Map保留全部raw payload或全部ledger。
-      const stored = db.prepare('SELECT CAST(rowid AS TEXT) AS _observation_rowid,* FROM local_catalog_observations WHERE id=?').get(id);
+      const stored = prepare('SELECT CAST(rowid AS TEXT) AS _observation_rowid,* FROM local_catalog_observations WHERE id=?').get(id);
       if (!stored || stored.id !== id || stored.track_id !== (result as dto.LocalMetadataObservation).trackId
         || !same(parse(stored.data, dto.isLocalMetadataObservation), result)) return corrupt();
       boundedRow({id:stored.id,track_id:stored.track_id,data:stored.data}); immutableObservations++;
@@ -620,18 +630,18 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   for (const obligation of rootFactsObligations.values()) if (obligation.pending.size) return corrupt();
   let entities = 0;
   for (const table of Object.keys(tables).filter(name => name !== 'local_catalog_ledger') as Exclude<Table, 'local_catalog_ledger'>[]) {
-    for (const row of db.prepare(`SELECT * FROM ${table}`).iterate()) {
+    for (const row of prepare(`SELECT * FROM ${table}`).iterate()) {
       const id = String(table === 'local_catalog_overrides' ? row.track_id : row.id);
       boundedRow(row);
       const stored = latest.get(`${table}:${id}`);
       if (table !== 'local_catalog_observations' && (!stored || !same(JSON.parse(String(row.data)), stored))) return corrupt();
       if (table === 'local_catalog_roots') readRoot(row);
       if (table === 'local_catalog_assets') {
-        const asset = readAsset(row), root = db.prepare('SELECT * FROM local_catalog_roots WHERE id=?').get(asset.libraryRootId);
+        const asset = readAsset(row), root = prepare('SELECT * FROM local_catalog_roots WHERE id=?').get(asset.libraryRootId);
         if (!root || BigInt(asset.rootRevision) > BigInt(readRoot(root).revision) || !same(privateAssets.get(id), { relative: row.relative, sha256: row.sha256 })) return corrupt();
       }
       if (table === 'local_catalog_tracks') {
-        const track = readTrack(row), asset = db.prepare('SELECT * FROM local_catalog_assets WHERE id=?').get(track.assetId);
+        const track = readTrack(row), asset = prepare('SELECT * FROM local_catalog_assets WHERE id=?').get(track.assetId);
         if (!asset) return corrupt(); checkSegment(track, readAsset(asset));
       }
       if (table === 'local_catalog_edition_tracks') {
@@ -642,8 +652,8 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
       entities++;
     }
   }
-  if (immutableObservations !== counts.get('local_catalog_observations') || entities !== latest.size + immutableObservations || db.prepare('PRAGMA foreign_key_check').get()
-    || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok') return corrupt();
+  if (immutableObservations !== counts.get('local_catalog_observations') || entities !== latest.size + immutableObservations || prepare('PRAGMA foreign_key_check').get()
+    || prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok') return corrupt();
   if (dataVersion(db) !== initialDataVersion || !same(observationHistoryPoint(db),initialObservationPoint)) return corrupt();
   for(const p of workbench.workbench.values())assertLocalWorkbenchJournalComplete(p);
   for(const p of workbench.lyrics.values())assertLocalLyricsJournalComplete(p);
@@ -652,13 +662,13 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   for(const p of workbench.lyricsPhysical.values())assertLocalLyricsPhysicalComplete(p);
   for(const p of workbench.management.values())assertLocalLibraryManagementComplete(p);
   for(const p of workbench.lyricsRoot.values())assertLocalLyricsRootComplete(p);
-  workbench.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);
+  workbench.highWater=Number(prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);
   workbenchAudits.set(db,workbench);
   const certificate:AuditCertificate = { rows: counts, bytes, dataVersion: initialDataVersion };
   audits.set(db, certificate);
   legacyAudits.set(db,legacy);
-  sourceWrites.highWater=Math.max(sourceWrites.highWater,Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));sourceWritesAudits.set(db,sourceWrites);
-  relocation.highWater = Math.max(relocation.highWater, Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));
+  sourceWrites.highWater=Math.max(sourceWrites.highWater,Number(prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));sourceWritesAudits.set(db,sourceWrites);
+  relocation.highWater = Math.max(relocation.highWater, Number(prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));
   relocationAudits.set(db, relocation);
   if(managementObservations.byTrack!==null)publishObservationHistory(db,certificate,initialObservationPoint,managementObservations);
 }

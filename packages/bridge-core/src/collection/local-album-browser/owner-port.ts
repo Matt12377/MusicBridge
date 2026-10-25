@@ -217,14 +217,28 @@ export function createLocalAlbumOwnerService(options: LocalAlbumOwnerPortOptions
       if (stamp.dataVersion !== captured.stamp.dataVersion || stamp.totalChanges !== captured.stamp.totalChanges) changed()
     }
     const assertCaptured = () => withInventoryRead(assertCapturedFrame)
-    return { current: captured.current, assertCapturedFrame, assertCaptured }
+    return { current: captured.current, stamp: captured.stamp, assertCapturedFrame, assertCaptured }
   }
   async function prepareMobileStructure(): Promise<void> {
     if (!mobileSql) return unavailable()
     await refresh()
-    const captured = captureMobileScope()
-    await mobileSql.prepare(captured.current, captured.assertCaptured)
-    captured.assertCaptured()
+    let captured = captureMobileScope()
+    for (;;) {
+      try {
+        await mobileSql.prepare(captured.current, captured.assertCaptured)
+        captured.assertCaptured()
+        return
+      } catch (error) {
+        if (!(error instanceof LocalAlbumReadError) || error.code !== 'SNAPSHOT_CHANGED') throw error
+        // 原作业已真实回滚。只在同 Owner 资格仍有效且实读水位确已推进时重做完整准备。
+        options.assertCurrent(); options.assertReadActive?.(); if (closedService) throw error
+        await refresh()
+        const next = captureMobileScope()
+        if (next.current.revision === captured.current.revision
+          && next.stamp.dataVersion === captured.stamp.dataVersion && next.stamp.totalChanges === captured.stamp.totalChanges) throw error
+        captured = next
+      }
+    }
   }
   async function readMobileStructure(request: LocalAlbumSqlMobileQuery): Promise<MobileProjectionPage> {
     if (!mobileSql) return unavailable()

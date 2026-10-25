@@ -27,17 +27,19 @@ process.stdout.write = ((chunk: unknown, ...args: unknown[]) => {
   if (logTail.length > 4096) logTail = '';
   for (const line of lines) {
     const record = readLibraryOperationLine(line);
+    if (record?.action === 'startup.mobile-prepare') control.postMessage({ type: `warm.${record.state}` });
     if (record?.state === 'complete' && record.code === 'FULL_FALLBACK' && ['albums.mobile-groups', 'albums.mobile-members'].includes(record.action)) fallbackCalls++;
   }
   return Reflect.apply(originalWrite, process.stdout, [chunk, ...args]);
 }) as typeof process.stdout.write;
 
 attachDatasetOwnerWorkerPort(parentPort, {
-  async prepare(epoch, projection) {
+  async prepare(epoch, projection, _sourceActor, reportFatal) {
     // 此私有工厂接缝仅用于让未来隔离 SQL Worker 运行同一闸门；父版本忽略新增选项。
     let liveSqlWorkers = 0, activeSqlJobs = 0, liveCatalogs = 0, oracleBusy = false;
     const options: OwnedDatasetDomainOptions & { mobileSqlWorkerFactory: (options: WorkerOptions) => Worker } = {
       dataDirectory: workerData.dataDirectory, epoch, testMode: true, projection,
+      ...(workerData.backgroundWarm ? { onBackgroundFatal() { control.postMessage({ type: 'owner.background.fatal' }); reportFatal(); } } : {}),
       assertAlbumReadActive: createDatasetOwnerReadRevocation(workerData.readRevocation).assertActive,
       mobileSqlWorkerFactory(options) {
         const channel = new MessageChannel();
@@ -45,7 +47,8 @@ attachDatasetOwnerWorkerPort(parentPort, {
         const worker = new Worker(new URL('./mobile-sql-compute-gated-fixture.ts', import.meta.url), {
           ...options,
           stdout: true,
-          workerData: { ...options.workerData, testSqlGate: gate, testSqlGatePort: channel.port2 },
+          workerData: { ...options.workerData, testSqlGate: gate, testSqlGatePort: channel.port2,
+            ...(workerData.startupSqlFault ? { testStartupSqlFault: workerData.startupSqlFault } : {}) },
           transferList: [...options.transferList ?? [], channel.port2],
         });
         // 子Worker的原始指标仍完整转发，但不混入Owner自身的完整回退计数。
@@ -67,6 +70,12 @@ attachDatasetOwnerWorkerPort(parentPort, {
     const media = path.join(workerData.dataDirectory, '合成来源');
     await mkdir(media, { mode: 0o700 });
     const complete = workerData.completeLibrary === true ? await seedMobileSqlWaveLibrary(domain.collection, domain.datasetId, media) : null;
+    if (workerData.seedContentEdition) {
+      assert.ok(complete);
+      const edition = domain.collection.localCatalog.createEdition({ commandId: randomUUID(), title: '合成最近添加专辑', edition: '受控发行' });
+      for (const [index, trackId] of complete.trackIds.entries()) domain.collection.localCatalog.linkEditionTrack({
+        commandId: randomUUID(), editionId: edition.id, trackId, disc: 1, trackNumber: index + 1, sequence: index + 1 });
+    }
     let trackId: string;
     if (complete) trackId = complete.trackIds[0]!;
     else {
@@ -81,8 +90,14 @@ attachDatasetOwnerWorkerPort(parentPort, {
     }
     const originalCurrent = localAlbums.privateMobile.current;
     let currentCalls = 0;
+    const queueId = randomUUID(); let queueRevision = 0;
     localAlbums.privateMobile.current = (...args) => { currentCalls++; return originalCurrent(...args); };
     control.on('message', async value => {
+      if (value?.type === 'queue.change') {
+        domain.saveMBQueue!({ expectedRevision: String(queueRevision), queue: { schemaVersion: '1.2', datasetId: domain.datasetId,
+          queueId, revision: String(++queueRevision), currentEntryId: null, restartPolicy: { reResolve: true, autoplay: false }, entries: [] } });
+        control.postMessage({ type: `control.reply.${value.sequence}`, changed: true }); return;
+      }
       if (value?.type === 'source.target') {
         sourceTargetTrack = value.trackId;
         control.postMessage({ type: `control.reply.${value.sequence}`, configured: true }); return;
@@ -117,6 +132,7 @@ attachDatasetOwnerWorkerPort(parentPort, {
       domain.collection.localCatalog.observeMetadata({ commandId: randomUUID(), trackId, source: 'synthetic',
         parserVersion: 'mobile-sql-isolation-v2', fields: { title: '已改变曲目', artist: '已改变艺人', album: '已改变专辑' } });
       control.postMessage({ type: 'metadata.changed' });
+      if (value.sequence) control.postMessage({ type: `control.reply.${value.sequence}`, changed: true });
     });
     return {
       ...domain,

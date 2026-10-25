@@ -3,6 +3,7 @@ import type { Worker, WorkerOptions } from 'node:worker_threads';
 import { createLocalArtworkService } from './local-artwork-service.js';
 import { logLibraryOperation, traceLibraryImport, traceLibraryRemoval } from '../shared/library-operation-log.js';
 import { createLocalAlbumOwnerRuntime } from './local-album-browser/owner-runtime.js';
+import { LocalAlbumReadError } from './local-album-browser/grouping.js';
 import type { LocalAlbumLibraryOrganization } from './local-album-browser/sql-types.js';
 import { classifyDirectoryName } from '../library/local-name-rules.js';
 import { createMobileOwnerService } from '../mobile/owner-service.js';
@@ -99,6 +100,11 @@ import type { DatasetServices } from './dataset-services.js';
 import { DatasetWorkbenchWireError, isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, datasetWorkbenchJson, datasetWorkbenchSha,
     datasetNameOriginalStartSha256, DATASET_NAME_PROVIDER_CONTENT_BYTES, DatasetNameProviderBridgeError, type DatasetWorkbenchRequest, type DatasetWorkbenchResult, type DatasetWorkbenchExecutionContext, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetProjectionPort, type DatasetProjectionTicket, type OwnedDatasetDomain, type DatasetWorkbenchNativeConfiguration } from './dataset-owner-protocol.js';
 
+const ARTIST_INTERACTION_QUIET_MS = 5000;
+const artistInteractiveCommands = new Set<IpcRequest['command']>([
+  'localArtist.list', 'localArtist.get', 'localArtist.albums', 'localArtist.tracks', 'localArtist.search',
+]);
+
 export interface DatasetDomainOptions {
   mobileSqlWorker?: MobileSqlWorkerOptions;
   /** 可信Owner的单向只读撤销；不参与Source许可或写事务核验。 */
@@ -125,6 +131,8 @@ export interface DatasetDomainOptions {
   roonLibrary?: RoonPublicLibrary;
   projection?: DatasetProjectionPort;
   commitBoot?: () => void | Promise<void>;
+  /** 仅同线程 Owner 工厂提供；后台准备失败沿原 fatal 通道封入口并收束，不进入公开协议。 */
+  onBackgroundFatal?: () => void;
   closeConnections?: () => void;
   failureForError?: typeof failureForError;
 }
@@ -176,11 +184,14 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     concurrency: options.localScanReadProfile === 'bulk-v2' ? 8 : 2 }) : undefined;
   const sourceProjection = sourceReads?.port;
   const pendingDispatches = new Set<Promise<unknown>>();
+  let artistInteractionQuietUntil = 0;
   // 仅实际持久DatasetIdentity安装设置作者；测试旧工厂的临时UUID不能取得新账本许可。
   if(options.collectionDatasetIdentity) collection.localCatalog.privateBindWorkbenchDataset(options.collectionDatasetIdentity);
   const scanSettings=options.collectionDatasetIdentity?collection.localCatalog.privateScanSettingsStore(options.collectionDatasetIdentity):undefined;
   const completedScanSnapshots=options.collectionDatasetIdentity?createCompletedScanSnapshotView({repository:collection,identity:options.collectionDatasetIdentity}):undefined;
   let scanBootReady=!options.commitBoot;
+  let mobileWarmPending = false, mobileWarmFailed = false;
+  let mobileWarmFlight: Promise<void> | undefined;
   let notifyArtworkBatch: (rootId: string, sourceRevision: string) => void = () => {};
   let artistBackfill: ArtistMetadataBackfillCoordinator | undefined;
   let artistMainReady = false;
@@ -250,11 +261,33 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     afterRefresh: () => { if(!closing && !workbenchLife.signal.aborted)artistBackfill?.resume(); } });
   artistBackfill = options.collectionDatasetIdentity && options.projection && !test ? createArtistMetadataBackfillCoordinator({
     collection, directory: options.artistSearchDirectory ?? null, assertCurrent: artistCurrent,
-    isBusy: () => pendingDispatches.size > 0 || localArtists.preparing || albumRuntime.isPlaybackBusy(),
+    // PREPARING 已结束本次 dispatch，客户端仍会重试；保留这段间隔，避免索引刚完成就被补读再次推进水位。
+    isBusy: () => mobileWarmPending || pendingDispatches.size > 0 || localArtists.preparing || performance.now() < artistInteractionQuietUntil || albumRuntime.isPlaybackBusy(),
     read: (candidate, signal) => localScan.privateReadArtistMetadata(candidate, signal),
     onState: state => logLibraryOperation('library', 'artists.metadata-backfill', state.phase === 'needs-attention' ? 'error' : 'complete',
       { code: state.phase.toUpperCase().replaceAll('-', '_'), count: state.succeeded, total: state.succeeded + state.failed + state.pending }),
   }) : undefined;
+  function startMobilePreparation(): void {
+    if (mobileWarmFlight) return;
+    mobileWarmPending = true;
+    const started = performance.now();
+    logLibraryOperation('library', 'startup.mobile-prepare', 'start');
+    mobileWarmFlight = Promise.resolve().then(async () => {
+      await albumRuntime.localAlbums.privateMobile.prepare!();
+      assertOpen();
+      // 自动恢复仍在独立准备完成后启动，避免本代启动自己推进准备快照。
+      if (options.collectionDatasetIdentity && options.projection) localScan.privateStartRecovery();
+      logLibraryOperation('library', 'startup.mobile-prepare', 'complete', { elapsedMs: performance.now() - started });
+    }).catch(error => {
+      mobileWarmFailed = true;
+      logLibraryOperation('library', 'startup.mobile-prepare', closing ? 'cancelled' : 'error',
+        { code: error instanceof LocalAlbumReadError ? error.code : 'UNAVAILABLE', elapsedMs: performance.now() - started });
+      if (!closing) options.onBackgroundFatal!();
+    }).finally(() => { mobileWarmPending = false; });
+    // close 先经 owner.albums 取消并等待实际 Actor，再经 owner.dispatches 收齐本任务。
+    pendingDispatches.add(mobileWarmFlight);
+    void mobileWarmFlight.then(() => pendingDispatches.delete(mobileWarmFlight!), () => pendingDispatches.delete(mobileWarmFlight!));
+  }
   async function recoverArtistMetadataAfterScan(job: Readonly<workbenchDto.ScanJobRecord>): Promise<void> {
     if (!artistBackfill || closing || workbenchLife.signal.aborted) return;
     assertOpen();
@@ -282,9 +315,19 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const mobileOwner = createMobileOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: mobileOwnerEpoch,
     localAlbums: albumRuntime.localAlbums, isPlaybackBusy: albumRuntime.isPlaybackBusy, dsdToPcmAvailable:()=>mobilePreparedCache?.qualified === true,
     assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动 Owner 尚未 commitBoot。'); } });
+  const dispatchMobileOwner: typeof mobileOwner.dispatch = async request => {
+    if ((mobileWarmPending || mobileWarmFailed) && (request.kind === 'catalog' || request.kind === 'catalog-selected')
+      && isMobileOwnerPrivateRequest(request) && request.datasetId === identity.datasetId) {
+      assertOpen();
+      // 顶层与内容服务嵌套目录共用准备状态；致命失败仍交原 BUSY/fatal 路径处理。
+      return { kind: 'mobile-error', status: 503,
+        code: mobileWarmPending ? 'ARTIST_INDEX_PREPARING' : 'BUSY', retryable: false, outcome: null };
+    }
+    return mobileOwner.dispatch(request);
+  };
   // 内容复用同一 Owner 的隔离目录读取；同步提交围栏只取原投影修订，不重查目录页。
   const mobileContent = createMobileContentOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: mobileOwnerEpoch,
-    catalog: { dispatch: mobileOwner.dispatch, catalogRevision: mobileOwner.catalogRevision, refresh: mobileOwner.refreshCatalog }, limits: { stateBytes: 16 * 1024 * 1024, receipts: 1024, albums: 10000,
+    catalog: { dispatch: dispatchMobileOwner, catalogRevision: mobileOwner.catalogRevision, refresh: mobileOwner.refreshCatalog }, limits: { stateBytes: 16 * 1024 * 1024, receipts: 1024, albums: 10000,
       favoriteTracks: 100000, playlists: 10000, playlistTracks: 100000 },
     assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '内容 Owner 尚未 commitBoot。'); } });
   const mobileSources = createMobileOwnerSourceService({ collection, tickets: localTickets, datasetId: identity.datasetId,
@@ -1226,9 +1269,15 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     datasetId: identity.datasetId, collection, localScan, localRelocation, localRelocationPlans, localArtwork, localAlbums: albumRuntime.localAlbums, localArtists, localOrganizer, localLegacyLinks, localSourceWrites, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
     ...(recordingDeviceSelection ? { recordingDeviceSelection } : {}), recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica, physicalLinks, masterDrafts, assertOpen,
     dispatch(request) {
+      const artistInteraction = artistInteractiveCommands.has(request.command);
+      if (artistInteraction) artistInteractionQuietUntil = performance.now() + ARTIST_INTERACTION_QUIET_MS;
       const pending = dispatchDatasetCommand(domain, request);
       pendingDispatches.add(pending);
-      return pending.finally(() => pendingDispatches.delete(pending));
+      return pending.finally(() => {
+        // 从回包时重新计时，包含准备中与失败；慢请求不能耗尽留给下一次交互的窗口。
+        if (artistInteraction) artistInteractionQuietUntil = performance.now() + ARTIST_INTERACTION_QUIET_MS;
+        pendingDispatches.delete(pending);
+      });
     },
     dispatchInternal(request) {
       const pending = dispatchInternalDatasetCommand(domain, request);
@@ -1267,7 +1316,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
           };
           return mobileContent.dispatch(request.request);
         }
-        if (request.kind !== 'media-source') return mobileOwner.dispatch(request);
+        if (request.kind !== 'media-source') return dispatchMobileOwner(request);
         if (!isMobileOwnerPrivateRequest(request) || request.datasetId !== identity.datasetId) return {
           kind: 'mobile-error' as const, status: 400 as const, code: 'INVALID_REQUEST' as const, retryable: false, outcome: null,
         };
@@ -1297,13 +1346,13 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       // 仅沿完整核验过的原成功Root回执补齐绑定；开放本地scope前完成，不重放重关联或扫描。
       if(options.collectionDatasetIdentity)collection.localCatalog.privateRecoverLibraryRootRelinkBindings(options.collectionDatasetIdentity);
       assertOpen();scanBootReady=true;
-      // 数据库提交后才可读取原Root与库存；外层Owner仍等本方法完成才开放请求。
-      // 全库审计及摘要在独立只读连接准备好，不能消耗手机首个请求的期限。
-      await albumRuntime.localAlbums.privateMobile.prepare?.();
-      assertOpen();
+      // 只有接上原 fatal 通道的 Owner 可以后台准备；已核验的普通读取先开放，目录立即告知准备状态。
+      const backgroundWarm = options.onBackgroundFatal && albumRuntime.localAlbums.privateMobile.prepare;
+      if (backgroundWarm) startMobilePreparation();
+      else { await albumRuntime.localAlbums.privateMobile.prepare?.(); assertOpen(); }
       void collection.localScan.privateWarmDisplayFileParameters();
       // 原持久目录事实已可查询；后台仅续跑有系统中断证据且当前ONLINE的任务。
-      if(options.collectionDatasetIdentity && options.projection)localScan.privateStartRecovery();
+      if(!backgroundWarm && options.collectionDatasetIdentity && options.projection)localScan.privateStartRecovery();
     },
     readonlySnapshotStamp() {
       assertOpen();
@@ -1388,6 +1437,8 @@ export function createTestDatasetDomain(options: TestDatasetDomainOptions = {}):
 }
 
 export interface OwnedDatasetDomainOptions {
+  /** 仅 Worker 组合层注入，复用现有 Owner fatal/close 路径。 */
+  onBackgroundFatal?: () => void;
   mobileSqlWorkerEntry?: URL;
   /** 私有测试工厂；生产缺省使用打包后的专用只读Worker。 */
   mobileSqlWorkerFactory?: (options: WorkerOptions) => Worker;
@@ -1430,6 +1481,7 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
     const common: DatasetDomainOptions = {
       mobileSqlWorker: { databaseFile: dataset.databaseFile, ...(options.mobileSqlWorkerEntry ? { entry: options.mobileSqlWorkerEntry } : {}), ...(options.mobileSqlWorkerFactory ? { workerFactory: options.mobileSqlWorkerFactory } : {}) },
       ...(options.assertAlbumReadActive ? { assertAlbumReadActive: options.assertAlbumReadActive } : {}),
+      ...(options.onBackgroundFatal ? { onBackgroundFatal: options.onBackgroundFatal } : {}),
       ...(options.localScanReadProfile ? { localScanReadProfile: options.localScanReadProfile } : {}),
       ...(options.mobileDsd ? { mobileDsd: options.mobileDsd } : {}),
       ...(options.localWorkbenchNative ? { localWorkbenchNative: options.localWorkbenchNative } : {}),

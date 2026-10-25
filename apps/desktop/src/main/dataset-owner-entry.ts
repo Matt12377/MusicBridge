@@ -28,7 +28,7 @@ const testMode = env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
 attachDatasetOwnerWorkerPort(parentPort, {
   ...(sourceWritesPort?{privateSourceWritesPort:sourceWritesPort}:{}),
   ...(relocationMainPort ? { privateRelocationMainPort: relocationMainPort } : {}),
-  async prepare(epoch, projection, sourceWritesMainActor) {
+  async prepare(epoch, projection, sourceWritesMainActor, onBackgroundFatal) {
     const recordingDependencies = await loadRecordingDependenciesForOwner(env, {
       platform: process.platform,
       arch: process.arch,
@@ -41,7 +41,7 @@ attachDatasetOwnerWorkerPort(parentPort, {
       entryDirectory: path.dirname(fileURLToPath(import.meta.url)),
       resourcesDirectory,
     }, dataDirectory)
-    const prepared = prepareOwnedDatasetDomain({ dataDirectory, epoch, testMode, projection, recordingDependencies, localScanReadProfile: 'bulk-v2',
+    const prepared = prepareOwnedDatasetDomain({ dataDirectory, epoch, testMode, projection, recordingDependencies, onBackgroundFatal, localScanReadProfile: 'bulk-v2',
       mobileSqlWorkerEntry: new URL('./mobile-sql-worker-entry.js', import.meta.url),
       ...(albumReadRevocation ? { assertAlbumReadActive: albumReadRevocation.assertActive } : {}),
       ...(localWorkbenchNative ? { localWorkbenchNative } : {}),

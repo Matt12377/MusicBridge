@@ -19,7 +19,7 @@ async function fixture(t: TestContext, deferredBoot = true) {
   await mkdir(temporary, { recursive: true });
   const directory = await mkdtemp(path.join(temporary, 'mousa41-backfill-main-ready-'));
   const datasetId = randomUUID();
-  let domain: DatasetDomain | undefined, epoch = randomUUID(), enumerations = 0, commits = 0;
+  let domain: DatasetDomain | undefined, epoch = randomUUID(), enumerations = 0, commits = 0, backgroundFailures = 0;
   const projection: DatasetProjectionPort = { async call() { throw new Error('本门禁不允许源读取、真实Provider或Roon调用。'); } };
   t.after(async () => { try { await domain?.close(); } finally { await rm(directory, { recursive: true, force: true }); } });
 
@@ -33,6 +33,7 @@ async function fixture(t: TestContext, deferredBoot = true) {
     domain = createDatasetDomain({ collectionRepository: collection, backupWorkflowStore: maintenance,
       collectionDatasetIdentity: { datasetId, assertCurrent() { collection.list({ offset: 0, limit: 1 }); } },
       localSourceEpoch: epoch, projection,
+      onBackgroundFatal() { backgroundFailures++; },
       ...(deferredBoot ? { commitBoot() { commits++; } } : {}),
     });
     await domain.prepareWorkbench();
@@ -41,9 +42,9 @@ async function fixture(t: TestContext, deferredBoot = true) {
   const context = (): DatasetWorkbenchExecutionContext => ({ identity: { datasetId, epoch },
     signal: new AbortController().signal, deadlineAtMs: performance.now() + 5000 });
   return {
-    get domain() { return domain!; }, get enumerations() { return enumerations; }, get commits() { return commits; },
+    get domain() { return domain!; }, get enumerations() { return enumerations; }, get commits() { return commits; }, get backgroundFailures() { return backgroundFailures; },
     context, async ack(value = context()) { return domain!.dispatchWorkbenchOwner!({ command: 'lifecycle.mainReady', payload: {} }, value); },
-    async tick() { t.mock.timers.tick(0); await turn(); },
+    async tick(ms = 0) { t.mock.timers.tick(ms); await turn(); },
     async reopen() { await domain!.close(); epoch = randomUUID(); await assemble(); },
   };
 }
@@ -63,6 +64,20 @@ test('艺人回填在commit与前台刷新后仍等待Main-ready，同代重复A
   await f.ack(); await f.tick(); assert.equal(f.enumerations, 1);
   await f.domain.localArtists!.refresh(); await f.tick();
   assert.equal(f.enumerations, 2, '本代Main仍有效时，交互刷新后恢复原补读调度');
+});
+
+test('移动预热未完成时 Main-ready 不推进艺人补读，预热成功后原调度继续', async t => {
+  const f = await fixture(t); let release!: () => void;
+  const warm = new Promise<void>(resolve => { release = resolve; });
+  f.domain.localAlbums!.privateMobile.prepare = () => warm;
+  let committed = false; const committing = Promise.resolve(f.domain.commitBoot()).then(() => { committed = true; });
+  try {
+    await turn(); assert.equal(committed, true, '原 Owner 就绪不应等待移动结构预热。');
+    await f.ack(); await f.tick(); assert.equal(f.enumerations, 0);
+    await f.tick(5000); assert.equal(f.enumerations, 0, '后台重试仍不能打断进行中的结构快照。');
+  } finally { release(); await committing; }
+  await turn(); await f.tick(5000);
+  assert.equal(f.enumerations, 1); assert.equal(f.backgroundFailures, 0);
 });
 
 test('预先boot的生产领域工厂也不抢跑，关闭后同Dataset新epoch重新等待ACK', async t => {

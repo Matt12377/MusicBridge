@@ -60,7 +60,7 @@ type BatchRow = { request: string; result: string }
 /** 每项仍调用真实SQLite get；仅在指定只读返回值上注入故障，不更换持久Source或validator。 */
 function observeFileReads(t: TestContext, database: DatabaseSync, alter?: (row: BatchRow, ordinal: number) => BatchRow) {
   const prepare = DatabaseSync.prototype.prepare
-  let readingFiles = false, batchReads = 0
+  let readingFiles = false, batchReads = 0, batchPrepares = 0
   const mock = t.mock.method(DatabaseSync.prototype, 'prepare', function (this: DatabaseSync, sql: string) {
     const statement = prepare.call(this, sql)
     if (this !== database) return statement
@@ -72,6 +72,7 @@ function observeFileReads(t: TestContext, database: DatabaseSync, alter?: (row: 
         finally { readingFiles = false }
       })
     } else if (sql === batchSql) {
+      batchPrepares++
       const get = statement.get
       t.mock.method(statement, 'get', (...args: unknown[]) => {
         const value = Reflect.apply(get, statement, args)
@@ -83,7 +84,7 @@ function observeFileReads(t: TestContext, database: DatabaseSync, alter?: (row: 
     }
     return statement
   })
-  return { reads: () => batchReads, restore: () => mock.mock.restore() }
+  return { reads: () => batchReads, prepares: () => batchPrepares, restore: () => mock.mock.restore() }
 }
 
 test('扫描冷核memo：多文件真实批每行实读batch，24行只解析3对JSON，同连接再核不跨调用复用', async t => {
@@ -91,11 +92,13 @@ test('扫描冷核memo：多文件真实批每行实读batch，24行只解析3�
   const before = f.db.prepare('SELECT total_changes() n').get()!.n
   f.verify()
   assert.equal(reads.reads(), 24)
+  assert.equal(reads.prepares(), 1, 'checkpoint与24行state共用本次核验的一条batch语句，但不复用读取结果')
   const first = completion(logged)
   assert.equal(first.total, 24); assert.equal(first.count, 3); assert.equal(first.active, 3)
   assert.ok(first.bytes! > 0 && first.bytes! <= 32 * 1024 * 1024)
   logged.length = 0; f.verify()
   assert.equal(reads.reads(), 48); assert.equal(completion(logged).count, 3)
+  assert.equal(reads.prepares(), 2, '下一次完整核验必须重新准备语句，不跨调用保留')
   assert.equal(f.db.prepare('SELECT total_changes() n').get()!.n, before, 'memo及诊断不能写数据库')
   t.diagnostic('24项仍有24次真实batch点读，每次verify只解析3对batch JSON；count不是源读取次数。')
 })
@@ -151,6 +154,7 @@ test('扫描冷核memo：64项LRU逐出后旧batch尾文件重新解析，所有
   f.verify()
   const value = completion(logged)
   assert.equal(reads.reads(), 130); assert.equal(value.total, 130); assert.equal(value.count, 66); assert.equal(value.active, 64)
+  assert.equal(reads.prepares(), 1, '130行逐项实读仍只准备一条batch语句，JSON memo逐出不能造成语句重新准备')
   assert.ok(value.bytes! <= 32 * 1024 * 1024)
 })
 

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { isAudioAsset, isLibraryRoot, isLocalTrack, isLocalMetadata, isLocalExactInteger } from '@music-bridge/contracts';
 import { createCollectionRepository } from '../../src/collection/repository.js';
+import { verifyLocalCatalogDatabase } from '../../src/collection/local-catalog-store.js';
 import { authorizeSourceDirectory } from '../../src/recording/source-files.js';
 import { buildStoragePolicy } from '../../../../apps/desktop/scripts/build-storage-root.mjs';
 
@@ -224,4 +225,60 @@ test('MBRS002 audit：流式raw冷核仍逐回执核修订，raw与回执一起�
   } finally { db.close(); }
   const rejected = createCollectionRepository({ filePath: f.file });
   try { assert.throws(() => rejected.list(page)); } finally { rejected.close(); }
+});
+
+test('MBRS002 audit：冷核语句只在本次复用，24项仍逐次实读且下次重新准备', async t => {
+  const f = await fixture(t);
+  for (let index = 0; index < 24; index++) {
+    const asset = f.catalog.registerAsset({ ...f.assetRequest(), relative: `合成/曲${index}.flac` });
+    const track = f.catalog.createTrack({ commandId: randomUUID(), assetId: asset.id, segment: null });
+    f.catalog.observeMetadata({ commandId: randomUUID(), trackId: track.id, source: 'synthetic', parserVersion: '合成解析器', fields: { title: `曲${index}` } });
+  }
+  const database = f.catalog.privateRead(db => db);
+  const targets = new Map([
+    ['SELECT CAST(rowid AS TEXT) AS _observation_rowid,* FROM local_catalog_observations WHERE id=?', { prepares: 0, reads: 0 }],
+    ['SELECT * FROM local_catalog_roots WHERE id=?', { prepares: 0, reads: 0 }],
+    ['SELECT * FROM local_catalog_assets WHERE id=?', { prepares: 0, reads: 0 }],
+  ]);
+  const prepare = DatabaseSync.prototype.prepare;
+  t.mock.method(DatabaseSync.prototype, 'prepare', function (this: DatabaseSync, sql: string) {
+    const statement = prepare.call(this, sql), counts = this === database ? targets.get(sql) : undefined;
+    if (!counts) return statement;
+    counts.prepares++;
+    const get = statement.get;
+    t.mock.method(statement, 'get', (...args: unknown[]) => { counts.reads++; return Reflect.apply(get, statement, args); });
+    return statement;
+  });
+  const before = database.prepare('SELECT total_changes() n').get()!.n;
+  for (let pass = 1; pass <= 2; pass++) {
+    verifyLocalCatalogDatabase(database);
+    for (const [sql, counts] of targets) {
+      assert.equal(counts.prepares, pass, `每次完整核验只准备一次：${sql}`);
+      assert.equal(counts.reads, 24 * pass, `不能复用同根或其他实体的读取结果：${sql}`);
+    }
+    assert.equal(database.prepare('SELECT total_changes() n').get()!.n, before, '复用语句不能写数据库');
+  }
+});
+
+test('MBRS002 audit：复用语句仍消费第二次真实根读取，变化后拒绝且下一次重新核验', async t => {
+  const f = await fixture(t);
+  for (let index = 0; index < 3; index++) f.catalog.registerAsset({ ...f.assetRequest(), relative: `合成/曲${index}.flac` });
+  const database = f.catalog.privateRead(db => db), prepare = DatabaseSync.prototype.prepare;
+  let preparations = 0, reads = 0, inject = true;
+  t.mock.method(DatabaseSync.prototype, 'prepare', function (this: DatabaseSync, sql: string) {
+    const statement = prepare.call(this, sql);
+    if (this !== database || sql !== 'SELECT * FROM local_catalog_roots WHERE id=?') return statement;
+    preparations++;
+    const get = statement.get;
+    t.mock.method(statement, 'get', (...args: unknown[]) => {
+      const row = Reflect.apply(get, statement, args); reads++;
+      // 已完成真实SQLite读取后，模拟同根第二次读取缺失；不能用第一次的事实掩盖。
+      return inject && reads === 2 ? undefined : row;
+    });
+    return statement;
+  });
+  assert.throws(() => verifyLocalCatalogDatabase(database));
+  assert.equal(reads, 2); assert.equal(preparations, 1);
+  inject = false; verifyLocalCatalogDatabase(database);
+  assert.equal(reads, 5); assert.equal(preparations, 2, '失败调用的语句不能保留到下一次全核');
 });
