@@ -12,7 +12,10 @@ export function desktopBuildPaths(sourceRoot) {
   sourceRoot = fs.realpathSync(sourceRoot);
   const policy = buildStoragePolicy();
   const parent = policy.hosted ? policy.root : path.join(policy.root, 'worktrees');
-  const root = policy.check(path.join(parent, 'musicbridge-dev-' + digest(sourceRoot).slice(0, 12)));
+  // 挂载或目录身份变化时使用新副本，避免复用原生输出中的旧归属标记。
+  const facts = fs.statSync(sourceRoot);
+  const identity = digest(JSON.stringify([sourceRoot, facts.dev, facts.ino]));
+  const root = policy.check(path.join(parent, 'musicbridge-dev-' + identity.slice(0, 12)));
   if (root === sourceRoot || inside(root, sourceRoot) || inside(sourceRoot, root)) throw new Error('源码与编译副本不能相互包含。');
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
   policy.check(root, { mustExist: true });

@@ -78,3 +78,41 @@ test('不同源码工作树的开发副本保持隔离', () => {
     assert.equal(fs.readFileSync(path.join(bb.workspace, 'packages/sample/src/source.ts'), 'utf8'), 'export const other = 42;\n');
   } finally { a.cleanup(); b.cleanup(); }
 });
+
+test('磁盘挂载或源码目录身份变化时启用新副本，并保留旧原生产物', ({ mock }) => {
+  const f = fixture();
+  const roots = new Set();
+  try {
+    const first = prepareDesktopWorkspace(f.paths);
+    const oldOutput = path.join(first.workspace, 'native/media-worker/bin/darwin-arm64/.media-worker-output.json');
+    fs.mkdirSync(path.dirname(oldOutput), { recursive: true });
+    fs.writeFileSync(oldOutput, '旧挂载身份的归属标记');
+    const statSync = fs.statSync;
+    let deviceDelta = 0, inodeDelta = 0;
+    mock.method(fs, 'statSync', (target, ...args) => {
+      const facts = statSync(target, ...args);
+      if (target !== f.source) return facts;
+      return Object.assign(Object.create(facts), {
+        dev: facts.dev + deviceDelta, ino: facts.ino + inodeDelta,
+      });
+    });
+    assert.equal(desktopBuildPaths(f.source).root, first.root);
+    deviceDelta = 1;
+    const remounted = desktopBuildPaths(f.source);
+    roots.add(remounted.root);
+    assert.notEqual(remounted.root, first.root);
+    assert.equal(desktopBuildPaths(f.source).root, remounted.root);
+    const current = prepareDesktopWorkspace(remounted);
+    assert.equal(fs.readFileSync(path.join(current.workspace, 'packages/sample/src/source.ts'), 'utf8'), 'export const value = 1;\n');
+    assert.equal(fs.existsSync(path.join(current.workspace, 'native/media-worker/bin/darwin-arm64/.media-worker-output.json')), false);
+    inodeDelta = 1;
+    const recreated = desktopBuildPaths(f.source);
+    roots.add(recreated.root);
+    assert.notEqual(recreated.root, remounted.root);
+    assert.equal(fs.readFileSync(oldOutput, 'utf8'), '旧挂载身份的归属标记');
+  } finally {
+    mock.restoreAll();
+    for (const root of roots) if (root !== f.paths.root) fs.rmSync(root, { recursive: true });
+    f.cleanup();
+  }
+});
