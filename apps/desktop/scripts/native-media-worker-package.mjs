@@ -22,15 +22,18 @@ async function regular(file, limit) {
     return bytes;
   } finally { await fd.close(); }
 }
-export async function captureNativeMediaWorker(appDirectory) {
+export async function captureNativeMediaWorker(appDirectory, { requireRelease = true } = {}) {
   const root = path.join(appDirectory, 'native', 'media-worker', `${process.platform}-${process.arch}`);
   const manifest = JSON.parse((await regular(path.join(root, 'manifest.json'), 16 * 1024)).toString('utf8'));
   const binary = manifest?.binary;
+  const buildProfile = manifest.buildProfile === undefined ? 'release' : manifest.buildProfile;
   if (manifest.schemaVersion !== 1 || manifest.protocolVersion !== 1 || manifest.parserVersion !== 'musicbridge-rust-media/v1'
+    || !['release', 'development'].includes(buildProfile)
     || manifest.platform !== process.platform || manifest.arch !== process.arch || binary?.relativePath !== 'bin/musicbridge-media-worker'
     || typeof binary.sha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(binary.sha256) || !Number.isSafeInteger(binary.size)) fail();
   const bytes = await regular(path.join(root, binary.relativePath), 96 * 1024 * 1024);
   if (bytes.length !== binary.size || digest(bytes) !== binary.sha256) fail();
+  if (requireRelease && buildProfile !== 'release') throw new Error('开发版媒体 Worker 不能进入正式安装包，请先执行正式构建。');
   return { schemaVersion: 1, protocolVersion: 1, binarySha256: binary.sha256, platform: process.platform, arch: process.arch };
 }
 export default async function beforePack(context) {

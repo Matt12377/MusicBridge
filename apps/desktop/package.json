@@ -19,7 +19,7 @@
     "test:electron": "node --import tsx --test electron-gate/*.test.ts",
     "pretest:security": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "test:security": "node --import tsx --test test/security.test.ts test/ipc-security.test.ts test/csp.test.ts test/protocol.test.ts test/preload.test.ts test/credential-provisioning.test.ts test/credential-vault.test.ts",
-    "build:dev": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node ../../native/media-worker/scripts/stage.mjs && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode development && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs",
+    "build:dev": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build:dev && corepack pnpm@10.17.1 run build:dev:desktop",
     "build:dev:renderer": "electron-vite build --config electron.renderer-dev.config.ts --mode development --ignoreConfigWarning",
     "dev": "corepack pnpm@10.17.1 run build:dev && electron dist/main/index.js",
     "start": "node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
@@ -27,7 +27,8 @@
     "pack:beta": "electron-builder --mac --arm64",
     "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production",
     "test:e2e": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node ../../native/media-worker/scripts/stage.mjs && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode production && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs && electron-vite build --config e2e/private-core.vite.config.ts --mode development && playwright test",
-    "build:media-worker": "node ../../native/media-worker/scripts/build.mjs && node ../../native/media-worker/scripts/stage.mjs"
+    "build:media-worker": "node ../../native/media-worker/scripts/build.mjs && node ../../native/media-worker/scripts/stage.mjs",
+    "build:dev:desktop": "node ../../native/media-worker/scripts/stage.mjs && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode development && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs"
   },
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",

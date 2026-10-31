@@ -69,11 +69,17 @@ try {
   }
   if (plan === 'reuse') console.log('开发构建：输入与产物均未变化，复用现有产物。');
   else {
-    console.log(plan === 'renderer' ? '开发构建：仅界面发生变化，只构建 Renderer。' : '开发构建：首次构建、输入变化或缓存失效，执行完整构建。');
+    const messages = {
+      renderer: '开发构建：仅界面发生变化，只构建 Renderer。',
+      desktop: '开发构建：仅桌面端源码变化，复用核心与原生程序，重新打包桌面端。',
+      full: '开发构建：首次构建、共享输入变化或缓存失效，执行完整构建。',
+    };
+    console.log(messages[plan]);
     // 开始写产物前撤销旧完成声明；失败后不能复用半次构建。
     invalidateDesktopDevBuild(build);
     const buildStarted = performance.now();
-    await pnpm('--filter', '@music-bridge/desktop', 'run', plan === 'renderer' ? 'build:dev:renderer' : 'build:dev');
+    const script = { renderer: 'build:dev:renderer', desktop: 'build:dev:desktop', full: 'build:dev' }[plan];
+    await pnpm('--filter', '@music-bridge/desktop', 'run', script);
     finishDesktopDevBuild(build, inputs);
     console.log('开发构建完成：' + ((performance.now() - buildStarted) / 1000).toFixed(2) + ' 秒。');
   }

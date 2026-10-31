@@ -15,7 +15,7 @@ const mobileConverterBuild = await captureNativeMobileConverter(currentDirectory
 const outputBuild = await captureNativeOutput(currentDirectory)
 const outputDeviceBuild = await captureNativeOutputDevice(currentDirectory)
 const rustBuild = await captureNativeRust(currentDirectory)
-const mediaWorkerBuild = await captureNativeMediaWorker(currentDirectory)
+const mediaWorkerBuild = await captureNativeMediaWorker(currentDirectory, { requireRelease: false })
 
 export default defineConfig(({ mode }) => ({
   main: {

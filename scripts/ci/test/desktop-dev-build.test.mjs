@@ -59,11 +59,11 @@ test('未改动复用产物；仅修改或删除界面文件时只重建 Rendere
   } finally { f.cleanup(); }
 });
 
-test('主进程、原生输入、依赖、配置和构建环境改变时必须完整构建', () => {
+test('核心、原生输入、依赖、配置和构建环境改变时必须完整构建', () => {
   const f = fixture();
   try {
     for (const name of [
-      'apps/desktop/src/main/index.ts', 'apps/desktop/native/demo/manifest.json',
+      'packages/bridge-core/src/main.ts', 'apps/desktop/native/demo/manifest.json',
       'packages/contracts/src/index.ts', 'pnpm-lock.yaml', 'apps/desktop/electron.vite.config.ts',
     ]) {
       f.writeSource(name, '已修改输入');
@@ -72,10 +72,25 @@ test('主进程、原生输入、依赖、配置和构建环境改变时必须�
       finishDesktopDevBuild(build, desktopDevBuildInputs(build, {}));
     }
     const build = f.refresh();
-    for (const env of [{ VITE_EXAMPLE: 'changed' }, { MUSIC_BRIDGE_PRIVATE_DESKTOP_ARTWORK_BUILD: 'once' }, { NODE_OPTIONS: '--no-warnings' }]) {
+    for (const env of [{ VITE_EXAMPLE: 'changed' }, { MUSIC_BRIDGE_PRIVATE_DESKTOP_ARTWORK_BUILD: 'once' }, { NODE_OPTIONS: '--no-warnings' }, { CARGO_PROFILE_DEVELOPMENT_LTO: 'true' }]) {
       assert.equal(planDesktopDevBuild(build, desktopDevBuildInputs(build, env)), 'full');
     }
     assert.equal(planDesktopDevBuild(build, desktopDevBuildInputs(build, {}), { force: true }), 'full');
+  } finally { f.cleanup(); }
+});
+
+test('主进程和预加载改动只重打包桌面端，核心改动仍触发完整构建', () => {
+  const f = fixture();
+  try {
+    for (const name of ['apps/desktop/src/main/index.ts', 'apps/desktop/src/preload/index.ts']) {
+      f.writeSource(name, 'export const changed = true;');
+      const build = f.refresh();
+      assert.equal(planDesktopDevBuild(build, desktopDevBuildInputs(build, {})), 'desktop');
+      finishDesktopDevBuild(build, desktopDevBuildInputs(build, {}));
+    }
+    f.writeSource('packages/bridge-core/src/main.ts', 'export const changed = true;');
+    const build = f.refresh();
+    assert.equal(planDesktopDevBuild(build, desktopDevBuildInputs(build, {})), 'full');
   } finally { f.cleanup(); }
 });
 

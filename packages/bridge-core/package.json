@@ -16,7 +16,9 @@
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs",
     "play": "node --env-file-if-exists=.env scripts/play.mjs",
     "stop": "node --env-file-if-exists=.env scripts/stop.mjs",
-    "state": "node --env-file-if-exists=.env scripts/state.mjs"
+    "state": "node --env-file-if-exists=.env scripts/state.mjs",
+    "prebuild:dev": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
+    "build:dev": "node ../../native/media-worker/scripts/build.mjs --profile development && tsc -p tsconfig.json && node scripts/build-metadata-reader-worker.mjs"
   },
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",

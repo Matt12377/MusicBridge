@@ -19,6 +19,7 @@ const manifest = JSON.parse(readFileSync(path.join(source, 'manifest.json'), 'ut
 const identity = sourceIdentity(path.join(root, 'native/media-worker'))
 const executable = manifest.platform === 'win32' ? 'musicbridge-media-worker.exe' : 'musicbridge-media-worker'
 if (manifest.schemaVersion !== 1 || manifest.protocolVersion !== 1 || manifest.parserVersion !== 'musicbridge-rust-media/v1'
+  || !['release', 'development'].includes(manifest.buildProfile === undefined ? 'release' : manifest.buildProfile)
   || !['darwin', 'linux', 'win32'].includes(manifest.platform) || !['arm64', 'x64'].includes(manifest.arch)
   || manifest.sourceIdentity !== identity || manifest.binary?.relativePath !== executable || !/^[a-f0-9]{64}$/u.test(manifest.binary.sha256)) throw new Error('媒体 Worker 构建清单无效。')
 const destination = options.get('--destination') ?? path.join(root, 'apps/desktop/native/media-worker', `${manifest.platform}-${manifest.arch}`)

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
-const schema = 'musicbridge.desktop-development-build.v1';
+const schema = 'musicbridge.desktop-development-build.v2';
 const digest = value => createHash('sha256').update(value).digest('hex');
 const outputRoots = ['packages/contracts/dist', 'packages/bridge-core/dist', 'apps/desktop/dist', 'apps/desktop/native/media-worker'];
 const requiredOutputs = [
@@ -19,13 +19,15 @@ const requiredOutputs = [
   'apps/desktop/dist/renderer/index.html',
 ];
 
-/** 只将明确位于 Renderer 目录的变化判为界面改动，其余输入保守地触发完整构建。 */
+/** 分别识别界面、桌面端与共享核心输入，复用未变化的构建层。 */
 export function desktopDevBuildInputs(build, env = process.env) {
   const environment = Object.keys(env).filter(key => key.startsWith('VITE_') || key.endsWith('_BUILD')
-    || ['NODE_ENV', 'NODE_OPTIONS', 'ESBUILD_BINARY_PATH'].includes(key)).sort().map(key => [key, env[key]]);
+    || key.startsWith('CARGO_PROFILE_')
+    || ['NODE_ENV', 'NODE_OPTIONS', 'ESBUILD_BINARY_PATH', 'RUSTFLAGS', 'CARGO_ENCODED_RUSTFLAGS', 'RUSTUP_TOOLCHAIN', 'CARGO_INCREMENTAL'].includes(key)).sort().map(key => [key, env[key]]);
   return {
     inputHash: build.state.inputHash,
     backendInputHash: digest(JSON.stringify(build.inputRows.filter(row => !row.path.startsWith('apps/desktop/src/renderer/')))),
+    coreInputHash: digest(JSON.stringify(build.inputRows.filter(row => !row.path.startsWith('apps/desktop/src/')))),
     environmentHash: digest(JSON.stringify({ node: process.version, platform: process.platform, arch: process.arch, environment })),
   };
 }
@@ -54,14 +56,15 @@ export function desktopDevOutputHash(build) {
 
 export function planDesktopDevBuild(build, inputs, { force = false } = {}) {
   const previous = build.state.developmentBuild;
-  if (force || previous?.schema !== schema || previous.backendInputHash !== inputs.backendInputHash
-    || previous.environmentHash !== inputs.environmentHash) return 'full';
+  if (force || previous?.schema !== schema || previous.environmentHash !== inputs.environmentHash) return 'full';
   try {
     if (previous.outputHash !== desktopDevOutputHash(build)) return 'full';
   } catch {
     return 'full';
   }
-  return previous.inputHash === inputs.inputHash ? 'reuse' : 'renderer';
+  if (previous.inputHash === inputs.inputHash) return 'reuse';
+  if (previous.backendInputHash === inputs.backendInputHash) return 'renderer';
+  return previous.coreInputHash === inputs.coreInputHash ? 'desktop' : 'full';
 }
 
 export function invalidateDesktopDevBuild(build) {
