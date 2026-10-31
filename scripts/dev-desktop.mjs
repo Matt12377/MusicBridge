@@ -60,7 +60,7 @@ try {
   const electronRoot = path.dirname(require.resolve('electron'));
   const electronPath = path.join(electronRoot, 'path.txt');
   if (!fs.existsSync(electronPath) || !fs.existsSync(path.join(electronRoot, 'dist', fs.readFileSync(electronPath, 'utf8').trim()))) {
-    await run(process.execPath, [path.join(electronRoot, 'install.js')], { env: { ...process.env, ELECTRON_CACHE: path.join(paths.policy.root, 'Caches/electron') } });
+    await run(process.execPath, [path.join(electronRoot, 'install.js')], { env: { ...process.env, electron_config_cache: path.join(paths.policy.root, 'Caches/electron') } });
   }
   const inputs = desktopDevBuildInputs(build);
   const plan = planDesktopDevBuild(build, inputs, { force: installed || args.includes('--rebuild') });
