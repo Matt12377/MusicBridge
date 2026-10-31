@@ -50774,5 +50774,29 @@
     "audioFilesModified": false,
     "playbackSourceChanged": false,
     "iosSourceChanged": false
+  },
+  "mousa41BuildWorkerOwnership20261031": {
+    "status": "DEVELOPMENT_BUILD_VERIFIED",
+    "baseSha": "b30d3424f21ec8952074560ebd8ba8a9a0ecb273",
+    "implementationShas": [
+      "890694fb70a9cdbe939d87d7db4725649537273f",
+      "b268f224170cc9e6608b09aac71b4553fe41f36a"
+    ],
+    "validation": {
+      "regressionRedExitCode": 1,
+      "targetedTestsPassed": 12,
+      "targetedTestsExitCode": 0,
+      "actualBuildExitCode": 0,
+      "actualBuildElapsedMs": 39857,
+      "sameInputReuseExitCode": 0,
+      "sameInputReuseElapsedMs": 950,
+      "ownershipGuardSourceUnchanged": true,
+      "oldCacheMarkerUnchanged": true
+    },
+    "report": "reports/MOUSA_4_1_BUILD_WORKER_OWNERSHIP_2026-10-31.md",
+    "buildOnly": true,
+    "applicationRuntimeTested": false,
+    "deviceOperationsPerformed": false,
+    "ownerAccepted": false
   }
 }
