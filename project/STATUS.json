@@ -50798,5 +50798,38 @@
     "applicationRuntimeTested": false,
     "deviceOperationsPerformed": false,
     "ownerAccepted": false
+  },
+  "mousa41DevBuildSpeed20261031": {
+    "status": "DEVELOPMENT_BUILD_LAYERS_VERIFIED",
+    "baseSha": "5b07fcba5a0ef5aeeea0fda0f86ecd67f29fabd1",
+    "implementationSha": "0df91b59ce9c23749edbadd3b57aa62e7e5ce124",
+    "validation": {
+      "regressionRedExitCode": 1,
+      "targetedTestsPassed": 16,
+      "targetedTestsExitCode": 0,
+      "developmentWorkerBootstrapTestsPassed": 3,
+      "developmentWorkerBootstrapTestsExitCode": 0,
+      "rustDevelopmentTestsPassed": 5,
+      "rustDevelopmentTestsExitCode": 0,
+      "nativeReleaseFirstBuildElapsedMs": 24291,
+      "nativeDevelopmentFirstBuildElapsedMs": 8927,
+      "unchangedBuildElapsedMs": 2013,
+      "rendererChangeBuildElapsedMs": 5109,
+      "mainChangeBuildElapsedMs": 8660,
+      "allIncrementalBuildsExitCode": 0,
+      "benchmarkSourceFilesRestored": true,
+      "v4IntegrationBuildElapsedMs": 27224,
+      "v4IntegrationBuildExitCode": 0,
+      "v4NativeBuildProfile": "development",
+      "developmentWorkerRejectedForProduction": true,
+      "defaultNativeBuildProfile": "release",
+      "actualReleaseCapturePassed": true,
+      "timingScope": "SINGLE_RUNS_NOT_P95"
+    },
+    "report": "reports/MOUSA_4_1_DEV_BUILD_SPEED_2026-10-31.md",
+    "buildOnly": true,
+    "applicationRuntimeTested": false,
+    "deviceOperationsPerformed": false,
+    "ownerAccepted": false
   }
 }
