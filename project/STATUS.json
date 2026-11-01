@@ -50977,17 +50977,17 @@
   "mousa41RoonIntegration20261101": {
     "baseCommit": "92f72475b8579db28f1dfa18ed94aea089cb4700",
     "branch": "codex/mousa-4-1-roon-integration",
-    "state": "READY_FOR_REAL_VALIDATION",
+    "state": "IMPLEMENTED_AND_REAL_MAC_MINI_VERIFIED",
     "tasks": {
       "RI-001": "completed",
       "RI-002": "completed",
       "RI-003": "completed",
       "RI-004": "completed",
-      "RI-005": "in_progress"
+      "RI-005": "completed"
     },
     "ownerApproved": true,
     "ownerAccepted": false,
-    "realPlaybackVerified": false,
+    "realPlaybackVerified": true,
     "plan": "project/ROON_INTEGRATION_LAYER_PLAN.md",
     "engineering": {
       "coreTargetedPassed": 241,
@@ -51001,7 +51001,44 @@
       "desktopE2eTypecheckExitCode": 0,
       "controlPlaneExitCode": 0,
       "boundariesExitCode": 0,
-      "candidateBuildExitCode": 0
-    }
+      "candidateBuildExitCode": 0,
+      "finalDiagnosticPassed": 139,
+      "finalDiagnosticExitCode": 0,
+      "finalSubscriptionBuildExitCode": 0,
+      "fullProjectVerifyRun": false,
+      "remoteCiClaimed": false
+    },
+    "implementationCommit": "edcdd8454fb7e0a7e9269b5c7f2645f8688269b8",
+    "implementationCommits": [
+      "b0869655c8870dfb5aa0cf26ac2554f2b7c12f7a",
+      "d50b5b4d70cea98c9467cb81f61a509699dc2d79",
+      "edcdd8454fb7e0a7e9269b5c7f2645f8688269b8"
+    ],
+    "report": "reports/MOUSA_4_1_ROON_INTEGRATION_2026-11-01.md",
+    "reportCommitResolution": "DIRECT_CHILD_OF_FINAL_IMPLEMENTATION",
+    "realValidation": {
+      "ordinaryDesktop": true,
+      "nasAndOnline": true,
+      "repeatAfterRestart": true,
+      "sameAttemptPlayingAndMediaBody": true,
+      "zonesSubscriptionObserved": true,
+      "localPauseResumeSeekAdvance": true,
+      "onlinePauseResumeSeek": true,
+      "naturalOnlineEnd": true,
+      "normalExitCodes": [
+        0,
+        0
+      ],
+      "sshOnNormalPlayback": false,
+      "pairedTargetAndAuthorizationPreserved": true,
+      "finalPlaybackState": "paused",
+      "physicalPhoneOperated": false,
+      "subjectiveListeningAccepted": false
+    },
+    "carryover": [
+      "LONG_DURATION_LISTENING_AND_OWNER_ACCEPTANCE",
+      "PHYSICAL_CORE_RESTART_AND_REAL_MULTICORE_SWITCH_NOT_RUN",
+      "EXISTING_LIBRARY_PREPARATION_WAIT_SEPARATE_SCOPE"
+    ]
   }
 }

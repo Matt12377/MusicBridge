@@ -1,6 +1,6 @@
 # Roon 接入层专项计划
 
-状态：**Owner 已于 2026-11-01 批准执行，实施中**。本专项只改 Mousa ↔ Roon 的接入层，不重做播放系统、曲库、扫描、录音或 UI 架构。
+状态：**Owner 已于 2026-11-01 批准执行；工程及真实 Mac/mini 验证完成，Owner 听感验收另记**。本专项只改 Mousa ↔ Roon 的接入层，不重做播放系统、曲库、扫描、录音或 UI 架构。
 
 ## 1. 范围
 
@@ -26,7 +26,7 @@
 - [roon-connect-stream-example/lib.mjs](https://github.com/RoonLabs/roon-connect-stream-example/blob/main/lib.mjs)：通过 `RoonApiAudioInput.begin_session()` 和 `play({ media_url: url })` 让 Core 取流；`Playing` / `Time` / `MediaError` 是 Core 侧的真实回执。
 - 结论：SSH 是项目为跨机器回环地址加的中间层，不是 Roon 的要求。问题不在“Roon 需要 SSH”，而在“Core 能否访问 Mousa 发布的媒体 URL”。
 
-## 3. 当前失败事实
+## 3. 实施前采样事实
 
 - 运行中的 Mousa Core 是 local 模式，公开流地址为 `http://127.0.0.1:<port>`。
 - Roon Core 在 mini；mini 访问 `127.0.0.1` 只会访问它自己。
@@ -137,3 +137,5 @@ NAS 曲库 ──► Mac 媒体服务读取（保持现有位置）
 - 基线：`92f72475b8579db28f1dfa18ed94aea089cb4700`；工作树 `worktree/roon-integration`，分支 `codex/mousa-4-1-roon-integration`。
 - 沿用 Owner 已指定的 Astra 主会话；原 RI-001～RI-005 编号与任务范围固定。
 - 本轮不修改旧根文档 WIP、不重写队列、不进行源文件标签编辑。
+
+- 收口：RI-001～RI-005 已完成本专项验证，详见 `reports/MOUSA_4_1_ROON_INTEGRATION_2026-11-01.md`；开发版运行且暂停。
