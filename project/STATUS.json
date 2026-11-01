@@ -50895,5 +50895,83 @@
       "SOURCE_DIRECTORY_OFFLINE",
       "OWNER_VISUAL_ACCEPTANCE"
     ]
+  },
+  "mousa41LibraryAvailability20261101": {
+    "branch": "codex/mousa-4-1-library-availability",
+    "deliveryBranch": "codex/mousa-4-1-artists-search",
+    "baseCommit": "734f7b08658eadd008a0bac70cc114dc12a75f54",
+    "implementationCommit": "c5f9f76d4ade575336bd9a27aabd4747f3037d50",
+    "state": "mac-runtime-verified-with-bounded-carryover",
+    "fixedItems": [
+      "031",
+      "032",
+      "033",
+      "034"
+    ],
+    "report": "reports/MOUSA_4_1_LIBRARY_AVAILABILITY_2026-11-01.md",
+    "sourceRecovery": {
+      "recovered": 6,
+      "checked": 6,
+      "sourceDirectoryOnline": true,
+      "historicalSignatureRawFileReadVerified": true,
+      "audioPlaybackVerified": false,
+      "catalogTrackCount": 81559,
+      "catalogAlbumCount": 9669,
+      "preservedSourceAndTrackIdentities": true
+    },
+    "mainRuntime": {
+      "previewMs": 1289,
+      "contentReadyMs": 18970,
+      "firstAlbumsVisibleMs": 19790,
+      "firstAlbumRequestMs": 814.3,
+      "catalogFullChecks": 0,
+      "scanFullChecks": 0,
+      "persistentCompactRebound": true,
+      "pages": 49,
+      "currentState": "left-running"
+    },
+    "engineering": {
+      "coreFirstRun": {
+        "passed": 243,
+        "failedFixtureCases": 4,
+        "total": 247,
+        "exitCode": 1
+      },
+      "coreAffectedRerun": {
+        "passed": 124,
+        "failed": 0,
+        "exitCode": 0
+      },
+      "desktopFirstRun": {
+        "passed": 283,
+        "failedStaticFixtureCases": 1,
+        "total": 284,
+        "exitCode": 1
+      },
+      "desktopAffectedRerun": {
+        "passed": 4,
+        "failed": 0,
+        "exitCode": 0
+      },
+      "typecheckExitCodes": [
+        0,
+        0,
+        0
+      ],
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "candidateBuildExitCode": 0,
+      "v4BuildExitCode": 0,
+      "fullProjectVerifyRun": false
+    },
+    "ownerAccepted": false,
+    "deviceOperationsPerformed": false,
+    "carryover": [
+      "ROON_SDK_SUBMIT_TIMEOUT_30_SECONDS_NO_AUDIO_ACCEPTANCE",
+      "FIRST_IMPLEMENTATION_AUDIT_REGENERATION",
+      "CONTENT_FINGERPRINT_AND_COLD_CHECK_WAIT",
+      "BACKGROUND_STRUCTURE_BUILD",
+      "OWNER_VISUAL_ACCEPTANCE"
+    ]
   }
 }
