@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { createSourceStore, sourceEvidenceMigration } from '../src/recording/source-store.js';
 import type { RootCapability } from '../src/recording/source-files.js';
+import { sourcePlaybackExpectedSignature } from '../src/recording/source-remount-proof.js';
 
 function fixture(t: test.TestContext) {
   const db = new DatabaseSync(':memory:'); db.exec(sourceEvidenceMigration); t.after(() => db.close());
@@ -54,4 +55,59 @@ test('批量恢复中后一根过期时前一根也回滚，成功时只通过�
   assert.deepEqual(f.dump(), before); assert.equal(f.fences(), 0);
   const result = f.store.privateReauthorizeRemounts([first, { ...next, captured: second }]);
   assert.equal(result.length, 2); assert.equal(f.fences(), 1); assert.equal(f.dump().ledger.length, before.ledger.length + 2);
+});
+
+test('v1恢复可凭真实来源摘要升级v2，连续挂载及回用旧设备号保留各代观察', t => {
+  const f = fixture(t), share = 'b'.repeat(64);
+  const first = f.store.privateReauthorizeRemount(randomUUID(), f.previous, f.current, 'a'.repeat(64));
+  assert.equal(first.readonlyRemountProof?.version, 1);
+  const before = f.dump();
+  assert.throws(() => f.store.privateReauthorizeRemount(randomUUID(), first, { ...f.current, dev: '34' }, 'c'.repeat(64)));
+  assert.deepEqual(f.dump(), before);
+  const second = f.store.privateReauthorizeRemount(randomUUID(), first, { ...f.current, dev: '34' }, 'c'.repeat(64), share);
+  assert.equal(second.readonlyRemountProof?.version, 2);
+  assert.ok(second.readonlyRemountProof?.version === 2);
+  assert.deepEqual(second.readonlyRemountProof.previousDevs, ['12', '23']);
+  assert.equal(second.readonlyRemountProof.mountSourceSha256, share);
+  for (const device of ['12', '23', '34']) assert.equal(sourcePlaybackExpectedSignature(second, `${device}:7:8:9:10`), '34:7:8:9:10');
+  const returned = f.store.privateReauthorizeRemount(randomUUID(), second, f.previous, 'd'.repeat(64), share);
+  assert.ok(returned.readonlyRemountProof?.version === 2);
+  assert.deepEqual(returned.readonlyRemountProof.previousDevs, ['23', '34']);
+  for (const device of ['12', '23', '34']) assert.equal(sourcePlaybackExpectedSignature(returned, `${device}:7:8:9:10`), '12:7:8:9:10');
+  assert.equal(f.dump().ledger.length, before.ledger.length + 2);
+});
+
+test('v2绑定共享盘摘要后不能缺省或更换来源，原路径inode撤权及损坏证明仍拒绝', t => {
+  const f = fixture(t), share = 'b'.repeat(64);
+  const first = f.store.privateReauthorizeRemount(randomUUID(), f.previous, f.current, 'a'.repeat(64), share);
+  const next = { ...f.current, dev: '34' }, before = f.dump();
+  for (const source of [undefined, 'c'.repeat(64), '损坏摘要']) {
+    assert.throws(() => f.store.privateReauthorizeRemount(randomUUID(), first, next, 'd'.repeat(64), source));
+  }
+  for (const current of [{ ...next, id: randomUUID() }, { ...next, path: '/另一共享盘' }, { ...next, ino: '33' },
+    { ...next, label: '另一目录' }, { ...next, authorized: false }, { ...next, dev: first.dev }]) {
+    assert.throws(() => f.store.privateReauthorizeRemount(randomUUID(), first, current, 'd'.repeat(64), share));
+  }
+  const damaged = structuredClone(first); Object.assign(damaged.readonlyRemountProof!, { previousDevs: ['12', '12'] });
+  assert.throws(() => f.store.privateReauthorizeRemount(randomUUID(), damaged, next, 'd'.repeat(64), share));
+  assert.deepEqual(f.dump(), before);
+  f.store.revoke({ commandId: randomUUID(), id: first.id });
+  const revoked = f.dump();
+  assert.throws(() => f.store.privateReauthorizeRemount(randomUUID(), first, next, 'd'.repeat(64), share));
+  assert.deepEqual(f.dump(), revoked);
+});
+
+test('v2批量来源摘要进入原回执，续接提交失败时整批根和不可变账本回滚', t => {
+  const f = fixture(t), share = 'b'.repeat(64), command = randomUUID();
+  const entry = { commandId: command, captured: f.previous, current: f.current, evidenceSha256: 'a'.repeat(64), mountSourceSha256: share };
+  const first = f.store.privateReauthorizeRemounts([entry])[0]!;
+  assert.equal(first.readonlyRemountProof?.version, 2);
+  const before = f.dump();
+  assert.deepEqual(f.store.privateReauthorizeRemounts([entry])[0], first);
+  assert.deepEqual(f.dump(), before);
+  assert.throws(() => f.store.privateReauthorizeRemounts([{ ...entry, mountSourceSha256: 'c'.repeat(64) }]));
+  f.block();
+  assert.throws(() => f.store.privateReauthorizeRemounts([{ commandId: randomUUID(), captured: first,
+    current: { ...f.current, dev: '34' }, evidenceSha256: 'd'.repeat(64), mountSourceSha256: share }]), /未静止/u);
+  assert.deepEqual(f.dump(), before); assert.equal(f.db.isTransaction, false);
 });

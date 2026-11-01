@@ -28,7 +28,7 @@ export interface StoredBinding { id: string; rootId: string; relative: string; a
 /** 只由 Core 扫描器提供，不接受 Renderer 自报的文件/根身份。 */
 export interface CandidateFileConstraint { fileSignature: string; directoryIds: readonly string[]; rootDev: string; rootIno: string }
 export interface StoredJob { public: SourceJob; selection: SourceSelection; relative: string; previousBindingId: string | null; recheck: boolean; candidateConstraint?: CandidateFileConstraint }
-export interface SourceRemountReauthorization { commandId: string; captured: RootCapability; current: RootCapability; evidenceSha256: string }
+export interface SourceRemountReauthorization { commandId: string; captured: RootCapability; current: RootCapability; evidenceSha256: string; mountSourceSha256?: string }
 interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void; beforeLocalFactsCommit?: () => void; beforeRemountMutation?: () => void; onLocalFactsFatal?: () => void }
 export const sourceFingerprint = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFactsCommit, beforeRemountMutation, onLocalFactsFatal }: Access) {
@@ -55,8 +55,8 @@ export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFac
   function reauthorizeRemounts(entries: readonly SourceRemountReauthorization[]): RootCapability[] {
     if (!Array.isArray(entries) || entries.length < 1 || entries.length > 100
       || new Set(entries.map(item => item.commandId)).size !== entries.length || new Set(entries.map(item => item.captured.id)).size !== entries.length) return conflict('共享盘恢复批次必须是有界且不重复的原根集合。');
-    const prepared = entries.map(({ commandId, captured, current, evidenceSha256 }) => {
-      const next = { ...current, readonlyRemountProof: createSourceRemountProof(captured, current, evidenceSha256) };
+    const prepared = entries.map(({ commandId, captured, current, evidenceSha256, mountSourceSha256 }) => {
+      const next = { ...current, readonlyRemountProof: createSourceRemountProof(captured, current, evidenceSha256, mountSourceSha256) };
       return { commandId, captured, next, fingerprint: sourceFingerprint(['reauthorize-remount', captured, next]) };
     });
     return transaction('reauthorize-source-remount', db => { beforeRemountMutation?.(); return prepared.map(({ commandId, captured, next, fingerprint }) => {
@@ -84,8 +84,8 @@ export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFac
       });
     },
     /** 仅供原 Owner 的显式重新授权；调用方先捕获真实共享盘身份并留存证据，不接受 Renderer 自报。 */
-    privateReauthorizeRemount(commandId: string, captured: RootCapability, current: RootCapability, evidenceSha256: string): RootCapability {
-      return reauthorizeRemounts([{ commandId, captured, current, evidenceSha256 }])[0]!;
+    privateReauthorizeRemount(commandId: string, captured: RootCapability, current: RootCapability, evidenceSha256: string, mountSourceSha256?: string): RootCapability {
+      return reauthorizeRemounts([{ commandId, captured, current, evidenceSha256, ...(mountSourceSha256 === undefined ? {} : { mountSourceSha256 }) }])[0]!;
     },
     privateReauthorizeRemounts: reauthorizeRemounts,
     revoke(request: SourceAction): RootCapability {

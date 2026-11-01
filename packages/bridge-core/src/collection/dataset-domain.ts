@@ -93,6 +93,7 @@ import * as workbenchDto from '@music-bridge/contracts';
 import { createCollectionRepository, type CollectionRepository, CollectionError } from './repository.js';
 import { createRoonPublicLibrary, type RoonPublicLibrary } from '../roon/public-library.js';
 import { openCollectionDataset } from '../recording/restore-dataset-runtime.js';
+import { recoverLocalLibrarySourceRemounts } from './local-library-source-remount-recovery.js';
 import { reconcileOutputRunRecovery } from '../recording/output-run-recovery.js';
 import { failureForError } from '../shared/ipc-failure.js';
 import { dispatchDatasetCommand, dispatchInternalDatasetCommand, dispatchLocalAlbumRead } from './dataset-dispatch.js';
@@ -1471,6 +1472,12 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
   const dataset = await openCollectionDataset(options.dataDirectory);
   let domain:DatasetDomain|undefined, mobilePreparedCache:MobilePreparedCache|undefined;
   try {
+    const remountStarted = performance.now();
+    const remount = await recoverLocalLibrarySourceRemounts(dataset.repository, dataset.assertIdentity);
+    logLibraryOperation('library', 'startup.source-remount', 'complete', {
+      elapsedMs: performance.now() - remountStarted, count: remount.recovered, total: remount.checked,
+      code: remount.recovered ? 'SAME_SMB_SOURCE_RECOVERED' : remount.failed ? 'SOURCE_UNAVAILABLE' : 'UNCHANGED',
+    });
     if (options.mobileDsd) {
       const converter = await loadMobileDsdConverter({directory:options.mobileDsd.converterDirectory,manifestSha256:options.mobileDsd.converterManifestSha256});
       mobilePreparedCache = await createMobilePreparedCache({directory:options.mobileDsd.cacheDirectory,datasetId:dataset.datasetId,
@@ -1484,7 +1491,7 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
       } catch { outputRunRecovery = { safe: false, pendingRuns: 0, reason: 'OUTPUT_RUN_UNVERIFIED' }; }
     }
     const common: DatasetDomainOptions = {
-      mobileSqlWorker: { databaseFile: dataset.databaseFile, ...(options.mobileSqlWorkerEntry ? { entry: options.mobileSqlWorkerEntry } : {}), ...(options.mobileSqlWorkerFactory ? { workerFactory: options.mobileSqlWorkerFactory } : {}) },
+      mobileSqlWorker: { databaseFile: dataset.databaseFile, captureStartupAudit: () => dataset.repository.privateCaptureStartupAudit?.(), ...(options.mobileSqlWorkerEntry ? { entry: options.mobileSqlWorkerEntry } : {}), ...(options.mobileSqlWorkerFactory ? { workerFactory: options.mobileSqlWorkerFactory } : {}) },
       ...(options.assertAlbumReadActive ? { assertAlbumReadActive: options.assertAlbumReadActive } : {}),
       ...(options.onBackgroundFatal ? { onBackgroundFatal: options.onBackgroundFatal } : {}),
       ...(options.localScanReadProfile ? { localScanReadProfile: options.localScanReadProfile } : {}),

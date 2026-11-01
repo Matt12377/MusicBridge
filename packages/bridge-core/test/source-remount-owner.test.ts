@@ -153,3 +153,26 @@ test('重挂载原Owner：冷开原完整catalog和scan审计成功，旧签名�
   const lease = await f.prepare(capture, cold); try { await lease.verify(); } finally { await lease.close(); }
   assert.equal(firstTrack(f.catalog(cold)).availability, 'available');
 });
+
+test('v2原Owner：连续挂载后冷开仍沿原票据取得FD，撤权不受设备历史映射影响', async t => {
+  const f = await fixture(t), before = f.snapshot(), share = 'b'.repeat(64);
+  const middle = f.repository.sources.privateReauthorizeRemount(randomUUID(), f.captured,
+    { ...f.current, dev: (BigInt(f.current.dev) + 8000n).toString() }, 'c'.repeat(64), share);
+  f.repository.sources.privateReauthorizeRemount(randomUUID(), middle, f.current, 'd'.repeat(64), share);
+  assert.deepEqual(f.snapshot(), before);
+  await f.owner.close();
+  const cold = f.openOwner(), capture = f.capture(cold), proof = capture.facts.sourceRoot.readonlyRemountProof;
+  assert.ok(proof?.version === 2); assert.equal(proof.mountSourceSha256, share);
+  assert.deepEqual(proof.previousDevs, [f.captured.dev, middle.dev]);
+  assert.equal(capture.facts.observation!.signature, f.signature);
+  assert.equal(firstTrack(f.catalog(cold)).availability, 'available');
+  const lease = await f.prepare(capture, cold);
+  try {
+    await lease.verify();
+    cold.repository.sources.revoke({ commandId: randomUUID(), id: f.captured.id });
+    assert.equal(cold.tickets.revalidate(capture.ticketId), false);
+    await assert.rejects(lease.verify()); await assert.rejects(f.prepare(capture, cold));
+  } finally { await lease.close(); }
+  assert.deepEqual(f.snapshot(cold.repository), before);
+  assert.deepEqual(cold.pool.resourceSnapshot(), { openLeases: 0, reservations: 0 });
+});

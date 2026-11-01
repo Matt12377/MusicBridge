@@ -2,10 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHash, randomUUID } from 'node:crypto'
 import { DatabaseSync, StatementSync } from 'node:sqlite'
+import { deserialize, serialize } from 'node:v8'
 import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as dto from '@music-bridge/contracts'
-import { createLocalAlbumSqlReader, readWithLocalAlbumSqlErrors, isCurrentLocalAlbumSqlReader } from '../src/collection/local-album-browser/sql-read.js'
+import { createLocalAlbumSqlReader, readWithLocalAlbumSqlErrors, isCurrentLocalAlbumSqlReader, captureLocalAlbumStartupState, restoreLocalAlbumStartupState } from '../src/collection/local-album-browser/sql-read.js'
+import { readLocalStartupAuditCache, saveLocalStartupAuditCache, captureLocalStartupAuditForActor, acceptLocalStartupAuditFromOwner } from '../src/collection/local-startup-audit-cache.js'
+import { verifyLocalCatalogDatabase } from '../src/collection/local-catalog-store.js'
+import { verifyLocalScanDatabase } from '../src/collection/local-scan-store.js'
 import { createLocalAlbumOwnerService } from '../src/collection/local-album-browser/owner-port.js'
 import { materializeLocalAlbumQueue } from '../src/collection/mb-queue-materializer.js'
 import { MBQueueStoreError } from '../src/collection/mb-queue-store.js'
@@ -217,6 +221,143 @@ function fixture(t: test.TestContext, input: { tracks?: readonly LocalAlbumTrack
 }
 const comparable = (album:dto.LocalAlbumSummary) => { const {revision,...value}=album; return {...value,lyricsPresence:value.lyricsPresence??'unknown'} }
 const byIdentity = (albums:readonly dto.LocalAlbumSummary[])=>[...albums].sort((a,b)=>a.id.localeCompare(b.id)).map(comparable)
+
+test('启动Compact纯状态：新作者绑定完整摘要，零成员保留且库存使用当前overlay', t => {
+  const first = track(1, '已有封面/01.flac', undefined, { embedded: true }), second = track(2, '待核封面/01.flac')
+  const f = fixture(t, { tracks: [first, second], files: [rejected('零成员/损坏.flac')] })
+  const original = f.reader().queryAlbums(query()), state = deserialize(serialize(captureLocalAlbumStartupState(f.db)))
+  assert.ok(state); assert.equal(original.items.some(album => album.trackCount === 0), true)
+  const target = original.items.find(album => album.representativeTrackId === second.summary.track.id)!
+  assert.equal(restoreLocalAlbumStartupState(f.db, state), true)
+  assert.deepEqual(captureLocalAlbumStartupState(f.db), state, '未创建新reader只转交已核纯候选，不发布实际Compact作者')
+  let builds = 0
+  observeSqlExecutions615(t, f.db, execution => { if (execution.phase === 'before' && !execution.step && execution.sql.includes('mb_album_compact_groups')) builds++ })
+  const lookup = f.lookupAuthor(), reader = f.reader({ artworkInventory: { revision: () => 'inventory-2',
+    read: () => 'unknown', readPersisted: key => key === target.id ? 'available' : null } }, identity => lookup(identity))
+  const current = reader.queryAlbums(query({ limit: 1 })), remaining = reader.queryAlbums(query({ offset: 1, limit: 200 }))
+  assert.equal(builds, 0, '新Source/codec作者在相同逻辑scope下复用完整结构，不执行全库分组')
+  assert.equal(current.total, original.total); assert.equal(current.items.length + remaining.items.length, original.total)
+  assert.equal(new Set([...current.items, ...remaining.items].map(album => album.id)).size, original.total)
+  assert.equal([...current.items, ...remaining.items].find(album => album.id === target.id)!.artworkState, 'available')
+  assert.equal([...current.items, ...remaining.items].find(album => album.representativeTrackId === first.summary.track.id)!.artworkAvailable, true)
+  assert.ok(captureLocalAlbumStartupState(f.db))
+})
+
+for (const mode of ['根状态', '来源修订', '名称修订', '组织与数据集', '歌词修订'] as const) test(`启动Compact失配：${mode}变化回到原完整分组`, t => {
+  const f = fixture(t, { tracks: [track(1, '待核目录/01.flac')] }), stateBefore = f.reader().queryAlbums(query())
+  const state = captureLocalAlbumStartupState(f.db); assert.ok(state)
+  const changes: Partial<LocalAlbumSqlScope> = {}
+  if (mode === '根状态') f.roots[0]!.availability = 'REVOKED'
+  if (mode === '来源修订') changes.revision = 'source-2'
+  if (mode === '名称修订') changes.nameEnhancements = [{ rootId, directory: '待核目录', revision: 'name-2', state: 'failed' }]
+  if (mode === '组织与数据集') changes.libraryOrganizations = [{ datasetId: id(901), rootId, sourceRootId: id(101), rootRevision: '1',
+    bindingRevision: 1, recordSha256: 'b'.repeat(64), role: 'catalog', rootName: '待核目录', parentName: '合成父目录' }]
+  if (mode === '歌词修订') changes.lyricsInventory = { revision: () => 'lyrics-2', read: () => 'true' }
+  assert.equal(restoreLocalAlbumStartupState(f.db, state), true)
+  let builds = 0
+  observeSqlExecutions615(t, f.db, execution => { if (execution.phase === 'before' && !execution.step && execution.sql.includes('mb_album_compact_groups')) builds++ })
+  const reader = f.reader(changes), current = reader.queryAlbums(query())
+  assert.equal(builds, 1); assert.equal(current.total, stateBefore.total)
+  if (mode === '根状态') {
+    assert.equal(current.items[0]!.artworkState, 'source-unavailable')
+    assert.throws(() => reader.getArtworkContext(artworkRequest(stateBefore.items[0]!)), errorCode('SNAPSHOT_CHANGED'), '旧在线卡片不能沿用旧来源修订')
+  }
+  if (mode === '歌词修订') assert.equal(current.items[0]!.lyricsPresence, 'true')
+})
+
+test('启动Compact拒绝：不导出写后或事务半成品，清除/损坏/实现变化不留下旧候选', t => {
+  const f = fixture(t, { tracks: [track(1, '完整组/01.flac')] })
+  assert.equal(captureLocalAlbumStartupState(f.db), undefined)
+  f.reader().queryAlbums(query()); const state = captureLocalAlbumStartupState(f.db) as Record<string, unknown>; assert.ok(state)
+  f.db.exec('CREATE TABLE startup_point_changed(value TEXT)')
+  assert.equal(captureLocalAlbumStartupState(f.db), undefined, '没有新完整读取见证的物理写不可导出旧结构')
+  let builds = 0
+  observeSqlExecutions615(t, f.db, execution => { if (execution.phase === 'before' && !execution.step && execution.sql.includes('mb_album_compact_groups')) builds++ })
+  for (const rejected of [null, undefined, { ...state, implementation: '旧实现' }, { ...state, rows: [] },
+    { ...state, bytes: 16 * 1024 * 1024 + 1 }, { ...state, rows: Array(16_385).fill('{}') }]) {
+    assert.equal(restoreLocalAlbumStartupState(f.db, state), true)
+    assert.equal(restoreLocalAlbumStartupState(f.db, rejected), false)
+    const before = builds
+    f.reader().queryAlbums(query()); assert.equal(builds, before + 1, '拒绝候选后不能借用上一份有效候选')
+  }
+  f.db.exec('BEGIN')
+  try {
+    f.reader().queryAlbums(query()); assert.equal(captureLocalAlbumStartupState(f.db), undefined)
+  } finally { f.db.exec('ROLLBACK') }
+  assert.equal(captureLocalAlbumStartupState(f.db), undefined, '普通写事务的读取不能在回滚后变成持久见证')
+})
+
+test('启动Compact候选：restore之后发生SQL写，或首读末屏障失败，旧候选均不复活', t => {
+  const f = fixture(t, { tracks: [track(1, '原组/01.flac')] })
+  f.reader().queryAlbums(query()); const state = captureLocalAlbumStartupState(f.db); assert.ok(state)
+  assert.equal(restoreLocalAlbumStartupState(f.db, state), true)
+  f.insertFact(track(2, '新增组/01.flac'))
+  let builds = 0, barriers = 0, mutate = false
+  observeSqlExecutions615(t, f.db, execution => {
+    if (execution.phase !== 'before' || execution.step) return
+    if (execution.sql.includes('mb_album_compact_groups')) builds++
+    if (mutate && execution.sql === 'SELECT total_changes() changes' && ++barriers === 2) {
+      mutate = false; f.db.exec('CREATE TABLE startup_last_barrier_changed(value TEXT)')
+    }
+  })
+  assert.equal(f.reader().queryAlbums(query()).total, 2); assert.equal(builds, 1)
+  const current = captureLocalAlbumStartupState(f.db); assert.ok(current)
+  assert.equal(restoreLocalAlbumStartupState(f.db, current), true)
+  mutate = true
+  assert.throws(() => f.reader().queryAlbums(query()), errorCode('SNAPSHOT_CHANGED')); assert.equal(mutate, false)
+  assert.equal(captureLocalAlbumStartupState(f.db), undefined)
+  assert.equal(f.reader().queryAlbums(query()).total, 2); assert.equal(builds, 2, '失败操作消费过的候选不能在下一次首读补用')
+})
+
+for (const mode of ['持久缓存', 'Owner可信RAM'] as const) test(`启动Compact真实Repository交接：${mode}经过ZIP推进及prepare保存后首屏跳过完整分组`, async t => {
+  const temporary = process.env.TMPDIR; assert.ok(temporary && path.isAbsolute(temporary))
+  if (process.platform === 'darwin') assert.ok(path.resolve(temporary) === '/Volumes/LifeWeave/Developer/CommandLine/tmp' || path.resolve(temporary).startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/'))
+  const directory = await mkdtemp(path.join(temporary, 'mbf-compact-startup-')), media = path.join(directory, '自有合成来源'), file = path.join(directory, 'work.sqlite')
+  await mkdir(media)
+  const sourceRepository = createCollectionRepository({ filePath: file }), owners: ReturnType<typeof createLocalAlbumOwnerService>[] = []
+  let targetRepository: CollectionRepository | undefined
+  t.after(async () => { for (const owner of owners) owner.close(); targetRepository?.close(); sourceRepository.close(); await rm(directory, { recursive: true, force: true }) })
+  const source = sourceRepository.sources.authorize(randomUUID(), await authorizeSourceDirectory(media))
+  const library = sourceRepository.localCatalog.registerRoot({ commandId: randomUUID(), sourceRootId: source.id, role: 'library' })
+  const asset = sourceRepository.localCatalog.registerAsset({ commandId: randomUUID(), libraryRootId: library.id, expectedRootRevision: library.revision,
+    relative: '合成专辑/01.flac', sha256: null, sampleFrames: null, timebaseHz: null })
+  const item = sourceRepository.localCatalog.createTrack({ commandId: randomUUID(), assetId: asset.id, segment: null })
+  sourceRepository.localCatalog.observeMetadata({ commandId: randomUUID(), trackId: item.id, source: 'synthetic', parserVersion: 'compact-startup-test-v1',
+    fields: { title: '合成曲目', artist: '合成艺人', album: '合成专辑' } })
+  const ownerFor = (repository: CollectionRepository) => {
+    const owner = createLocalAlbumOwnerService({ repository, assertCurrent() {}, readRootViews: async () => [{
+      root: repository.localCatalog.root(library.id), label: '自有合成来源', availability: await sourceRootAvailability(repository.sources.root(source.id)),
+    }], readArtwork: async () => ({ image: null, status: 'ready' }) })
+    owners.push(owner); return owner
+  }
+  const original = await ownerFor(sourceRepository).queryAlbums(query()), sourceDb = sourceRepository.localCatalog.privateRead(db => db)
+  assert.equal(original.total, 1); assert.ok(captureLocalAlbumStartupState(sourceDb))
+  verifyLocalCatalogDatabase(sourceDb); verifyLocalScanDatabase(sourceDb)
+  const options = { implementationVersion: 'a'.repeat(64) }
+  assert.equal(await saveLocalStartupAuditCache(sourceDb, file, options), true)
+  const candidate = mode === '持久缓存' ? await readLocalStartupAuditCache(file, options)
+    : acceptLocalStartupAuditFromOwner(file, deserialize(serialize(captureLocalStartupAuditForActor(sourceDb, file, options))), options)
+  assert.ok(candidate); assert.ok(candidate.compact)
+  targetRepository = createCollectionRepository({ filePath: file, startupAudit: candidate })
+  const targetDb = targetRepository.localCatalog.privateRead(db => db); let builds = 0
+  assert.equal(targetRepository.privateStartupAuditReused, true)
+  assert.equal(Number(targetDb.prepare('UPDATE preparation_zip_session SET epoch=epoch+1 WHERE id=1').run().changes), 1)
+  assert.deepEqual(captureLocalAlbumStartupState(targetDb), candidate.compact, '本代尚未创建reader；ZIP非目录写后保留纯候选')
+  const macro = '__MUSIC_BRIDGE_LOCAL_AUDIT_VERSION__', previous = Object.getOwnPropertyDescriptor(globalThis, macro)
+  try {
+    Object.defineProperty(globalThis, macro, { configurable: true, value: options.implementationVersion })
+    assert.equal(await targetRepository.privateSaveStartupAuditCache!(), true)
+  } finally { if (previous) Object.defineProperty(globalThis, macro, previous); else Reflect.deleteProperty(globalThis, macro) }
+  const prepared = await readLocalStartupAuditCache(file, options); assert.ok(prepared)
+  assert.deepEqual(prepared.compact, candidate.compact, '冷准备保存不能以null覆盖尚未安装作者的有效候选')
+  observeSqlExecutions615(t, targetDb, execution => { if (execution.phase === 'before' && !execution.step && execution.sql.includes('mb_album_compact_groups')) builds++ })
+  const current = await ownerFor(targetRepository).queryAlbums(query())
+  assert.deepEqual(current, original); assert.equal(builds, 0)
+  const currentState = captureLocalAlbumStartupState(targetDb); assert.ok(currentState, '新连接完整末屏障通过后可导出当前结构')
+  assert.equal(restoreLocalAlbumStartupState(targetDb, currentState), true)
+  targetDb.prepare('UPDATE local_catalog_tracks SET data=data WHERE id=?').run(item.id)
+  assert.equal(captureLocalAlbumStartupState(targetDb), undefined, '未知目录写即使没有改变行内容，也不能借ZIP路径续接旧候选')
+})
 
 test('冷专辑SQL：零成员与越界空页保留原组和total，成员和封面各只展开一次CTE', t => {
   const f = fixture(t, { tracks: [track(1, '有效/01.flac')], files: [rejected('拒收/01.bin', 'PARSE_FAILED')], cues: [cue(1, '零轨CUE/album.cue')] })

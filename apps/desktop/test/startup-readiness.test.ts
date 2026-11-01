@@ -53,7 +53,7 @@ test('account state requests also wait for the remote Core tunnel to become stab
 
 test('a restarted Core starts a fresh authorized library load instead of preserving the failed generation', async () => {
   const [app, library] = await Promise.all([readFile(appUrl, 'utf8'), readFile(libraryUrl, 'utf8')])
-  const listener = functionSection(app, 'onCoreEvent: event => {', "if (event.event === 'auth.changed')")
+  const listener = functionSection(app, 'onCoreEvent: event => {', '\n  initialize:')
   const reset = functionSection(library, 'function resetAuthorizedLoadStarted(', 'async function loadLiked(')
   const loader = functionSection(library, 'function loadAuthorizedLibraryWhenReady(', 'function acceptAuthState(')
 

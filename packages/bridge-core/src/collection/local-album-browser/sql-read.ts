@@ -18,6 +18,7 @@ import type { LocalAlbumSqlObservationHistory, LocalAlbumSqlObservationPoint } f
 import { localAlbumScanScopeOrigin, localAlbumScanPath, type LocalAlbumScanPoint, type LocalAlbumScanScopeOrigin, type LocalAlbumScanPath } from './scan-delta.js'
 import { isLocalAlbumBackgroundCandidateQuery, isLocalAlbumBackgroundCandidatePage, LOCAL_ALBUM_BACKGROUND_CANDIDATE_BYTES,
   type LocalAlbumBackgroundCandidateQuery, type LocalAlbumBackgroundCandidatePage } from './artwork-background-candidates.js'
+import { currentLocalAuditWritePoint, isLocalAuditWritePointCurrent, type LocalAuditWritePoint } from '../local-audit-write-observer.js'
 
 const hash = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const invalid = (): never => { throw new LocalAlbumReadError('INVALID_REQUEST', '本地专辑请求无效，请重新选择。') }
@@ -165,6 +166,83 @@ const compactSnapshots = new WeakMap<DatabaseSync, CompactEntry>()
 // 此独立预算只覆盖摘要、键和三ID候选；按字符串四倍及Map开销预留临时JSON拼包。
 // 不提高原Derived、capture、DTO、图片或成员读取上限；超界保存弃缓存哨兵，不能返回缓存前缀。
 const COMPACT_MAX_GROUPS = 16_384, COMPACT_MAX_BYTES = 16 * 1024 * 1024, COMPACT_MAX_ALLOCATION = 64 * 1024 * 1024
+// 结构格式或分组UDF语义变化时推进此版本；完整实现身份另由已核启动缓存绑定。
+const COMPACT_STARTUP_IMPLEMENTATION = 'local-album-compact-v1'
+interface CompactStartupState {
+  schema: 1; implementation: typeof COMPACT_STARTUP_IMPLEMENTATION; scope: string; structureOnly: boolean
+  rootId: string | null; bytes: number; digest: string; rows: string[]
+}
+interface CompactStartupPoint { changes: number; version: number; schema: number; catalog?: LocalAuditWritePoint; scan?: LocalAuditWritePoint }
+interface CompactStartupCandidate { state: CompactStartupState; snapshot: CompactSnapshot; point: CompactStartupPoint }
+interface CompactStartupWitness { entry: CompactEntry; scope: string; structureOnly: boolean; point: CompactStartupPoint }
+const compactStartupCandidates = new WeakMap<DatabaseSync, CompactStartupCandidate>()
+const compactStartupWitnesses = new WeakMap<DatabaseSync, CompactStartupWitness>()
+const compactStartupCaptures = new WeakMap<DatabaseSync, () => CompactStartupState | undefined>()
+const compactStartupDigest = /^[a-f0-9]{64}$/u
+function compactStartupPoint(db: DatabaseSync): CompactStartupPoint {
+  const row = db.prepare('SELECT total_changes() changes,(SELECT data_version FROM pragma_data_version) version,(SELECT schema_version FROM pragma_schema_version) schema').get()
+  if (!row || !['changes', 'version', 'schema'].every(key => typeof row[key] === 'number' && Number.isSafeInteger(row[key]) && Number(row[key]) >= 0)) return unavailable()
+  const catalog = currentLocalAuditWritePoint(db, 'catalog'), scan = currentLocalAuditWritePoint(db, 'scan')
+  return { changes: Number(row.changes), version: Number(row.version), schema: Number(row.schema), ...(catalog && scan ? { catalog, scan } : {}) }
+}
+const sameCompactStartupPoint = (left: CompactStartupPoint, right: CompactStartupPoint): boolean => left.changes === right.changes && left.version === right.version && left.schema === right.schema
+function currentCompactStartupPoint(db: DatabaseSync, saved: CompactStartupPoint, current: CompactStartupPoint): boolean {
+  if (saved.version !== current.version || saved.schema !== current.schema) return false
+  const observed = !!saved.catalog && !!saved.scan
+  if (observed && (!isLocalAuditWritePointCurrent(db, 'catalog', saved.catalog!) || !isLocalAuditWritePointCurrent(db, 'scan', saved.scan!))) return false
+  // ZIP会话等非目录写只推进total_changes；两域原作者及写计数都未变化才允许续接。
+  return saved.changes === current.changes || observed
+}
+
+/** 仅导出完整末屏障通过且仍当前的结构；函数作者、活水位、库存与来源许可不进入纯状态。 */
+export function captureLocalAlbumStartupState(db: DatabaseSync): unknown | undefined {
+  try {
+    const candidate = compactStartupCandidates.get(db)
+    if (candidate) {
+      if (db.isTransaction && db.prepare('PRAGMA query_only').get()?.query_only !== 1) return undefined
+      const point = compactStartupPoint(db)
+      if (currentCompactStartupPoint(db, candidate.point, point)) {
+        // 尚未创建reader也可以继续保存已核纯候选；不发布Compact、作者或读取权限。
+        const state = { ...candidate.state, rows: [...candidate.state.rows] }
+        if (sameCompactStartupPoint(point, compactStartupPoint(db)) && currentCompactStartupPoint(db, candidate.point, point)) return state
+      }
+      compactStartupCandidates.delete(db)
+    }
+    return compactStartupCaptures.get(db)?.()
+  } catch { return undefined }
+}
+/** 内容身份必须先由可信启动层核准；这里仅验证纯载荷并停放候选，不安装作者或发放读取许可。 */
+export function restoreLocalAlbumStartupState(db: DatabaseSync, value: unknown): boolean {
+  compactStartupCandidates.delete(db); compactStartupWitnesses.delete(db); compactSnapshots.delete(db)
+  try {
+    if (!closed(value, ['schema', 'implementation', 'scope', 'structureOnly', 'rootId', 'bytes', 'digest', 'rows'])
+      || value.schema !== 1 || value.implementation !== COMPACT_STARTUP_IMPLEMENTATION
+      || typeof value.scope !== 'string' || !compactStartupDigest.test(value.scope) || typeof value.structureOnly !== 'boolean'
+      || value.rootId !== null && !dto.isCollectionId(value.rootId)
+      || typeof value.bytes !== 'number' || !Number.isSafeInteger(value.bytes) || value.bytes < 0 || value.bytes > COMPACT_MAX_BYTES
+      || typeof value.digest !== 'string' || !compactStartupDigest.test(value.digest) || !dense(value.rows, COMPACT_MAX_GROUPS)) return false
+    const point = compactStartupPoint(db), snapshot: CompactSnapshot = { groups: new Map(), bytes: 0 }, rows: string[] = []
+    let allocation = 0
+    for (const payload of value.rows) {
+      if (typeof payload !== 'string') return false
+      const payloadBytes = Buffer.byteLength(payload)
+      snapshot.bytes += payloadBytes; allocation += payloadBytes * 4 + 512
+      if (snapshot.bytes > COMPACT_MAX_BYTES || allocation > COMPACT_MAX_ALLOCATION) return false
+      const raw: unknown = JSON.parse(payload)
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
+      const record = raw as Record<string, unknown>
+      if (!dto.isCollectionId(record.root_id) || !opaque(record.album_key) || value.rootId !== null && record.root_id !== value.rootId) return false
+      const key = groupIdentity(record.root_id, record.album_key), keyBytes = Buffer.byteLength(key)
+      snapshot.bytes += keyBytes; allocation += keyBytes * 2
+      if (snapshot.groups.has(key) || snapshot.bytes > COMPACT_MAX_BYTES || allocation > COMPACT_MAX_ALLOCATION) return false
+      snapshot.groups.set(key, payload); rows.push(payload)
+    }
+    if (snapshot.bytes !== value.bytes || hash(rows) !== value.digest || !sameCompactStartupPoint(point, compactStartupPoint(db))) return false
+    const state: CompactStartupState = { schema: 1, implementation: COMPACT_STARTUP_IMPLEMENTATION, scope: value.scope,
+      structureOnly: value.structureOnly, rootId: value.rootId as string | null, bytes: snapshot.bytes, digest: value.digest, rows }
+    compactStartupCandidates.set(db, { state, snapshot, point }); return true
+  } catch { compactStartupCandidates.delete(db); return false }
+}
 interface DirectoryHint { directory: string; rootPin: string; organizationPin: string }
 interface DirectoryHints { entries: Map<string, DirectoryHint>; bytes: number }
 /** 位置提示允许跨扫描批次；每次仍重算当前目录，提示本身不是快照或读取许可。 */
@@ -590,6 +668,15 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
     return hash(organizationFacts.length?[...original,organizationFacts]:original)
   }
   const initialScope = scopeFingerprint()
+  let startupPlan: string | undefined
+  // 不含连接水位、函数身份或封面库存；根在线状态和歌词仍属于结构，必须精确匹配。
+  function compactStartupScope(): string {
+    const lyricsRevision = scope.lyricsInventory?.revision() ?? null
+    if (lyricsRevision !== null && !opaque(lyricsRevision)) return unavailable()
+    startupPlan ??= hash([COMPACT_STARTUP_IMPLEMENTATION, structureOnly, compactGroupSql()])
+    return hash([startupPlan, scope.revision, scope.roots, names, organizationFacts,
+      source.projectionSql, source.sourceRaw ?? null, !!source.sourceLookup, lyricsRevision])
+  }
   let lastStructureBarrier = '', lastScanBase = ''
   let lastScanPoint: LocalAlbumScanPoint | undefined
   function readBarrier(): string {
@@ -653,6 +740,7 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
   }
   let operationBarrier = '', operationStructureBarrier = '', operationScanBase = ''
   let operationScanPoint: LocalAlbumScanPoint | undefined
+  let operationStartupPoint: CompactStartupPoint | undefined
   let operationMembership: ReturnType<typeof createLocalAlbumArtworkMembershipIssuer> | undefined
   let operationCompact: CompactEntry | undefined, operationCue: CueEntry | undefined
   function scanCacheOrigin(): ScanCacheOrigin | undefined {
@@ -668,6 +756,7 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
       failureCode = 'READ_FAILED'
       operationStructureBarrier = lastStructureBarrier
       operationScanBase=lastScanBase;operationScanPoint=lastScanPoint
+      operationStartupPoint = compactStartupPoint(db)
       if (operationScanPoint && scope.artworkInventory?.readPersistedProjected) operationMembership = createLocalAlbumArtworkMembershipIssuer(db, operationScanPoint, scope.artworkInventory)
       if (queryPageBarrier !== operationBarrier || queryPageLyricsInventory !== scope.lyricsInventory || queryPageArtworkInventory !== scope.artworkInventory) {
         clearQueryPages('READ_BARRIER_CHANGED', queryIndex?.structureBarrier === operationStructureBarrier); queryPageBarrier = operationBarrier
@@ -691,6 +780,7 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
       }
       const cue = cueSnapshots.get(db)
       if (cue && (cue.barrier !== operationStructureBarrier || !sameAuthor(cue.author, initialAuthor))) cueSnapshots.delete(db)
+      restoreStartupCompact()
       const result = action()
       failureCode = 'READ_BARRIER_FAILED'
       if (readBarrier() !== operationBarrier) { failureCode = 'READ_BARRIER_CHANGED'; return changed() }
@@ -699,6 +789,7 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
       if (operationCompact) compactSnapshots.set(db, operationCompact)
       if (operationCue) cueSnapshots.set(db, operationCue)
       if (operationQueryIndex) retainQueryIndex(operationQueryIndex)
+      publishCompactStartupWitness()
       return result
     } catch (error) {
       let failure = error, retain = false
@@ -710,6 +801,7 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
             assertReadActive()
             if (operationCompact) compactSnapshots.set(db, operationCompact)
             if (operationCue) cueSnapshots.set(db, operationCue)
+            publishCompactStartupWitness()
             retain = true
           } else failureCode = 'READ_BARRIER_CHANGED'
         } catch (barrierError) { failure = barrierError; failureCode = 'READ_BARRIER_FAILED' }
@@ -718,13 +810,14 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
       else {
         clearQueryPages(failureCode)
         derivedSnapshots.delete(db); compactSnapshots.delete(db); cueSnapshots.delete(db); currentReaders.delete(db)
+        compactStartupWitnesses.delete(db)
         statements.clear(); statementBytes = 0
         logLibraryOperation('cache', 'albums.read-cache.evict', 'complete', { code: failureCode })
       }
       if (failure instanceof LocalAlbumReadError) throw failure
       return unavailable()
     }
-    finally { operationMembership?.close(); operationMembership=undefined; aggregates.clear(); smallCache.clear(); smallBytes = 0; operationBarrier = ''; operationStructureBarrier = ''; lastStructureBarrier = ''; operationScanBase='';lastScanBase='';operationScanPoint=undefined;lastScanPoint=undefined;operationCompact=undefined;operationCue=undefined;operationQueryIndex=undefined }
+    finally { operationMembership?.close(); operationMembership=undefined; aggregates.clear(); smallCache.clear(); smallBytes = 0; operationBarrier = ''; operationStructureBarrier = ''; lastStructureBarrier = ''; operationScanBase='';lastScanBase='';operationScanPoint=undefined;lastScanPoint=undefined;operationStartupPoint=undefined;operationCompact=undefined;operationCue=undefined;operationQueryIndex=undefined }
   }
   function structureAlbum(row: Record<string, unknown>): MobileStructureAlbum {
     const value: MobileStructureAlbum = { id: String(row.album_key), rootId: String(row.root_id),
@@ -883,6 +976,56 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
         'artwork_index',json(CASE WHEN p.id IS NULL THEN NULL ELSE json_object(${index}) END)) payload
       FROM group_facts g LEFT JOIN compact_choices c ON c.root_id=g.root_id AND c.album_key=g.album_key
       LEFT JOIN members p ON p.root_id=g.root_id AND p.album_key=g.album_key AND p.sequence=c.selected_sequence /* mb_album_compact_groups */`
+  }
+  function restoreStartupCompact(): void {
+    const candidate = compactStartupCandidates.get(db)
+    if (!candidate) return
+    // 一次消费；后续源变化不能再让旧候选复活，也不覆盖本次已核的增量结构。
+    compactStartupCandidates.delete(db)
+    let matched = false
+    try {
+      if (operationCompact || compactSnapshots.has(db) || !operationStartupPoint
+        || !currentCompactStartupPoint(db, candidate.point, operationStartupPoint)
+        || candidate.state.structureOnly !== structureOnly || candidate.state.scope !== compactStartupScope()
+        || candidate.state.rootId !== null && !roots.has(candidate.state.rootId)) return
+      for (const [key, payload] of candidate.snapshot.groups) {
+        assertReadActive()
+        const raw: unknown = JSON.parse(payload)
+        if (!closed(raw, [...compactGroupColumns, 'physical_directory', 'artwork_index'])) return
+        const album = structureOnly ? structureAlbum(raw) : summary({ ...raw, has_artwork: raw.source_has_artwork, missing_artwork: 0 })
+        if (!roots.has(album.rootId) || groupIdentity(album.rootId, album.id) !== key
+          || !opaque(raw.revision) || !opaque(raw.artwork_source_revision)
+          || raw.online !== (roots.get(album.rootId)!.availability === 'ONLINE' ? 1 : 0)
+          || raw.source_has_artwork !== 0 && raw.source_has_artwork !== 1
+          || raw.membership_digest !== null && (typeof raw.membership_digest !== 'string' || !compactStartupDigest.test(raw.membership_digest))
+          || raw.directory !== null && !isLocalAlbumPrivateRelative(raw.directory, true)
+          || raw.physical_directory !== null && !isLocalAlbumPrivateRelative(raw.physical_directory, true)
+          || (raw.artwork_index === null) !== (album.trackCount === 0)) return
+        if (raw.artwork_index !== null && (!closed(raw.artwork_index, ['id', 'asset_record_id', 'relation_id'])
+          || !dto.isCollectionId(raw.artwork_index.id) || !dto.isCollectionId(raw.artwork_index.asset_record_id)
+          || raw.artwork_index.relation_id !== null && !dto.isCollectionId(raw.artwork_index.relation_id))) return
+      }
+      const scan = scanCacheOrigin()
+      operationCompact = { barrier: operationStructureBarrier, author: initialAuthor, inventory: scope.lyricsInventory,
+        artworkInventory: scope.artworkInventory, rootId: candidate.state.rootId, snapshot: candidate.snapshot,
+        ...(scan ? { scan } : {}) }
+      matched = true
+    } catch { /* 派生候选失效时仍由原SQL完整重建，不把缓存故障变成曲库故障。 */ }
+    finally {
+      logLibraryOperation('cache', 'albums.compact-startup', matched ? 'hit' : 'miss', {
+        code: matched ? 'COMPACT_REBOUND' : 'RECHECK_REQUIRED', count: candidate.snapshot.groups.size, bytes: candidate.snapshot.bytes,
+      })
+    }
+  }
+  function publishCompactStartupWitness(): void {
+    const entry = compactSnapshots.get(db)
+    // 普通写事务可能回滚；只读Actor仍由真实BEGIN和调用方内容核验约束。
+    if (!entry?.snapshot || !operationStartupPoint || db.isTransaction && !readOnlyConnection
+      || entry.barrier !== operationStructureBarrier || !sameAuthor(entry.author, initialAuthor)
+      || entry.inventory !== scope.lyricsInventory || entry.artworkInventory !== scope.artworkInventory) {
+      compactStartupWitnesses.delete(db); return
+    }
+    compactStartupWitnesses.set(db, { entry, scope: compactStartupScope(), structureOnly, point: operationStartupPoint })
   }
   function compactGroups(rootId: string | null): CompactSnapshot | null {
     const previous = compactEntry(rootId)
@@ -1934,5 +2077,20 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
   const reader = { queryAlbums, queryBackgroundCandidates, queryAlbumMembers, queryMobile, queryAlbumIssues, getArtworkContext, sourceMemberIdentity }
   installedAuthors.set(db, { author: initialAuthor, scope: initialScope, inventory: scope.lyricsInventory, artworkInventory: scope.artworkInventory })
   currentReaders.set(db, reader)
+  compactStartupCaptures.set(db, () => {
+    const witness = compactStartupWitnesses.get(db), entry = compactSnapshots.get(db), installed = installedAuthors.get(db)
+    if (operationBarrier || !witness || !entry?.snapshot || witness.entry !== entry || witness.structureOnly !== structureOnly
+      || currentReaders.get(db) !== reader || !installed || !sameAuthor(installed.author, initialAuthor)
+      || !sameAuthor(initialAuthor, readAuthor()) || !sameAuthor(entry.author, initialAuthor)
+      || entry.inventory !== scope.lyricsInventory || entry.artworkInventory !== scope.artworkInventory
+      || db.isTransaction && !readOnlyConnection || witness.scope !== compactStartupScope()) return undefined
+    const point = compactStartupPoint(db)
+    if (!currentCompactStartupPoint(db, witness.point, point)) return undefined
+    const rows = [...entry.snapshot.groups.values()]
+    const state: CompactStartupState = { schema: 1, implementation: COMPACT_STARTUP_IMPLEMENTATION,
+      scope: witness.scope, structureOnly, rootId: entry.rootId, bytes: entry.snapshot.bytes, digest: hash(rows), rows }
+    if (!sameCompactStartupPoint(point, compactStartupPoint(db)) || !currentCompactStartupPoint(db, witness.point, point) || state.scope !== compactStartupScope()) return undefined
+    return state
+  })
   return reader
 }

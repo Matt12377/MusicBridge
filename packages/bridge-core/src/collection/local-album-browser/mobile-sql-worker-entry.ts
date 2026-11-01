@@ -9,8 +9,9 @@ import { mobileSqlFileIdentity } from './mobile-sql-worker.js';
 import { isMobileStructurePage } from './mobile-structure.js';
 import { isArtistIndexCandidatePage } from './artist-index-candidates.js';
 import { isCommandOutboxDatasetId } from '@music-bridge/contracts';
-import { readLocalStartupAuditCache, restoreLocalStartupAuditCache, type PreparedLocalStartupAudit } from '../local-startup-audit-cache.js';
+import { readLocalStartupAuditCache, restoreLocalStartupAuditCache, acceptLocalStartupAuditFromOwner, type PreparedLocalStartupAudit } from '../local-startup-audit-cache.js';
 import type { LocalAlbumLyricsInventory, LocalAlbumSqlMobileQuery, LocalAlbumSqlScope } from './sql-types.js';
+import { logLibraryOperation } from '../../shared/library-operation-log.js';
 
 if (!parentPort) throw new Error('移动结构查询缺少原 Owner 端口。');
 const port = parentPort;
@@ -162,17 +163,20 @@ function runJob(input: Input, databaseFile: string, fileIdentity: string): void 
   else send({ type: 'result', jobId: input.jobId, page: result });
 }
 try {
-  const input = workerData as { databaseFile: string; fileIdentity: string; cancellation: SharedArrayBuffer; purpose?: string; datasetId?: string };
-  const indexActor = exact(input, ['databaseFile', 'fileIdentity', 'cancellation', 'purpose', 'datasetId'])
+  const input = workerData as { databaseFile: string; fileIdentity: string; cancellation: SharedArrayBuffer; purpose?: string; datasetId?: string; startupAudit?: unknown };
+  const startupFields = Object.hasOwn(input, 'startupAudit') ? ['startupAudit'] : [];
+  const indexActor = exact(input, ['databaseFile', 'fileIdentity', 'cancellation', 'purpose', 'datasetId', ...startupFields])
     && input.purpose === 'artist-index' && isCommandOutboxDatasetId(input.datasetId);
-  if ((!exact(input, ['databaseFile', 'fileIdentity', 'cancellation']) && !indexActor) || typeof input.databaseFile !== 'string' || !input.databaseFile.startsWith('/') || input.databaseFile === ':memory:'
+  if ((!exact(input, ['databaseFile', 'fileIdentity', 'cancellation', ...startupFields]) && !indexActor) || typeof input.databaseFile !== 'string' || !input.databaseFile.startsWith('/') || input.databaseFile === ':memory:'
     || typeof input.fileIdentity !== 'string' || !(input.cancellation instanceof SharedArrayBuffer) || input.cancellation.byteLength !== 4
     || mobileSqlFileIdentity(input.databaseFile) !== input.fileIdentity) throw unavailable();
   if (indexActor) indexDatasetId = input.datasetId;
   cancellation = new Int32Array(input.cancellation);
   if (Atomics.load(cancellation, 0) !== 0) { send({ type: 'never-opened', code: 'SNAPSHOT_CHANGED' }); port.close(); finish(); }
   else {
-    startupAudit = await readLocalStartupAuditCache(input.databaseFile);
+    startupAudit = acceptLocalStartupAuditFromOwner(input.databaseFile, input.startupAudit);
+    if (startupAudit) logLibraryOperation('cache', 'startup.audit-owner-anchor', 'hit', { code: 'ANCHOR_CURRENT' });
+    else startupAudit = await readLocalStartupAuditCache(input.databaseFile);
     if (Atomics.load(cancellation, 0) !== 0) { send({ type: 'never-opened', code: 'SNAPSHOT_CHANGED' }); port.close(); finish(); }
     else {
     // 只读打开原库一次；不迁移、不改WAL配置，也不运行任何Owner/Source写工厂。

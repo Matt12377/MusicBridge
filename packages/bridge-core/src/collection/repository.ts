@@ -11,7 +11,7 @@ import { SourceWritesError } from './local-source-writes-journal.js';
 import { LocalRelocationError } from './local-relocation-journal.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { logLibraryOperation } from '../shared/library-operation-log.js';
-import { restoreLocalStartupAuditCache, saveLocalStartupAuditCache, type PreparedLocalStartupAudit } from './local-startup-audit-cache.js';
+import { restoreLocalStartupAuditCache, saveLocalStartupAuditCache, captureLocalStartupAuditForActor, type PreparedLocalStartupAudit } from './local-startup-audit-cache.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
@@ -132,6 +132,7 @@ export interface CollectionRepository {
   backupSnapshot(destination: RootCapability): Promise<CollectionSnapshot>;
   /** 只保存原连接已核实的派生状态，不签发Source许可。 */
   privateSaveStartupAuditCache?(): Promise<boolean>;
+  privateCaptureStartupAudit?(): PreparedLocalStartupAudit | undefined;
   readonly privateStartupAuditReused?: boolean;
   close(): void;
 }
@@ -809,6 +810,10 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       });
     },
     get privateStartupAuditReused() { return startupAuditReused; },
+    privateCaptureStartupAudit() {
+      if (closed || !database || activeSnapshots || options.beforeCommit) return undefined;
+      return captureLocalStartupAuditForActor(database, options.filePath);
+    },
     async privateSaveStartupAuditCache() {
       if (closed || !database || activeSnapshots || options.beforeCommit) return false;
       activeSnapshots++;

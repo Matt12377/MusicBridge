@@ -7,6 +7,7 @@ import { isMobileStructurePage, type MobileStructurePage } from './mobile-struct
 import { isArtistIndexCandidatePage, type ArtistIndexCandidatePage } from './artist-index-candidates.js';
 import { isCommandOutboxDatasetId } from '@music-bridge/contracts';
 import { catalogTraceEvent } from '../../mobile/catalog-private-trace.js';
+import type { PreparedLocalStartupAudit } from '../local-startup-audit-cache.js';
 
 export interface MobileSqlWorkerOptions {
   databaseFile: string;
@@ -16,6 +17,8 @@ export interface MobileSqlWorkerOptions {
   workerFactory?: (options: WorkerOptions) => Worker;
   /** 可信原Owner的队列连续链作者；不从请求、配置或环境接收。 */
   queueAudit?: { capture(scope: LocalAlbumSqlScope): object | undefined; continues(before: object, after: object): boolean };
+  /** 只由原Owner同步捕获的已核纯锚点；不是Source权限或请求输入。 */
+  captureStartupAudit?: () => PreparedLocalStartupAudit | undefined;
 }
 export function mobileSqlFileIdentity(file: string): string {
   const stat = lstatSync(file, { bigint: true });
@@ -144,8 +147,11 @@ function createSqlWorker<Page extends SqlPage>(options: MobileSqlWorkerOptions, 
   function ensureActor(): Actor {
     if (actor) return actor;
     const fileIdentity = mobileSqlFileIdentity(options.databaseFile), buffer = new SharedArrayBuffer(4);
+    let startupAudit: PreparedLocalStartupAudit | undefined;
+    try { startupAudit = options.captureStartupAudit?.(); } catch { /* 可选纯缓存缺席仍走原磁盘核验。 */ }
     const env = Object.fromEntries(['TMPDIR', 'TMP', 'TEMP'].flatMap(key => process.env[key] === undefined ? [] : [[key, process.env[key]!]]));
     const settings: WorkerOptions = { env, workerData: { databaseFile: options.databaseFile, fileIdentity, cancellation: buffer,
+      ...(startupAudit ? { startupAudit } : {}),
       ...(indexDatasetId ? { purpose: 'artist-index', datasetId: indexDatasetId } : {}) } };
     const worker = options.workerFactory ? options.workerFactory(settings)
       : new Worker(options.entry ?? new URL('./mobile-sql-worker-entry.js', import.meta.url), settings);

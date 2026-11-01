@@ -66,6 +66,8 @@ import { usePageJourney } from './composables/application/usePageJourney.js'
 import { useNeteaseLibrary } from './composables/application/useNeteaseLibrary.js'
 import { useRendererLifecycle } from './composables/application/useRendererLifecycle.js'
 import { useRendererPreparation } from './composables/application/useRendererPreparation.js'
+import { useStartupLibraryPreview } from './composables/application/startup-library-preview.js'
+import StartupLibraryPreview from './components/library/StartupLibraryPreview.vue'
 import CollectionView from './components/collection/CollectionView.vue'
 import type { CollectionReservationEntry, CollectionReturnLocation, CollectionStartEntry, RecordingPhysicalSelection, RecordingReservationNavigation } from './components/collection/collection-recording-navigation'
 import RecordingView from './components/recording/RecordingView.vue'
@@ -205,6 +207,8 @@ async function readLocalAlbumTracksWithFlow(request: localWorkbenchDto.LocalAlbu
 const { localLibrary: albumBrowser, coverDrop: coverDropBrowser } = useLocalAlbumBrowserPages({ api: { queryAlbums: queryLocalAlbumsWithFlow, queryAlbumTracks: readLocalAlbumTracksWithFlow, getArtwork: readLocalArtworkWithFlow } })
 const workbenchLyrics = useLocalWorkbenchLyrics({ api: window.musicBridge, readOriginalResultEntry: (key, context) => resultReaders.readLyricsEntry(key, context) })
 const workbenchLibrary = useLocalWorkbenchLibrary({ api: window.musicBridge, storage: window.localStorage, canChangeLibrary: () => !workbenchLyrics.pending.value && !localLibrary.maintenanceLocked.value, onChanged: () => { void refreshLocalLibraryFromWorkbench() } })
+const startupLibraryPreview = useStartupLibraryPreview({ storage: window.localStorage, ready: desktopReadReady,
+  datasetId: () => workbenchLibrary.state.value?.datasetId ?? localLibrary.displayDatasetId.value ?? undefined, snapshot: () => albumBrowser.snapshot.value })
 const { currentTrack } = useLocalPlaybackArtwork({
   getDatasetId: () => workbenchLibrary.state.value?.datasetId ?? localLibrary.displayDatasetId.value,
   isReadReady: () => desktopReadReady.value && coreState.value?.runtime === 'ready' && playbackSyncStatus.value === 'ready',
@@ -2018,7 +2022,8 @@ onUnmounted(() => {
       </p>
       <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
       <div ref="contentScroll" class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying, 'is-coverdrop': currentView === 'coverdrop' }">
-        <section v-if="!desktopReadReady && currentView !== 'home' && currentView !== 'diagnostics'" class="view" aria-labelledby="preparation-view-heading">
+        <StartupLibraryPreview v-if="!desktopReadReady && startupLibraryPreview && (currentView === 'home' || currentView === 'local-library')" :preview="startupLibraryPreview" :failed="startupFailed" />
+        <section v-else-if="!desktopReadReady && currentView !== 'home' && currentView !== 'diagnostics'" class="view" aria-labelledby="preparation-view-heading">
           <div class="view-heading"><div><p class="section-kicker">Mousa</p><h2 id="preparation-view-heading">{{ preparationViewTitle }}</h2><p class="lede">{{ startupFailed ? '当前页面尚未读取，可以继续切换页面查看状态。' : '已保留当前页面，准备完成后会读取真实资料。' }}</p></div></div>
         </section>
         <HomeView
