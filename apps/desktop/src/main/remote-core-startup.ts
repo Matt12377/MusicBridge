@@ -42,6 +42,8 @@ export function createRemoteCoreStartup(options: {
   suggestedTarget?: string
   currentWindow(): RemoteCoreStartupWindow | undefined
   isClosing(): boolean
+  /** 旧隧道专用合成入口可显式选择；正式同局域网启动只走官方发现。 */
+  automaticSsh?: boolean
   now?: () => number
 }) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(options.nonce)) throw new StartupError()
@@ -140,7 +142,7 @@ export function createRemoteCoreStartup(options: {
         const preference = await selected
         assertCurrent()
         const activationStarted = options.now?.() ?? performance.now()
-        if (preference.autoStart && preference.sshTarget) {
+        if (options.automaticSsh === true && preference.autoStart && preference.sshTarget) {
           remoteActivationPending = true
           try { await dependencies.startRemote(preference.sshTarget) }
           finally { remoteActivationPending = false }

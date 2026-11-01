@@ -52,12 +52,12 @@ class Ssh extends EventEmitter {
 }
 
 /** 仅合成child/SSH；实际Supervisor、模式控制器与隧道manager均走生产实现。 */
-function fixture(t: TestContext, options: { health?: boolean; autoReady?: boolean; noShutdownAck?: boolean; now?: () => number } = {}) {
+function fixture(t: TestContext, options: { health?: boolean; autoReady?: boolean; noShutdownAck?: boolean; now?: () => number; automaticSsh?: boolean } = {}) {
   const frame = { url: 'musicbridge://app/index.html' }
   const contents = { id: 7, mainFrame: frame }
   const window = { webContents: contents, isDestroyed: () => destroyed }
   let current: typeof window | undefined = window, destroyed = false, closing = false
-  const startup = createRemoteCoreStartup({ nonce, suggestedTarget: 'environment-core', currentWindow: () => current, isClosing: () => closing, ...(options.now ? { now: options.now } : {}) })
+  const startup = createRemoteCoreStartup({ nonce, automaticSsh: options.automaticSsh ?? true, suggestedTarget: 'environment-core', currentWindow: () => current, isClosing: () => closing, ...(options.now ? { now: options.now } : {}) })
   startup.bindWindow(window)
   const event = { sender: contents, senderFrame: frame }
   const channels: Port[] = [], children: Child[] = [], environments: NodeJS.ProcessEnv[] = [], order: string[] = []
@@ -119,6 +119,16 @@ function fixture(t: TestContext, options: { health?: boolean; autoReady?: boolea
     destroyWindow() { destroyed = true; startup.cancel() },
   }
 }
+
+test('正式局域网启动忽略历史自动 SSH 偏好，只激活本机 Core 的官方发现', async t => {
+  const f = fixture(t, { automaticSsh: false })
+  f.startup.acceptPreference(f.event, preference())
+  await f.startup.activate(f.dependencies)
+  assert.equal(f.children.length, 1)
+  assert.equal(f.environments[0]!.MUSIC_BRIDGE_REMOTE_CORE_MODE, 'local-core')
+  assert.equal(f.order.includes('ssh-bound'), false)
+  f.startup.complete()
+})
 
 test('首次健康SSH：真实Supervisor无child restart只spawn远程一代，health不等待总bootstrap', async t => {
   const startupLogs: LibraryOperationEvent[] = []

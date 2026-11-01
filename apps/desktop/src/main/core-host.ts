@@ -68,6 +68,11 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
     }
   }
   const args = [env, undefined, undefined, undefined, null, createDatasetOwner] as const
+  // 只由可信桌面入口启用已配对 Core 的 LAN 媒体，不从父环境或 Renderer 取权限。
+  if (env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1' && env.MUSIC_BRIDGE_REMOTE_CORE_MODE !== 'remote-core-development') {
+    return run(...args, options.rustReadonlyCollection, options.onRustReadonlyCoreController, options.createRustReadonlyCollection,
+      { enableRoonLanMedia: true })
+  }
   // 原入口维持恰六参数；显式能力仍由 utility 的既有准入和清理规则处理。
   if (options.createRustReadonlyCollection !== undefined) {
     return run(...args, options.rustReadonlyCollection, options.onRustReadonlyCoreController, options.createRustReadonlyCollection)

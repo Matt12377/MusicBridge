@@ -1009,6 +1009,7 @@ export async function runCoreUtilityProcess(
   rustReadonlyCollection?: RustReadonlyCoreOptions,
   onRustReadonlyCoreController?: (controller: RustReadonlyCoreController) => void,
   createRustReadonlyCollection?: RustReadonlyCoreFactory,
+  trustedNetwork?: { readonly enableRoonLanMedia: true },
 ): Promise<void> {
   const traceEnabled = isLibraryReadTraceEnabled(env, env.NODE_ENV === 'development' && env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1');
   const libraryReadTrace = traceEnabled ? createLibraryReadTraceWriter({ enabled: true, write: line => { process.stdout.write(line); } }) : undefined;
@@ -1184,6 +1185,7 @@ export async function runCoreUtilityProcess(
                 authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
                 ...(env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'profile-unavailable' || env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'expired' ? { accountMode: env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE } : {}) })
             : createBridgeRuntime({ ...playbackOptions, onEvent, datasetOwnerEndpoint, localScanReadProfile: 'bulk-v2',
+                ...(trustedNetwork?.enableRoonLanMedia === true ? { enableRoonLanMedia: true } : {}),
                 lyricsMatchRepository: createLyricsMatchRepository({ filePath: path.join(dataDirectory, 'lyrics-matches.v1.json') }),
                 ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
                 ...(onRoonBrowseShape ? { onRoonBrowseShape } : {}),
@@ -1245,6 +1247,7 @@ export async function runCoreUtilityProcess(
                 const onRoonImageShape = createRoonImageShapeRecorder(env);
                 return createBridgeRuntime({
                   ...playbackOptions,
+                  ...(trustedNetwork?.enableRoonLanMedia === true ? { enableRoonLanMedia: true } : {}),
                   ...(recordingConverter ? { recordingConverter } : {}),
                 ...(recordingOutputHelper ? { recordingOutputHelper } : {}),
                 ...(recordingDeviceOutputHelper ? { recordingDeviceOutputHelper } : {}),

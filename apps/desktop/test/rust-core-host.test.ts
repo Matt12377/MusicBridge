@@ -98,9 +98,10 @@ test('未指定环境保留 process.env，可信配置和同步 callback 原身�
   await runDesktopCoreHost({ rustReadonlyCollection: rust, onRustReadonlyCoreController: callback,
     dependencies: { runCoreUtilityProcess: run } })
   assert.equal(calls[0]![0], process.env)
-  assert.equal(calls[0]!.length, 8)
+  assert.equal(calls[0]!.length, 10)
   assert.equal(calls[0]![6], rust)
   assert.equal(calls[0]![7], callback)
+  assert.deepEqual(calls[0]![9], { enableRoonLanMedia: true }, '正常桌面入口显式注入媒体能力，原 Rust 身份不变')
   assert.deepEqual(calls[0]!.slice(1, 5), [undefined, undefined, undefined, null])
 })
 

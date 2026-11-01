@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { isIP } from 'node:net';
 import type { RoonBrowseApi, RoonImageApi } from './library.js';
 
 export interface RoonZoneOutput {
@@ -109,6 +110,37 @@ export interface RoonCore {
   };
 }
 
+/** 仅在Core进程内使用的真实控制连接地址，不进入公开快照。 */
+export interface RoonCoreNetworkConnection {
+  localAddress: string;
+  remoteAddress: string;
+}
+
+export function readRoonCoreNetworkConnection(core: RoonCore): RoonCoreNetworkConnection | undefined {
+  try {
+    // 固定SDK的Core保留moo，Node ws在open之前设置_socket；host只是拨号目标，不能代替实际peer。
+    const socket = (core as RoonCore & {
+      moo?: { transport?: { ws?: { _socket?: { localAddress?: unknown; remoteAddress?: unknown; destroyed?: boolean } } } };
+    }).moo?.transport?.ws?._socket;
+    const normalize = (value: unknown): string | undefined => {
+      if (typeof value !== 'string') return undefined;
+      const normalized = value.startsWith('::ffff:') && isIP(value.slice(7)) === 4 ? value.slice(7) : value;
+      return isIP(normalized) ? normalized : undefined;
+    };
+    const localAddress = normalize(socket?.localAddress);
+    const remoteAddress = normalize(socket?.remoteAddress);
+    return socket && !socket.destroyed && localAddress && remoteAddress ? { localAddress, remoteAddress } : undefined;
+  } catch { return undefined; }
+}
+
+/** ws_connect返回私有Moo对象，仅允许在原SDK边界关闭它持有的连接。 */
+export function closeRoonConnection(connection: unknown): void {
+  try {
+    const transport = (connection as { transport?: { close?: () => void } } | undefined)?.transport;
+    transport?.close?.();
+  } catch { /* 关闭失败不能让退出路径遗留重拨定时器。 */ }
+}
+
 export interface RoonSettingsRequest {
   send_complete(status: string, body: unknown): void;
 }
@@ -183,6 +215,55 @@ interface RoonApiConstructor {
   new (options: RoonApiOptions): RoonApiInstance;
 }
 
+interface RoonPairingCompatibilityApi extends RoonApiInstance {
+  paired_core_id?: string;
+  paired_core?: Pick<RoonCore, 'core_id'>;
+  is_paired?: boolean;
+}
+
+/**
+ * 固定SDK写入paired_core_id却不在冷启动恢复，且重连时不刷新paired_core/is_paired。
+ * 只补齐这三个私有配对字段；tokens仍由官方SDK原样加载、使用及持久化。
+ */
+export function createRoonApiWithPairingCompatibility(
+  options: RoonApiOptions,
+  createApi: (options: RoonApiOptions) => RoonApiInstance,
+): RoonApiInstance {
+  let api: RoonPairingCompatibilityApi;
+  let currentCore: RoonCore | undefined;
+  api = createApi({
+    ...options,
+    core_paired: core => {
+      // 官方Pair调用仍可更换目标；此处不另选Core，也不重写授权状态。
+      api.paired_core = core;
+      api.is_paired = true;
+      currentCore = core;
+      options.core_paired(core);
+    },
+    core_unpaired: core => {
+      // 固定SDK的lost_core回调对非配对Core也可能触发，旧socket不能撤销新连接。
+      if (!core || core !== currentCore) {
+        // 同id的旧socket已先把SDK的is_paired置false，仍活动的新Core需要保留该位。
+        if (currentCore) api.is_paired = true;
+        return;
+      }
+      currentCore = undefined;
+      api.is_paired = false;
+      options.core_unpaired(core);
+    },
+  });
+  const state = api.load_config('roonstate');
+  const selectedId = state && typeof state === 'object' && !Array.isArray(state)
+    ? (state as { paired_core_id?: unknown }).paired_core_id : undefined;
+  if (typeof selectedId === 'string' && selectedId.length > 0) {
+    api.paired_core_id = selectedId;
+    // 离线身份锚点只供官方Pair handler删除旧目标；绝不当作可播放Core交给适配器。
+    api.paired_core = { core_id: selectedId };
+    api.is_paired = false;
+  }
+  return api;
+}
+
 interface RoonSettingsConstructor {
   new (
     roon: RoonApiInstance,
@@ -222,7 +303,7 @@ export function createProductionRoonSdk(): RoonSdk {
     transportService: RoonApiTransport,
     browseService: RoonApiBrowse,
     imageService: RoonApiImage,
-    createApi: (options) => new RoonApi(options),
+    createApi: (options) => createRoonApiWithPairingCompatibility(options, wrapped => new RoonApi(wrapped)),
     createSettings: (roon, options) => new RoonApiSettings(roon, options),
     createStatus: (roon) => new RoonApiStatus(roon),
   };

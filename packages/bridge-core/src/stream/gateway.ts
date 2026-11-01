@@ -10,6 +10,7 @@ import type { StreamRegistry } from './registry.js';
 import { secureGatewayFetch, type GatewayFetch } from './upstream-policy.js';
 import { serveLocalFile, type LocalFileTransferEvidence } from './local-file-http.js';
 import { isTrustedLocalMediaNetwork, type TrustedLocalMediaNetwork } from '../config/config.js';
+import { RoonMediaListener, type TrustedRoonMediaPeer } from './roon-media-listener.js';
 
 const FORWARDED_RESPONSE_HEADERS = [
   'accept-ranges',
@@ -228,6 +229,9 @@ export class StreamGateway {
   private activeTimerCount = 0;
   private activeMediaReadCount = 0;
   private activePreflightOwnerListenerCount = 0;
+  private readonly roonMedia: RoonMediaListener;
+  private readonly mediaDiagnosticIds = new Map<string, string>();
+  private mediaDiagnosticSequence = 0;
 
   constructor(
     private readonly options: {
@@ -244,7 +248,58 @@ export class StreamGateway {
       /** 独立媒体接口。默认缺席；绝不改变原控制与远程Gateway监听。 */
       localMediaNetwork?: TrustedLocalMediaNetwork;
     },
-  ) {}
+  ) {
+    this.roonMedia = new RoonMediaListener({ logger: options.logger,
+      dispatch: (request, response) => this.handleRoonMedia(request, response) });
+  }
+
+  async configureRoonMedia(peer?: TrustedRoonMediaPeer): Promise<void> {
+    if (peer && (!this.server?.listening || this.closing || this.options.localMediaNetwork)) {
+      throw new BridgeError('CONFIG_INVALID', 'Roon 媒体监听当前不可用');
+    }
+    await this.roonMedia.configure(peer);
+  }
+
+  isTrustedRoonMediaOrigin(origin: string): boolean { return this.roonMedia.origin === origin; }
+
+  private roonMediaOrigin(): string | undefined {
+    if (this.roonMedia.required && !this.roonMedia.origin) throw new BridgeError('ROON_MEDIA_ERROR', 'Roon 局域网媒体服务尚未就绪', { httpStatus: 503 });
+    return this.roonMedia.origin;
+  }
+
+  private mediaDiagnosticId(token: string): string {
+    let id = this.mediaDiagnosticIds.get(token);
+    if (!id) {
+      id = `roon-media-${++this.mediaDiagnosticSequence}`;
+      this.mediaDiagnosticIds.set(token, id);
+      if (this.mediaDiagnosticIds.size > 512) this.mediaDiagnosticIds.delete(this.mediaDiagnosticIds.keys().next().value!);
+    }
+    return id;
+  }
+
+  getMediaDiagnosticId(mediaUrl: string): string | undefined {
+    try {
+      const match = /^\/(?:local-stream|stream)\/([A-Za-z0-9_-]{43})(?:\.[a-z0-9]+)?$/u.exec(new URL(mediaUrl).pathname);
+      return match ? this.mediaDiagnosticIds.get(match[1]!) : undefined;
+    } catch { return undefined; }
+  }
+
+  private async handleRoonMedia(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const target = request.url ?? '';
+    if (request.method !== 'GET' && request.method !== 'HEAD') { response.writeHead(404); response.end(); return; }
+    if (target === '/assets/icon.png') {
+      response.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': ICON_PNG.length, 'X-Content-Type-Options': 'nosniff' });
+      response.end(request.method === 'HEAD' ? undefined : ICON_PNG); return;
+    }
+    const local = /^\/local-stream\/([A-Za-z0-9_-]{43})$/u.exec(target);
+    const stream = /^\/stream\/([A-Za-z0-9_-]{43})\.(mp3|flac|aac|m4a|ogg|opus|wav|bin)$/u.exec(target);
+    if (!local && !stream) { response.writeHead(404); response.end(); return; }
+    const diagnosticId = this.mediaDiagnosticId((local ?? stream)![1]!);
+    try { this.options.logger.info('roon_media_request', { diagnosticId, routeClass: local ? 'local-file' : 'stream', method: request.method,
+      rangeClass: classifyRange(request.headers.range) }); } catch { /* 观察不改变媒体准入。 */ }
+    if (local) { await this.handleLocal(request, response); return; }
+    await this.proxyStream(stream![1]!, request, response);
+  }
 
   getActiveMediaReadCount(): number { return this.activeMediaReadCount; }
 
@@ -304,10 +359,13 @@ export class StreamGateway {
     const server = this.server;
     this.server = undefined;
     this.stageObservers.clear();
+    this.mediaDiagnosticIds.clear();
+    const roonClosing = this.roonMedia.configure();
     const media = this.localMediaServer; this.localMediaServer = undefined;
     const starting = this.starting;
     this.closing = Promise.resolve().then(async () => {
       await starting?.catch(() => {});
+      await roonClosing;
       try { await this.options.registry.closeLocal(); }
       finally { await Promise.all([server, media].filter((value): value is Server => Boolean(value)).map(value => this.closeServer(value))); }
     }).finally(() => { this.closing = undefined; });
@@ -340,7 +398,8 @@ export class StreamGateway {
       if(diagnostic && /^diag-local-[a-f0-9]{64}$/u.test(diagnostic.diagnosticId))localDiagnostic={diagnosticId:diagnostic.diagnosticId,isCurrent:()=>diagnostic.isCurrent(),isOwned:()=>diagnostic.isOwned()};
     } catch { /* 无合法私有绑定时保持原媒体行为。 */ }
     if(onStageChange || localDiagnostic)this.stageObservers.set(token,{...(onStageChange?{stage:onStageChange}:{}),...(localDiagnostic?{localDiagnostic}:{}),requestSequence:0,truncated:false});
-    return `${this.options.localMediaNetwork?.advertisedBaseUrl ?? (this.options.remoteDevelopmentMode ? this.options.publicBaseUrl : this.localBaseUrl())}/local-stream/${token}`;
+    this.mediaDiagnosticId(token);
+    return `${this.roonMediaOrigin() ?? this.options.localMediaNetwork?.advertisedBaseUrl ?? (this.options.remoteDevelopmentMode ? this.options.publicBaseUrl : this.localBaseUrl())}/local-stream/${token}`;
   }
   private async handleLocal(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
     if (!(request.url ?? '').startsWith('/local-stream/')) return false;
@@ -364,7 +423,10 @@ export class StreamGateway {
     }
     this.localRequests++; const release = this.beginMediaRead();
     if(!binding?.localDiagnostic)try{this.options.logger.info('roon_gateway_local_request',{method,routeClass:'local-file',rangeClass});}catch{/* 原有限日志失败同样不改变传输。 */}
-    try { await serveLocalFile(registration.lease, request, response, fallbackContentTypeForFormat(registration.format),stage=>this.notifyStage(match![1]!,stage),
+    try { await serveLocalFile(registration.lease, request, response, fallbackContentTypeForFormat(registration.format),stage=>{
+      this.notifyStage(match![1]!,stage);
+      if(stage==='streaming')try{this.options.logger.info('roon_gateway_first_body_bytes',{diagnosticId:this.mediaDiagnosticId(match![1]!),routeClass:'local-file'});}catch{/* 观察不改变传输。 */}
+    },
       requestSequence===undefined?undefined:evidence=>this.logLocalMedia(binding!,requestSequence!,method,rangeClass,'transfer-terminal',evidence)); }
     finally { this.localRequests--; release(); }
     return true;
@@ -376,11 +438,13 @@ export class StreamGateway {
     onStageChange?: GatewayStageObserver,
   ): string {
     if (onStageChange) this.stageObservers.set(token, {stage:onStageChange,requestSequence:0,truncated:false});
-    return `${this.options.publicBaseUrl}/stream/${encodeURIComponent(token)}.${routeExtensionForFormat(format)}`;
+    this.mediaDiagnosticId(token);
+    return `${this.roonMediaOrigin() ?? this.options.publicBaseUrl}/stream/${encodeURIComponent(token)}.${routeExtensionForFormat(format)}`;
   }
 
   clearStageObserver(token: string): void {
     this.stageObservers.delete(token);
+    this.mediaDiagnosticIds.delete(token);
   }
 
   getDiagnosticResourceCounters(): { listenerCount: number; timerCount: number } {
@@ -391,7 +455,7 @@ export class StreamGateway {
   }
 
   iconUrl(): string {
-    return `${this.options.publicBaseUrl.replace(/\/$/, '')}/assets/icon.png`;
+    return `${this.roonMediaOrigin() ?? this.options.publicBaseUrl.replace(/\/$/, '')}/assets/icon.png`;
   }
 
   localBaseUrl(): string {
@@ -697,6 +761,7 @@ export class StreamGateway {
 
       this.notifyStage(token, 'headers');
       this.options.logger.info('roon_gateway_upstream_response', {
+        diagnosticId: this.mediaDiagnosticId(token),
         method: request.method ?? 'GET',
         rangePresent: Boolean(range),
         rangeClass: classifyRange(range),
@@ -724,10 +789,16 @@ export class StreamGateway {
       nodeStream.once('error', () => {
         upstreamBodyErrored = true;
       });
+      const firstBodyBytes = (): void => {
+        try { this.options.logger.info('roon_gateway_first_body_bytes', { diagnosticId: this.mediaDiagnosticId(token), routeClass: 'stream' }); }
+        catch { /* 观察失败不阻断音频读取。 */ }
+      };
+      let bodyObserved = false;
       const byteCounter = new Transform({
         transform(chunk: unknown, _encoding, callback) {
           if (typeof chunk === 'string') bytesForwarded += Buffer.byteLength(chunk);
           else if (chunk instanceof Uint8Array) bytesForwarded += chunk.byteLength;
+          if (!bodyObserved && bytesForwarded > 0) { bodyObserved = true; firstBodyBytes(); }
           callback(null, chunk);
         },
       });
@@ -762,6 +833,7 @@ export class StreamGateway {
       response.off('close', onResponseClose);
       if (transferOutcome) {
         this.options.logger.info('roon_gateway_transfer_complete', {
+          diagnosticId: this.mediaDiagnosticId(token),
           method: request.method ?? 'GET',
           bytesForwarded,
           durationMs: Date.now() - startedAt,

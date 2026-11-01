@@ -48,6 +48,8 @@ import { createMasterDraftsCoordinator, type MasterDraftsCoordinator } from './r
 import { createPhysicalLinksCoordinator, type PhysicalLinksCoordinator } from './collection/physical-links-coordinator.js';
 import type { RoonPublicLibrary } from './roon/public-library.js';
 import path from 'node:path';
+import { createTrustedRoonMediaPeer } from './stream/roon-media-listener.js';
+import { createRoonIntegrationDiagnostics } from './roon/integration-diagnostics.js';
 import { createCollectionRepository, type CollectionRepository } from './collection/repository.js';
 import {
   DiagnosticRingBuffer,
@@ -266,6 +268,8 @@ export interface BridgeRuntimeOptions {
   /** 仅可信 Owner 组合选择；不从 IPC、env 或用户设置取得容量。 */
   localScanReadProfile?: 'bulk-v2';
   localMediaNetwork?: import('./config/config.js').TrustedLocalMediaNetwork;
+  /** 仅可信桌面组合层启用；不读取环境、Renderer 或公开配置。 */
+  enableRoonLanMedia?: boolean;
   datasetOwnerEndpoint?: DatasetOwnerEndpoint;
   collectionDatasetIdentity?: DatasetIdentity;
   /** 仅由受信任的 Core 组合层注入；不从 Renderer 或系统 PATH 自动配置。 */
@@ -387,6 +391,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const logger = options.logger ?? createLogger(config.logLevel);
   const diagnostics = new DiagnosticRingBuffer();
   const localRoonDiagnostics = new DiagnosticRingBuffer(50);
+  const roonIntegration = createRoonIntegrationDiagnostics(diagnostics);
   let localDiagnosticSequence = 0;
   const registry = new StreamRegistry();
   const netease = new NeteaseClient(config.neteaseCookie);
@@ -395,9 +400,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   // 仅原生停止的闭集阶段进入既有导出ring；其余Adapter日志保持原通道。
   const adapterLogger: Logger = {
     debug: (event, fields) => logger.debug(event, fields),
-    warn: (event, fields) => logger.warn(event, fields),
+    warn: (event, fields) => { try { roonIntegration.log(event, fields); } catch { /* 诊断不影响原流程。 */ } logger.warn(event, fields); },
     error: (event, fields) => logger.error(event, fields),
     info: (event, fields) => {
+      try { roonIntegration.log(event, fields); } catch { /* 诊断不影响原流程。 */ }
       if (event === 'roon_transport_stop_stage') {
         try {
           const value = fields ?? {};
@@ -428,6 +434,17 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     iconPort: config.remoteStreamPort ?? config.streamPort,
     ...(config.roonCoreHost ? { coreHost: config.roonCoreHost } : {}),
     ...(config.roonCorePort ? { corePort: config.roonCorePort } : {}),
+    ...(options.enableRoonLanMedia === true && config.mode === 'local-core' ? {
+      onCoreNetworkChanged: async (connection: { localAddress: string; remoteAddress: string } | undefined) => {
+        // 回环 Core 使用原入口；远端只使用本次配对连接实际采用的网卡和 peer。
+        const loopback = connection?.remoteAddress === '127.0.0.1' || connection?.remoteAddress === '::1';
+        await gateway.configureRoonMedia(connection && !loopback ? createTrustedRoonMediaPeer(connection) : undefined);
+      },
+      isTrustedMediaOrigin: (origin: string) => gateway.isTrustedRoonMediaOrigin(origin),
+    } : {}),
+    onIntegrationDiagnostic: (request, event) => {
+      try { roonIntegration.playback(gateway.getMediaDiagnosticId(request.mediaUrl), event); } catch { /* 诊断不改变播放。 */ }
+    },
     ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
     ...(options.onRoonBrowseShape ? { onBrowseShape: options.onRoonBrowseShape } : {}),
     ...(options.onRoonImageShape ? { onImageShape: options.onRoonImageShape } : {}),
@@ -463,7 +480,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     port: config.streamPort,
     publicBaseUrl: config.publicStreamBaseUrl,
     registry,
-    logger,
+    logger: { ...logger,
+      info: (event, fields) => { try { roonIntegration.log(event, fields); } catch { /* 诊断不改变传输。 */ } logger.info(event, fields); },
+      warn: (event, fields) => { try { roonIntegration.log(event, fields); } catch { /* 诊断不改变传输。 */ } logger.warn(event, fields); },
+    },
     remoteDevelopmentMode: config.mode === 'remote-core-development',
     ...(options.localMediaNetwork ? { localMediaNetwork: options.localMediaNetwork } : {}),
     onMediaReadActivityChanged: () => { scanReadAdmission?.observe(); },

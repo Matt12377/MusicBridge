@@ -6,6 +6,7 @@ import {
   RoonAudioInputAdapter,
   summarizeRoonTimePayload,
   summarizeRoonResponseBody,
+  type RoonAudioInputAdapterOptions,
 } from '../src/roon/adapter.js';
 import type {
   RoonApiInstance,
@@ -21,6 +22,7 @@ import type {
   RoonStatusService,
   RoonTransportService,
   RoonZoneChangeCallback,
+  RoonWsConnectOptions,
 } from '../src/roon/sdk.js';
 import type {
   RoonBrowseApi,
@@ -194,6 +196,9 @@ class FakeCore implements RoonCore {
     RoonApiBrowse: this.browse,
     RoonApiImage: this.image,
   };
+  readonly moo = { transport: { ws: { _socket: {
+    localAddress: '192.168.50.10', remoteAddress: '192.168.50.20', destroyed: false,
+  } } } };
 }
 
 class FakeSettings implements RoonSettingsService {
@@ -232,6 +237,8 @@ class FakeApi implements RoonApiInstance {
   disconnectAllCalls = 0;
   saveConfigCalls = 0;
   readonly wsConnectCalls: Array<{ host: string; port: number }> = [];
+  readonly wsConnectCallbacks: RoonWsConnectOptions[] = [];
+  readonly wsCloseCalls: number[] = [];
 
   constructor(
     readonly options: RoonApiOptions,
@@ -263,9 +270,11 @@ class FakeApi implements RoonApiInstance {
     this.startDiscoveryCalls += 1;
   }
 
-  ws_connect(options: { host: string; port: number }): unknown {
+  ws_connect(options: RoonWsConnectOptions): unknown {
     this.wsConnectCalls.push({ host: options.host, port: options.port });
-    return undefined;
+    this.wsConnectCallbacks.push(options);
+    const index = this.wsCloseCalls.push(0) - 1;
+    return { transport: { close: () => { this.wsCloseCalls[index] = this.wsCloseCalls[index]! + 1; } } };
   }
 
   stop_discovery(): void {
@@ -319,7 +328,7 @@ class FakeSdk implements RoonSdk {
 
 }
 
-interface AdapterTestOptions {
+interface AdapterTestOptions extends Pick<RoonAudioInputAdapterOptions, 'onCoreNetworkChanged' | 'isTrustedMediaOrigin' | 'onIntegrationDiagnostic'> {
   sessionBeginTimeoutMs?: number;
   playingTimeoutMs?: number;
   transportTimeoutMs?: number;
@@ -362,6 +371,223 @@ function makeHarness(
     sdk,
   };
 }
+
+test('显式直连合并error和close重拨，退出关闭持有连接并撤销定时器', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { adapter, sdk } = makeHarness({ coreHost: '127.0.0.1', corePort: 19330 });
+  await adapter.start();
+  const api = sdk.apis[0]!;
+  api.wsConnectCallbacks[0]!.onerror?.(undefined);
+  api.wsConnectCallbacks[0]!.onclose?.();
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 1);
+  t.mock.timers.tick(250);
+  assert.equal(api.wsConnectCalls.length, 2);
+  assert.deepEqual(api.wsCloseCalls, [1, 0]);
+  api.wsConnectCallbacks[1]!.onclose?.();
+  await adapter.shutdown();
+  assert.deepEqual(api.wsCloseCalls, [1, 1]);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  t.mock.timers.tick(60_000);
+  assert.equal(api.wsConnectCalls.length, 2);
+});
+
+test('显式直连连续失败仅执行五次有界重拨', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { adapter, sdk } = makeHarness({ coreHost: '127.0.0.1', corePort: 19330 });
+  await adapter.start();
+  const api = sdk.apis[0]!;
+  for (const delay of [250, 1_000, 4_000, 10_000, 30_000]) {
+    api.wsConnectCallbacks.at(-1)!.onerror?.(undefined);
+    t.mock.timers.tick(delay);
+  }
+  api.wsConnectCallbacks.at(-1)!.onerror?.(undefined);
+  assert.equal(api.wsConnectCalls.length, 6);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  await adapter.shutdown();
+});
+
+test('媒体hook完成前不订阅Zone也不允许播放，地址来自实际socket', async () => {
+  let ready!: () => void;
+  const gate = new Promise<void>(resolve => { ready = resolve; });
+  const changes: Array<{ localAddress: string; remoteAddress: string } | undefined> = [];
+  const { adapter, sdk } = makeHarness({ onCoreNetworkChanged: async connection => {
+    changes.push(connection);
+    if (connection) await gate;
+  } });
+  await adapter.start();
+  sdk.settings[0]!.saveOutput('output-1');
+  const api = sdk.apis[0]!;
+  api.pair();
+  assert.deepEqual(changes, [{ localAddress: '192.168.50.10', remoteAddress: '192.168.50.20' }]);
+  api.core.transport.emit('Subscribed', { zones: [{ zone_id: 'zone-1', outputs: [{ output_id: 'output-1' }] }] });
+  assert.equal(adapter.getState().status, 'paired');
+  assert.deepEqual(adapter.listZones(), []);
+  await assert.rejects(adapter.play(playRequest), (error: unknown) => error instanceof BridgeError && error.code === 'ROON_NOT_PAIRED');
+  ready();
+  await nextTurn();
+  api.core.transport.emit('Subscribed', { zones: [{ zone_id: 'zone-1', outputs: [{ output_id: 'output-1' }] }] });
+  assert.equal(adapter.getState().status, 'ready');
+  await adapter.shutdown();
+  assert.equal(changes.at(-1), undefined);
+});
+
+test('socket缺失或媒体准备失败均关闭播放准入，不回退到拨号host', async () => {
+  for (const missingSocket of [true, false]) {
+    const changes: Array<{ localAddress: string; remoteAddress: string } | undefined> = [];
+    const { adapter, sdk } = makeHarness({ onCoreNetworkChanged: async connection => {
+      changes.push(connection);
+      if (connection) throw new Error('合成监听失败');
+    } });
+    await adapter.start();
+    const api = sdk.apis[0]!;
+    api.core.moo.transport.ws._socket.destroyed = missingSocket;
+    api.pair();
+    await nextTurn();
+    assert.equal(adapter.getState().status, 'paired');
+    assert.equal(adapter.getLibraryService(), undefined);
+    assert.equal(changes.at(-1), undefined);
+    await assert.rejects(adapter.play(playRequest), (error: unknown) => error instanceof BridgeError && error.code === 'ROON_NOT_PAIRED');
+    assert.equal(api.core.audioInput.beginSessionCalls, 0);
+    await adapter.shutdown();
+  }
+});
+
+test('当前Core断开立即撤销媒体，迟到准备失败不能撤销新Core', async () => {
+  let rejectOld!: (error: Error) => void;
+  const oldPreparation = new Promise<void>((_resolve, reject) => { rejectOld = reject; });
+  const changes: Array<{ localAddress: string; remoteAddress: string } | undefined> = [];
+  const { adapter, sdk } = makeHarness({ onCoreNetworkChanged: connection => {
+    changes.push(connection);
+    return connection?.remoteAddress === '192.168.50.20' ? oldPreparation : Promise.resolve();
+  } });
+  await adapter.start();
+  sdk.settings[0]!.saveOutput('output-1');
+  const api = sdk.apis[0]!;
+  api.pair();
+  api.unpair();
+  assert.equal(changes.at(-1), undefined);
+  const replacement = new FakeCore();
+  replacement.moo.transport.ws._socket.remoteAddress = '192.168.50.30';
+  api.options.core_paired(replacement);
+  await nextTurn();
+  replacement.transport.emit('Subscribed', { zones: [{ zone_id: 'replacement-zone', outputs: [{ output_id: 'output-1' }] }] });
+  assert.equal(adapter.getState().selectedZoneId, 'replacement-zone');
+  const before = changes.length;
+  rejectOld(new Error('旧Core迟到失败'));
+  await nextTurn();
+  api.options.core_unpaired(api.core);
+  api.core.transport.emit('Subscribed', { zones: [{ zone_id: 'stale-zone', outputs: [{ output_id: 'output-1' }] }] });
+  assert.equal(adapter.getState().selectedZoneId, 'replacement-zone');
+  assert.equal(changes.length, before);
+  await adapter.shutdown();
+});
+
+test('旧Zone订阅、非当前Core断开和旧API回调不能覆盖新状态', async () => {
+  const { adapter, api, sdk } = await makeReadyHarness();
+  const replacement = new FakeCore();
+  api.options.core_paired(replacement);
+  replacement.transport.emit('Subscribed', { zones: [{ zone_id: 'replacement-zone', outputs: [{ output_id: 'output-1' }] }] });
+  api.unpair();
+  api.core.transport.emit('Subscribed', { zones: [{ zone_id: 'old-zone', outputs: [{ output_id: 'output-1' }] }] });
+  assert.equal(adapter.getState().selectedZoneId, 'replacement-zone');
+  await adapter.shutdown();
+  await adapter.start();
+  api.options.core_paired(api.core);
+  assert.equal(adapter.getState().status, 'discovering');
+  sdk.apis[1]!.pair();
+  sdk.apis[1]!.core.transport.emit('Subscribed', { zones: [{ zone_id: 'restarted-zone', outputs: [{ output_id: 'output-1' }] }] });
+  api.options.core_unpaired(api.core);
+  assert.equal(adapter.getState().selectedZoneId, 'restarted-zone');
+  await adapter.shutdown();
+});
+
+test('媒体准备中的退出等待撤销且迟到准备不能重新开放Core', async () => {
+  let ready!: () => void;
+  const gate = new Promise<void>(resolve => { ready = resolve; });
+  const changes: Array<{ localAddress: string; remoteAddress: string } | undefined> = [];
+  const { adapter, sdk } = makeHarness({ onCoreNetworkChanged: connection => {
+    changes.push(connection);
+    return connection ? gate : Promise.resolve();
+  } });
+  await adapter.start();
+  const api = sdk.apis[0]!;
+  api.pair();
+  const exiting = adapter.shutdown();
+  await nextTurn();
+  assert.equal(changes.at(-1), undefined);
+  ready();
+  await exiting;
+  api.core.transport.emit('Subscribed', { zones: [{ zone_id: 'old-zone', outputs: [{ output_id: 'output-1' }] }] });
+  api.pair();
+  assert.equal(adapter.getState().status, 'discovering');
+  assert.equal(adapter.getLibraryService(), undefined);
+});
+
+test('可信媒体origin仅额外允许固定PNG，拒绝query、hash、凭据和其他origin', async () => {
+  const origin = 'http://192.168.50.10:45678';
+  const { adapter, api } = await makeReadyHarness({ isTrustedMediaOrigin: candidate => candidate === origin });
+  for (const iconUrl of [
+    `${origin}/assets/icon.png?x=1`, `${origin}/assets/icon.png#x`, `${origin}/assets/icon.svg`,
+    'http://user:password@192.168.50.10:45678/assets/icon.png', 'http://192.168.50.11:45678/assets/icon.png',
+  ]) {
+    await assert.rejects(adapter.play({ ...playRequest, iconUrl }), (error: unknown) => error instanceof BridgeError && error.details?.reason === 'invalid_icon_url');
+  }
+  assert.equal(api.core.audioInput.beginSessionCalls, 0);
+  const playing = adapter.play({ ...playRequest, iconUrl: `${origin}/assets/icon.png` });
+  await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-session' });
+  await playing;
+  assert.equal((api.core.audioInput.beginSessionOptions[0] as { icon_url: string }).icon_url, `${origin}/assets/icon.png`);
+  await adapter.shutdown();
+});
+
+test('接入诊断仅按真实dispatch与当前会话回执推进，Paused保留独立语义', async () => {
+  const stages: string[] = [];
+  const observations: Array<{ mediaUrl: string; current: boolean; durationMs: number }> = [];
+  const { adapter, api } = await makeReadyHarness({ onIntegrationDiagnostic: (request, event) => {
+    observations.push({ mediaUrl: request.mediaUrl, current: event.current, durationMs: event.durationMs });
+    stages.push(event.stage);
+  } });
+  const playing = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.autoPlay = false;
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-session' });
+  assert.deepEqual(stages, ['stopping', 'stopped', 'begin_session', 'session_began', 'play_dispatched']);
+  api.core.audioInput.emitPlay('Paused');
+  await playing;
+  assert.equal(adapter.getState().status, 'paused');
+  assert.equal(stages.includes('playing'), false);
+  api.core.audioInput.emitPlay('Playing');
+  assert.equal(stages.at(-1), 'playing');
+  await adapter.stop();
+  const before = stages.length;
+  api.core.audioInput.emitPlay('Playing');
+  assert.equal(stages.length, before);
+  assert.equal(observations.every(event => event.mediaUrl === playRequest.mediaUrl && event.current && Number.isFinite(event.durationMs) && event.durationMs >= 0), true);
+  await adapter.shutdown();
+});
+
+test('接入诊断旁观者抛错不改变真实播放，超时只报告相应阶段', async t => {
+  const stages: Array<{ stage: string; phase?: string }> = [];
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 50, onIntegrationDiagnostic: (_request, event) => {
+    stages.push(event);
+    throw new Error('合成旁观者错误');
+  } });
+  const first = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-session' });
+  await first;
+  assert.equal(adapter.getState().status, 'playing');
+  await adapter.stop();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const second = adapter.play(playRequest);
+  const rejected = assert.rejects(second, (error: unknown) => error instanceof BridgeError && error.message === 'ROON_SESSION_BEGIN_TIMEOUT');
+  await nextTurn();
+  t.mock.timers.tick(50);
+  await rejected;
+  assert.equal(stages.some(event => event.stage === 'session_timeout' && event.phase === 'awaiting_session'), true);
+  await adapter.shutdown();
+});
 
 const playRequest = {
   mediaUrl: 'http://test.invalid/stream/fake',

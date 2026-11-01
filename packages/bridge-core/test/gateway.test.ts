@@ -791,6 +791,7 @@ test('gateway records safe upstream and transfer telemetry for GET and HEAD', as
 
   const upstreamEvents = events.filter(({ event }) => event === 'roon_gateway_upstream_response');
   assert.deepEqual(upstreamEvents[0]?.fields, {
+    diagnosticId: 'roon-media-1',
     method: 'GET',
     rangePresent: true,
     rangeClass: 'start-end',
@@ -805,6 +806,8 @@ test('gateway records safe upstream and transfer telemetry for GET and HEAD', as
   });
   assert.equal(upstreamEvents[1]?.fields.method, 'HEAD');
   assert.equal(upstreamEvents[1]?.fields.rangeClass, 'none');
+  assert.equal(upstreamEvents[1]?.fields.diagnosticId, upstreamEvents[0]?.fields.diagnosticId);
+  assert.equal(events.filter(({ event }) => event === 'roon_gateway_first_body_bytes').length, 1, 'HEAD 不得冒充音频正字节');
 
   const transferEvents = events.filter(({ event }) => event === 'roon_gateway_transfer_complete');
   assert.equal(transferEvents[0]?.fields.method, 'GET');
