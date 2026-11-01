@@ -372,6 +372,17 @@ function makeHarness(
   };
 }
 
+test('控制订阅只在当前 Core 的真实 Subscribed 回执后记录，旧回调不冒充重连', async () => {
+  const log = recordingLogger(), { adapter, sdk } = makeHarness({}, log.logger);
+  await adapter.start(); const api = sdk.apis[0]!; api.pair();
+  assert.equal(log.events.some(value => value.event === 'roon_zones_subscribed'), false);
+  api.core.transport.emit('Subscribed', { zones: [] });
+  assert.equal(log.events.filter(value => value.event === 'roon_zones_subscribed').length, 1);
+  api.unpair(); api.core.transport.emit('Subscribed', { zones: [] });
+  assert.equal(log.events.filter(value => value.event === 'roon_zones_subscribed').length, 1);
+  await adapter.shutdown();
+});
+
 test('显式直连合并error和close重拨，退出关闭持有连接并撤销定时器', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { adapter, sdk } = makeHarness({ coreHost: '127.0.0.1', corePort: 19330 });

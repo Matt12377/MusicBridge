@@ -1817,6 +1817,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           this.zoneRevisions.clear();
           this.zonePlaybackRevisions.clear();
           for (const zone of message.zones ?? []) this.storeZone(zone);
+          try { this.logger.info('roon_zones_subscribed'); } catch { /* 诊断不改变设备订阅。 */ }
         } else if (response === 'Changed') {
           this.zoneRevision += 1;
           for (const zone of message.zones_added ?? []) this.storeZone(zone);
