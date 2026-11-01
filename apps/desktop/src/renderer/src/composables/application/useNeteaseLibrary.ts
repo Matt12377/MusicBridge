@@ -26,6 +26,7 @@ export interface NeteaseLibraryOptions extends PageCacheOwnerOptions {
   api: MusicBridgePublicApi
   getCoreRuntime: () => PublicBridgeState['runtime'] | undefined
   getRemoteStatus: () => RemoteCoreTunnelState['status']
+  canReadData?: () => boolean
   getView: () => ViewId
   onMatchTracks: (tracks: readonly TrackSummary[], visible: boolean) => void | Promise<void>
   onPlaylistSwitch: () => void
@@ -118,7 +119,7 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
   let homeRecommendationOperation = 0
   let pendingPlaylistRequest: { id: string; page: PageRequest } | undefined
 
-  const canLoadPrivate = (): boolean => !disposed && canLoadAuthorizedLibrary(
+  const canLoadPrivate = (): boolean => !disposed && options.canReadData?.() !== false && canLoadAuthorizedLibrary(
     authState.value.status, getCoreRuntime(), getRemoteStatus(),
   )
 
@@ -290,6 +291,7 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
   }
 
   async function loadAccountState(): Promise<void> {
+    if (options.canReadData?.() === false) return
     if (disposed) return
     const operation = ++accountOperation
     accountError.value = null

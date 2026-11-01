@@ -8,6 +8,7 @@ import { buildCoreEnvironment } from '../src/main/core-environment.js'
 import { bundledConverterRoot } from '../src/main/converter-bootstrap.js'
 import { bundledMobileDsdRoot } from '../src/main/mobile-dsd-bootstrap.js'
 import { datasetOwnerEnvironment } from '../src/main/dataset-owner-bootstrap.js'
+import { LocalCorePortError } from '../src/main/local-core-ports.js'
 
 test('受控 App 的专用 DSD 开关经过 Main、Core 与唯一 Owner 环境后仍需固定后端准入', () => {
   const core = buildCoreEnvironment({
@@ -234,6 +235,44 @@ test('remote Core mode rejects an unknown local port profile', () => {
   }))
 })
 
+test('本地Core选择端口仅由Main显式选项注入，媒体base使用同一最终端口', () => {
+  const parent = Object.freeze({ BRIDGE_STREAM_HOST: '::1', BRIDGE_STREAM_PORT: ' ', NETEASE_COOKIE: '合成私密值' })
+  const environment = buildCoreEnvironment(parent, {
+    startupTest: false, uiE2e: false, coreCrashGate: false,
+    localCorePorts: { controlPort: 42001, streamPort: 42002 },
+  })
+  assert.equal(environment.BRIDGE_CONTROL_PORT, '42001')
+  assert.equal(environment.BRIDGE_STREAM_PORT, '42002')
+  assert.equal(environment.BRIDGE_PUBLIC_STREAM_BASE_URL, 'http://[::1]:42002')
+  assert.equal(environment.NETEASE_COOKIE, undefined)
+  assert.deepEqual(parent, { BRIDGE_STREAM_HOST: '::1', BRIDGE_STREAM_PORT: ' ', NETEASE_COOKIE: '合成私密值' })
+})
+
+test('本地Core显式端口和public base保持原语义，不能被自动选项静默覆盖', () => {
+  const parent = { BRIDGE_CONTROL_PORT: '40001', BRIDGE_STREAM_PORT: '40002', BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:40002/合成原路由' }
+  const options = { startupTest: false, uiE2e: false, coreCrashGate: false }
+  const environment = buildCoreEnvironment(parent, { ...options, localCorePorts: { controlPort: 40001, streamPort: 40002 } })
+  assert.equal(environment.BRIDGE_PUBLIC_STREAM_BASE_URL, parent.BRIDGE_PUBLIC_STREAM_BASE_URL)
+  assert.throws(() => buildCoreEnvironment(parent, { ...options, localCorePorts: { controlPort: 42001, streamPort: 42002 } }),
+    error => error instanceof LocalCorePortError && error.code === 'CONFIG_INVALID')
+  assert.throws(() => buildCoreEnvironment({ BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38502' }, {
+    ...options, localCorePorts: { controlPort: 42001, streamPort: 42002 },
+  }), error => error instanceof LocalCorePortError && error.code === 'CONFIG_INVALID')
+  assert.throws(() => buildCoreEnvironment({}, { ...options, localCorePorts: { controlPort: 0, streamPort: 42002 } }),
+    error => error instanceof LocalCorePortError && error.code === 'CONFIG_INVALID')
+})
+
+test('远程Core保持固定pair，忽略普通本地动态端口选项', () => {
+  const environment = buildCoreEnvironment({}, {
+    startupTest: false, uiE2e: false, coreCrashGate: false,
+    remoteCoreMode: 'remote-core-development', remoteStreamPort: 38519,
+    localCorePorts: { controlPort: 42001, streamPort: 42002 },
+  })
+  assert.equal(environment.BRIDGE_CONTROL_PORT, '38501')
+  assert.equal(environment.BRIDGE_STREAM_PORT, '38502')
+  assert.equal(environment.BRIDGE_PUBLIC_STREAM_BASE_URL, 'http://127.0.0.1:38519')
+})
+
 test('合成 Roon 目录仅在明确 UI E2E 环境透传，正常运行忽略该开关', () => {
   const parent = { MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1' };
   assert.equal(buildCoreEnvironment(parent, { startupTest: false, uiE2e: false, coreCrashGate: false }).MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY, undefined);
@@ -278,7 +317,7 @@ function mainCoreEnvironment(parent: NodeJS.ProcessEnv, options: {
   credentialRecoveryGate?: boolean
 }): NodeJS.ProcessEnv {
   const source = readFileSync(new URL('../src/main/index.ts', import.meta.url), 'utf8')
-  const start = source.indexOf('function buildCoreEnvironment(): NodeJS.ProcessEnv {')
+  const start = source.indexOf('function buildCoreEnvironment(')
   const end = source.indexOf('\nfunction getRemoteCoreState()', start)
   assert.ok(start >= 0 && end > start, 'Main 原环境 wrapper 必须存在且完整')
   const exports: { build?: () => NodeJS.ProcessEnv } = {}

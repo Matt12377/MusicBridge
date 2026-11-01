@@ -4,10 +4,12 @@ import { logLibraryOperation } from '../../../../../packages/bridge-core/src/sha
 
 import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, shallowReactive, shallowRef, toRaw, watch } from 'vue'
 import { restoreRemoteTarget, reconnectRemoteTarget } from './remote-core-preferences.js'
+import { APPEARANCE_STORAGE_KEY } from './appearance.js'
 
 import type {
   PlaybackQualityPreference,
   PublicBridgeState,
+  PublicAuthState,
   PublicRoonZone,
   RoonLibraryItem,
   RemoteCoreTunnelState,
@@ -63,6 +65,7 @@ import { useRoonBrowse } from './composables/application/useRoonBrowse.js'
 import { usePageJourney } from './composables/application/usePageJourney.js'
 import { useNeteaseLibrary } from './composables/application/useNeteaseLibrary.js'
 import { useRendererLifecycle } from './composables/application/useRendererLifecycle.js'
+import { useRendererPreparation } from './composables/application/useRendererPreparation.js'
 import CollectionView from './components/collection/CollectionView.vue'
 import type { CollectionReservationEntry, CollectionReturnLocation, CollectionStartEntry, RecordingPhysicalSelection, RecordingReservationNavigation } from './components/collection/collection-recording-navigation'
 import RecordingView from './components/recording/RecordingView.vue'
@@ -84,6 +87,11 @@ import type { LocalAlbumWorkbenchRequest, LocalAlbumWorkbenchBatchRequest, Local
 
 
 const appInfo = ref<AppInfo | null>(null)
+const preparation = useRendererPreparation()
+const desktopReadReady = preparation.ready
+const startupFailed = preparation.failed
+const startupMessage = preparation.message
+let preparingAuthState: PublicAuthState | undefined
 const recordingReloadRequired = ref(false)
 const recordingInitialPhysical = ref<RecordingPhysicalSelection>()
 const recordingReservationNavigation = ref<RecordingReservationNavigation>()
@@ -199,7 +207,7 @@ const workbenchLyrics = useLocalWorkbenchLyrics({ api: window.musicBridge, readO
 const workbenchLibrary = useLocalWorkbenchLibrary({ api: window.musicBridge, storage: window.localStorage, canChangeLibrary: () => !workbenchLyrics.pending.value && !localLibrary.maintenanceLocked.value, onChanged: () => { void refreshLocalLibraryFromWorkbench() } })
 const { currentTrack } = useLocalPlaybackArtwork({
   getDatasetId: () => workbenchLibrary.state.value?.datasetId ?? localLibrary.displayDatasetId.value,
-  isReadReady: () => coreState.value?.runtime === 'ready' && playbackSyncStatus.value === 'ready',
+  isReadReady: () => desktopReadReady.value && coreState.value?.runtime === 'ready' && playbackSyncStatus.value === 'ready',
   getClockIdentity: () => playbackClockIdentity.value,
   getSnapshot: () => playback.playbackState.value,
   getTrack: () => sourceCurrentTrack.value,
@@ -306,9 +314,9 @@ function localAlbumPageEntryCurrent(entry: LocalAlbumPageEntry): boolean {
   return !initialScanDisposed && !initialScanClosing && currentView.value === entry.view && initialScanEpoch === entry.epoch
     && state.active && state.query === entry.query && state.rootId === entry.rootId && state.filter === entry.filter
 }
-function localAlbumPageRuntimeReady(): boolean { return isCoreRuntimeStable(coreState.value?.runtime, remoteCoreState.value.status) }
+function localAlbumPageRuntimeReady(): boolean { return desktopReadReady.value && isCoreRuntimeStable(coreState.value?.runtime, remoteCoreState.value.status) }
 function localAlbumPageRuntimeTerminal(): boolean {
-  return (coreState.value?.runtime === 'failed' || coreState.value?.runtime === 'stopped')
+  return startupFailed.value || (coreState.value?.runtime === 'failed' || coreState.value?.runtime === 'stopped')
     && !['checking', 'starting', 'reconnecting', 'stopping'].includes(remoteCoreState.value.status)
 }
 function waitLocalAlbumPageReady(entry: LocalAlbumPageEntry): Promise<void> {
@@ -320,7 +328,7 @@ function waitLocalAlbumPageReady(entry: LocalAlbumPageEntry): Promise<void> {
       else if (localAlbumPageRuntimeReady()) { stop?.(); resolve() }
     }
     // 监听真实状态引用，core.ready即使runtime枚举仍为ready也会在原事件内更新代次。
-    stop = watch([() => coreState.value, () => remoteCoreState.value, () => currentView.value, () => entry.browser.snapshot.value], inspect, { flush: 'sync' })
+    stop = watch([desktopReadReady, startupFailed, () => coreState.value, () => remoteCoreState.value, () => currentView.value, () => entry.browser.snapshot.value], inspect, { flush: 'sync' })
     inspect()
   })
 }
@@ -736,7 +744,7 @@ function runInitialScanRefresh(): Promise<void> {
   return initialScanWork
 }
 function requestInitialScanRefresh(refresh = true): Promise<void> {
-  if (initialScanDisposed || initialScanClosing || deferInitialAlbumContextReads() || !initialScanRelated(currentView.value)) return Promise.resolve()
+  if (!desktopReadReady.value || initialScanDisposed || initialScanClosing || deferInitialAlbumContextReads() || !initialScanRelated(currentView.value)) return Promise.resolve()
   initialScanAttemptedRoots.clear()
   initialScanRefreshQueued ||= refresh
   initialScanDiscoverQueued = true
@@ -766,6 +774,7 @@ function installInitialScanObservationLifecycle(): void {
 }
 // 首扫原任务观察结束。
 async function loadWorkspace(): Promise<boolean> {
+  if (!desktopReadReady.value) return false
   if (workspaceLoading) return workspaceLoading
   workspaceLoading = (async () => {
     try {
@@ -1134,6 +1143,7 @@ const netease = useNeteaseLibrary({
   cache: pageCache, getCacheScope: () => JSON.stringify([pageCacheEpoch, selectedZone.value?.zoneId ?? null]),
   api: window.musicBridge,
   getCoreRuntime: () => coreState.value?.runtime,
+  canReadData: () => desktopReadReady.value,
   getRemoteStatus: () => remoteCoreState.value.status,
   getView: () => journey.currentView.value,
   onMatchTracks: (tracks, visible) => { void matchTracks(tracks, visible) },
@@ -1189,8 +1199,9 @@ const journey = usePageJourney({
     actionError.value = null
     actionDiagnosticId.value = null
   },
-  canLeaveRecording: () => recordingViewRef.value?.canLeave() ?? false,
-  canLeaveCollection: () => collectionViewRef.value?.canLeave() ?? false,
+  canLeaveRecording: () => !desktopReadReady.value || (recordingViewRef.value?.canLeave() ?? false),
+  canLeaveCollection: () => !desktopReadReady.value || (collectionViewRef.value?.canLeave() ?? false),
+  canReadData: () => desktopReadReady.value,
   beforeLeave: (destination, resume) => coverDropPageEntry.beforeLeave(destination, resume),
 })
 const {
@@ -1202,10 +1213,19 @@ const {
   returnToSearch, selectAggregatedRoonItem: selectAggregatedRoonItemInJourney,
 } = journey
 
+const preparationViewTitle = computed(() => ({
+  'local-library': '本地音乐', coverdrop: 'CoverDrop', collection: '实物收藏', recording: '录音',
+  search: '搜索', liked: '我喜欢的音乐', 'daily-recommendations': '每日推荐', playlists: '歌单',
+  'playlist-detail': '歌单', 'roon-albums': '专辑', 'roon-artists': '艺术家', 'roon-genres': '流派',
+  'roon-playlists': 'Roon 歌单', 'roon-favorites': '收藏', settings: '设置', queue: '播放队列',
+  'now-playing': '正在播放',
+} as Partial<Record<typeof currentView.value, string>>)[currentView.value] ?? 'Mousa')
+
 const catalogAlbumNavigation = useCatalogAlbumNavigation({ journey, catalog, browser: albumBrowser,
   selectAlbumView: () => { localLibraryViewMode.value = 'albums' } })
 
 function updateCatalogDraft(value: string): void { catalog.invalidatePreview(value) }
+function previewCatalog(value: string): void { if (desktopReadReady.value) void catalog.preview(value) }
 function submitCatalogSearch(value: string): void {
   if (!value.trim()) return
   const origin = currentView.value === 'search' || roonSearchOrigin.value ? journey.searchReturnSource.value : sidebar.activeSource.value
@@ -1215,7 +1235,12 @@ function submitCatalogSearch(value: string): void {
   journey.discardPageSearch()
   journey.searchReturnSource.value = origin
   catalogActionGeneration++; catalogActionPending.value = false
-  void catalog.search(value)
+  if (desktopReadReady.value) void catalog.search(value)
+  else {
+    // 只保存当前查询，不保存待执行回调；就绪后由可见Catalog页面读取一次。
+    catalog.invalidatePreview(value); catalog.query.value = value.trim()
+    catalog.category.value = 'all'; catalog.sourceFilter.value = 'all'; catalog.closeDetail()
+  }
   void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
 }
 function navigateCatalogSource(source: SidebarSource): void {
@@ -1329,8 +1354,8 @@ watch(currentView, (view, previous) => {
   if (view !== previous) { catalogActionGeneration++; catalogActionPending.value = false }
   const localPage = view === 'local-library' || view === 'coverdrop', previousLocalPage = previous === 'local-library' || previous === 'coverdrop'
   beginInitialAlbumContext(view, view === 'coverdrop' || view === 'local-library' && localLibraryViewMode.value === 'albums')
-  if (view === 'settings' || localPage && !deferInitialAlbumContextReads()) void loadWorkspace()
-  if (localPage) void localLibrary.activate({ deferTrackReads: view === 'coverdrop' || localLibraryViewMode.value === 'albums' || !!localLibrarySelectedTrackId.value, deferContextReads: deferInitialAlbumContextReads() })
+  if (desktopReadReady.value && (view === 'settings' || localPage && !deferInitialAlbumContextReads())) void loadWorkspace()
+  if (desktopReadReady.value && localPage) void localLibrary.activate({ deferTrackReads: view === 'coverdrop' || localLibraryViewMode.value === 'albums' || !!localLibrarySelectedTrackId.value, deferContextReads: deferInitialAlbumContextReads() })
   else if (!localPage && previousLocalPage) localLibrary.suspend()
   if (view !== 'local-library') albumBrowser.deactivate()
   if (view !== 'coverdrop') coverDropBrowser.deactivate()
@@ -1344,7 +1369,7 @@ watch(currentView, (view, previous) => {
 watch(localLibraryViewMode, () => {
   if (currentView.value !== 'local-library') return
   beginInitialAlbumContext('local-library', localLibraryViewMode.value === 'albums')
-  if (!deferInitialAlbumContextReads()) { void localLibrary.activate({ deferTrackReads: localLibraryViewMode.value === 'albums' || !!localLibrarySelectedTrackId.value }); void loadWorkspace(); void requestInitialScanRefresh(false) }
+  if (desktopReadReady.value && !deferInitialAlbumContextReads()) { void localLibrary.activate({ deferTrackReads: localLibraryViewMode.value === 'albums' || !!localLibrarySelectedTrackId.value }); void loadWorkspace(); void requestInitialScanRefresh(false) }
 }, { flush: 'sync' })
 
 installInitialScanObservationLifecycle()
@@ -1394,12 +1419,11 @@ watch(() => selectedZone.value?.zoneId, (next, previous) => {
   if (next === previous) return
   invalidatePageCaches(['roon'])
   search.invalidateScope()
-  if (journey.currentView.value === 'search') search.resume()
+  if (desktopReadReady.value && journey.currentView.value === 'search') search.resume()
   browse.resetSession()
   journey.resetRoonPath()
   loadAuthorizedLibraryWhenReady()
-  void browse.resumePageReads(currentView.value)
-  refreshVisibleRoonCollection()
+  if (desktopReadReady.value) { void browse.resumePageReads(currentView.value); refreshVisibleRoonCollection() }
 }, { flush: 'sync' })
 const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
   roonStatus: coreState.value?.roon ?? 'disconnected',
@@ -1408,7 +1432,7 @@ const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
   selected: selectedZone.value !== undefined,
 }))
 watch(() => [selectedZone.value?.zoneId, coreState.value?.roon], () => {
-  if ((currentView.value === 'local-library' || currentView.value === 'coverdrop') && !deferInitialAlbumContextReads()) void localLibrary.refreshContext()
+  if (desktopReadReady.value && (currentView.value === 'local-library' || currentView.value === 'coverdrop') && !deferInitialAlbumContextReads()) void localLibrary.refreshContext()
 })
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
 const greeting = computed(() => {
@@ -1706,7 +1730,7 @@ function navigateShortcut(source: SidebarSource): void {
 
 function navigateCollection(view: 'tapes' | 'music'): void {
   if (currentView.value === 'collection' && collectionView.value === view) return
-  if (currentView.value === 'collection' && collectionViewRef.value?.canLeave() !== true) {
+  if (desktopReadReady.value && currentView.value === 'collection' && collectionViewRef.value?.canLeave() !== true) {
     showToast(collectionViewRef.value?.leaveBlockReason() ?? '当前收藏中的设备运行尚未安全收口。')
     return
   }
@@ -1781,6 +1805,7 @@ const lifecycle = useRendererLifecycle({
     const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
     if (state.sshTarget) updateRemoteSshTarget(state.sshTarget)
+    if (!desktopReadReady.value) return
     if (previousStatus === 'ready' && state.status !== 'ready') { invalidateResultInspections();playback.suspendPlaybackStream(); resetRoonRuntimeReferences() }
     if (previousStatus === 'ready' && state.status !== 'ready') invalidatePageCaches(['local'])
     if (previousStatus === 'ready' && state.status !== 'ready') search.invalidateScope()
@@ -1796,6 +1821,17 @@ const lifecycle = useRendererLifecycle({
     }
   },
   onCoreEvent: event => {
+    if (event.event === 'diagnostic.notice') {
+      diagnosticNotice.value = event.payload
+      preparation.observeNotice(event.payload)
+    }
+    if (!desktopReadReady.value) {
+      // 启动回执之前只接收公开状态；不消耗业务读取或播放同步的重试预算。
+      if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') coreState.value = event.payload.state
+      if (event.event === 'core.ready') preparation.acceptPlaybackReady(event.payload.playbackEvents, playback.acceptPlaybackReady)
+      if (event.event === 'auth.changed') preparingAuthState = event.payload.state
+      return
+    }
     const previousRoonStatus = coreState.value?.roon
     const previousRuntime = coreState.value?.runtime
     if (event.event === 'core.ready' || event.event === 'core.health' && previousRuntime === 'ready' && event.payload.state.runtime !== 'ready') invalidatePageCaches(['local'])
@@ -1868,39 +1904,57 @@ const lifecycle = useRendererLifecycle({
     if (event.event === 'diagnostic.notice') diagnosticNotice.value = event.payload
   },
   initialize: async read => {
-    void playback.initializeLocalLyricsMatch()
     const appInfoResult = await read(() => window.musicBridge.getAppInfo())
-    if (!appInfoResult.active) return
+    if (!appInfoResult.active || startupFailed.value) return
     appInfo.value = appInfoResult.value
+    // 提前挂载时原生标题栏可能尚未注册；读口放行后同步当前已保存的主题。
+    const initialTheme = window.localStorage.getItem(APPEARANCE_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
+    void window.musicBridge.setAppearanceTheme(initialTheme).catch(() => {})
     const storedQuality = window.localStorage.getItem('musicbridge.qualityPreference')
     if (['auto', 'standard', 'exhigh', 'lossless', 'hires'].includes(storedQuality ?? '')) {
       selectedQuality.value = storedQuality as PlaybackQualityPreference
     }
     const remoteResult = await read(() => window.musicBridge.getRemoteCoreState())
-    if (!remoteResult.active) return
+    if (!remoteResult.active || startupFailed.value) return
     remoteCoreState.value = remoteResult.value
     remoteSshTarget.value = restoreRemoteTarget(remoteCoreState.value.sshTarget, window.localStorage)
     remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
     // 首次自动连接由Main在首代Core之前完成；此处只恢复设置显示。
     const coreResult = await read(() => window.musicBridge.getCoreHealth())
-    if (!coreResult.active) return
+    if (!coreResult.active || startupFailed.value) return
     coreState.value = coreResult.value
     const authResult = await read(() => window.musicBridge.getAuthState())
-    if (!authResult.active) return
+    if (!authResult.active || startupFailed.value) return
+    if (preparingAuthState) { applyAuthState(preparingAuthState); preparingAuthState = undefined }
     applyInitialAuthState(authResult.value)
-    if (authResult.value.status !== 'authorized') {
-      const accountResult = await read(loadAccountState)
-      if (!accountResult.active) return
-    }
+    // 只有getAppInfo确认了读口，才消费早到的播放代次；仍由原同步器单飞。
+    preparation.flushPlaybackReady(playback.acceptPlaybackReady)
     if (isCoreRuntimeStable(coreState.value.runtime, remoteCoreState.value.status)) {
       const playbackResult = await read(() => playback.initializePlaybackStream())
       if (!playbackResult.active) return
       await read(loadZones)
     }
+    if (preparingAuthState) { applyAuthState(preparingAuthState); preparingAuthState = undefined }
+    if (!lifecycle.isActive() || !preparation.release(playback.acceptPlaybackReady)) return
+    logLibraryOperation('ui', 'startup.content-ready', 'complete')
+    coreError.value = false
+    void playback.initializeLocalLyricsMatch()
+    loadAuthorizedLibraryWhenReady()
+    if (authState.value.status !== 'authorized') void loadAccountState()
+    // 页面组件此时才挂载；本地专辑沿原页面门禁分页，不等待全部曲库。
+    observeLocalAlbumCoreRecovery('core.health', coreState.value.runtime === 'ready')
+    if (currentView.value === 'settings') void loadWorkspace()
+    if (currentView.value === 'local-library' || currentView.value === 'coverdrop') {
+      void localLibrary.activate({ deferTrackReads: currentView.value === 'coverdrop' || localLibraryViewMode.value === 'albums' || !!localLibrarySelectedTrackId.value,
+        deferContextReads: deferInitialAlbumContextReads() })
+    }
+    refreshVisibleRoonCollection()
+    if (currentView.value === 'roon-favorites') void loadFavorites()
+    if (currentView.value === 'search' && catalog.query.value) void catalog.search(catalog.query.value)
   },
-  onInitializationError: error => {
+  onInitializationError: () => {
     coreError.value = true
-    recordActionError(error)
+    preparation.fail()
   },
 })
 
@@ -1948,7 +2002,7 @@ onUnmounted(() => {
         @navigate="navigateCatalogSource"
         @navigate-collection="navigateCollection"
         @update:search-query="updateCatalogDraft"
-        @suggest-query="catalog.preview"
+        @suggest-query="previewCatalog"
         @submit-query="submitCatalogSearch"
         @select-suggestion="selectCatalogSuggestion"
         @clear-search="updateCatalogDraft('')"
@@ -1958,19 +2012,26 @@ onUnmounted(() => {
       />
 
       <section class="workspace" :class="{ 'is-immersive': isImmersiveNowPlaying }">
+      <p v-if="!desktopReadReady" class="startup-notice" :class="{ 'startup-notice-failed': startupFailed }" :role="startupFailed ? 'alert' : 'status'" :aria-live="startupFailed ? 'assertive' : 'polite'" aria-atomic="true" data-startup-notice>
+        <span>{{ startupMessage }}</span>
+        <button v-if="startupFailed" type="button" class="text-button" @click="navigate('diagnostics')">查看诊断</button>
+      </p>
       <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
       <div ref="contentScroll" class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying, 'is-coverdrop': currentView === 'coverdrop' }">
+        <section v-if="!desktopReadReady && currentView !== 'home' && currentView !== 'diagnostics'" class="view" aria-labelledby="preparation-view-heading">
+          <div class="view-heading"><div><p class="section-kicker">Mousa</p><h2 id="preparation-view-heading">{{ preparationViewTitle }}</h2><p class="lede">{{ startupFailed ? '当前页面尚未读取，可以继续切换页面查看状态。' : '已保留当前页面，准备完成后会读取真实资料。' }}</p></div></div>
+        </section>
         <HomeView
-          v-if="currentView === 'home'"
+          v-else-if="currentView === 'home'"
           :liked-tracks="likedPage.items"
           :recent-tracks="homeTracks"
-          :liked-state="likedHomeState"
+          :liked-state="startupFailed ? 'error' : desktopReadReady ? likedHomeState : 'loading'"
           :liked-error="likedError"
           :playlist-tracks="homePlaylistTracks"
-          :playlist-recommendations-state="homeRecommendationState"
+          :playlist-recommendations-state="startupFailed ? 'error' : homeRecommendationState"
           :daily-day-key="dailyRecommendations.dayKey"
           :daily-tracks="dailyRecommendations.tracks"
-          :daily-state="dailyState"
+          :daily-state="startupFailed ? 'error' : desktopReadReady ? dailyState : 'loading'"
           :daily-authenticated="authState.status === 'authorized'"
           :daily-error="dailyError"
           :greeting="greeting"
@@ -2042,7 +2103,7 @@ onUnmounted(() => {
         </section>
 
         <section v-else-if="currentView === 'roon-artists'" class="view" aria-label="艺术家">
-          <CatalogWorkspace :model="catalog" mode="artists" :busy="playbackStartPending || catalogActionPending || !!catalogLocalUnconfirmed" @select="openCatalogItem" @play="playCatalogItem($event)" @queue="playCatalogItem($event, 'APPEND_MB_QUEUE')" @next="playCatalogItem($event, 'PLAY_NEXT_MB_QUEUE')" @load-roon="loadRoonArtists()">
+          <CatalogWorkspace :model="catalog" mode="artists" :read-ready="desktopReadReady" :busy="playbackStartPending || catalogActionPending || !!catalogLocalUnconfirmed" @select="openCatalogItem" @play="playCatalogItem($event)" @queue="playCatalogItem($event, 'APPEND_MB_QUEUE')" @next="playCatalogItem($event, 'PLAY_NEXT_MB_QUEUE')" @load-roon="loadRoonArtists()">
             <template #roon>
               <label class="catalog-roon-search"><span class="visually-hidden">搜索 Roon 艺术家</span><input type="search" :value="localArtistQuery" placeholder="搜索 Roon 艺术家" maxlength="200" @input="!($event as InputEvent).isComposing && setLocalArtistQuery(($event.target as HTMLInputElement).value)" @compositionend="setLocalArtistQuery(($event.target as HTMLInputElement).value)" /></label>
               <LibraryRefreshNotice :message="browse.roonArtistsRefreshError.value" @retry="retryRoonArtists" />
@@ -2193,7 +2254,7 @@ onUnmounted(() => {
         </template>
 
         <section v-else-if="currentView === 'search'" class="view view-search" aria-label="搜索结果">
-          <CatalogWorkspace :model="catalog" mode="search" :busy="playbackStartPending || catalogActionPending || !!catalogLocalUnconfirmed" @select="openCatalogItem" @play="playCatalogItem($event)" @queue="playCatalogItem($event, 'APPEND_MB_QUEUE')" @next="playCatalogItem($event, 'PLAY_NEXT_MB_QUEUE')" />
+          <CatalogWorkspace :model="catalog" mode="search" :read-ready="desktopReadReady" :busy="playbackStartPending || catalogActionPending || !!catalogLocalUnconfirmed" @select="openCatalogItem" @play="playCatalogItem($event)" @queue="playCatalogItem($event, 'APPEND_MB_QUEUE')" @next="playCatalogItem($event, 'PLAY_NEXT_MB_QUEUE')" />
         </section>
 
         <section v-else-if="currentView === 'liked'" class="view view-library view-liked" aria-labelledby="liked-heading">
@@ -2360,6 +2421,9 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.startup-notice { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 20px 0; padding: 12px 14px; border: 1px solid var(--mb-glass-border); border-radius: 10px; color: var(--mb-text-secondary); background: var(--mb-glass-clear); font-size: 12px; line-height: 1.6; }
+.startup-notice span { flex: 1 1 220px; }
+.startup-notice-failed { color: var(--mb-danger); }
 /* 独立页由实际主内容尺寸承载，播放器避让留在其内部滚动区。 */
 .app-shell:not(.is-now-playing) .content-scroll.is-coverdrop { display: flex; overflow: hidden; padding: 0; scroll-padding-bottom: 0; }
 .command-outbox-entry { min-height: 44px; padding: 8px 12px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font: inherit; font-size: 13px; cursor: pointer; }

@@ -1,4 +1,5 @@
 import { recordingAttempt20Protection } from './record-integrity.js';
+import { withoutLocalAuditObserverSchema } from '../collection/local-audit-write-observer.js';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
@@ -147,7 +148,7 @@ function scalar(db: DatabaseSync, sql: string, key: string): number { return Num
 function attemptEnvironment(db: DatabaseSync): AttemptEnvironment | null {
   try {
     if (!db.isTransaction) return null;
-    const temporary = db.prepare('SELECT type,name,tbl_name,sql FROM sqlite_temp_schema ORDER BY type,name').all();
+    const temporary = withoutLocalAuditObserverSchema(db, db.prepare('SELECT type,name,tbl_name,sql FROM sqlite_temp_schema ORDER BY type,name').all());
     if (temporary.length !== 0) return null;
     const databases = db.prepare('PRAGMA database_list').all(), main = databases[0], temp = databases[1];
     if ((databases.length !== 1 && databases.length !== 2) || main?.seq !== 0 || main?.name !== 'main' || typeof main.file !== 'string' || main.file.length === 0

@@ -5,6 +5,7 @@ import {
   type RemoteCoreMode,
 } from '@music-bridge/contracts'
 import path from 'node:path'
+import { DEFAULT_LOCAL_CORE_PORTS, LocalCorePortError, parseLocalCorePort, type LocalCorePorts } from './local-core-ports.js'
 
 const CORE_RUNTIME_ENV_KEYS = [
   'NODE_ENV',
@@ -32,6 +33,7 @@ export interface CoreEnvironmentOptions {
   remoteCoreMode?: RemoteCoreMode
   remoteStreamPort?: number
   remoteLocalPorts?: RemoteCoreLocalPorts
+  localCorePorts?: Readonly<LocalCorePorts>
   dataDirectory?: string
 }
 
@@ -118,6 +120,26 @@ export function buildCoreEnvironment(
   if (options.roonImageGate && isRoonImageGatePath(parent.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH)) {
     environment.MUSIC_BRIDGE_ROON_IMAGE_GATE = '1'
     environment.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH = parent.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
+  }
+
+  if (options.remoteCoreMode !== 'remote-core-development' && options.localCorePorts) {
+    const ports = options.localCorePorts
+    for (const [role, value] of [['control', ports.controlPort], ['stream', ports.streamPort]] as const) {
+      if (!Number.isInteger(value) || value < 1 || value > 65535) throw new LocalCorePortError('CONFIG_INVALID', role)
+      const explicit = parent[role === 'control' ? 'BRIDGE_CONTROL_PORT' : 'BRIDGE_STREAM_PORT']
+      const fixedPublicBase = role === 'stream' && Boolean(parent.BRIDGE_PUBLIC_STREAM_BASE_URL?.trim())
+      if (explicit?.trim() || fixedPublicBase) {
+        const expected = parseLocalCorePort(explicit, role === 'control' ? DEFAULT_LOCAL_CORE_PORTS.controlPort : DEFAULT_LOCAL_CORE_PORTS.streamPort, role)
+        if (value !== expected) throw new LocalCorePortError('CONFIG_INVALID', role)
+      }
+    }
+    environment.BRIDGE_CONTROL_PORT = String(ports.controlPort)
+    environment.BRIDGE_STREAM_PORT = String(ports.streamPort)
+    if (!parent.BRIDGE_PUBLIC_STREAM_BASE_URL?.trim()) {
+      const host = parent.BRIDGE_STREAM_HOST?.trim() || '127.0.0.1'
+      if (host !== '127.0.0.1' && host !== '::1') throw new LocalCorePortError('CONFIG_INVALID', 'stream')
+      environment.BRIDGE_PUBLIC_STREAM_BASE_URL = `http://${host === '::1' ? '[::1]' : host}:${ports.streamPort}`
+    }
   }
 
   if (options.remoteCoreMode === 'remote-core-development') {

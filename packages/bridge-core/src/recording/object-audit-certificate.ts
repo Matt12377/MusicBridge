@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { withoutLocalAuditObserverSchema } from '../collection/local-audit-write-observer.js';
 import type { DatabaseSync } from 'node:sqlite';
 
 export type ObjectAuditCertificateAction = 'begin' | 'progress' | 'terminal-event' | 'terminal-stop' | 'attempt-event' | 'attempt-command' | 'attempt-complete' | 'output-run' | 'print-claim' | 'print-complete' | 'other';
@@ -61,7 +62,7 @@ function digest(value: unknown): string {
 function environment(db: DatabaseSync): EnvironmentToken | null {
   try {
     if (!db.isTransaction) return null;
-    const temp = db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_temp_schema ORDER BY type,name").all();
+    const temp = withoutLocalAuditObserverSchema(db, db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_temp_schema ORDER BY type,name").all());
     if (temp.length !== 0) return null;
     const databases = db.prepare('PRAGMA database_list').all();
     const main=databases[0],temporary=databases[1];

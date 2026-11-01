@@ -32,7 +32,7 @@ import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, MOBI
   type MobileContentCoreRequest, type MobileContentCoreResponse } from '../../../../packages/bridge-core/src/mobile/content-rpc.js'
 import { createLibraryReadTraceStreamReader, emitLibraryReadTrace, libraryReadTraceFailure, type LibraryReadTraceSink } from '../shared/library-read-trace.js'
 import { createPlaybackFailureTraceStreamReader } from '../shared/playback-failure-trace.js'
-import { createLibraryOperationLogReader, logLibraryOperation } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { createLibraryOperationLogReader, readLibraryOperationLine, logLibraryOperation, type LibraryOperationEvent } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
 import { writeDiagnosticStdout, writeDiagnosticStderr } from './diagnostic-stdio.js'
 import { sameMobileContentScope } from '../../../../packages/bridge-core/src/mobile/content-service.js'
 import type { MobileContentCancelRecheck } from './mobile-content-port.js'
@@ -259,6 +259,7 @@ export class CoreSupervisor {
       entryPath: string
       cwd: string
       env?: NodeJS.ProcessEnv
+      prepareEnvironment?: (environment: NodeJS.ProcessEnv) => Promise<NodeJS.ProcessEnv>
       playbackEventProtocol?: PlaybackEventProtocol | null
       sourceWritesPort?: true
       relocationMainPort?: true
@@ -268,6 +269,7 @@ export class CoreSupervisor {
       onEvent?: (event: TypedIpcEvent) => void
       onReady?: (client: CoreStartupClient) => Promise<void> | void
       onLifecycle?: (event: CoreSupervisorLifecycle) => void
+      onLibraryOperation?: (event: LibraryOperationEvent) => void
       performance?: PerformanceTraceRecorder
       performanceContext?: () => PerformanceTraceContext | undefined
       libraryReadTrace?: LibraryReadTraceSink
@@ -992,11 +994,12 @@ export class CoreSupervisor {
     }
     if (this._status === 'ready') return
     if (this.childExit) throw new CoreIpcError('NOT_READY', '旧 Core 未确认退出，禁止启动新进程')
-    this.startPromise = this.startWithOneRetry()
+    const starting = this.startWithOneRetry()
+    this.startPromise = starting
     try {
-      await this.startPromise
+      await starting
     } finally {
-      this.startPromise = undefined
+      if (this.startPromise === starting) this.startPromise = undefined
     }
   }
 
@@ -1153,6 +1156,8 @@ export class CoreSupervisor {
       this.shuttingDown = false
       this._status = 'stopped'
       this.readyTimeoutOverride = timeout
+      this.startPromise = undefined
+      this.restartPromise = undefined
       try { await this.start() }
       finally { this.readyTimeoutOverride = undefined }
     })()
@@ -1243,7 +1248,13 @@ export class CoreSupervisor {
     }
   }
 
-  private spawnAndAwaitReady(): Promise<void> {
+  private async spawnAndAwaitReady(): Promise<void> {
+    if (this.options.prepareEnvironment) {
+      const intent = this.lifecycleRequestGeneration
+      const environment = await this.options.prepareEnvironment({ ...(this.options.env ?? {}) })
+      if (this.shuttingDown || this.lifecycleRequestGeneration !== intent) throw new CoreIpcError('NOT_READY', 'Core 启动已被后续关闭或重启请求撤销')
+      this.options.env = environment
+    }
     const channel = this.options.dependencies.createChannel()
     const sourceChannel = this.options.sourceWritesPort ? this.options.dependencies.createSourceWritesChannel?.() : undefined
     if (this.options.sourceWritesPort && !sourceChannel) { channel.port2.close(); channel.port1.close(); throw new CoreIpcError('NOT_READY', '缺少可信 Main 源写专用通道。') }
@@ -1280,7 +1291,12 @@ export class CoreSupervisor {
       privateMobileRelay.capability(row)
       try { this.options.onMobileCapabilityTrace?.(row) } catch { /* 旁注分发失败不改变当前Core或原业务。 */ }
     })
-    const consumeLibraryOperation = createLibraryOperationLogReader(line => { if (this.child === child) writeDiagnosticStdout(line) })
+    const consumeLibraryOperation = createLibraryOperationLogReader(line => {
+      if (this.child !== child) return
+      writeDiagnosticStdout(line)
+      const event = readLibraryOperationLine(line.trimEnd())
+      if (event) try { this.options.onLibraryOperation?.(event) } catch { /* 阶段显示不改变原启动。 */ }
+    })
     const writeLocalPlaybackGuard = this.options.dependencies.writeLocalPlaybackGuard ?? writeLocalPlaybackGuardSync
     const forwardLocalPlaybackGuard: LocalPlaybackGuardSink = row => {
       if (this.child !== child) return false
@@ -1394,9 +1410,10 @@ export class CoreSupervisor {
         )
       }
       if (completedReady && !this.shuttingDown && !this.restartPromise) {
-        this.restartPromise = this.restartAfterCrash(attempt)
-        void this.restartPromise.finally(() => {
-          this.restartPromise = undefined
+        const restarting = this.restartAfterCrash(attempt)
+        this.restartPromise = restarting
+        void restarting.finally(() => {
+          if (this.restartPromise === restarting) this.restartPromise = undefined
         })
       }
     }

@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { logLibraryOperation } from '../../../../../packages/bridge-core/src/shared/library-operation-log.js'
 
 import App from './App.vue'
 import './style.css'
@@ -12,9 +13,7 @@ import './settings-design.css'
 import { APPEARANCE_STORAGE_KEY, appearanceKey, createAppearancePreference } from './appearance.js'
 
 async function mountPreparedApp(): Promise<void> {
-  // 原API形状不变；preload在发getAppInfo前等待本次真实启动结算。
-  await window.musicBridge.getAppInfo()
-
+  // 先显示原界面；业务首读由App内的同次启动回执放行。
   // 键盘操作即时响应；只有指针操作触发装饰性的进入和按压动效。
   const motionRoot = document.documentElement
   const pointerMotion = () => { motionRoot.dataset.motionInput = 'pointer' }
@@ -42,7 +41,7 @@ async function mountPreparedApp(): Promise<void> {
     document.removeEventListener('visibilitychange', updateMotionVisibility)
   })
   app.mount('#app')
-
+  requestAnimationFrame(() => logLibraryOperation('ui', 'startup.interface', 'complete', { elapsedMs: performance.now() }))
 }
 
 void mountPreparedApp().catch(() => {

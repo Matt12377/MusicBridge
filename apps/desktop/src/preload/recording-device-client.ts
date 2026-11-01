@@ -1,7 +1,7 @@
 import type { RecordingDeviceSelectionPublicApi } from '@music-bridge/contracts'
 
 /** 窗口加载时固定工作库身份；设备选择不排队、不跨激活数据集重放。 */
-export function createRecordingDeviceClient(invoke: (channel: string, value?: unknown) => Promise<unknown>): RecordingDeviceSelectionPublicApi {
+export function createRecordingDeviceClient(invoke: (channel: string, value?: unknown) => Promise<unknown>, isReady: () => boolean = () => true): RecordingDeviceSelectionPublicApi {
   const failure = () => new Error('[OUTBOX_SCOPE_MISMATCH] 工作库身份未获确认，请重新加载录音窗口。')
   const scope = invoke('commandOutbox:context').then(value => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw failure()
@@ -12,6 +12,7 @@ export function createRecordingDeviceClient(invoke: (channel: string, value?: un
   }).catch(() => { throw failure() })
   void scope.catch(() => undefined)
   async function send<T>(name: 'candidates' | 'select', payload: unknown): Promise<T> {
+    if (!isReady()) throw new Error('[NOT_READY] 应用正在准备，请稍后操作。')
     const snapshot = structuredClone(payload)
     return await invoke(`recordingDevice:${name}`, { datasetId: await scope, payload: snapshot }) as T
   }

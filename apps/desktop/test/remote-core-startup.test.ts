@@ -11,6 +11,9 @@ import { RemoteCoreTunnelManager, type RemoteSshProcess } from '../src/main/remo
 import { createRemoteCoreStartup } from '../src/main/remote-core-startup.js'
 import { createLocalWorkbenchQuitCoordinator } from '../src/main/local-library-workbench/quit-coordinator.js'
 import { logLibraryOperation, readLibraryOperationLine, type LibraryOperationEvent } from '../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { createCommandOutboxClient, createCommandOutboxDatasetScope } from '../src/preload/command-outbox-client.js'
+import { createRecordingRecordClient } from '../src/preload/recording-record-client.js'
+import { createRecordingDeviceClient } from '../src/preload/recording-device-client.js'
 
 const nonce = 'd0000000-0000-4000-8000-000000000001'
 const turn = () => new Promise<void>(resolve => setImmediate(resolve))
@@ -284,25 +287,84 @@ test('同源早期preload偏好不等DOM，全部context纯读等结算且变更
   assert.equal(calls.includes('playback:play'), false)
 })
 
-test('实际Renderer入口在bootstrap结算前不创建App、不初始化appearance；失败保可见提示', async () => {
+test('准备期scoped业务立即拒绝，bootstrap完成也不会自动发送旧修改', async () => {
+  const source = await readFile(new URL('../src/preload/index.ts', import.meta.url), 'utf8')
+  const bootstrap = source.slice(source.indexOf('// 偏好消息与DOM/module完成独立'), source.indexOf('const rendererPerformance'))
+  const invoker = source.slice(source.indexOf('const invokePerformance: typeof ipcRenderer.invoke = (channel'), source.indexOf('const outbox ='))
+  const ready = deferred(), calls: string[] = [], datasetId = 'd0000000-0000-4000-8000-000000000002'
+  const result: { scope?: () => Promise<string>; outbox?: ReturnType<typeof createCommandOutboxClient> } = {}
+  runInNewContext(ts.transpileModule(bootstrap + '\n' + invoker + '\nresult.scope = getDatasetId; result.outbox = createCommandOutboxClient(invokeScoped, getDatasetId)', {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText, {
+    result, createCommandOutboxDatasetScope, createCommandOutboxClient, structuredClone,
+    process: { argv: ['--music-bridge-startup-nonce=' + nonce] }, window: { localStorage: { getItem: () => null } },
+    ipcRenderer: { invoke: async (channel: string) => { if (channel.endsWith('bootstrap-ready')) await ready.promise } },
+    invokeObserved: async (channel: string) => { calls.push(channel); return { datasetId } },
+  })
+  await assert.rejects(result.scope!(), /\[NOT_READY\]/u)
+  await assert.rejects(result.outbox!.submit('localLibrary.chooseRoot', { commandId: nonce }), /\[NOT_READY\]/u)
+  assert.equal(calls.length, 0)
+  ready.resolve(); await turn()
+  assert.deepEqual(calls, ['commandOutbox:context'])
+  assert.equal(await result.scope!(), datasetId)
+  assert.equal(calls.includes('commandOutbox:submit'), false)
+})
+
+for (const target of ['record', 'device'] as const) test(`实际preload ${target}准备期拒绝修改，ready后不会补发旧意图`, async t => {
+  const source = await readFile(new URL('../src/preload/index.ts', import.meta.url), 'utf8')
+  const bootstrap = source.slice(source.indexOf('// 偏好消息与DOM/module完成独立'), source.indexOf('const rendererPerformance'))
+  const invoker = source.slice(source.indexOf('const invokePerformance: typeof ipcRenderer.invoke = (channel'), source.indexOf('const outbox ='))
+  const constructorName = target === 'record' ? 'createRecordingRecordClient' : 'createRecordingDeviceClient'
+  const construction = source.match(new RegExp('^\\s+' + constructorName + '\\([^\\n]+\\),$', 'mu'))?.[0].trim().replace(/,$/u, '')
+  assert.ok(construction, '必须使用实际preload注入的client构造表达式')
+  const ready = deferred(), datasetId = 'd0000000-0000-4000-8000-000000000002'
+  const calls: Array<{ channel: string; value?: unknown }> = []
+  const result: { client?: ReturnType<typeof createRecordingRecordClient> | ReturnType<typeof createRecordingDeviceClient> } = {}
+  t.after(async () => { ready.resolve(); await turn() })
+  runInNewContext(ts.transpileModule(bootstrap + '\n' + invoker + '\nresult.client = ' + construction, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText, {
+    result, createCommandOutboxDatasetScope, createRecordingRecordClient, createRecordingDeviceClient,
+    process: { argv: ['--music-bridge-startup-nonce=' + nonce] }, window: { localStorage: { getItem: () => null } },
+    ipcRenderer: { invoke: async (channel: string) => { if (channel.endsWith('bootstrap-ready')) await ready.promise } },
+    invokeObserved: async (channel: string, value?: unknown) => { calls.push({ channel, value }); return channel === 'commandOutbox:context' ? { datasetId } : {} },
+  })
+  const record = result.client as ReturnType<typeof createRecordingRecordClient>
+  const device = result.client as ReturnType<typeof createRecordingDeviceClient>
+  const original = target === 'record' ? record.applyPhysicalRecordingDisposition({} as never) : device.selectRecordingDevice({} as never)
+  // 一轮事件循环内必须拒绝；退回旧实现时也不让测试挂在未放行的context上。
+  const outcome = await Promise.race([original.then(() => null, error => String(error)), turn().then(() => '仍在等待context')])
+  assert.match(String(outcome), /\[NOT_READY\]/u)
+  assert.equal(calls.length, 0)
+  ready.resolve(); await turn()
+  const mutation = target === 'record' ? 'recordingRecords:applyDisposition' : 'recordingDevice:select'
+  assert.equal(calls.some(call => call.channel === mutation), false)
+  if (target === 'record') await record.getRecordingRecord(nonce)
+  else await device.listRecordingDeviceCandidates()
+  assert.equal(calls.some(call => call.channel === mutation), false)
+  const fresh = calls.find(call => call.channel === (target === 'record' ? 'recordingRecords:get' : 'recordingDevice:candidates'))
+  assert.equal((fresh?.value as { datasetId?: string } | undefined)?.datasetId, datasetId)
+})
+
+test('实际Renderer入口不等待bootstrap即可挂载原App；挂载异常保留可见兜底', async () => {
   const source = await readFile(new URL('../src/renderer/src/main.ts', import.meta.url), 'utf8')
   const program = source.slice(source.indexOf('async function mountPreparedApp'))
   for (const reject of [false, true]) {
-    let release!: () => void, fail!: () => void
-    const waiting = new Promise<void>((resolve, rejected) => { release = resolve; fail = () => rejected(new Error('原失败')) })
+    let infoReads = 0
     const calls: string[] = [], message = { textContent: '正在准备音乐库…' }
     const root = { dataset: {}, classList: { add() {}, remove() {} } }
     const document = { hidden: false, documentElement: root, addEventListener() {}, removeEventListener() {}, querySelector: () => message }
-    const app = { use() { return this }, provide() { return this }, onUnmount() {}, mount() { calls.push('mount') } }
+    const app = { use() { return this }, provide() { return this }, onUnmount() {}, mount() { if (reject) throw new Error('合成挂载失败'); calls.push('mount') } }
     runInNewContext(ts.transpileModule(program, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
-      window: { musicBridge: { getAppInfo: () => waiting, setAppearanceTheme: async () => {} }, localStorage: {} },
+      window: { musicBridge: { getAppInfo: () => { infoReads++; return new Promise(() => {}) }, setAppearanceTheme: async () => {} }, localStorage: {} },
       document, createApp: () => { calls.push('app'); return app }, createPinia: () => ({}), App: {},
+      requestAnimationFrame: (callback: () => void) => { callback(); return 1 }, performance: { now: () => 1 }, logLibraryOperation() {},
       appearanceKey: Symbol(), APPEARANCE_STORAGE_KEY: 'theme', createAppearancePreference: () => { calls.push('appearance'); return {} },
     })
-    assert.deepEqual(calls, [])
-    if (reject) fail(); else release()
+    assert.deepEqual(calls, reject ? ['appearance', 'app'] : ['appearance', 'app', 'mount'])
+    assert.equal(infoReads, 0)
     await turn()
-    assert.deepEqual(calls, reject ? [] : ['appearance', 'app', 'mount'])
+    assert.deepEqual(calls, reject ? ['appearance', 'app'] : ['appearance', 'app', 'mount'])
     assert.equal(message.textContent, reject ? '音乐库暂时无法打开，请退出后重试。' : '正在准备音乐库…')
   }
 })

@@ -46,6 +46,8 @@ export interface PageJourneyOptions {
   onClearActionError: () => void
   canLeaveRecording?: () => boolean
   canLeaveCollection?: () => boolean
+  /** 准备期仍更新导航，仅在桌面读口就绪后读取页面。 */
+  canReadData?: () => boolean
   /** 本地艺术家页独立加载；Roon目录等到用户切换来源后读取。 */
   localArtistsEnabled?: boolean
   /** 新Catalog只提供当前搜索的返回快照，不向旧聚合搜索复制词或结果。 */
@@ -56,6 +58,7 @@ export interface PageJourneyOptions {
 
 export function usePageJourney(options: PageJourneyOptions) {
   const { search, browse, library, onPlayRoonTrack, onCloseInspector, onClearActionError } = options
+  const canReadData = (): boolean => options.canReadData?.() !== false
   const currentView = ref<ViewId>('home')
   const nowPlayingReturnView = ref<ViewId>('home')
   const sidebar = useSidebarState()
@@ -98,6 +101,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function resumeOwnedReads(view: ViewId, explicitSource = false): void {
+    if (!canReadData()) return
     void browse.resumePageReads?.(view)
     if (view !== 'playlist-detail' || !explicitSource) library.resumePageReads?.(view)
     if (view === 'search') search.resume?.()
@@ -144,7 +148,7 @@ export function usePageJourney(options: PageJourneyOptions) {
     resumeOwnedReads(view, alreadyGuarded)
     if (view !== 'queue') onCloseInspector()
     onClearActionError()
-    if (view === 'search' && search.searchQuery.value.trim() && !search.resume) search.scheduleSearch()
+    if (canReadData() && view === 'search' && search.searchQuery.value.trim() && !search.resume) search.scheduleSearch()
     if (view === 'liked') {
       sidebar.setActiveSource({ type: 'liked' })
     }
@@ -153,21 +157,21 @@ export function usePageJourney(options: PageJourneyOptions) {
     }
     if (view === 'roon-albums') {
       sidebar.setActiveSource({ type: 'roon-albums' })
-      if (!browse.roonAlbumsPage.value.items.length && !browse.roonAlbumsInitialLoading.value) void browse.loadRoonAlbums()
+      if (canReadData() && !browse.roonAlbumsPage.value.items.length && !browse.roonAlbumsInitialLoading.value) void browse.loadRoonAlbums()
     }
     if (view === 'roon-favorites') {
       sidebar.setActiveSource({ type: 'roon-favorites' })
-      if (!browse.favoritesInitialLoading.value && !browse.favoritesPage.value.items.length) void browse.loadFavorites()
+      if (canReadData() && !browse.favoritesInitialLoading.value && !browse.favoritesPage.value.items.length) void browse.loadFavorites()
     }
     if (view === 'home') {
       sidebar.setActiveSource({ type: 'home' })
     }
     if (view === 'local-library') sidebar.setActiveSource({ type: 'local-library' })
     if (view === 'coverdrop') sidebar.setActiveSource({ type: 'coverdrop' })
-    if (view === 'liked' && !library.hasLikedItems()) {
+    if (canReadData() && view === 'liked' && !library.hasLikedItems()) {
       void library.loadLiked()
     }
-    if (view === 'playlists' && !library.isPlaylistReady()) {
+    if (canReadData() && view === 'playlists' && !library.isPlaylistReady()) {
       void library.loadPlaylists()
     }
   }
@@ -235,6 +239,7 @@ export function usePageJourney(options: PageJourneyOptions) {
     leaveOwnedReads(destination)
     sidebar.setActiveSource(source)
     navigate(destination, false, true)
+    if (!canReadData()) return
     if (source.type === 'playlist') void library.loadPlaylist(source.playlistId)
     if (source.type === 'roon-albums') {
       if (!browse.roonAlbumsInitialLoading.value && (!browse.roonAlbumsPage.value.items.length || browse.roonAlbumsError.value)) void browse.loadRoonAlbums()
@@ -264,8 +269,8 @@ export function usePageJourney(options: PageJourneyOptions) {
     const source = searchReturnSource.value
     sidebar.setActiveSource(source)
     currentView.value = viewForSource(source)
-    if (source.type === 'liked' && !library.hasLikedItems()) void library.loadLiked()
-    if (source.type === 'playlists' && !library.isPlaylistReady()) void library.loadPlaylists()
+    if (canReadData() && source.type === 'liked' && !library.hasLikedItems()) void library.loadLiked()
+    if (canReadData() && source.type === 'playlists' && !library.isPlaylistReady()) void library.loadPlaylists()
   }
 
   const localSearchOrigin = ref<'album' | 'artist' | null>(null)

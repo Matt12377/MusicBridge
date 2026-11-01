@@ -740,13 +740,217 @@ for (const command of ['recordingPlans.preview', 'recordingPlans.freeze', 'recor
   });
 }
 
-function startupHarness(options: { startupTimeoutMs?: number; onReady?: (client: import('../src/main/core-supervisor.js').CoreStartupClient) => Promise<void> | void } = {}) {
+function startupHarness(options: {
+  startupTimeoutMs?: number
+  env?: NodeJS.ProcessEnv
+  prepareEnvironment?: (environment: NodeJS.ProcessEnv) => Promise<NodeJS.ProcessEnv>
+  onReady?: (client: import('../src/main/core-supervisor.js').CoreStartupClient) => Promise<void> | void
+} = {}) {
   const base = makeHarness(), events: string[] = []
   const supervisor = new CoreSupervisor({ entryPath: '/tmp/core-entry.js', cwd: '/tmp', dependencies: base.dependencies, ...options, onLifecycle: event => events.push(event.event), onEvent: event => events.push(event.event) })
   return { ...base, supervisor, events }
 }
 const flushStartup = () => new Promise<void>(resolve => setImmediate(resolve))
 function startupDeferred() { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done }); return { promise, resolve } }
+
+function startupEnvironmentDeferred() {
+  let resolve!: (environment: NodeJS.ProcessEnv) => void, reject!: (error: unknown) => void
+  const promise = new Promise<NodeJS.ProcessEnv>((done, fail) => { resolve = done; reject = fail })
+  return { promise, resolve, reject }
+}
+async function closeStartupHarness(harness: ReturnType<typeof startupHarness>, gates: ReturnType<typeof startupEnvironmentDeferred>[] = []) {
+  const closing = harness.supervisor.shutdown().catch(() => {})
+  for (const gate of gates) gate.resolve({})
+  // 先让Fake关闭回执完成，再发物理exit；exit本身不能代替原关闭回包。
+  await flushStartup()
+  for (const child of harness.children) child.exit(0)
+  await closing
+}
+
+test('端口环境准备：deferred期间零fork且重复start合并，最终环境保留非端口字段', async t => {
+  const gate = startupEnvironmentDeferred()
+  const original = Object.freeze({ NODE_ENV: 'development', MB_MEDIA_WORKER_BINARY: '/合成/worker', MB_MEDIA_WORKER_BINARY_SHA256: 'a'.repeat(64) })
+  const inputs: NodeJS.ProcessEnv[] = []
+  const h = startupHarness({ env: original, prepareEnvironment: environment => { inputs.push(environment); return gate.promise } })
+  t.after(() => closeStartupHarness(h, [gate]))
+  let firstDone = false, secondDone = false
+  const first = h.supervisor.start().then(() => { firstDone = true })
+  const second = h.supervisor.start().then(() => { secondDone = true })
+  await flushStartup()
+  assert.equal(inputs.length, 1)
+  assert.notEqual(inputs[0], original)
+  assert.deepEqual(inputs[0], original)
+  assert.equal(h.children.length, 0)
+  assert.equal(h.channels.length, 0)
+  assert.equal(firstDone || secondDone, false)
+  const selected = { ...inputs[0], BRIDGE_CONTROL_PORT: '42001', BRIDGE_STREAM_PORT: '42002', BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:42002' }
+  gate.resolve(selected)
+  await flushStartup()
+  assert.equal(h.children.length, 1)
+  assert.deepEqual(h.forkOptions[0]!.env, selected)
+  assert.equal(h.supervisor.status, 'starting')
+  assert.equal(firstDone || secondDone, false)
+  ready(h.channels[0]!)
+  await Promise.all([first, second])
+  await h.supervisor.start()
+  assert.equal(inputs.length, 1)
+  assert.equal(h.children.length, 1)
+  assert.deepEqual(original, { NODE_ENV: 'development', MB_MEDIA_WORKER_BINARY: '/合成/worker', MB_MEDIA_WORKER_BINARY_SHA256: 'a'.repeat(64) })
+})
+
+for (const recovery of ['startup-failure', 'ready-crash'] as const) test(`端口环境准备：${recovery === 'startup-failure' ? '首轮启动失败' : '已ready后崩溃'}必须重选后再fork`, async t => {
+  let prepares = 0
+  const h = startupHarness({ env: { MB_MEDIA_WORKER_BINARY: '/合成/worker' }, prepareEnvironment: async environment => {
+    const controlPort = 42101 + 2 * prepares++
+    return { ...environment, BRIDGE_CONTROL_PORT: String(controlPort), BRIDGE_STREAM_PORT: String(controlPort + 1),
+      BRIDGE_PUBLIC_STREAM_BASE_URL: `http://127.0.0.1:${controlPort + 1}` }
+  } })
+  t.after(() => closeStartupHarness(h))
+  const initial = h.supervisor.start()
+  await flushStartup()
+  assert.equal(prepares, 1)
+  if (recovery === 'ready-crash') { ready(h.channels[0]!); await initial }
+  h.children[0]!.exit(1)
+  await flushStartup()
+  assert.equal(prepares, 2)
+  assert.equal(h.children.length, 2)
+  assert.equal(h.forkOptions[0]!.env.BRIDGE_CONTROL_PORT, '42101')
+  assert.equal(h.forkOptions[1]!.env.BRIDGE_CONTROL_PORT, '42103')
+  assert.equal(h.forkOptions[1]!.env.BRIDGE_STREAM_PORT, '42104')
+  assert.equal(h.forkOptions[1]!.env.BRIDGE_PUBLIC_STREAM_BASE_URL, 'http://127.0.0.1:42104')
+  assert.equal(h.forkOptions[1]!.env.MB_MEDIA_WORKER_BINARY, '/合成/worker')
+  const recovered = recovery === 'ready-crash' ? h.supervisor.start() : initial
+  ready(h.channels[1]!)
+  await recovered
+  assert.equal(h.supervisor.status, 'ready')
+  assert.equal(prepares, 2)
+  assert.equal(h.children.length, 2)
+})
+
+for (const lateFailure of [false, true]) test(`端口环境准备：shutdown后迟到${lateFailure ? '失败' : '成功'}不fork、不再准备且保持stopped`, async t => {
+  const gate = startupEnvironmentDeferred()
+  let prepares = 0
+  const h = startupHarness({ prepareEnvironment: () => { prepares++; return gate.promise } })
+  t.after(() => closeStartupHarness(h, [gate]))
+  const starting = h.supervisor.start().then(() => 'unexpected-ready', error => error)
+  await flushStartup()
+  assert.equal(prepares, 1)
+  assert.equal(h.children.length, 0)
+  await h.supervisor.shutdown()
+  const failure = Object.assign(new Error('合成已撤销的端口探测失败'), { code: 'EADDRINUSE' })
+  if (lateFailure) gate.reject(failure)
+  else gate.resolve({ BRIDGE_CONTROL_PORT: '42201', BRIDGE_STREAM_PORT: '42202' })
+  const outcome = await starting
+  if (lateFailure) assert.equal(outcome, failure)
+  else assert.equal(outcome.code, 'NOT_READY')
+  await flushStartup()
+  assert.equal(prepares, 1)
+  assert.equal(h.children.length, 0)
+  assert.equal(h.channels.length, 0)
+  assert.equal(h.supervisor.status, 'stopped')
+  assert.equal(h.events.some(event => event === 'spawn' || event === 'restart' || event === 'failed'), false)
+})
+
+test('端口环境准备：旧local晚到不能覆盖remote环境，也不能清除新start的合并等待', async t => {
+  const localGate = startupEnvironmentDeferred(), remoteGate = startupEnvironmentDeferred()
+  const inputs: NodeJS.ProcessEnv[] = []
+  const h = startupHarness({ env: { BRIDGE_CONTROL_PORT: '42301', BRIDGE_STREAM_PORT: '42302' }, prepareEnvironment: environment => {
+    inputs.push(environment)
+    assert.ok(inputs.length <= 2, '重复start必须合并新一代环境准备，不能另开准备。')
+    return inputs.length === 1 ? localGate.promise : remoteGate.promise
+  } })
+  t.after(() => closeStartupHarness(h, [localGate, remoteGate]))
+  const oldStarting = h.supervisor.start().then(() => 'unexpected-ready', error => error)
+  await flushStartup()
+  const remote = Object.freeze({ MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development', MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38513',
+    BRIDGE_CONTROL_HOST: '127.0.0.1', BRIDGE_CONTROL_PORT: '38601', BRIDGE_STREAM_HOST: '127.0.0.1', BRIDGE_STREAM_PORT: '38602',
+    BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38513', MB_MEDIA_WORKER_BINARY: '/合成/remote-worker' })
+  let restarted = false, joined = false
+  const restarting = h.supervisor.restart(remote).then(() => { restarted = true })
+  await flushStartup()
+  assert.equal(inputs.length, 2)
+  assert.deepEqual(inputs[1], remote)
+  assert.equal(h.children.length, 0)
+  localGate.resolve({ BRIDGE_CONTROL_PORT: '49991', BRIDGE_STREAM_PORT: '49992', MB_MEDIA_WORKER_BINARY: '/合成/旧worker' })
+  assert.equal((await oldStarting).code, 'NOT_READY')
+  const repeated = h.supervisor.start().then(() => { joined = true })
+  await flushStartup()
+  assert.equal(inputs.length, 2)
+  assert.equal(restarted || joined, false)
+  assert.equal(h.children.length, 0)
+  remoteGate.resolve({ ...inputs[1] })
+  await flushStartup()
+  assert.equal(h.children.length, 1)
+  assert.deepEqual(h.forkOptions[0]!.env, remote)
+  ready(h.channels[0]!)
+  await Promise.all([restarting, repeated])
+  assert.equal(h.supervisor.status, 'ready')
+  assert.equal(inputs.length, 2)
+})
+
+test('端口环境准备：旧自动恢复finally不能清除手动换代后的新自动恢复', async t => {
+  const oldAutomatic = startupEnvironmentDeferred(), newAutomatic = startupEnvironmentDeferred()
+  const inputs: NodeJS.ProcessEnv[] = []
+  const h = startupHarness({ env: { BRIDGE_CONTROL_PORT: '42401', BRIDGE_STREAM_PORT: '42402' }, prepareEnvironment: environment => {
+    inputs.push(environment)
+    assert.ok(inputs.length <= 4, '旧恢复结束后重复start仍须复用当前自动恢复。')
+    if (inputs.length === 2) return oldAutomatic.promise
+    if (inputs.length === 4) return newAutomatic.promise
+    return Promise.resolve({ ...environment })
+  } })
+  t.after(() => closeStartupHarness(h, [oldAutomatic, newAutomatic]))
+  const initial = h.supervisor.start()
+  await flushStartup()
+  ready(h.channels[0]!); await initial
+  h.children[0]!.exit(1)
+  await flushStartup()
+  assert.equal(inputs.length, 2)
+  assert.equal(h.children.length, 1)
+  const replacement = { BRIDGE_CONTROL_PORT: '42501', BRIDGE_STREAM_PORT: '42502', MB_MEDIA_WORKER_BINARY: '/合成/新worker' }
+  const manualRestart = h.supervisor.restart(replacement)
+  await flushStartup()
+  assert.equal(inputs.length, 3)
+  assert.equal(h.children.length, 2)
+  assert.deepEqual(h.forkOptions[1]!.env, replacement)
+  ready(h.channels[1]!); await manualRestart
+  h.children[1]!.exit(1)
+  await flushStartup()
+  assert.equal(inputs.length, 4)
+  assert.equal(h.children.length, 2)
+  oldAutomatic.resolve({ BRIDGE_CONTROL_PORT: '49991', BRIDGE_STREAM_PORT: '49992' })
+  await flushStartup()
+  let joined = false
+  const repeated = h.supervisor.start().then(() => { joined = true })
+  await flushStartup()
+  assert.equal(inputs.length, 4)
+  assert.equal(h.children.length, 2)
+  assert.equal(joined, false)
+  const selected = { ...replacement, BRIDGE_CONTROL_PORT: '42503', BRIDGE_STREAM_PORT: '42504' }
+  newAutomatic.resolve(selected)
+  await flushStartup()
+  assert.equal(h.children.length, 3)
+  assert.deepEqual(h.forkOptions[2]!.env, selected)
+  ready(h.channels[2]!); await repeated
+  assert.equal(h.supervisor.status, 'ready')
+  assert.equal(inputs.length, 4)
+})
+
+for (const synchronous of [false, true]) test(`端口环境准备：${synchronous ? '同步throw' : '异步拒绝'}只重试一次，零fork并保留原失败`, async t => {
+  const failure = Object.assign(new Error('合成固定端口不可用'), { code: 'EADDRINUSE' })
+  let prepares = 0
+  const h = startupHarness({ prepareEnvironment: () => {
+    prepares++
+    if (synchronous) throw failure
+    return Promise.reject(failure)
+  } })
+  t.after(() => closeStartupHarness(h))
+  await assert.rejects(h.supervisor.start(), error => error === failure)
+  assert.equal(prepares, 2)
+  assert.equal(h.children.length, 0)
+  assert.equal(h.channels.length, 0)
+  assert.equal(h.supervisor.restarts, 1)
+  assert.equal(h.supervisor.status, 'failed')
+})
 
 test('普通启动独立60秒预算，普通IPC仍两秒且启动参数只能收紧', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })

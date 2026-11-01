@@ -1,5 +1,6 @@
 import { createScanReadAdmission, type ScanReadAdmission } from './library/scan-read-admission.js';
 import { runLibraryShutdownStep } from './shared/library-shutdown-log.js';
+import { traceLibraryStartup } from './shared/library-operation-log.js';
 import { createTestDatasetDomain } from './collection/dataset-domain.js';
 import type { DatasetOwnerEndpoint } from './collection/dataset-owner-protocol.js';
 import { createMobileContentRuntime } from './mobile/content-runtime.js';
@@ -1209,9 +1210,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       }
       runtime = 'starting';
       try {
-        await gateway.start();
-        await roon.start();
-        await control.start();
+        await traceLibraryStartup('runtime.gateway', () => gateway.start());
+        await traceLibraryStartup('runtime.roon', () => roon.start());
+        await traceLibraryStartup('runtime.control', () => control.start());
         runtime = 'ready';
         scanReadAdmission?.observe();
         startupLatencyMs = Date.now() - runtimeStartedAt;

@@ -11,6 +11,7 @@ import { SourceWritesError } from './local-source-writes-journal.js';
 import { LocalRelocationError } from './local-relocation-journal.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { logLibraryOperation } from '../shared/library-operation-log.js';
+import { restoreLocalStartupAuditCache, saveLocalStartupAuditCache, type PreparedLocalStartupAudit } from './local-startup-audit-cache.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
@@ -49,7 +50,7 @@ import { migrateCommercialProvenance, verifyCommercialProvenanceDatabase } from 
 import { migrateOutputRunBarriers, verifyOutputRunBarrierDatabase } from '../recording/output-run-barrier.js';
 import { createPreparationZipStore, preparationZipMigration, preparationZipSessionMigration, verifyPreparationZipDatabase, verifyPreparationZipSessionDatabase, type PreparationZipStore } from '../recording/preparation-export-store.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { closeSync, constants, fchmodSync, lstatSync, mkdirSync, openSync } from 'node:fs';
+import { closeSync, constants, fchmodSync, fstatSync, lstatSync, mkdirSync, openSync } from 'node:fs';
 import path from 'node:path';
 import { createSourceProtectionStore, type SourceProtectionStore } from '../recording/source-protection-store.js';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
@@ -129,6 +130,9 @@ export interface CollectionRepository {
   updateCopy(request: CollectionUpdateCopyRequest): CollectionMutationResult;
   setPolicy(request: CollectionPolicyRequest): CollectionMutationResult;
   backupSnapshot(destination: RootCapability): Promise<CollectionSnapshot>;
+  /** 只保存原连接已核实的派生状态，不签发Source许可。 */
+  privateSaveStartupAuditCache?(): Promise<boolean>;
+  readonly privateStartupAuditReused?: boolean;
   close(): void;
 }
 interface ModelRow { id: string; descriptor: string; policy: CollectorPolicy; minimum_sealed: number; revision: number }
@@ -228,12 +232,13 @@ function paged<T>(items: T[], page: PageRequest, total: number): Page<T> {
   return { items, ...page, total, hasMore: page.offset + items.length < total };
 }
 
-export function createCollectionRepository(options: { filePath: string; stagingRoot?: string; referenceArchiveRoot?: string; requireCurrentSchema?: true; beforeCommit?: (action: string) => void }): CollectionRepository {
+export function createCollectionRepository(options: { filePath: string; stagingRoot?: string; referenceArchiveRoot?: string; requireCurrentSchema?: true; startupAudit?: PreparedLocalStartupAudit; beforeCommit?: (action: string) => void }): CollectionRepository {
   let privateFactsFence: (() => void) | undefined;
   let privateSealLocalFacts:(() => void)|undefined, localFactsFatal=false;
   const checkLocalFacts = () => privateFactsFence?.();
   const failLocalFacts=()=>{localFactsFatal=true;privateSealLocalFacts?.();};
   let database: DatabaseSync | undefined;
+  let startupAuditReused = false;
   let closed = false;
   let activeSnapshots = 0;
   const attemptAudit = createRecordingAttemptAudit();
@@ -268,7 +273,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
         } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
       }
       const fd = openSync(options.filePath, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600);
-      try { fchmodSync(fd, 0o600); } finally { closeSync(fd); }
+      try { if ((fstatSync(fd).mode & 0o777) !== 0o600) fchmodSync(fd, 0o600); } finally { closeSync(fd); }
     }
     const connection = new DatabaseSync(options.filePath, { enableForeignKeyConstraints: true, allowExtension: false });
     const db = process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? traceDatabase(connection) : connection;
@@ -342,8 +347,11 @@ export function createCollectionRepository(options: { filePath: string; stagingR
         startupStage('recording-page-search', () => verifyRecordingRecordPageSearch(db));
         startupStage('preparation-sessions', () => verifyPreparationZipSessionDatabase(db));
         startupStage('recording-prints', () => recoverRecordingPrints(db));
-        startupStage('catalog', () => verifyLocalCatalogDatabase(db));
-        startupStage('scan', () => verifyLocalScanDatabase(db));
+        startupAuditReused = restoreLocalStartupAuditCache(db, options.filePath, options.startupAudit);
+        if (!startupAuditReused) {
+          startupStage('catalog', () => verifyLocalCatalogDatabase(db));
+          startupStage('scan', () => verifyLocalScanDatabase(db));
+        }
         startupStage('queue', () => verifyMBQueueDatabase(db, false));
         const publishScanAudit = startupStage('scan-recovery', () => recoverLocalScanJobs(db, 'cold-open'));
         const attemptCandidate = startupStage('attempt-recovery', () => recoverRecordingAttempts(db, new Date().toISOString(), options.beforeCommit ? undefined : attemptAudit));
@@ -799,6 +807,16 @@ export function createCollectionRepository(options: { filePath: string; stagingR
           if (closed && activeSnapshots === 0) { database?.close(); database = undefined; }
         });
       });
+    },
+    get privateStartupAuditReused() { return startupAuditReused; },
+    async privateSaveStartupAuditCache() {
+      if (closed || !database || activeSnapshots || options.beforeCommit) return false;
+      activeSnapshots++;
+      try { return await saveLocalStartupAuditCache(database, options.filePath); }
+      finally {
+        activeSnapshots--;
+        if (closed && activeSnapshots === 0) { database?.close(); database = undefined; }
+      }
     },
     close() {
       closed = true;

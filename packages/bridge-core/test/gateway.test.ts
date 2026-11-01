@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { request as httpRequest } from 'node:http';
 import { getEventListeners } from 'node:events';
+import { createServer } from 'node:net';
 import test from 'node:test';
 import { createLogger } from '../src/shared/logger.js';
 import { StreamGateway } from '../src/stream/gateway.js';
@@ -30,6 +31,40 @@ function recordingLogger(): {
     },
   };
 }
+
+test('Gateway真实端口冲突保留EADDRINUSE；失败后关闭幂等，释放后可重新监听', async t => {
+  const occupied = createServer(socket => socket.destroy());
+  await new Promise<void>((resolve, reject) => {
+    occupied.once('error', reject);
+    occupied.listen(0, '127.0.0.1', () => { occupied.off('error', reject); resolve(); });
+  });
+  t.after(async () => { if (occupied.listening) await new Promise<void>((resolve, reject) => occupied.close(error => error ? reject(error) : resolve())); });
+  const address = occupied.address();
+  assert.ok(address && typeof address === 'object');
+  const gateway = new StreamGateway({ host: '127.0.0.1', port: address.port,
+    publicBaseUrl: `http://127.0.0.1:${address.port}`, registry: new StreamRegistry(), logger: createLogger('error') });
+  t.after(() => gateway.stop());
+  await assert.rejects(gateway.start(), error => (error as NodeJS.ErrnoException).code === 'EADDRINUSE');
+  await Promise.all([gateway.stop(), gateway.stop()]);
+  assert.throws(() => gateway.localBaseUrl(), /not listening/u);
+  await new Promise<void>((resolve, reject) => occupied.close(error => error ? reject(error) : resolve()));
+  await Promise.all([gateway.start(), gateway.start()]);
+  assert.equal(new URL(gateway.localBaseUrl()).port, String(address.port));
+  await gateway.stop();
+  await gateway.stop();
+});
+
+test('Gateway监听尚在结算时stop等待原启动，迟到成功不留下监听', { timeout: 2_000 }, async t => {
+  const gateway = new StreamGateway({ host: '127.0.0.1', port: 0, publicBaseUrl: 'http://127.0.0.1:0',
+    registry: new StreamRegistry(), logger: createLogger('error') });
+  t.after(() => gateway.stop());
+  const starting = gateway.start();
+  const stopping = gateway.stop();
+  await Promise.all([starting, stopping]);
+  assert.throws(() => gateway.localBaseUrl(), /not listening/u);
+  await gateway.start();
+  assert.ok(new URL(gateway.localBaseUrl()).port);
+});
 
 test('gateway forwards Range and preserves media response headers without buffering API', async (t) => {
   const registry = new StreamRegistry();

@@ -221,6 +221,8 @@ function sendJson(
 export class StreamGateway {
   private server: Server | undefined;
   private localMediaServer: Server | undefined;
+  private starting: Promise<void> | undefined;
+  private closing: Promise<void> | undefined;
   private localRequests = 0;
   private readonly stageObservers = new Map<string, GatewayObserverBinding>();
   private activeTimerCount = 0;
@@ -258,38 +260,77 @@ export class StreamGateway {
   }
 
   async start(): Promise<void> {
+    if (this.closing) await this.closing;
+    if (this.starting) return this.starting;
     if (this.server) return;
     if (this.options.localMediaNetwork && !isTrustedLocalMediaNetwork(this.options.localMediaNetwork)) throw new BridgeError('CONFIG_INVALID', '本地媒体网络未经可信启动组合准入');
-    this.server = createServer((request, response) => {
+    const server = createServer((request, response) => {
       void this.handle(request, response);
     });
-    await new Promise<void>((resolve, reject) => {
-      this.server?.once('error', reject);
-      this.server?.listen(this.options.port, this.options.host, () => {
-        this.server?.off('error', reject);
-        resolve();
-      });
-    });
-    const network = this.options.localMediaNetwork;
-    if (network) {
-      this.localMediaServer = createServer((request, response) => {
-        const peer = request.socket.remoteAddress?.replace(/^::ffff:/u, '');
-        if (!peer || !network.allowedPeers.includes(peer)) { response.writeHead(404); response.end(); return; }
-        // 此监听不路由health、控制、旧remote fetch或诊断资产。
-        void this.handleLocal(request, response).then(handled => { if (!handled) { response.writeHead(404); response.end(); } }).catch(() => response.destroy());
-      });
-      try { await new Promise<void>((resolve, reject) => { this.localMediaServer!.once('error', reject); this.localMediaServer!.listen(network.port, network.bindAddress, () => { this.localMediaServer!.off('error', reject); resolve(); }); }); }
-      catch (error) { await this.stop(); throw error; }
-    }
+    this.server = server;
+    const starting = (async () => {
+      let media: Server | undefined;
+      try {
+        await this.listenServer(server, this.options.port, this.options.host);
+        // stop先撤销身份；迟到的listen成功不能再启动独立媒体监听。
+        if (this.server !== server) return;
+        const network = this.options.localMediaNetwork;
+        if (network) {
+          media = createServer((request, response) => {
+            const peer = request.socket.remoteAddress?.replace(/^::ffff:/u, '');
+            if (!peer || !network.allowedPeers.includes(peer)) { response.writeHead(404); response.end(); return; }
+            // 此监听不路由health、控制、旧remote fetch或诊断资产。
+            void this.handleLocal(request, response).then(handled => { if (!handled) { response.writeHead(404); response.end(); } }).catch(() => response.destroy());
+          });
+          this.localMediaServer = media;
+          await this.listenServer(media, network.port, network.bindAddress);
+        }
+      } catch (error) {
+        if (this.server === server) this.server = undefined;
+        if (this.localMediaServer === media) this.localMediaServer = undefined;
+        // 关闭未监听的Server无需close；部分监听失败也不能覆盖最初的listen错误。
+        await Promise.allSettled([this.closeServer(server), ...(media ? [this.closeServer(media)] : [])]);
+        if (media) await this.options.registry.closeLocal().catch(() => {});
+        throw error;
+      }
+    })();
+    this.starting = starting;
+    try { await starting; }
+    finally { if (this.starting === starting) this.starting = undefined; }
   }
 
   async stop(): Promise<void> {
+    if (this.closing) return this.closing;
     const server = this.server;
     this.server = undefined;
     this.stageObservers.clear();
     const media = this.localMediaServer; this.localMediaServer = undefined;
-    await this.options.registry.closeLocal();
-    await Promise.all([server, media].filter((value): value is Server => Boolean(value)).map(value => new Promise<void>((resolve, reject) => { value.close(error => error ? reject(error) : resolve()); value.closeIdleConnections(); })));
+    const starting = this.starting;
+    this.closing = Promise.resolve().then(async () => {
+      await starting?.catch(() => {});
+      try { await this.options.registry.closeLocal(); }
+      finally { await Promise.all([server, media].filter((value): value is Server => Boolean(value)).map(value => this.closeServer(value))); }
+    }).finally(() => { this.closing = undefined; });
+    return this.closing;
+  }
+
+  private listenServer(server: Server, port: number, host: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const failed = (error: unknown): void => { server.off('listening', ready); reject(error); };
+      const ready = (): void => { server.off('error', failed); resolve(); };
+      server.once('error', failed);
+      server.once('listening', ready);
+      try { server.listen(port, host); }
+      catch (error) { server.off('error', failed); failed(error); }
+    });
+  }
+
+  private closeServer(server: Server): Promise<void> {
+    if (!server.listening) return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
+      server.close(error => error ? reject(error) : resolve());
+      server.closeIdleConnections();
+    });
   }
 
   localStreamUrl(token: string, onStageChange?:GatewayStageObserver, diagnostic?:LocalMediaDiagnosticBinding): string {

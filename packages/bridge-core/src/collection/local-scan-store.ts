@@ -6,7 +6,8 @@ import path from 'node:path';
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import type { MetadataTechnical, MetadataCoverEvidence, MetadataReadEvidence } from '../library/metadata-reader-types.js';
-import { LocalCatalogBudgetError, sourceWritesProjectionForDatabase, relocationProjectionForDatabase, lyricsPhysicalPublicationsForDatabase } from './local-catalog-store.js';
+import { LocalCatalogBudgetError, copyLocalAuditSnapshotData, sourceWritesProjectionForDatabase, relocationProjectionForDatabase, lyricsPhysicalPublicationsForDatabase } from './local-catalog-store.js';
+import { publishLocalAuditWritePoint, isLocalAuditWritePointCurrent, lockUnknownLocalAuditWritePrefix, type LocalAuditWritePoint } from './local-audit-write-observer.js';
 import type { RelocationProjection, RelocationLocationFact } from './local-relocation-journal.js';
 import { installSourceWriteScanPort } from './source-write-scan-port.js';
 import { installRelocationScanPort, type RelocationScanAuthor, type RelocationScanMapping,
@@ -16,7 +17,8 @@ import type { RelocationReadAccess } from './source-relocation-verify.js';
 import type { ScanReadFacts, ScanFileState } from './local-scan-facts.js';
 import { METADATA_PARSER_VERSION, RUST_MEDIA_METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION, CUE_INPUT_SCAN_VERSION } from '../library/metadata-reader-types.js';
 import { logLibraryOperation } from '../shared/library-operation-log.js';
-import { createScanOriginIndex, currentScanOriginIndex, ownsScanOriginIndex, discardScanOriginIndex, addScanOriginBatch, publishScanOriginIndex, stageScanOriginIndex, scanOriginPositions, continueReadonlyQueueScanOrigins } from './local-scan-origin-index.js';
+import { createScanOriginIndex, currentScanOriginIndex, ownsScanOriginIndex, discardScanOriginIndex, addScanOriginBatch, publishScanOriginIndex, stageScanOriginIndex, scanOriginPositions, continueReadonlyQueueScanOrigins,
+  captureScanOriginIndexState, restoreScanOriginIndexState, type ScanOriginIndexState } from './local-scan-origin-index.js';
 import type { LocalWorkbenchDirectoryFactsRequest, LocalWorkbenchDirectoryFacts } from './local-library-workbench/read-service.js';
 import { catalogFileParametersBranch, type CatalogFileParametersBranchStage } from '../mobile/catalog-private-trace.js';
 export type { ScanReadFacts, ScanFileState } from './local-scan-facts.js';
@@ -276,13 +278,65 @@ const budgets: Readonly<Record<Table, number>> = { local_scan_jobs: 100_000, loc
 
 interface ScanAuditCertificate { rows: ReadonlyMap<Table, number>; bytes: number; dataVersion: number }
 const scanAudits = new WeakMap<DatabaseSync, ScanAuditCertificate>();
+const scanAuditStatePoints = new WeakMap<DatabaseSync, { certificate: ScanAuditCertificate; point: NonNullable<ReturnType<typeof localAlbumScanPoint>>; writes: LocalAuditWritePoint }>();
+function publishScanAudit(db: DatabaseSync, certificate: ScanAuditCertificate, fullyVerified = false): void {
+  scanAudits.set(db, certificate);
+  const point = localAlbumScanPoint(db), writes = publishLocalAuditWritePoint(db, 'scan', fullyVerified);
+  if (point && writes) scanAuditStatePoints.set(db, { certificate, point, writes }); else scanAuditStatePoints.delete(db);
+}
+export interface LocalScanAuditState {
+  schema: 1;
+  rows: Map<Table, number>;
+  bytes: number;
+  origins: ScanOriginIndexState | null;
+}
+function validScanAuditState(db: DatabaseSync, value: unknown): value is LocalScanAuditState {
+  if (!record(value) || !closed(value, ['schema', 'rows', 'bytes', 'origins']) || value.schema !== 1
+    || !(value.rows instanceof Map) || typeof value.bytes !== 'number' || !Number.isSafeInteger(value.bytes)
+    || value.bytes < 0 || value.bytes > 64 * 1024 * 1024 * 1024) return false;
+  const names = [...Object.keys(tables), ...(cueSchema(db) ? Object.keys(cueTables) : [])] as Table[];
+  return value.rows.size === names.length && names.every(name => {
+    const count = value.rows instanceof Map ? value.rows.get(name) as unknown : undefined;
+    return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 && count <= budgets[name];
+  });
+}
+export function clearLocalScanAuditState(db: DatabaseSync): void {
+  scanAudits.delete(db); scanAuditStatePoints.delete(db); discardScanOriginIndex(db); originOverflowPoints.delete(db);
+  originRebuilds.delete(db); relocationOriginIndexes.delete(db);
+}
+/** 只导出当前完整核验及合法写后计数；过期候选位置省略，不重新认可旧point。 */
+export function captureLocalScanAuditState(db: DatabaseSync): LocalScanAuditState | undefined {
+  try {
+    const certificate = scanAudits.get(db), before = localAlbumScanPoint(db), published = scanAuditStatePoints.get(db);
+    if (!certificate || !before || certificate.dataVersion !== before.version || !published || published.certificate !== certificate
+      || published.point.version !== before.version || published.point.schema !== before.schema
+      || !isLocalAuditWritePointCurrent(db, 'scan', published.writes)
+      || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1) return undefined;
+    const state = copyLocalAuditSnapshotData({ schema: 1, rows: new Map(certificate.rows), bytes: certificate.bytes, origins: captureScanOriginIndexState(db) });
+    if (!validScanAuditState(db, state) || !equal(before, localAlbumScanPoint(db))) return undefined;
+    return state;
+  } catch { return undefined; }
+}
+/** 内容指纹由原持久层核对；计数及纯候选位置仅绑定本连接实际SQL点。 */
+export function restoreLocalScanAuditState(db: DatabaseSync, value: unknown): boolean {
+  clearLocalScanAuditState(db);
+  try {
+    const state = copyLocalAuditSnapshotData(value), before = localAlbumScanPoint(db);
+    if (!before || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1 || !validScanAuditState(db, state)) return false;
+    // 纯origin需要已经核准的本域写作者；尚不发布计数证书或任何活Source能力。
+    publishLocalAuditWritePoint(db, 'scan');
+    if (!restoreScanOriginIndexState(db, state.origins) || !equal(before, localAlbumScanPoint(db))) { clearLocalScanAuditState(db); return false; }
+    publishScanAudit(db, { rows: state.rows, bytes: state.bytes, dataVersion: before.version });
+    return true;
+  } catch { clearLocalScanAuditState(db); return false; }
+}
 /** 只续接隔离Actor已核的队列写；不改变冷开、扫描及数据完整性核验。 */
 export function continueReadonlyQueueScanAudit(db: DatabaseSync, previousVersion: number): void {
   const previous = scanAudits.get(db)
   if (!previous || previous.dataVersion !== previousVersion || !db.isTransaction
     || db.prepare('PRAGMA query_only').get()?.query_only !== 1 || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1) return corrupt()
   continueReadonlyQueueScanOrigins(db, previousVersion)
-  scanAudits.set(db, { ...previous, dataVersion: Number(db.prepare('PRAGMA data_version').get()?.data_version) })
+  publishScanAudit(db, { ...previous, dataVersion: Number(db.prepare('PRAGMA data_version').get()?.data_version) })
 }
 const scanDataVersion = (db: DatabaseSync): number => Number(db.prepare('PRAGMA data_version').get()?.data_version);
 const scanRowBytes = (row: Row): number => Object.values(row).reduce<number>((n, v) => n + (typeof v === 'string' ? Buffer.byteLength(v) : 0), 0);
@@ -308,7 +362,7 @@ function scanAuditFor(db: DatabaseSync) {
     writes(): number { return writes; },
     publish(): void {
       if (scanDataVersion(db) !== previous.dataVersion) return corrupt();
-      scanAudits.set(db, { rows, bytes, dataVersion: previous.dataVersion });
+      publishScanAudit(db, { rows, bytes, dataVersion: previous.dataVersion });
     },
     publishOrigins(): void {
       const actual = localAlbumScanPoint(db);
@@ -342,7 +396,7 @@ function rebuildScanOrigins(db: DatabaseSync, read: ScanAccess['read']): Promise
   if (originOverflowPoints.get(db) === initialPoint) return Promise.resolve();
   originOverflowPoints.delete(db);
   const started = performance.now(), index = createScanOriginIndex();
-  const same = (): boolean => !db.isTransaction && JSON.stringify(localAlbumScanPoint(db)) === initialPoint;
+  const same = (): boolean => originRebuilds.get(db) === work && !db.isTransaction && JSON.stringify(localAlbumScanPoint(db)) === initialPoint;
   let processed = 0;
   const work = (async () => {
     await new Promise<void>(resolve => setImmediate(resolve));
@@ -472,7 +526,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync, assertReadActive?: () 
     statements.set(sql, statement);
     return statement;
   };
-  scanAudits.delete(db); discardScanOriginIndex(db);
+  clearLocalScanAuditState(db);
   // 只沿原取消异常退出；调用方负责真实回滚，不把未完成全核当成损坏或成功。
   assertReadActive?.();
   const originIndex = createScanOriginIndex(), originStartedAtMs = performance.now();
@@ -686,7 +740,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync, assertReadActive?: () 
   verifyCompletedScanSnapshotDatabase(db, assertReadActive);
   if (scanDataVersion(db) !== initialVersion) return corrupt();
   assertReadActive?.();
-  scanAudits.set(db, { rows: counts, bytes, dataVersion: initialVersion });
+  publishScanAudit(db, { rows: counts, bytes, dataVersion: initialVersion }, true);
   stageScanOriginIndex(db, originIndex);
   logLibraryOperation('cache', 'scan.origin-index', originIndex.overflow ? 'skipped' : 'complete', {
     elapsedMs: performance.now() - originStartedAtMs, count: originIndex.entries.size, bytes: originIndex.bytes,
@@ -696,6 +750,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync, assertReadActive?: () 
 
 /** 冷恢复只把未完成的 running 暂停；保留批、checkpoint、实体与全部旧回执。调用者持有原事务。 */
 export function recoverLocalScanJobs(db: DatabaseSync, cause: 'cold-open' | 'restore'): () => void {
+  lockUnknownLocalAuditWritePrefix(db);
   const audit = scanAuditFor(db);
   for (const row of db.prepare("SELECT * FROM local_scan_jobs WHERE json_extract(data,'$.phase')='running' ORDER BY rowid").iterate()) {
     const previous = parse(row.data, dto.isScanJobRecord, 65_536);
@@ -860,7 +915,7 @@ export function createLocalScanStore(access: ScanAccess) {
   function transaction<T>(operation: string, body: (db: DatabaseSync, audit: ScanAudit) => T): T {
     return access.read(db => {
       const delta = beginLocalAlbumScanDelta(db);
-      db.exec('BEGIN IMMEDIATE');
+      lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');
       try {
         const audit = scanAuditFor(db), result = body(db, audit); if (result instanceof Promise) return corrupt();
         recordLocalAlbumScanWrites(delta, audit.writes());

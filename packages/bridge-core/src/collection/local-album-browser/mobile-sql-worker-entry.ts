@@ -9,6 +9,7 @@ import { mobileSqlFileIdentity } from './mobile-sql-worker.js';
 import { isMobileStructurePage } from './mobile-structure.js';
 import { isArtistIndexCandidatePage } from './artist-index-candidates.js';
 import { isCommandOutboxDatasetId } from '@music-bridge/contracts';
+import { readLocalStartupAuditCache, restoreLocalStartupAuditCache, type PreparedLocalStartupAudit } from '../local-startup-audit-cache.js';
 import type { LocalAlbumLyricsInventory, LocalAlbumSqlMobileQuery, LocalAlbumSqlScope } from './sql-types.js';
 
 if (!parentPort) throw new Error('移动结构查询缺少原 Owner 端口。');
@@ -27,6 +28,7 @@ let store: ReturnType<typeof createLocalCatalogStore> | undefined, closing = fal
 let indexDatasetId: string | undefined, currentLyrics: LocalAlbumLyricsInventory | undefined;
 const scopeOwner = Object.freeze({});
 let completedJob: { id: number; cancellation: Int32Array } | undefined;
+let startupAudit: PreparedLocalStartupAudit | undefined;
 let finish!: () => void;
 const lifetime = new Promise<void>(resolve => { finish = resolve; });
 const unavailable = () => new LocalAlbumReadError('UNAVAILABLE', '移动结构只读连接未通过原核验。');
@@ -86,8 +88,12 @@ function runJob(input: Input, databaseFile: string, fileIdentity: string): void 
     }
     if (!audited || !same(audited, snapshot)) {
       invalidate(); stage('audit-begin');
-      verifyLocalCatalogDatabase(db, assertCurrent); assertCurrent(); stage('audit-catalog');
-      verifyLocalScanDatabase(db, assertCurrent); assertCurrent(); stage('audit-scan');
+      const reused = restoreLocalStartupAuditCache(db, databaseFile, startupAudit);
+      startupAudit = undefined;
+      if (!reused) verifyLocalCatalogDatabase(db, assertCurrent);
+      assertCurrent(); stage('audit-catalog');
+      if (!reused) verifyLocalScanDatabase(db, assertCurrent);
+      assertCurrent(); stage('audit-scan');
       if (!same(snapshot, point())) throw unavailable();
       audited = snapshot;
     }
@@ -166,6 +172,9 @@ try {
   cancellation = new Int32Array(input.cancellation);
   if (Atomics.load(cancellation, 0) !== 0) { send({ type: 'never-opened', code: 'SNAPSHOT_CHANGED' }); port.close(); finish(); }
   else {
+    startupAudit = await readLocalStartupAuditCache(input.databaseFile);
+    if (Atomics.load(cancellation, 0) !== 0) { send({ type: 'never-opened', code: 'SNAPSHOT_CHANGED' }); port.close(); finish(); }
+    else {
     // 只读打开原库一次；不迁移、不改WAL配置，也不运行任何Owner/Source写工厂。
     db = new DatabaseSync(input.databaseFile, { readOnly: true, enableForeignKeyConstraints: true, allowExtension: false });
     db.exec('PRAGMA query_only=ON;PRAGMA trusted_schema=OFF;PRAGMA busy_timeout=1000');
@@ -187,6 +196,7 @@ try {
     });
     port.once('messageerror', () => shutdown(true));
     port.once('close', () => { if (!closing) shutdown(true); });
+    }
   }
 } catch { shutdown(true); }
 await lifetime;

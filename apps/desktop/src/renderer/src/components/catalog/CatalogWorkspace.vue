@@ -7,7 +7,7 @@ import CatalogArtistGrid from './CatalogArtistGrid.vue'
 import CatalogAlbumGrid from './CatalogAlbumGrid.vue'
 import CatalogTrackList from './CatalogTrackList.vue'
 
-const props = defineProps<{ model: ReturnType<typeof useCatalogExperience>; mode: 'artists' | 'search'; busy?: boolean }>()
+const props = withDefaults(defineProps<{ model: ReturnType<typeof useCatalogExperience>; mode: 'artists' | 'search'; busy?: boolean; readReady?: boolean }>(), { readReady: true })
 const emit = defineEmits<{ select: [item: CatalogItem]; play: [item: CatalogItem]; queue: [item: CatalogItem]; next: [item: CatalogItem]; 'load-roon': [] }>()
 const artistSource = props.model.artistSource
 const artistDraft = ref(props.model.artistQuery.value)
@@ -22,6 +22,7 @@ const artistProfile = computed(() => selected.value?.profile)
 function pending(kind: CatalogKind): boolean { return props.model.selectedSources.value.some(source => props.model.searchSections[source][kind].loading) }
 function sourceArtist(value: 'local' | 'roon'): void {
   artistSource.value = value; props.model.closeDetail()
+  if (!props.readReady) return
   if (value === 'roon') { props.model.stopArtists(); emit('load-roon') }
   else if (!props.model.library.items.length && !props.model.library.loading) void props.model.loadArtists(artistDraft.value)
 }
@@ -29,7 +30,9 @@ function changeArtistQuery(value: string): void {
   artistDraft.value = value
   props.model.stopArtists()
   if (artistTimer !== undefined) clearTimeout(artistTimer)
-  artistTimer = setTimeout(() => { artistTimer = undefined; void props.model.loadArtists(value) }, 250)
+  artistTimer = undefined
+  props.model.artistQuery.value = value
+  if (props.readReady) artistTimer = setTimeout(() => { artistTimer = undefined; if (props.readReady) void props.model.loadArtists(value) }, 250)
 }
 function more(section: CatalogSection, action: () => void): void { if (!section.loading) action() }
 function bindCandidate(item: CatalogItem): void { if (item.identity.type === 'netease-artist') void props.model.bind(item.identity.value.id) }
@@ -45,9 +48,10 @@ watch(() => props.model.bindingOpen.value, value => {
   if (value) { returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null; void nextTick(() => bindingInput.value?.focus()) }
   else { returnFocus?.focus(); returnFocus = null }
 })
-watch(() => props.mode, mode => {
+watch([() => props.mode, () => props.readReady], ([mode, ready]) => {
   props.model.activateWorkspace(mode, workspaceToken)
-  if (mode === 'artists' && artistSource.value === 'local' && !props.model.library.items.length && !props.model.library.loading) void props.model.loadArtists()
+  if (!ready) { props.model.suspendWorkspace(mode, workspaceToken); return }
+  if (mode === 'artists' && artistSource.value === 'local' && !props.model.library.items.length && !props.model.library.loading) void props.model.loadArtists(artistDraft.value)
   if (mode === 'search') props.model.resumeSearch()
 }, { immediate: true })
 onUnmounted(() => { if (artistTimer !== undefined) clearTimeout(artistTimer); props.model.suspendWorkspace(props.mode, workspaceToken) })
@@ -55,7 +59,8 @@ onUnmounted(() => { if (artistTimer !== undefined) clearTimeout(artistTimer); pr
 
 <template>
   <div class="catalog-workspace" :class="{ 'catalog-search': mode === 'search' }">
-    <template v-if="selected">
+    <p v-if="!readReady" class="catalog-section-status" role="status">正在准备音乐库，就绪后会读取当前页面。</p>
+    <template v-else-if="selected">
       <button type="button" class="back-link" @click="model.closeDetail">← 返回{{ mode === 'artists' ? '艺术家' : '搜索结果' }}</button>
       <header class="catalog-detail-hero">
         <CatalogArtwork :item="selected.item" :circular="selected.item.kind === 'artists'" />

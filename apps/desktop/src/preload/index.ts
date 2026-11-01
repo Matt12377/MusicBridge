@@ -74,7 +74,11 @@ const invokePerformance: typeof ipcRenderer.invoke = (channel, ...args) => {
   return Promise.reject(new Error('[NOT_READY] 应用正在准备，请稍后操作。'))
 }
 const invokeScoped = (channel: string, value?: unknown): Promise<unknown> => invokePerformance(channel, value)
-const getDatasetId = createCommandOutboxDatasetScope(invokeScoped)
+const preparedDatasetId = createCommandOutboxDatasetScope(invokeScoped)
+// 纯context可以预取；业务不能挂在它后面，在准备完成后自动发送旧点击。
+const getDatasetId = (): Promise<string> => initialBootstrapReady
+  ? preparedDatasetId()
+  : Promise.reject(new Error('[NOT_READY] 应用正在准备，请稍后操作。'))
 const outbox = createCommandOutboxClient(invokeScoped, getDatasetId)
 const workspaceClient = createRecordingWorkspaceClient(invokeScoped, request => outbox.submit('recordingWorkspace.put', request), getDatasetId)
 const candidateClient = createRecordingCandidateClient(invokeScoped, request => outbox.submit('recordingCandidates.select', request), getDatasetId)
@@ -402,17 +406,17 @@ contextBridge.exposeInMainWorld(
       checkRecordingOutput: request => invokePerformance('recordingOutput:check', request),
       cancelRecordingOutputCheck: runId => invokePerformance('recordingOutput:cancel', { runId }),
     },
-    createRecordingAttemptClient((channel, value) => invokePerformance(channel, value)),
-    createRecordingRecordClient((channel, value) => invokePerformance(channel, value)),
-    createRecordingReplicaClient((channel, value) => invokePerformance(channel, value)),
-    createRecordingPrintClient((channel, value) => invokePerformance(channel, value)),
+    createRecordingAttemptClient((channel, value) => invokePerformance(channel, value), () => initialBootstrapReady),
+    createRecordingRecordClient((channel, value) => invokePerformance(channel, value), () => initialBootstrapReady),
+    createRecordingReplicaClient((channel, value) => invokePerformance(channel, value), () => initialBootstrapReady),
+    createRecordingPrintClient((channel, value) => invokePerformance(channel, value), () => initialBootstrapReady),
     theme => invokePerformance('app:set-appearance-theme', theme),
     {getVolume: () => invokePerformance('roon:volume:get'), setVolume: request => invokePerformance('roon:volume:set', request)},
     { getRoonDisplaySettings: () => invokePerformance('lyrics:display:get'), configureRoonDisplay: url => invokePerformance('lyrics:display:configure', url) },
     workspaceClient,
     candidateClient,
     preparationZipClient,
-    createRecordingDeviceClient((channel, value) => invokePerformance(channel, value)),
+    createRecordingDeviceClient((channel, value) => invokePerformance(channel, value), () => initialBootstrapReady),
     interactions.api,
     createLibraryReadTerminalClient(invokePerformance, process.argv?.includes('--music-bridge-library-read-trace=1') ?? false),
     { getPlaybackStreamSnapshot: () => invokePerformance('playback:get-stream-snapshot') },
@@ -436,7 +440,7 @@ contextBridge.exposeInMainWorld(
 
 // 可信 Main 明确交付版本化的移动设置能力，旧 musicBridge 公共 API 保持原闭集。
 if (process.argv?.includes('--music-bridge-mobile-settings=v1')) {
-  contextBridge.exposeInMainWorld('musicBridgeMobile', Object.freeze(createMobileConnectionClient((channel, ...args) => ipcRenderer.invoke(channel, ...args))))
+  contextBridge.exposeInMainWorld('musicBridgeMobile', Object.freeze(createMobileConnectionClient((channel, ...args) => invokePerformance(channel, ...args))))
 }
 
 /** 布局变化只通知Main重新读取真实占位；不向Renderer暴露网页对象或坐标许可。 */

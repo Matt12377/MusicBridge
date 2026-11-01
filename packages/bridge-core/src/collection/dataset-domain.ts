@@ -267,8 +267,8 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     onState: state => logLibraryOperation('library', 'artists.metadata-backfill', state.phase === 'needs-attention' ? 'error' : 'complete',
       { code: state.phase.toUpperCase().replaceAll('-', '_'), count: state.succeeded, total: state.succeeded + state.failed + state.pending }),
   }) : undefined;
-  function startMobilePreparation(): void {
-    if (mobileWarmFlight) return;
+  function startMobilePreparation(): Promise<void> {
+    if (mobileWarmFlight) return mobileWarmFlight;
     mobileWarmPending = true;
     const started = performance.now();
     logLibraryOperation('library', 'startup.mobile-prepare', 'start');
@@ -287,6 +287,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     // close 先经 owner.albums 取消并等待实际 Actor，再经 owner.dispatches 收齐本任务。
     pendingDispatches.add(mobileWarmFlight);
     void mobileWarmFlight.then(() => pendingDispatches.delete(mobileWarmFlight!), () => pendingDispatches.delete(mobileWarmFlight!));
+    return mobileWarmFlight;
   }
   async function recoverArtistMetadataAfterScan(job: Readonly<workbenchDto.ScanJobRecord>): Promise<void> {
     if (!artistBackfill || closing || workbenchLife.signal.aborted) return;
@@ -1348,7 +1349,10 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       assertOpen();scanBootReady=true;
       // 只有接上原 fatal 通道的 Owner 可以后台准备；已核验的普通读取先开放，目录立即告知准备状态。
       const backgroundWarm = options.onBackgroundFatal && albumRuntime.localAlbums.privateMobile.prepare;
-      if (backgroundWarm) startMobilePreparation();
+      if (backgroundWarm) {
+        // 只读连接自行恢复缓存；缓存失效后的完整核验也留在后台，不阻塞主界面就绪。
+        void startMobilePreparation();
+      }
       else { await albumRuntime.localAlbums.privateMobile.prepare?.(); assertOpen(); }
       void collection.localScan.privateWarmDisplayFileParameters();
       // 原持久目录事实已可查询；后台仅续跑有系统中断证据且当前ONLINE的任务。
@@ -1419,7 +1423,8 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
         if(failures.length===0)await stop('owner.source-safety', ()=>localSourceWrites.closeSourceSafety());
         if (failures.length === 1) throw failures[0];
         if (failures.length > 1) throw new AggregateError(failures, '工作库收尾失败；已尽力停止全部资源，保留连接供故障处理。');
-        await runLibraryShutdownStep('owner.connections', () => {
+        await runLibraryShutdownStep('owner.connections', async () => {
+          await collection.privateSaveStartupAuditCache?.();
           if (options.closeConnections) options.closeConnections();
           else { try { collection.close(); } finally { maintenance.close(); } }
         });
@@ -1496,7 +1501,11 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
     // 测试模式仅禁用设备准入，不从环境或IPC取得合成provider资格。
     domain=composeDatasetDomain(common,options.testMode ? { ...(options.scanMetadataReader ? {scanMetadataReader:options.scanMetadataReader}:{}) } : undefined,mobilePreparedCache);
     // 认证冷投影后、prepare/ACK之前安装真正命名位和FD保护，不让首个新Reader穿过未解目标。
-    await domain.localSourceWrites.prepareRecoveryProtection(); await domain.localRelocationPlans.prepareRecoveryProtection();await domain.prepareWorkbench();return domain;
+    await domain.localSourceWrites.prepareRecoveryProtection(); await domain.localRelocationPlans.prepareRecoveryProtection();await domain.prepareWorkbench();
+    // ZIP等启动会话会合法推进工作库；完成全部冷准备后、Owner交付前保存，
+    // 只读Actor才不会把这些非曲库变化误认为需要再重放一轮目录历史。
+    await dataset.repository.privateSaveStartupAuditCache?.();
+    return domain;
   } catch (error) {
     if(domain){try{await domain.close();}catch(closeError){throw new AggregateError([error,closeError],'冷保护准入/收尾未核实；保留工作库连接及真实保护。');}}
     else{

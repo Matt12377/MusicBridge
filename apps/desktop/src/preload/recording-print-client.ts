@@ -1,7 +1,7 @@
 import type { RecordingPrintsPublicApi } from '@music-bridge/contracts'
 
 /** 所有请求固定本次窗口工作库；选图只暂存，保存/导出不自动重放。 */
-export function createRecordingPrintClient(invoke: (channel: string, value?: unknown) => Promise<unknown>): RecordingPrintsPublicApi {
+export function createRecordingPrintClient(invoke: (channel: string, value?: unknown) => Promise<unknown>, isReady: () => boolean = () => true): RecordingPrintsPublicApi {
   const failure = () => new Error('[OUTBOX_SCOPE_MISMATCH] 工作库身份未获确认，请重新加载录音窗口。')
   const scope = invoke('commandOutbox:context').then(value => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw failure()
@@ -12,6 +12,7 @@ export function createRecordingPrintClient(invoke: (channel: string, value?: unk
   }).catch(() => { throw failure() })
   void scope.catch(() => undefined)
   async function send<T>(channel: string, payload: unknown): Promise<T> {
+    if (!isReady()) throw new Error('[NOT_READY] 应用正在准备，请稍后操作。')
     const captured = structuredClone(payload)
     return await invoke(channel, { datasetId: await scope, payload: captured }) as T
   }

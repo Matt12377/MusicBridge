@@ -39,7 +39,8 @@ import { commitLocalFacts, rollbackLocalFacts, LocalFactsCommitFatal } from '../
 import { createHash, randomUUID } from 'node:crypto';
 import { logLibraryOperation } from '../shared/library-operation-log.js';
 import { albumCatalogRevision, albumScanRevision } from './local-album-browser/owner-store.js';
-import { approveLocalAlbumScanDelta, invalidateLocalAlbumScanDelta, discardLocalAlbumScanDelta, localAlbumScanPoint, captureLocalAlbumCaptureWrite, type LocalAlbumCaptureWrite, type LocalAlbumScanDelta } from './local-album-browser/scan-delta.js';
+import { approveLocalAlbumScanDelta, invalidateLocalAlbumScanDelta, discardLocalAlbumScanDelta, localAlbumScanPoint, captureLocalAlbumCaptureWrite, type LocalAlbumCaptureWrite, type LocalAlbumScanDelta, type LocalAlbumScanPoint } from './local-album-browser/scan-delta.js';
+import { publishLocalAuditWritePoint, currentLocalAuditWritePoint, isLocalAuditWritePointCurrent, lockUnknownLocalAuditWritePrefix, type LocalAuditWritePoint } from './local-audit-write-observer.js';
 import { createLocalAlbumMobileStructureSqlReader, createLocalAlbumSqlReader, createLocalAlbumSqlObservationHistory, continueReadonlyQueueObservationHistory, isCurrentLocalAlbumSqlReader, localAlbumSqlScopeFingerprint, readWithLocalAlbumSqlErrors, localAlbumOrganizationDirectoryBoundaries } from './local-album-browser/sql-read.js';
 import type { LocalAlbumSqlScope, LocalAlbumLyricsInventory, LocalAlbumLibraryOrganization, LocalAlbumSqlIssueReadOptions, LocalAlbumSqlMobileQuery, LocalAlbumSqlMobilePage, LocalAlbumSqlObservationHistory, LocalAlbumSqlObservationPoint } from './local-album-browser/sql-types.js';
 import { LocalAlbumReadError } from './local-album-browser/grouping.js';
@@ -98,7 +99,15 @@ export class LocalCatalogBudgetError extends Error {
 interface AuditCertificate { rows: ReadonlyMap<Table, number>; bytes: number; dataVersion: number }
 // 仅缓存同连接完整核验产生的资源计数；实体、定位、权限和回执始终读取SQLite原事实。
 const audits = new WeakMap<DatabaseSync, AuditCertificate>();
+const auditStatePoints = new WeakMap<DatabaseSync, { certificate: AuditCertificate; point: LocalAlbumScanPoint; writes: LocalAuditWritePoint }>();
+function publishCatalogAudit(db: DatabaseSync, certificate: AuditCertificate, fullyVerified = false): void {
+  audits.set(db, certificate);
+  const point = localAlbumScanPoint(db), writes = publishLocalAuditWritePoint(db, 'catalog', fullyVerified);
+  if (point && writes) auditStatePoints.set(db, { certificate, point, writes }); else auditStatePoints.delete(db);
+}
 const observationHistoryAudits = new WeakMap<DatabaseSync, { certificate: AuditCertificate; point: LocalAlbumSqlObservationPoint; history: LibraryManagementObservationHistory; handle: LocalAlbumSqlObservationHistory }>();
+// 与活handle共用同一份有界纯Map；活SQL点失效后，仅供内容指纹绑定的新连接重建。
+const observationHistoryStates = new WeakMap<DatabaseSync, { certificate: AuditCertificate; schema: number; writes: LocalAuditWritePoint; history: LibraryManagementObservationHistory }>();
 /** 仅隔离Actor在原Owner队列连续链获准后调用；首次/未知写仍完整核验。 */
 export function continueReadonlyQueueCatalogAudit(db: DatabaseSync, previousVersion: number): void {
   const certificate = audits.get(db), saved = observationHistoryAudits.get(db)
@@ -107,6 +116,7 @@ export function continueReadonlyQueueCatalogAudit(db: DatabaseSync, previousVers
     || db.prepare('PRAGMA query_only').get()?.query_only !== 1 || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1
     || saved && (saved.certificate !== certificate || saved.point.version !== previousVersion)) throw new Error('只读队列目录核验作者不匹配。')
   certificate.dataVersion = point.version
+  publishCatalogAudit(db, certificate)
   if (saved) { continueReadonlyQueueObservationHistory(db, saved.handle, saved.point, point); saved.point = point }
 }
 const legacyAudits = new WeakMap<DatabaseSync, LegacyLinksProjection | 'BUDGET_EXCEEDED'>();
@@ -115,6 +125,159 @@ const relocationAudits = new WeakMap<DatabaseSync, RelocationProjection>();
 interface RootRelinkReceipt {commandId:string;ledgerSequence:string;requestFingerprint:string;request:RelinkLibraryRoot;result:dto.LibraryRoot;beforeRoot?:dto.LibraryRoot}
 interface WorkbenchAudit {highWater:number; rootRelinks:Map<string,RootRelinkReceipt>;workbench:Map<string,LocalWorkbenchJournalProjection>; lyrics:Map<string,LocalLyricsJournalProjection>;cue:Map<string,LocalCueOwnerProjection>;scanSettings:Map<string,LocalScanSettingsOwnerProjection>;mbOnly:Map<string,LocalWorkbenchMBOnlyProjection>;lyricsPhysical:Map<string,LocalLyricsPhysicalProjection>;management:Map<string,LocalLibraryManagementProjection>;lyricsRoot:Map<string,LocalLyricsRootProjection>}
 const workbenchAudits=new WeakMap<DatabaseSync,WorkbenchAudit>();
+
+/** 只由原完整核验及其合法增量产生；持久层必须另外绑定实际数据库内容指纹。 */
+export interface LocalCatalogAuditState {
+  schema: 1;
+  rows: Map<Table, number>;
+  bytes: number;
+  legacy: LegacyLinksProjection | 'BUDGET_EXCEEDED';
+  sourceWrites: SourceWritesProjection;
+  relocation: RelocationProjection;
+  workbench: WorkbenchAudit;
+  observationHistory: LibraryManagementObservationHistory | null;
+}
+/** 内存候选也只接纳有界纯数据；不复制连接、函数、访问器、端口或活权限品牌。 */
+export function copyLocalAuditSnapshotData<T>(input: T): T {
+  const seen = new Set<object>(), active = new Set<object>();
+  let allocation = 0, nodes = 0;
+  const reject = (): never => { throw new Error('本地审计快照不是完整的有界纯数据。'); };
+  function visit(value: unknown, depth: number): void {
+    if (++nodes > 2_000_000 || depth > 128) return reject();
+    allocation += 16;
+    if (typeof value === 'string') allocation += value.length * 2;
+    else if (typeof value === 'number') { if (!Number.isFinite(value)) return reject(); }
+    else if (typeof value === 'bigint') { if (value < -9223372036854775808n || value > 9223372036854775807n) return reject(); allocation += 16; }
+    else if (value !== null && typeof value === 'object') {
+      if (active.has(value)) return reject();
+      if (seen.has(value)) return;
+      seen.add(value); active.add(value); allocation += 64;
+      const prototype = Object.getPrototypeOf(value);
+      if (prototype === Map.prototype || prototype === Set.prototype) {
+        if (Reflect.ownKeys(value).length) return reject();
+        if (value instanceof Map) for (const [key, entry] of value) { allocation += 48; visit(key, depth + 1); visit(entry, depth + 1); }
+        else if (value instanceof Set) for (const entry of value) { allocation += 32; visit(entry, depth + 1); }
+        else return reject();
+      } else {
+        const array = Array.isArray(value);
+        if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) return reject();
+        const descriptors = Object.getOwnPropertyDescriptors(value), names = Reflect.ownKeys(descriptors);
+        if (array && names.length !== value.length + 1) return reject();
+        for (const name of names) {
+          if (typeof name !== 'string') return reject();
+          const descriptor = descriptors[name]!;
+          if (array && name === 'length') continue;
+          if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')
+            || array && (!/^(0|[1-9][0-9]*)$/u.test(name) || Number(name) >= value.length)) return reject();
+          allocation += name.length * 2 + 16; visit(descriptor.value, depth + 1);
+        }
+      }
+      active.delete(value);
+    } else if (value !== null && value !== undefined && typeof value !== 'boolean') return reject();
+    if (allocation > 128 * 1024 * 1024) return reject();
+  }
+  visit(input, 0);
+  return structuredClone(input);
+}
+function auditStateRecord(value: unknown, fields: readonly string[]): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    && [Object.prototype, null].includes(Object.getPrototypeOf(value))
+    && Reflect.ownKeys(value).length === fields.length && fields.every(field => Object.hasOwn(value, field));
+}
+function auditStateInteger(value: unknown, maximum = Number.MAX_SAFE_INTEGER): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= maximum;
+}
+function auditStateProjection(value: unknown, empty: object, maps: readonly string[], sets: readonly string[], arrays: readonly string[], highWater: number): value is Record<string, unknown> {
+  if (!auditStateRecord(value, Object.keys(empty)) || !auditStateInteger(value.highWater, highWater)) return false;
+  return maps.every(field => value[field] instanceof Map) && sets.every(field => value[field] instanceof Set)
+    && arrays.every(field => Array.isArray(value[field]));
+}
+function validCatalogAuditState(value: unknown, highWater: number): value is LocalCatalogAuditState {
+  if (!auditStateRecord(value, ['schema', 'rows', 'bytes', 'legacy', 'sourceWrites', 'relocation', 'workbench', 'observationHistory'])
+    || value.schema !== 1 || !(value.rows instanceof Map) || value.rows.size !== Object.keys(tables).length
+    || !auditStateInteger(value.bytes, maxCatalogTextBytes)) return false;
+  for (const name of Object.keys(tables) as Table[]) if (!value.rows.has(name) || !auditStateInteger(value.rows.get(name), rowBudgets[name])) return false;
+  const source = value.sourceWrites, relocation = value.relocation, legacy = value.legacy, workbench = value.workbench;
+  if (!auditStateProjection(source, emptySourceWritesProjection(), ['plans', 'receipts', 'policy', 'originals', 'fullRaw', 'scanFacts'], ['ids'], ['events'], highWater)
+    || !auditStateInteger(source.bytes, 64 * 1024 * 1024) || !sha(source.fingerprint) || source.fingerprint === null
+    || !auditStateProjection(relocation, emptyRelocationProjection(), ['plans', 'receipts', 'policy', 'capabilities', 'locationFacts', 'latestAssets', 'latestRoots', 'retainedSources'], ['ids'], ['events'], highWater)
+    || !auditStateInteger(relocation.bytes, dto.LOCAL_RELOCATION_PLAN_BUDGET.journalProjectionBytes) || !sha(relocation.fingerprint) || relocation.fingerprint === null) return false;
+  if (legacy !== 'BUDGET_EXCEEDED' && (!auditStateProjection(legacy, emptyLegacyLinksProjection(), ['previews', 'links', 'history', 'slots'], ['ids', 'consumed'], ['events'], highWater)
+    || !auditStateInteger(legacy.canonicalBytes, dto.LOCAL_LEGACY_LINKS_BUDGET.projectionCanonicalBytes) || !sha(legacy.snapshotFingerprint) || legacy.snapshotFingerprint === null)) return false;
+  const domains = ['workbench', 'lyrics', 'cue', 'scanSettings', 'mbOnly', 'lyricsPhysical', 'management', 'lyricsRoot'] as const;
+  if (!auditStateRecord(workbench, ['highWater', 'rootRelinks', ...domains]) || !auditStateInteger(workbench.highWater, highWater)
+    || !(workbench.rootRelinks instanceof Map) || !domains.every(name => workbench[name] instanceof Map)) return false;
+  for (const domain of domains) for (const [datasetId, projection] of workbench[domain] as Map<unknown, unknown>) {
+    if (!dto.isCommandOutboxDatasetId(datasetId) || !record(projection) || projection.datasetId !== datasetId || !auditStateInteger(projection.highWater, highWater)) return false;
+    switch (domain) {
+      case 'workbench': if (!auditStateRecord(projection, ['datasetId', 'revision', 'snapshot', 'highWater', 'pending']) || !auditStateInteger(projection.revision) || projection.pending !== null) return false; break;
+      case 'lyrics': if (!auditStateRecord(projection, ['datasetId', 'highWater', 'latest', 'inventory', 'jobOrigins', 'pending']) || !['latest', 'inventory', 'jobOrigins'].every(name => projection[name] instanceof Map) || projection.pending !== null) return false; break;
+      case 'cue': if (!auditStateRecord(projection, ['datasetId', 'highWater', 'output']) || !auditStateRecord(projection.output, ['latest', 'pending']) || !(projection.output.latest instanceof Map) || projection.output.pending !== null) return false; break;
+      case 'scanSettings': if (!auditStateRecord(projection, ['datasetId', 'highWater', 'settings', 'commands', 'jobs']) || !record(projection.settings) || !(projection.commands instanceof Map) || !(projection.jobs instanceof Map)) return false; break;
+      case 'mbOnly': if (!auditStateRecord(projection, ['datasetId', 'highWater', 'latest', 'provenance', 'pending']) || !(projection.latest instanceof Map) || !(projection.provenance instanceof Map) || projection.pending !== null) return false; break;
+      case 'lyricsPhysical': if (!auditStateRecord(projection, ['datasetId', 'highWater', 'records', 'pending', 'pendingPublication']) || !(projection.records instanceof Map) || projection.pending !== null || projection.pendingPublication !== null) return false; break;
+      case 'management': if (!auditStateRecord(projection, ['datasetId', 'highWater', 'records', 'pending', 'batch']) || !(projection.records instanceof Map) || projection.pending !== null || projection.batch !== null) return false; break;
+      case 'lyricsRoot': if (!auditStateRecord(projection, ['datasetId', 'highWater', 'records', 'pending']) || !(projection.records instanceof Map) || projection.pending !== null) return false; break;
+    }
+  }
+  const history = value.observationHistory;
+  if (history !== null) {
+    if (!auditStateRecord(history, ['byTrack', 'allocationBytes']) || !(history.byTrack instanceof Map)
+      || !auditStateInteger(history.allocationBytes, 32 * 1024 * 1024) || history.allocationBytes < 4096) return false;
+    let allocation = 4096;
+    for (const [trackId, candidates] of history.byTrack) {
+      if (!dto.isCollectionId(trackId) || candidates !== null && (!Array.isArray(candidates) || candidates.length > 402 || candidates.length % 2)) return false;
+      allocation += 192 + trackId.length * 2;
+      if (candidates === null) continue;
+      for (let index = 0; index < candidates.length; index += 2) {
+        const rowId = candidates[index], sequence = candidates[index + 1];
+        if (typeof rowId !== 'bigint' || rowId < -9223372036854775808n || rowId > 9223372036854775807n
+          || !auditStateInteger(sequence, highWater) || sequence < 1 || index > 0 && sequence <= candidates[index - 1]!) return false;
+        allocation += 96;
+      }
+    }
+    if (allocation > history.allocationBytes) return false;
+  }
+  return true;
+}
+export function clearLocalCatalogAuditState(db: DatabaseSync): void {
+  audits.delete(db); auditStatePoints.delete(db); observationHistoryAudits.delete(db); observationHistoryStates.delete(db); legacyAudits.delete(db);
+  sourceWritesAudits.delete(db); relocationAudits.delete(db); workbenchAudits.delete(db);
+}
+/** 原certificate仍当前才导出；本连接合法写改变SQL点时，旧观察索引只省略、不复活。 */
+export function captureLocalCatalogAuditState(db: DatabaseSync): LocalCatalogAuditState | undefined {
+  try {
+    const certificate = audits.get(db), point = observationHistoryPoint(db), saved = observationHistoryStates.get(db), published = auditStatePoints.get(db);
+    if (!certificate || certificate.dataVersion !== point.version || !published || published.certificate !== certificate
+      || published.point.version !== point.version || published.point.schema !== point.schema
+      || !isLocalAuditWritePointCurrent(db, 'catalog', published.writes)
+      || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1) return undefined;
+    const history = saved && saved.certificate === certificate && saved.schema === point.schema
+      && isLocalAuditWritePointCurrent(db, 'catalog', saved.writes) ? saved.history : null;
+    if (!history) { observationHistoryStates.delete(db); observationHistoryAudits.delete(db); }
+    const state = copyLocalAuditSnapshotData({ schema: 1, rows: new Map(certificate.rows), bytes: certificate.bytes,
+      legacy: legacyAudits.get(db), sourceWrites: sourceWritesAudits.get(db), relocation: relocationAudits.get(db),
+      workbench: workbenchAudits.get(db), observationHistory: history });
+    const highWater = Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()?.n);
+    if (!auditStateInteger(highWater) || !validCatalogAuditState(state, highWater) || !same(point, observationHistoryPoint(db))) return undefined;
+    return state;
+  } catch { return undefined; }
+}
+/** 仅可信持久层在实际内容指纹相等后调用；任何失败清除整套目录派生审计。 */
+export function restoreLocalCatalogAuditState(db: DatabaseSync, value: unknown): boolean {
+  clearLocalCatalogAuditState(db);
+  try {
+    const state = copyLocalAuditSnapshotData(value), point = observationHistoryPoint(db);
+    const highWater = Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()?.n);
+    if (db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1 || !auditStateInteger(highWater) || !validCatalogAuditState(state, highWater)) return false;
+    const certificate: AuditCertificate = { rows: state.rows, bytes: state.bytes, dataVersion: point.version };
+    if (!same(point, observationHistoryPoint(db))) return false;
+    publishCatalogAudit(db, certificate); legacyAudits.set(db, state.legacy); sourceWritesAudits.set(db, state.sourceWrites);
+    relocationAudits.set(db, state.relocation); workbenchAudits.set(db, state.workbench);
+    if (state.observationHistory) publishObservationHistory(db, certificate, point, state.observationHistory);
+    return true;
+  } catch { clearLocalCatalogAuditState(db); return false; }
+}
 
 /** 只供原扫描冷核/参数证据；不签grant、不暴露数据库给服务。 */
 export function sourceWritesProjectionForDatabase(db:DatabaseSync):SourceWritesProjection|undefined{return sourceWritesAudits.get(db);}
@@ -303,6 +466,9 @@ function publishObservationHistory(db:DatabaseSync,certificate:AuditCertificate,
     return undefined;
   },()=>audits.get(db)===certificate&&observationHistoryAudits.get(db)?.handle===handle);
   observationHistoryAudits.set(db,{certificate,point,history,handle});
+  const writes = currentLocalAuditWritePoint(db, 'catalog');
+  if (writes) observationHistoryStates.set(db, { certificate, schema: point.schema, writes, history });
+  else observationHistoryStates.delete(db);
 }
 /** 仅冷启动无测试钩子的原COMMIT；成功后精确衔接只读冷核，恢复写一律回退。 */
 export function commitLocalCatalogStartupAudit(db:DatabaseSync):void {
@@ -440,12 +606,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync, assertReadActive?: 
     statements.set(sql, statement);
     return statement;
   };
-  audits.delete(db);
-  observationHistoryAudits.delete(db);
-  legacyAudits.delete(db);
-  sourceWritesAudits.delete(db);
-  relocationAudits.delete(db);
-  workbenchAudits.delete(db);
+  clearLocalCatalogAuditState(db);
   // 取消只中断本次核验，异常沿调用方原回滚链传播；不能发表部分审计证书。
   assertReadActive?.();
   const initialDataVersion = dataVersion(db);
@@ -677,7 +838,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync, assertReadActive?: 
   assertReadActive?.();
   workbenchAudits.set(db,workbench);
   const certificate:AuditCertificate = { rows: counts, bytes, dataVersion: initialDataVersion };
-  audits.set(db, certificate);
+  publishCatalogAudit(db, certificate, true);
   legacyAudits.set(db,legacy);
   sourceWritesAudits.set(db,sourceWrites);
   relocationAudits.set(db, relocation);
@@ -1346,7 +1507,7 @@ export function createLocalCatalogStore(access: Access) {
   function transaction<T extends dto.LocalCatalogResult>(operation: dto.LocalCatalogOperation, request: Command, apply: (db: DatabaseSync) => T): T {
     if (!validRequest(operation, request)) return access.conflict('本地目录请求无效。');
     return access.read(db => {
-      db.exec('BEGIN IMMEDIATE');
+      lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');
       let rollbackWorkbench:WorkbenchAudit|undefined;
       try {
         const previousWorkbench=operation==='relink-root'&&workbenchIdentity?workbenchProjectionFor(db):undefined;
@@ -1365,7 +1526,7 @@ export function createLocalCatalogStore(access: Access) {
           if(rows){appendWorkbenchRows(db,prepared,rows,'local-library-management:root-relink',undefined,candidate.certificate);return candidate.result;}
         }
         access.beforeLocalFactsCommit?.();
-        commitLocalFacts(db,access.onLocalFactsFatal); audits.set(db, candidate.certificate); return candidate.result;
+        commitLocalFacts(db,access.onLocalFactsFatal); publishCatalogAudit(db, candidate.certificate); return candidate.result;
       } catch (error) { if(rollbackWorkbench&&db.isTransaction)workbenchAudits.set(db,rollbackWorkbench);rollbackLocalFacts(db,error,access.onLocalFactsFatal); }
     });
   }
@@ -1512,7 +1673,7 @@ export function createLocalCatalogStore(access: Access) {
     if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+rows.length)return corrupt()
     workbenchIdentity!.assertCurrent();access.beforeLocalFactsCommit?.();captureWrite?.approve(rows);commitLocalFacts(db,access.onLocalFactsFatal)
     candidate.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n)
-    audits.set(db,{rows:counts,bytes,dataVersion:certificate.dataVersion});workbenchAudits.set(db,candidate)
+    publishCatalogAudit(db,{rows:counts,bytes,dataVersion:certificate.dataVersion});workbenchAudits.set(db,candidate)
     captureWrite?.publish()
   }
   function cueOutputRead(identity:DatasetIdentity,commandId:string):{record:LocalCueOutputRecord;ledgerSequence:string}|null{
@@ -1615,7 +1776,7 @@ export function createLocalCatalogStore(access: Access) {
       .filter(stored=>stored.record.kind==='binding'&&stored.record.active).map(stored=>stored.record.key));
     let recovered=0;
     for(const libraryId of libraries){assertWorkbenchIdentity(identity);recovered+=access.read(db=>{
-      db.exec('BEGIN IMMEDIATE');let rollbackWorkbench:WorkbenchAudit|undefined;try{
+      lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');let rollbackWorkbench:WorkbenchAudit|undefined;try{
         const projection=workbenchProjectionFor(db),rows=libraryRootRelinkBindingRows(db,projection,libraryId);
         rollbackWorkbench=projection;
         if(!rows){db.exec('ROLLBACK');return 0;}
@@ -1729,7 +1890,7 @@ export function createLocalCatalogStore(access: Access) {
         assertWorkbenchIdentity(identity);
         if(samePoint(before,localAlbumScanPoint(db)))preparedPoint=before;else prepared.clear();
       }
-      db.exec('BEGIN IMMEDIATE');try{
+      lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');try{
       const a=workbenchProjectionFor(db),p=a.management.get(identity.datasetId)??emptyLocalLibraryManagementProjection(identity.datasetId),records=writes.map(w=>w.record);
       const exact=writes.every(w=>{const old=p.records.get(w.record.kind+':'+w.record.key);return old&&same(old.record,w.record)&&w.expectedRevision===old.record.revision-1;});
       if(exact){db.exec('ROLLBACK');const saved=writes.map(w=>structuredClone(p.records.get(w.record.kind+':'+w.record.key)!));return {ledgerSequence:saved.at(-1)!.ledgerSequence,records:saved};}
@@ -1774,7 +1935,7 @@ export function createLocalCatalogStore(access: Access) {
   }
   function lyricsRootCompareAndSwap(identity:DatasetIdentity,input:LocalLyricsRootRecord,expectedRevision:number|null):void{
     assertWorkbenchIdentity(identity);const record=captureLocalLyricsRootRecord(input);if(record.datasetId!==identity.datasetId)throw new LocalLyricsError('STALE');
-    access.read(db=>{db.exec('BEGIN IMMEDIATE');try{const a=workbenchProjectionFor(db),p=a.lyricsRoot.get(identity.datasetId),old=p?.records.get(record.kind+':'+record.key)??null;
+    access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');try{const a=workbenchProjectionFor(db),p=a.lyricsRoot.get(identity.datasetId),old=p?.records.get(record.kind+':'+record.key)??null;
       if((old?.revision??null)!==expectedRevision)throw new LocalLyricsError('CONFLICT');assertLocalLyricsRootTransition(old,record);verifyLyricsRootRecord(db,a,record,true);
       appendWorkbenchRows(db,a,createLocalLyricsRootEvents(record,old).map(localLyricsRootLedgerRow),'local-lyrics-root:cas');
     }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal);}});assertWorkbenchIdentity(identity);
@@ -1800,7 +1961,7 @@ export function createLocalCatalogStore(access: Access) {
   }
   function lyricsPhysicalCompareAndSwap(identity:DatasetIdentity,input:LocalLyricsPhysicalRecord,expectedRevision:number|null):number{
     assertWorkbenchIdentity(identity);const record=captureLocalLyricsPhysicalRecord(input);if(record.binding.datasetId!==identity.datasetId||record.phase==='FACTS_COMMITTED')throw new LocalLyricsError('INVALID');
-    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{const a=workbenchProjectionFor(db),previous=a.lyricsPhysical.get(identity.datasetId)?.records.get(record.operationId);
+    const result=access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');try{const a=workbenchProjectionFor(db),previous=a.lyricsPhysical.get(identity.datasetId)?.records.get(record.operationId);
       if((previous?.record.revision??null)!==expectedRevision)throw new LocalLyricsError('CONFLICT');lyricsPhysicalOriginalSave(db,a,record);
       if(!['FAILED','UNKNOWN'].includes(record.phase))assertLyricsPhysicalGroup(db,a,record);
       const events=createLocalLyricsPhysicalEvents(record,previous?.record??null);appendWorkbenchRows(db,a,events.map(localLyricsPhysicalLedgerRow),'local-lyrics-physical:cas');
@@ -1811,7 +1972,7 @@ export function createLocalCatalogStore(access: Access) {
     assertWorkbenchIdentity(identity);const record=captureLocalLyricsPhysicalRecord(input),b=record.binding;
     if(b.datasetId!==identity.datasetId||record.phase!=='FACTS_COMMITTED'||!record.grant||!record.artifacts.target||record.physicalClosed||record.protectionReleased||record.unresolved
       ||!['saved','existing'].includes(String(record.result?.state))||record.result?.bodySha256!==b.bodySha256)throw new LocalLyricsError('INVALID');
-    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');let committed=false;try{
+    const result=access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');let committed=false;try{
       const a=workbenchProjectionFor(db),previous=a.lyricsPhysical.get(identity.datasetId)?.records.get(record.operationId);
       if(!previous||previous.record.revision!==expectedRevision||previous.record.phase!=='PUBLISHED'||previous.publication)throw new LocalLyricsError('CONFLICT');
       const saved=lyricsPhysicalOriginalSave(db,a,record),assets=assertLyricsPhysicalGroup(db,a,record),policy=sourceWritesPolicy(sourceProjectionFor(db),identity.datasetId);
@@ -1853,13 +2014,13 @@ export function createLocalCatalogStore(access: Access) {
       for(const p of candidate.lyricsPhysical.values())assertLocalLyricsPhysicalComplete(p);for(const p of candidate.lyrics.values())assertLocalLyricsJournalComplete(p);
       if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==initialChanges+changed)return corrupt();access.beforeCommit?.('local-lyrics-physical:publication');
       if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==initialChanges+changed)return corrupt();assertWorkbenchIdentity(identity);access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal);committed=true;
-      candidate.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);audits.set(db,certificate);workbenchAudits.set(db,candidate);scanPublish?.();return value.ledgerSequence;
+      candidate.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);publishCatalogAudit(db,certificate);workbenchAudits.set(db,candidate);scanPublish?.();return value.ledgerSequence;
     }catch(error){if(committed){access.onLocalFactsFatal?.();throw new LocalFactsCommitFatal();}rollbackLocalFacts(db,error,access.onLocalFactsFatal);}});assertWorkbenchIdentity(identity);return result;
   }
   function cueOutputCompareAndSwap(identity:DatasetIdentity,record:LocalCueOutputRecord,expectedRevision:number|null):{ledgerSequence:string}{
     assertWorkbenchIdentity(identity);if(!isLocalCueOutputRecord(record)||record.request.datasetId!==identity.datasetId)throw new LocalLyricsError('INVALID')
     const events=createLocalCueOutputEvents(record,expectedRevision)
-    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+    const result=access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');try{
       const a=workbenchProjectionFor(db),previous=a.cue.get(identity.datasetId)?.output.latest.get(record.request.commandId)
       if((previous?.record.revision??null)!==expectedRevision)throw new LocalLyricsError('CONFLICT')
       appendWorkbenchRows(db,a,events.map(localCueOwnerLedgerRow),'local-cue-output:cas')
@@ -1871,7 +2032,7 @@ export function createLocalCatalogStore(access: Access) {
     const check=(requested:DatasetIdentity):void=>{if(requested!==identity)throw new LocalLyricsError('STALE');assertWorkbenchIdentity(identity)}
     const write=(requested:DatasetIdentity,event:LocalScanSettingsEvent):LocalScanSettings|LocalScanFrozenSettings=>{
       check(requested);if(!isLocalScanSettingsEvent(event)||event.datasetId!==identity.datasetId)throw new LocalLyricsError('INVALID')
-      const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+      const result=access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');try{
         const a=workbenchProjectionFor(db),current=a.scanSettings.get(identity.datasetId)??emptyLocalScanSettingsOwnerProjection(identity.datasetId),prior=localScanSettingsOwnerOriginal(current,event)
         if(prior){db.exec('ROLLBACK');return prior}
         appendWorkbenchRows(db,a,[localScanSettingsOwnerLedgerRow(event)],'local-scan-settings:'+event.kind)
@@ -1939,7 +2100,7 @@ export function createLocalCatalogStore(access: Access) {
   }
   function mbApply(identity:DatasetIdentity,request:dto.LocalWorkbenchApplyRequest,plan:dto.LocalWorkbenchPlan,capture:LocalWorkbenchPlanCapture,resolved:readonly Readonly<LocalWorkbenchResolvedReadCapture>[],origin:object|null):dto.LocalWorkbenchReceipt{
     assertWorkbenchIdentity(identity);if(!dto.isLocalWorkbenchApplyRequest(request)||request.datasetId!==identity.datasetId)throw new LocalLyricsError('INVALID')
-    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+    const result=access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');try{
       const before=Number(db.prepare('SELECT total_changes() n').get()!.n),{a,entry}=mbEntry(db,identity,request.planId);if(!same(entry.original,request)||!same(entry.plan,plan)||!same(entry.capture,capture))throw new LocalLyricsError('CONFLICT')
       const prior=a.mbOnly.get(identity.datasetId)?.latest.get(request.commandId);if(prior){db.exec('ROLLBACK');return structuredClone(prior.record.receipt)}
       let certificate=certificateFor(db),changed=0,known:'Human'|'AI'|'Artwork'|'Unknown'=plan.kind==='artwork'?'Artwork':'Unknown';const branded=origin?mbOrigins.get(origin):null
@@ -1975,7 +2136,7 @@ export function createLocalCatalogStore(access: Access) {
       for(const row of events.map(localWorkbenchMBOnlyLedgerRow)){if(db.prepare('SELECT 1 FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!))throw new LocalLyricsError('CONFLICT');db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(row.command_id!,row.fingerprint!,row.operation!,row.request!,row.result!,row.created_at!);const saved=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!)!;boundedRow(saved);projectWorkbenchRow(candidate,saved);changed++;bytes+=rowBytes(saved);counts.set('local_catalog_ledger',counts.get('local_catalog_ledger')!+1);checkBudget('local_catalog_ledger行数',counts.get('local_catalog_ledger')!,rowBudgets.local_catalog_ledger);checkBudget('目录总文本字节',bytes,maxCatalogTextBytes)}
       for(const p of candidate.mbOnly.values())assertLocalWorkbenchMBOnlyComplete(p);verifyLocalArtworkDatabase(db)
       if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();access.beforeCommit?.('local-workbench-mb-only:apply');if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();assertWorkbenchIdentity(identity);access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal)
-      candidate.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);audits.set(db,{rows:counts,bytes,dataVersion:certificate.dataVersion});workbenchAudits.set(db,candidate);return structuredClone(record.receipt)
+      candidate.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);publishCatalogAudit(db,{rows:counts,bytes,dataVersion:certificate.dataVersion});workbenchAudits.set(db,candidate);return structuredClone(record.receipt)
     }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal)}});assertWorkbenchIdentity(identity);return result
   }
   const result = {
@@ -2030,7 +2191,7 @@ export function createLocalCatalogStore(access: Access) {
     privateScanSettingsStore:scanSettingsStore,
     privateWorkbenchSnapshot(datasetId:string){assertWorkbenchDataset(datasetId);return access.read(db=>{const a=workbenchProjectionFor(db),p=a.workbench.get(datasetId);assertWorkbenchDataset(datasetId);return p?.snapshot?structuredClone(p.snapshot):null})},
     privateWorkbenchCompareAndSwap(datasetId:string,expectedRevision:number,events:readonly LocalWorkbenchJournalEvent[]):void{
-      assertWorkbenchDataset(datasetId);access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+      assertWorkbenchDataset(datasetId);access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');try{
         const a=workbenchProjectionFor(db),current=a.workbench.get(datasetId)??emptyLocalWorkbenchJournalProjection(datasetId)
         if(current.revision!==expectedRevision||events.length===0||events.some(e=>e.datasetId!==datasetId||e.expectedRevision!==expectedRevision))throw new LocalLyricsError('CONFLICT')
         appendWorkbenchRows(db,a,events.map(localWorkbenchJournalLedgerRow),'local-workbench:cas')
@@ -2051,7 +2212,7 @@ export function createLocalCatalogStore(access: Access) {
     },
     privateLyricsCompareAndSwap(datasetId:string,kind:LocalLyricsRecordKind,value:LocalLyricsDurableRecord,expectedRevision:number|null):void{
       assertWorkbenchDataset(datasetId);const identity=localLyricsRecordIdentity(kind,value);if(identity.datasetId!==datasetId)throw new LocalLyricsError('STALE')
-      access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+      access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');try{
         const a=workbenchProjectionFor(db),p=a.lyrics.get(datasetId)??emptyLocalLyricsJournalProjection(datasetId),previous=p.latest.get(`${kind}:${identity.key}`)
         if((previous?.revision??null)!==expectedRevision)throw new LocalLyricsError('CONFLICT')
         // 与初始intent同一事务，另实例/新capture不能在同album未决时创建新原id。
@@ -2122,7 +2283,7 @@ export function createLocalCatalogStore(access: Access) {
     /** 原目录作者唯一短事务：位置CAS、真实Scanner来源及本域journal一起落地。 */
     privateRelocationTransaction<T>(operation: (view: RelocationWriteView) => T): T {
       return access.read(db => {
-        db.exec('BEGIN IMMEDIATE'); let committed = false;
+        lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE'); let committed = false;
         try {
           const projection = copyRelocationProjection(relocationProjectionFor(db));
           let certificate = certificateFor(db), changed = 0;
@@ -2221,7 +2382,7 @@ export function createLocalCatalogStore(access: Access) {
           access.beforeCommit?.('local-relocation:append');
           if (Number(db.prepare('SELECT total_changes() n').get()!.n) !== beforeChanges + changed) return corrupt();
           access.beforeLocalFactsCommit?.(); commitLocalFacts(db, access.onLocalFactsFatal); committed = true;
-          audits.set(db, certificate); relocationAudits.set(db, projection); publishes.forEach(publish => publish()); return result;
+          publishCatalogAudit(db, certificate); relocationAudits.set(db, projection); publishes.forEach(publish => publish()); return result;
         } catch (error) {
           if (committed) { access.onLocalFactsFatal?.(); throw new LocalFactsCommitFatal(); }
           rollbackLocalFacts(db, error, access.onLocalFactsFatal);
@@ -2278,7 +2439,7 @@ export function createLocalCatalogStore(access: Access) {
             assertWorkbenchIdentity(identity);
           }catch(error){failures.push(error);}
           // 原缓存与纯观察关系作者逐一恢复原引用；临时只读冷核不能升级普通warm作者。
-          audits.set(db,oldAudit);sourceWritesAudits.set(db,oldSource);
+          publishCatalogAudit(db,oldAudit);sourceWritesAudits.set(db,oldSource);
           if(oldLegacy===undefined)legacyAudits.delete(db);else legacyAudits.set(db,oldLegacy);
           if(oldRelocation===undefined)relocationAudits.delete(db);else relocationAudits.set(db,oldRelocation);
           if(oldWorkbench===undefined)workbenchAudits.delete(db);else workbenchAudits.set(db,oldWorkbench);
@@ -2291,7 +2452,7 @@ export function createLocalCatalogStore(access: Access) {
     },
     privateSourceWritesRead<T>(operation:(view:SourceWritesReadView)=>T):T{return access.read(db=>operation(sourceView(db,copySourceWritesProjection(sourceProjectionFor(db)))));},
     privateSourceWritesTransaction<T>(operation:(view:SourceWritesWriteView)=>T):T{
-      return access.read(db=>{db.exec('BEGIN IMMEDIATE');let committed=false;try{
+      return access.read(db=>{lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');let committed=false;try{
         const projection=copySourceWritesProjection(sourceProjectionFor(db));let certificate=certificateFor(db),changed=0,added=0;const publishes:(()=>void)[]=[];
         const before=Number(db.prepare('SELECT total_changes() n').get()!.n);
         const append=(event:SourceWritesEvent):void=>{
@@ -2306,14 +2467,14 @@ export function createLocalCatalogStore(access: Access) {
           const prior=Number(db.prepare('SELECT total_changes() n').get()!.n),candidate=mutate(db,certificate,'replace-asset',request,d=>applyReplaceAsset(d,request));certificate=candidate.certificate;changed+=Number(db.prepare('SELECT total_changes() n').get()!.n)-prior;if(!same(candidate.result,fact.afterAsset))return corrupt();
           publishes.push(updateSourceWriteScanFacts(db,c.libraryRoot.id,c.relative,c.scan.jobId,c.scan.batchId,fact.scanBefore,fact.scanAfter));changed++;append(event);return candidate.result as dto.AudioAsset;
         }};
-        const result=operation(view);if(result instanceof Promise)return corrupt();if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();access.beforeCommit?.('local-source-writes:append');if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal);committed=true;audits.set(db,certificate);sourceWritesAudits.set(db,projection);publishes.forEach(p=>p());return result;
+        const result=operation(view);if(result instanceof Promise)return corrupt();if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();access.beforeCommit?.('local-source-writes:append');if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal);committed=true;publishCatalogAudit(db,certificate);sourceWritesAudits.set(db,projection);publishes.forEach(p=>p());return result;
       }catch(error){if(committed){access.onLocalFactsFatal?.();throw new LocalFactsCommitFatal();}rollbackLocalFacts(db,error,access.onLocalFactsFatal);}});
     },
     /** 新域只能读取已认证投影；不向关系服务提供 raw db 或原 mutate。 */
     privateLegacyLinksRead<T>(operation:(view:LegacyLinksView)=>T):T {return access.read(db=>operation(legacyView(db,legacyProjectionFor(db))));},
     privateLegacyLinksTransaction<T>(operation:(view:LegacyLinksWriteView)=>T):T {
       return access.read(db=>{
-        db.exec('BEGIN IMMEDIATE');
+        lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');
         try{
           const projection=copyLegacyLinksProjection(legacyProjectionFor(db));let certificate=certificateFor(db),added=0;
           const before=Number(db.prepare('SELECT total_changes() n').get()!.n);
@@ -2335,7 +2496,7 @@ export function createLocalCatalogStore(access: Access) {
           access.beforeCommit?.('local-legacy-links:append');
           if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+added)return corrupt();
           access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal);
-          audits.set(db,certificate);legacyAudits.set(db,projection);return result;
+          publishCatalogAudit(db,certificate);legacyAudits.set(db,projection);return result;
         }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal);}
       });
     },
@@ -2346,7 +2507,7 @@ export function createLocalCatalogStore(access: Access) {
     privateRead<T>(operation: (db: DatabaseSync) => T): T { return access.read(db => { certificateFor(db); return operation(db); }); },
     privateBatch<T>(operation: (db: DatabaseSync, mutate: (name: dto.LocalCatalogOperation, request: Command & Row) => dto.LocalCatalogResult, appendJournal: (event: OrganizerEvent) => void) => T, action = 'local-scan:commit-batch', scanDelta?: LocalAlbumScanDelta): T {
       return access.read(db => {
-        db.exec('BEGIN IMMEDIATE');
+        lockUnknownLocalAuditWritePrefix(db); db.exec('BEGIN IMMEDIATE');
         try {
           let certificate = certificateFor(db);
           let expectedChanges = Number(db.prepare('SELECT total_changes() n').get()?.n);
@@ -2405,7 +2566,7 @@ export function createLocalCatalogStore(access: Access) {
           if (action.startsWith('local-organizer:') && Number(db.prepare('SELECT total_changes() n').get()?.n) !== expectedChanges) return corrupt();
           access.beforeLocalFactsCommit?.();
           approveLocalAlbumScanDelta(db, scanDelta, expectedChanges-initialChanges);
-          commitLocalFacts(db,access.onLocalFactsFatal); audits.set(db, certificate); return result;
+          commitLocalFacts(db,access.onLocalFactsFatal); publishCatalogAudit(db, certificate); return result;
         } catch (error) { discardLocalAlbumScanDelta(scanDelta); rollbackLocalFacts(db,error,access.onLocalFactsFatal); }
       });
     },

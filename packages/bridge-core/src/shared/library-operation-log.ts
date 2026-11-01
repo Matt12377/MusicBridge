@@ -41,6 +41,43 @@ export function logLibraryOperation(part: LibraryOperationPart, action: string, 
     if (readLibraryOperationLine(line)) console.info(line)
   } catch { /* 诊断输出失败不改变扫描、取消或事务结果。 */ }
 }
+export type LibraryStartupStage = 'owner.prepare' | 'runtime.gateway' | 'runtime.roon' | 'runtime.control' | 'owner.commit' | 'utility.bootstrap' | 'local.ports'
+const startupStages = new Set<LibraryStartupStage>(['owner.prepare', 'runtime.gateway', 'runtime.roon', 'runtime.control', 'owner.commit', 'utility.bootstrap', 'local.ports'])
+const startupCodes = new Set(['EADDRINUSE', 'EADDRNOTAVAIL', 'EACCES', 'TIMEOUT', 'CONFIG_INVALID', 'UNKNOWN'])
+function startupOwn(error: unknown, key: string): unknown {
+  try {
+    const descriptor = error !== null && typeof error === 'object' ? Object.getOwnPropertyDescriptor(error, key) : undefined
+    return descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined
+  } catch { return undefined }
+}
+function startupErrorCode(error: unknown): string {
+  const code = startupOwn(error, 'code')
+  if (typeof code === 'string' && startupCodes.has(code)) return code
+  const ownerCode = startupOwn(startupOwn(startupOwn(error, 'failure'), 'error'), 'code')
+  if (typeof ownerCode === 'string' && startupCodes.has(ownerCode)) return ownerCode
+  return 'UNKNOWN'
+}
+/** 只记录固定启动阶段和闭集首错；调用方必须在清理开始前记录原异常。 */
+export function recordLibraryStartupFailure(stage: LibraryStartupStage, error: unknown, elapsedMs = 0): void {
+  const safeStage = startupStages.has(stage) ? stage : 'utility.bootstrap'
+  logLibraryOperation('library', `startup.${safeStage}`, 'error', {
+    code: startupErrorCode(error), elapsedMs: Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0,
+  })
+}
+/** 启动旁注保留操作的原返回值和原异常，不输出环境、URL、异常正文或堆栈。 */
+export async function traceLibraryStartup<T>(stage: LibraryStartupStage, work: () => T | Promise<T>): Promise<T> {
+  const safeStage = startupStages.has(stage) ? stage : 'utility.bootstrap'
+  const started = performance.now()
+  logLibraryOperation('library', `startup.${safeStage}`, 'start')
+  try {
+    const result = await work()
+    logLibraryOperation('library', `startup.${safeStage}`, 'complete', { elapsedMs: Math.max(0, performance.now() - started) })
+    return result
+  } catch (error) {
+    recordLibraryStartupFailure(safeStage, error, performance.now() - started)
+    throw error
+  }
+}
 type LibraryRemovalStage='main.initial'|'main.intent'|'main.execute'|'main.result'|'owner.execute'|'owner.fence'|'owner.commit'
 /** 原移除阶段只输出闭集首码与耗时；绝不展开异常、路径或用户名称。 */
 export async function traceLibraryRemoval<T>(stage:LibraryRemovalStage,id:string,work:()=>T|Promise<T>):Promise<T> {

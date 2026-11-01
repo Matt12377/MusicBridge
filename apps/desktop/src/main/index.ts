@@ -6,7 +6,7 @@ import { localAlbumPhase, localAlbumMatch, localAlbumRejectCode, localAlbumLink,
 import { collectDesktopArtwork, snapshotDesktopArtwork } from '../../../../packages/bridge-core/src/shared/desktop-artwork-trace-node.js'
 import { readDesktopArtworkLine, desktopArtworkTraceEnabled } from '../../../../packages/bridge-core/src/shared/desktop-artwork-trace.js'
 import { readLocalAlbumSafeTraceLine } from '../shared/library-read-trace.js'
-import { readLibraryOperationLine, logLibraryOperation } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
+import { readLibraryOperationLine, logLibraryOperation, traceLibraryStartup } from '../../../../packages/bridge-core/src/shared/library-operation-log.js'
 import { closeRustMediaWorkerPool } from '../../../../packages/bridge-core/src/library/rust-media-worker.js'
 import { resolveDesktopMediaWorker } from './media-worker-bootstrap.js'
 import { createRemoteCoreModeController } from './remote-core-mode.js'
@@ -226,6 +226,7 @@ import {
   buildCoreEnvironment as buildAllowlistedCoreEnvironment,
   resolveRemoteCoreLocalPorts,
 } from './core-environment.js'
+import { selectLocalCorePorts, type LocalCorePorts } from './local-core-ports.js'
 import {
   DEFAULT_REMOTE_STREAM_PORT,
   isSafeSshTarget,
@@ -2501,7 +2502,7 @@ function createWindow(supervisor: CoreSupervisor, startup?: ReturnType<typeof cr
   return window
 }
 
-function buildCoreEnvironment(): NodeJS.ProcessEnv {
+function buildCoreEnvironment(localCorePorts?: LocalCorePorts, mode = coreMode): NodeJS.ProcessEnv {
   const environment = buildAllowlistedCoreEnvironment(process.env, {
     startupTest: isStartupTest,
     uiE2e: isUiE2e,
@@ -2510,7 +2511,8 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     roonBrowseGate: isRoonBrowseGate,
     roonImageGate: isRoonImageGate,
     libraryReadTrace: isLibraryReadTrace,
-    remoteCoreMode: coreMode,
+    remoteCoreMode: mode,
+    ...(localCorePorts ? { localCorePorts } : {}),
     ...(coreDataDirectory !== undefined ? { dataDirectory: coreDataDirectory } : {}),
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
   })
@@ -2625,6 +2627,35 @@ function createCoreSupervisor(
     entryPath: path.join(currentDirectory, 'core.js'),
     cwd: dataDirectory,
     env: buildCoreEnvironment(),
+    prepareEnvironment: async environment => {
+      if (environment.MUSIC_BRIDGE_REMOTE_CORE_MODE === 'remote-core-development' || environment.MUSIC_BRIDGE_CORE_TEST_MODE === '1') return environment
+      const ports = await traceLibraryStartup('local.ports', () => selectLocalCorePorts(process.env))
+      const selected = buildCoreEnvironment(ports, 'local-core')
+      const next = { ...environment }
+      for (const key of ['BRIDGE_CONTROL_HOST', 'BRIDGE_CONTROL_PORT', 'BRIDGE_STREAM_HOST', 'BRIDGE_STREAM_PORT', 'BRIDGE_PUBLIC_STREAM_BASE_URL']) {
+        if (selected[key] === undefined) delete next[key]
+        else next[key] = selected[key]
+      }
+      return next
+    },
+    onLibraryOperation: event => {
+      if (!mainWindow || mainWindow.isDestroyed() || !event.action.startsWith('startup.')) return
+      const messages: Record<string, string> = {
+        'startup.owner.prepare': '正在准备音乐库，界面可以先浏览。',
+        'startup.repository.catalog': '正在核验曲库目录，完成后分批载入。',
+        'startup.repository.scan': '正在核验历史扫描记录。',
+        'startup.runtime.gateway': '正在启动本机媒体服务。',
+        'startup.runtime.roon': '正在连接音乐服务。',
+        'startup.owner.commit': '正在载入音乐库目录。',
+        'startup.mobile-prepare': '正在准备曲库分页查询。',
+      }
+      const message = messages[event.action]
+      if (event.action === 'startup.repository.audit-reuse' && event.state === 'complete') mainWindow.webContents.send('core:event', {
+        version: IPC_VERSION, event: 'diagnostic.notice', payload: { code: 'STARTUP_PREPARING', message: '音乐库内容未变化，已复用上次核验结果。' },
+      })
+      if (event.state === 'start' && message) mainWindow.webContents.send('core:event', { version: IPC_VERSION, event: 'diagnostic.notice',
+        payload: { code: event.action.startsWith('startup.repository.') ? 'STARTUP_VERIFYING' : 'STARTUP_PREPARING', message } })
+    },
     ...(mobilePreparationProbe ? { onMobileCapabilityTrace: (record: MobileCapabilityTraceRecord) => mobilePreparationProbe.acceptCoreTrace(record) } : {}),
     playbackEventProtocol: process.env.MUSIC_BRIDGE_COMPACT_PLAYBACK_EVENTS === '0' ? null : 'compact-v1',
     sourceWritesPort: true,
@@ -3080,6 +3111,14 @@ void bootstrap().catch(error => {
   if (quitAfterCoreShutdown) return
   if (cancelled) { app.quit(); return }
   writeDiagnosticStderr('DESKTOP_STARTUP_FAIL\n')
+  if (mainWindow && !mainWindow.isDestroyed() && !isStartupTest && !isUiE2e && !isCoreCrashGate && !isCoreRestartCredentialRecoveryGate && !isElectronColdStartGate) {
+    mainWindow.webContents.send('core:event', { version: IPC_VERSION, event: 'diagnostic.notice', payload: {
+      code: 'STARTUP_FAILED', message: '音乐库未能准备完成。现有数据已保留，请查看启动阶段记录。',
+    } })
+    mainWindow.show()
+    app.on('activate', () => { if (mainWindow && !mainWindow.isDestroyed()) showMainWindow() })
+    return
+  }
   app.exit(1)
 })
 

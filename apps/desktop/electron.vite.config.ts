@@ -8,6 +8,7 @@ import { captureNativeOutputDevice } from './scripts/native-output-device-packag
 import { captureNativeRust } from './scripts/native-rust-package.mjs'
 import { createRendererConfig } from './electron.renderer.config.js'
 import { captureNativeMediaWorker } from './scripts/native-media-worker-package.mjs'
+import { captureLocalAuditImplementation } from './scripts/local-audit-implementation.mjs'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 const converterBuild = await captureNativeConverter(currentDirectory)
@@ -16,10 +17,12 @@ const outputBuild = await captureNativeOutput(currentDirectory)
 const outputDeviceBuild = await captureNativeOutputDevice(currentDirectory)
 const rustBuild = await captureNativeRust(currentDirectory)
 const mediaWorkerBuild = await captureNativeMediaWorker(currentDirectory, { requireRelease: false })
+const localAuditImplementation = await captureLocalAuditImplementation(path.resolve(currentDirectory, '../..'))
 
 export default defineConfig(({ mode }) => ({
   main: {
     define: {
+      __MUSIC_BRIDGE_LOCAL_AUDIT_VERSION__: JSON.stringify(localAuditImplementation),
       __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__: 'null',

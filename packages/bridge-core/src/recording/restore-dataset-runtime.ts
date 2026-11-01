@@ -21,6 +21,7 @@ import { verifyReferenceCatalogZipDatabase } from '../collection/reference-catal
 import { verifyVersionDistributionDatabase } from './versions-store.js';
 import { verifyLocalScanDatabase } from '../collection/local-scan-store.js';
 import { verifyLocalCatalogDatabase } from '../collection/local-catalog-store.js';
+import { readLocalStartupAuditCache } from '../collection/local-startup-audit-cache.js';
 
 export interface OpenCollectionDataset {
   readonly datasetId: string; readonly databaseFile: string; assertIdentity(): void;
@@ -68,17 +69,18 @@ function checkDatabaseFiles(file: string, required: boolean): boolean {
   if (!exists && (required || sidecar)) unavailable();
   return exists;
 }
-function openRepository(file: string, required: boolean, check: () => void, referenceArchiveRoot: string): CollectionRepository {
+async function openRepository(file: string, required: boolean, check: () => void, referenceArchiveRoot: string): Promise<CollectionRepository> {
   check();
   const exists = checkDatabaseFiles(file, required), identity = exists ? lstatSync(file, { bigint: true }) : undefined;
+  const startupAudit = exists ? await readLocalStartupAuditCache(file) : undefined;
   let requireCurrentSchema = false;
   if (exists) {
     const inspection = new DatabaseSync(file, { readOnly: true, allowExtension: false });
     try {
       inspection.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
       const version = Number(inspection.prepare('PRAGMA user_version').get()?.user_version);
-      if (!Number.isInteger(version) || version < 1 || version > 34 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
-      if (version >= 8) verifyVersionDistributionDatabase(inspection);
+      if (!Number.isInteger(version) || version < 1 || version > 34 || !startupAudit && (inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length)) unavailable();
+      if (version >= 8 && !startupAudit) verifyVersionDistributionDatabase(inspection);
       if (version >= 25) verifyOutputRunBarrierDatabase(inspection);
       if (version >= 26) verifyPreparationZipDatabase(inspection);
       if (version >= 27) verifyRecordingRecordPageIndex(inspection);
@@ -97,7 +99,7 @@ function openRepository(file: string, required: boolean, check: () => void, refe
     } finally { inspection.close(); }
   }
   check(); checkDatabaseFiles(file, required);
-  const repository = createCollectionRepository({ filePath: file, referenceArchiveRoot, ...(requireCurrentSchema ? { requireCurrentSchema: true as const } : {}) });
+  const repository = createCollectionRepository({ filePath: file, referenceArchiveRoot, ...(startupAudit ? { startupAudit } : {}), ...(requireCurrentSchema ? { requireCurrentSchema: true as const } : {}) });
   try {
     // 工厂是惰性的；最小真实读取才能证明本次启动实际打开了选定数据库。
     repository.list({ offset: 0, limit: 1 }); check(); checkDatabaseFiles(file, true);
@@ -134,7 +136,7 @@ export async function openCollectionDataset(dataDirectory: string): Promise<Open
         const dataset = boot.pending.dataset!;
         await verifyPreparedDataset(dataset, new AbortController().signal);
         authorizePending(boot.pending);
-        repository = openRepository(checkDatasetTree(privateRoot, dataset), true, () => { authorizePending(boot.pending!); }, path.join(dataDirectory, 'reference-archives'));
+        repository = await openRepository(checkDatasetTree(privateRoot, dataset), true, () => { authorizePending(boot.pending!); }, path.join(dataDirectory, 'reference-archives'));
         selectedDataset = dataset; selectedActivation = boot.pending; pendingActivationId = boot.pending.view.id;
       } catch {
         repository?.close(); repository = undefined;
@@ -147,8 +149,8 @@ export async function openCollectionDataset(dataDirectory: string): Promise<Open
         const dataset = boot.active.dataset; if (!dataset) return unavailable();
         const file = checkDatasetTree(privateRoot, dataset); await checkActiveMarker(dataset);
         store.datasetIdentities.assertKnown(`activation:${dataset.id}`, file);
-        repository = openRepository(file, true, () => { checkDatasetTree(privateRoot, dataset); }, path.join(dataDirectory, 'reference-archives')); selectedDataset = dataset; selectedActivation = boot.active;
-      } else repository = openRepository(path.join(privateRoot.path, 'collection.v1.sqlite'), false, () => { checkRoot(privateRoot); }, path.join(dataDirectory, 'reference-archives'));
+        repository = await openRepository(file, true, () => { checkDatasetTree(privateRoot, dataset); }, path.join(dataDirectory, 'reference-archives')); selectedDataset = dataset; selectedActivation = boot.active;
+      } else repository = await openRepository(path.join(privateRoot.path, 'collection.v1.sqlite'), false, () => { checkRoot(privateRoot); }, path.join(dataDirectory, 'reference-archives'));
     }
     let settled = false, closed = false;
     const selected = repository;

@@ -22,7 +22,7 @@ import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, mobi
 import { LibraryReadRegistry } from './shared/library-read-registry.js';
 import { runLibraryShutdownStep } from './shared/library-shutdown-log.js';
 import { createCoreShutdownReceipt } from './shared/core-shutdown-receipt.js';
-import { logLibraryOperation } from './shared/library-operation-log.js';
+import { logLibraryOperation, recordLibraryStartupFailure, traceLibraryStartup } from './shared/library-operation-log.js';
 import { createLibraryReadTraceWriter, emitLibraryReadTrace, isLibraryReadTraceEnabled, libraryReadTraceFailure, type LibraryReadTraceSink } from './shared/library-read-trace.js';
 import { isLibraryReadCommand, isLibraryReadCancel } from '@music-bridge/contracts';
 import { withPerformanceContext } from './diagnostics/performance-trace.js';
@@ -1174,7 +1174,7 @@ export async function runCoreUtilityProcess(
               throw new Error('Rust 主机控制回调必须同步返回空值。');
             }
           }
-          await datasetOwnerEndpoint.prepare();
+          await traceLibraryStartup('owner.prepare', () => datasetOwnerEndpoint!.prepare());
           const onRoonTimeShape = createRoonTimeShapeRecorder(env);
           const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
           const onRoonImageShape = createRoonImageShapeRecorder(env);
@@ -1277,9 +1277,15 @@ export async function runCoreUtilityProcess(
           const shutdown = runtime.shutdown.bind(runtime);
           runtime.shutdown = () => { crashProbe!.close(); return shutdown(); };
         }
-        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: async () => { if(datasetOwnerEndpoint)await datasetOwnerEndpoint.commitBoot();else await dataset?.commit();await runtime!.restoreLogicalQueue?.(); }, ...(libraryReadTrace ? { libraryReadTrace } : {}) });
+        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: async () => {
+          if (datasetOwnerEndpoint) await traceLibraryStartup('owner.commit', () => datasetOwnerEndpoint!.commitBoot());
+          else if (dataset) await traceLibraryStartup('owner.commit', () => dataset!.commit());
+          await runtime!.restoreLogicalQueue?.();
+        }, ...(libraryReadTrace ? { libraryReadTrace } : {}) });
         crashProbe.ready();
-      } catch {
+      } catch (startupError) {
+        // 原启动首错先落闭集日志；后续关闭失败不能覆盖端口/准备阶段的原因。
+        recordLibraryStartupFailure('utility.bootstrap', startupError);
         crashProbe?.close();
         sourceWritesBridge?.close();
         relocationBridge?.close();

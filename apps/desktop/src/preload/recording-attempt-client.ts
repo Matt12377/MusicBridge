@@ -1,7 +1,7 @@
 import type { RecordingAttemptsPublicApi } from '@music-bridge/contracts'
 
 /** 只绑定本次窗口加载的工作库；执行请求不排队、不自动重试或重放。 */
-export function createRecordingAttemptClient(invoke: (channel: string, value?: unknown) => Promise<unknown>): RecordingAttemptsPublicApi {
+export function createRecordingAttemptClient(invoke: (channel: string, value?: unknown) => Promise<unknown>, isReady: () => boolean = () => true): RecordingAttemptsPublicApi {
   const failure = () => new Error('[OUTBOX_SCOPE_MISMATCH] 工作库身份未获确认，请重新加载录音窗口。')
   const scope = invoke('commandOutbox:context').then(value => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw failure()
@@ -12,6 +12,7 @@ export function createRecordingAttemptClient(invoke: (channel: string, value?: u
   }).catch(() => { throw failure() })
   void scope.catch(() => undefined)
   async function send<T>(name: 'list' | 'get' | 'receipt' | 'begin' | 'confirm' | 'beginSide' | 'stop', payload: unknown): Promise<T> {
+    if (!isReady()) throw new Error('[NOT_READY] 应用正在准备，请稍后操作。')
     const captured = structuredClone(payload)
     return await invoke(`recordingAttempts:${name}`, { datasetId: await scope, payload: captured }) as T
   }
