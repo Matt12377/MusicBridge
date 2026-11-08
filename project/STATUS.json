@@ -1,4 +1,58 @@
 {
+  "mousa41SearchClearDuo20261108": {
+    "branch": "codex/mousa-4-1-search-clear-duo",
+    "baseCommit": "efe12f67105eacbcd95568f549f60bb8a65985c6",
+    "implementationCommit": "c12ffcfea3ae949a75362d5a6d156851b8f0f368",
+    "state": "search-clear-fixed-native-smoke-passed-duo126-deployed",
+    "report": "reports/MOUSA_4_1_SEARCH_CLEAR_DUO_2026-11-08.md",
+    "reportCommitIdentity": "git log -1 -- reports/MOUSA_4_1_SEARCH_CLEAR_DUO_2026-11-08.md",
+    "engineeringValidation": {
+      "regressionPassed": 62,
+      "regressionFailed": 0,
+      "regressionSkipped": 0,
+      "desktopTypesExit": 0,
+      "desktopE2ETypesExit": 0,
+      "controlPlaneExit": 0,
+      "boundariesExit": 0,
+      "developmentBuildExit": 0,
+      "diffCheckExit": 0
+    },
+    "actualDevelopmentWindow": {
+      "testedSourceHead": "c12ffcfea3ae949a75362d5a6d156851b8f0f368",
+      "command": "corepack pnpm@10.17.1 dev:desktop",
+      "newTaskArtifactsAndOwnedCoreVerified": true,
+      "homeOriginClearedAndReturned": true,
+      "localLibraryOriginClearedAndReturned": true,
+      "actualScreenshotsReviewedByAgent": true,
+      "noNewPlaybackIssued": true,
+      "finalPlaybackState": "idle",
+      "releaseMacAppPackagedOrInstalled": false,
+      "forceKillUsed": false,
+      "roonCoreRestarted": false
+    },
+    "iosCompatibility": {
+      "businessCodeChangeRequired": false,
+      "implementationCommit": "54ef7d08e438a44071ab1c9d142e98561a9c1eae",
+      "addedRegressionTests": 3,
+      "targetedPassed": 42,
+      "targetedFailed": 0,
+      "productionBuildExit": 0,
+      "physicalDuoInstalledBuild": 126,
+      "upgradeFromBuild": 125,
+      "launchAndSubsequentProcessObserved": true,
+      "uninstallOrDataResetUsed": false,
+      "otherDevicesModified": false,
+      "iosAllControlsOrAudioAcceptance": false
+    },
+    "ownerAccepted": false,
+    "carryover": ["two-existing-source-named-check-failures", "local-lyrics-real-playback-coverage"],
+    "nextTask": "tailscale-connection-separate-worktree-from-final-report-head",
+    "gitDelivery": {
+      "remote": "origin",
+      "branch": "codex/mousa-4-1-search-clear-duo",
+      "finalHeadAndCleanTreeReceipt": "private-post-push-verification"
+    }
+  },
   "mousa41LocalPlaybackClick20261108": {
     "branch": "codex/mousa-4-1-local-playback-click",
     "baseCommit": "0710926e1ca3b21abd646e7e9067d415c7d358ba",
