@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createDesktopDevRuntimeLog, teeDesktopRuntimeOutput } from './desktop-dev-runtime-log.mjs';
 import { spawn } from 'node:child_process';
-import { desktopBuildPaths, prepareDesktopWorkspace } from './desktop-dev-workspace.mjs';
+import { desktopBuildPaths, prepareDesktopWorkspace, desktopDevChildEnvironment } from './desktop-dev-workspace.mjs';
 import { desktopDevBuildInputs, planDesktopDevBuild, invalidateDesktopDevBuild, finishDesktopDevBuild } from './desktop-dev-build.mjs';
 
 const args = process.argv.slice(2);
@@ -15,7 +15,8 @@ const paths = desktopBuildPaths(path.resolve(path.dirname(fileURLToPath(import.m
 const lock = path.join(paths.root, 'running.json');
 let child;
 const run = (command, parameters, options = {}, runtimeLog) => new Promise((resolve, reject) => {
-  child = spawn(command, parameters, { cwd: paths.workspace, stdio: 'inherit', ...options });
+  child = spawn(command, parameters, { cwd: paths.workspace, stdio: 'inherit', ...options,
+    env: desktopDevChildEnvironment(options.env ?? process.env) });
   const detachOutput = runtimeLog ? teeDesktopRuntimeOutput(child, runtimeLog) : () => {};
   child.once('error', reject);
   child.once('close', (code, signal) => {

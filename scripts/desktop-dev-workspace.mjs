@@ -8,6 +8,13 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const inside = (file, root) => file.startsWith(root + path.sep);
 const schema = 'musicbridge.desktop-development-workspace.v1';
 
+/** IDE/Harness 可能从 Electron 的 Node 模式启动工具；只清除此启动标志。 */
+export function desktopDevChildEnvironment(inherited = process.env) {
+  const environment = { ...inherited };
+  delete environment.ELECTRON_RUN_AS_NODE;
+  return environment;
+}
+
 export function desktopBuildPaths(sourceRoot) {
   sourceRoot = fs.realpathSync(sourceRoot);
   const policy = buildStoragePolicy();

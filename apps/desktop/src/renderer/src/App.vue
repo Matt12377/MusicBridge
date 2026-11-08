@@ -59,6 +59,7 @@ import { roonArtworkCache } from './roon-artwork-cache.js'
 import type { SidebarSource } from './components/navigation.js'
 import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
 import { usePlaybackSession, type RoonPlaybackContext } from './composables/application/usePlaybackSession.js'
+import { playbackFailureNotice } from './playback-notice.js'
 import { useLocalPlaybackArtwork } from './composables/application/useLocalPlaybackArtwork.js'
 import { useAggregatedSearch } from './composables/application/useAggregatedSearch.js'
 import { useRoonBrowse } from './composables/application/useRoonBrowse.js'
@@ -118,7 +119,7 @@ const playback = usePlaybackSession({
   resolveFavoriteDescriptor: item => browse.resolveFavoriteDescriptor(item),
   onEnterNowPlaying: () => journey.enterNowPlaying(),
   clearActionError: () => { actionError.value = null },
-  onActionMessage: message => { actionError.value = message },
+  onActionMessage: message => { actionError.value = message; showToast(message) },
   onError: recordActionError,
   onToast: showToast,
 })
@@ -1439,6 +1440,10 @@ watch(() => [selectedZone.value?.zoneId, coreState.value?.roon], () => {
   if (desktopReadReady.value && (currentView.value === 'local-library' || currentView.value === 'coverdrop') && !deferInitialAlbumContextReads()) void localLibrary.refreshContext()
 })
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
+const playbackFailureMessage = computed(() => playbackFailureNotice({
+  ready: playbackSyncStatus.value === 'ready', diagnostics: currentView.value === 'diagnostics',
+  unconfirmed: Boolean(catalogLocalUnconfirmed.value), snapshot: playbackState.value,
+}))
 const greeting = computed(() => {
   const hour = new Date().getHours()
   return hour >= 5 && hour < 12 ? '早上好' : hour >= 12 && hour < 18 ? '下午好' : '晚上好'
@@ -2407,9 +2412,10 @@ onUnmounted(() => {
     />
 
     <div v-if="toastMessage" class="toast" role="status" aria-live="polite">{{ toastMessage }}</div>
-    <aside v-if="catalogPlaybackRecovery.message.value" class="catalog-playback-notice" role="status" aria-live="polite" aria-label="播放请求状态">
-      <span>{{ catalogPlaybackRecovery.message.value }}</span>
+    <aside v-if="playbackFailureMessage || catalogPlaybackRecovery.message.value" class="catalog-playback-notice" :class="{ 'playback-failure-notice': playbackFailureMessage }" :role="playbackFailureMessage ? 'alert' : 'status'" :aria-live="playbackFailureMessage ? 'assertive' : 'polite'" aria-label="播放请求状态">
+      <span>{{ playbackFailureMessage || catalogPlaybackRecovery.message.value }}</span>
       <button v-if="catalogLocalUnconfirmed" type="button" class="text-button" :disabled="catalogPlaybackRecovery.checking.value || playbackStartPending" @click="catalogPlaybackRecovery.check">{{ catalogPlaybackRecovery.checking.value ? '正在核对…' : '核对播放请求' }}</button>
+      <button v-else-if="playbackFailureMessage" type="button" class="text-button" @click="navigate('diagnostics')">查看诊断</button>
       <button v-else type="button" class="text-button" aria-label="关闭播放请求提示" @click="catalogPlaybackRecovery.message.value = ''">关闭</button>
     </aside>
     <LocalLibraryWorkbench v-if="currentView !== 'coverdrop' && (workbench.isOpen.value || workbench.leavePrompt.value)" :model="workbench" :lyrics="workbenchLyrics" :workspace="workbenchLibrary" :lyrics-inspection="workbenchLyrics.resultInspection.value" :library-inspection="libraryResultInspection"
@@ -2436,6 +2442,8 @@ onUnmounted(() => {
 .catalog-roon-search { display: block; margin: 0 0 26px; }
 .catalog-roon-search input { width: min(300px, 100%); padding: 10px 14px; border: 1px solid var(--mb-glass-border); border-radius: 10px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font: inherit; font-size: 13px; }
 .catalog-playback-notice { position: fixed; z-index: 45; top: 70px; right: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: min(430px, calc(100vw - 32px)); padding: 14px 18px; border: 1px solid var(--mb-glass-border); border-radius: 14px; background: var(--mb-glass-strong); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); box-shadow: var(--mb-glass-shadow); color: var(--mb-text-primary); font-size: 12px; }
-.catalog-playback-notice span { flex: 1 1 220px; line-height: 1.6; }
+.catalog-playback-notice span { flex: 1 1 220px; line-height: 1.6; overflow-wrap: anywhere; }
+.playback-failure-notice { border-color: var(--mb-danger); }
+.playback-failure-notice span { color: var(--mb-danger); }
 @media (hover: hover) and (pointer: fine) { .command-outbox-entry:hover { border-color: var(--mb-accent); } }
 </style>

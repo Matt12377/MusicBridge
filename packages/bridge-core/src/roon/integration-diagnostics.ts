@@ -7,6 +7,7 @@ const MEDIA_STATES: Readonly<Record<string, string>> = {
   roon_gateway_upstream_response: 'media_headers',
   roon_gateway_transfer_complete: 'media_terminal',
   roon_media_request_failed: 'media_rejected',
+  roon_media_peer_rejected: 'media_peer_rejected',
 };
 const CONNECTION_STATES: Readonly<Record<string, string>> = {
   roon_core_paired: 'paired', roon_zones_subscribed: 'zones_subscribed',

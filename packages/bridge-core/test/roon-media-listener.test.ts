@@ -82,11 +82,14 @@ test('LAN 本地流复用原文件租约、Range 和撤销；换网不永久关�
 
 test('LAN 来源只认 socket 的精确 peer，伪造转发头不能取得访问', async t => {
   if (!lan) { t.skip('当前环境没有可绑定的私有 IPv4 网卡'); return; }
-  const gateway = new StreamGateway({ host: '127.0.0.1', port: 0, publicBaseUrl: 'http://127.0.0.1:0', registry: new StreamRegistry(), logger });
+  const events: string[] = [];
+  const gateway = new StreamGateway({ host: '127.0.0.1', port: 0, publicBaseUrl: 'http://127.0.0.1:0', registry: new StreamRegistry(),
+    logger: { ...logger, warn: (event, fields) => events.push(JSON.stringify({ event, fields })) } });
   await gateway.start(); t.after(() => gateway.stop());
   const other = lan === '192.168.254.254' ? '192.168.254.253' : '192.168.254.254';
   await gateway.configureRoonMedia(createTrustedRoonMediaPeer({localAddress:lan,remoteAddress:other}));
   assert.equal(await raw(gateway.iconUrl(), '/assets/icon.png', { 'X-Forwarded-For': other }), 404);
+  assert.deepEqual(events.map(value => JSON.parse(value)), [{ event: 'roon_media_peer_rejected', fields: {} }]);
   assert.equal((await fetch(gateway.localBaseUrl()+'/assets/icon.png')).status, 200, 'loopback 服务没有受影响');
 });
 

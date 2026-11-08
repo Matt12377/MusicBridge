@@ -57,6 +57,9 @@ export class RoonMediaListener {
       const server = createServer((request, response) => {
         const remote = request.socket.remoteAddress?.replace(/^::ffff:/u, '');
         if (this.actor !== actor || !actor.origin || remote !== actor.peer.remoteAddress) {
+          if (this.actor === actor && actor.origin && remote !== actor.peer.remoteAddress) {
+            try { this.options.logger.warn('roon_media_peer_rejected', {}); } catch { /* 只记录闭集分类，不信任代理头，也不开放该请求。 */ }
+          }
           response.writeHead(404, { 'Content-Length': 0 }); response.end(); return;
         }
         void this.options.dispatch(request, response).catch(error => {
