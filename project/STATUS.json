@@ -2,7 +2,12 @@
   "mousa41LocalFlacLyrics20261108": {
     "branch": "codex/mousa-4-1-local-flac-lyrics",
     "baseCommit": "e7d1bacc784c8fd0807f4a5cf67bdc5853799460",
-    "state": "targeted-passed-build-pending",
+    "state": "delivered-with-lyrics-compatibility-carryover",
+    "implementationCommit": "6a21c32de7268a137e41355cf4f1828df4d5b623",
+    "buildVersion": "20261108.132224",
+    "packageGates": "38 compiled outputs / native pins / signature / 4 isolated smoke gates / 3 packaged FLAC tests passed",
+    "installation": "owner-manual-replacement-identity-checked; agent-attempt-stopped-before-delete",
+    "carryover": ["common-lrc-id-metadata", "valid-sidecar-runtime-read-diagnosis", "multiple-wav-readonly-sampling"],
     "report": "reports/MOUSA_4_1_LOCAL_FLAC_LYRICS_FIX_2026-11-08.md",
     "scope": [
       "bounded-readonly-flac-vorbis-lyrics",
@@ -14,7 +19,7 @@
     "realProviderUsedForValidation": false,
     "realPlaybackAcceptance": "not-performed",
     "ownerAccepted": false,
-    "delivery": "pending-build",
+    "delivery": "verified-arm64-archive-provided-owner-manually-replaced",
     "automaticGate": "targeted-lyrics-tests-typechecks-and-boundaries",
     "engineeringValidation": {
       "corePassed": 192,
