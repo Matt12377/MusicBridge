@@ -6,6 +6,7 @@ import { isLocalSourceLyricsSnapshot } from '../collection/local-source-ticket-t
 import { logLibraryOperation } from '../shared/library-operation-log.js';
 import { getRustMediaWorkerPool, RustMediaWorkerError } from './rust-media-worker.js';
 import type { MetadataEmbeddedLyricsCandidate } from './metadata-reader-types.js';
+import { sourcePlaybackExpectedSignature } from '../recording/source-remount-proof.js';
 
 const MAX_BYTES = 64 * 1024, MAX_LINES = 500, MAX_TEXT = 2048, MAX_TIME = 24 * 60 * 60 * 1000, READ_MS = 2000;
 const unavailable = (): LyricsSnapshot => emptyLyricsSnapshot('unavailable');
@@ -21,7 +22,8 @@ export function parseLocalPlaybackLrc(raw: Uint8Array): LyricsSnapshot {
   const timestamp = /^\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/u;
   for (const rawLine of text.split(/\r\n|\n|\r/u)) {
     const line = rawLine.trim(); if (!line) continue;
-    if (/^\[(?:ar|al|ti|au|by|re|ve):[^\]\r\n]*\]$/iu.test(line)) continue;
+    // 常见编辑器/抓轨器的非时序元信息只忽略，不据此改变来源、编码或推断时间。
+    if (/^\[(?:ar|al|ti|au|by|re|ve|id|length|language|tool):[^\]\r\n]*\]$/iu.test(line)) continue;
     const shift = /^\[offset:([+-]?\d{1,8})\]$/iu.exec(line);
     if (shift) { if (offsetSeen) return unavailable(); offsetSeen = true; offset = Number(shift[1]); continue; }
     const starts: number[] = []; let remaining = line;
@@ -98,7 +100,11 @@ export async function readLocalPlaybackLyrics(facts: Readonly<LocalSourceFacts>,
   }
   try {
     check();
-    const result = await stage('lyrics.local.audio-source', () => withCheckedReadonlyMetadataSource(facts.sourceRoot, facts.relative, observation.signature, combined, async (audioFile, audioSize) => {
+    // 与普通播放复用原Owner已批准的重挂载证明，仅映射dev；历史观察保持不变。
+    // 通用元数据/旧录音租期不放宽，实际FD与命名位仍首末精确核验全部五字段。
+    const expectedSignature = sourcePlaybackExpectedSignature(facts.sourceRoot, observation.signature);
+    if (expectedSignature === undefined) throw new SourceFileError('CONTENT_CHANGED');
+    const result = await stage('lyrics.local.audio-source', () => withCheckedReadonlyMetadataSource(facts.sourceRoot, facts.relative, expectedSignature, combined, async (audioFile, audioSize) => {
       async function sidecar(): Promise<LyricsSnapshot | null> {
         check(); let metadata: Awaited<ReturnType<typeof readonlySourceCandidateMetadata>>;
         try { metadata = await stage('lyrics.local.sidecar-stat', () => readonlySourceCandidateMetadata(facts.sourceRoot, relative)); }
