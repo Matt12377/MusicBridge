@@ -159,6 +159,7 @@ function catalogApp(f: ReturnType<typeof fixture>) {
     const { catalog, browse, journey, navigation: catalogAlbumNavigation } = f;
     const { currentView, contentScroll, sidebar, roonSearchOrigin, navigate, navigateSource, selectAggregatedRoonItem: selectAggregatedRoonItemInJourney } = journey;
     let catalogActionGeneration = 0; const catalogActionPending = { value: false };
+    const desktopReadReady = { value: true };
     const playCatalogItem = async () => { throw new Error('返回路径测试不得播放'); };
     ${functions}
     return { submitCatalogSearch, navigateCatalogSource, openCatalogItem, openRoonLibraryItem, selectAggregatedRoonItem };

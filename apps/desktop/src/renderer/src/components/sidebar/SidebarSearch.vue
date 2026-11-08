@@ -121,7 +121,7 @@ onUnmounted(() => { stopTimer(); window.removeEventListener('keydown', onGlobalK
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7.2" /><path d="m20 20-4.3-4.3" /></svg>
       <span class="visually-hidden">{{ label }}</span>
       <input ref="input" :value="modelValue" type="search" maxlength="200" :placeholder="label" :aria-label="label" role="combobox" aria-autocomplete="list" :aria-expanded="visible" :aria-controls="visible ? listId : undefined" :aria-activedescendant="activeId" autocomplete="off" @input="onInput(($event.target as HTMLInputElement).value)" @focus="onFocus" @click="openSuggestions" @keydown="onKeydown" @compositionstart="composing = true; stopTimer()" @compositionend="onCompositionEnd" />
-      <button v-if="modelValue" type="button" class="search-draft-clear" aria-label="清除搜索草稿" @click.prevent="clearDraft">×</button>
+      <button v-if="modelValue" type="button" class="search-draft-clear" aria-label="清除搜索" @click.prevent="clearDraft">×</button>
       <kbd v-else aria-hidden="true">⌘L</kbd>
     </label>
     <div v-if="visible" class="sidebar-search-popover" @mousedown.prevent>

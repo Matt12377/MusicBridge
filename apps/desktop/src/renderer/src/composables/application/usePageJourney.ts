@@ -51,7 +51,7 @@ export interface PageJourneyOptions {
   /** 本地艺术家页独立加载；Roon目录等到用户切换来源后读取。 */
   localArtistsEnabled?: boolean
   /** 新Catalog只提供当前搜索的返回快照，不向旧聚合搜索复制词或结果。 */
-  catalogSearch?: { query(): string; captureReturnLocation(): CatalogReturnLocation }
+  catalogSearch?: { query(): string; clear?(): void; captureReturnLocation(): CatalogReturnLocation }
   /** 所有侧栏、设置、搜索与播放页出入共用原工作台离开门禁。 */
   beforeLeave?: (destination: ViewId, resume: () => void) => boolean
 }
@@ -261,16 +261,18 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function clearSearch(): void {
+    const catalogSearchActive = !!options.catalogSearch && (currentView.value === 'search' || roonSearchOrigin.value)
     if (!guardDeparture(viewForSource(searchReturnSource.value), clearSearch)) return
     rememberedSearchPage = undefined
-    if (localSearchScope.value) { updateSearchQuery(''); return }
-    if (currentView.value !== 'search' && search.searchQuery.value.length === 0 && search.searchPage.value.items.length === 0) return
+    if (!catalogSearchActive && localSearchScope.value) { updateSearchQuery(''); return }
+    if (!catalogSearchActive && currentView.value !== 'search' && search.searchQuery.value.length === 0 && search.searchPage.value.items.length === 0) return
+    // Catalog与旧聚合搜索独立；明确清空须在离页门禁后同时撤销查询及其返回路径。
+    if (catalogSearchActive) options.catalogSearch?.clear?.()
     search.resetSearch()
+    if (catalogSearchActive) leaveSearchPage()
     const source = searchReturnSource.value
     sidebar.setActiveSource(source)
-    currentView.value = viewForSource(source)
-    if (canReadData() && source.type === 'liked' && !library.hasLikedItems()) void library.loadLiked()
-    if (canReadData() && source.type === 'playlists' && !library.isPlaylistReady()) void library.loadPlaylists()
+    navigate(viewForSource(source), false, true)
   }
 
   const localSearchOrigin = ref<'album' | 'artist' | null>(null)

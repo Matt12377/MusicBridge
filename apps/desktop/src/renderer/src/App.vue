@@ -1186,7 +1186,7 @@ const journey = usePageJourney({
   search,
   browse,
   localArtistsEnabled: true,
-  catalogSearch: { query: () => catalog.query.value, captureReturnLocation: () => catalog.captureReturnLocation('search') },
+  catalogSearch: { query: () => catalog.query.value, clear: () => { void catalog.search('') }, captureReturnLocation: () => catalog.captureReturnLocation('search') },
   library: {
     hasLikedItems: () => likedPage.value.items.length > 0,
     isPlaylistReady: () => playlistState.value === 'ready',
@@ -1230,6 +1230,10 @@ const catalogAlbumNavigation = useCatalogAlbumNavigation({ journey, catalog, bro
   selectAlbumView: () => { localLibraryViewMode.value = 'albums' } })
 
 function updateCatalogDraft(value: string): void { catalog.invalidatePreview(value) }
+function clearCatalogSearch(): void {
+  if (currentView.value === 'search' || roonSearchOrigin.value) clearSearch()
+  else updateCatalogDraft('')
+}
 function previewCatalog(value: string): void { if (desktopReadReady.value) void catalog.preview(value) }
 function submitCatalogSearch(value: string): void {
   if (!value.trim()) return
@@ -2014,7 +2018,7 @@ onUnmounted(() => {
         @suggest-query="previewCatalog"
         @submit-query="submitCatalogSearch"
         @select-suggestion="selectCatalogSuggestion"
-        @clear-search="updateCatalogDraft('')"
+        @clear-search="clearCatalogSearch"
         @retry-playlists="loadPlaylists"
         @scroll-source="sidebar.setSourceScrollTop"
         @settings="navigate('settings')"
