@@ -507,7 +507,7 @@ export function createRustMediaWorkerPool(options: RustMediaWorkerPoolOptions = 
         };
         const items = value['items'].map((item: unknown): MetadataEmbeddedLyricsCandidate => {
           if (!record(item)) throw new RustMediaWorkerError('WORKER_FAILED');
-          if (item['kind'] === 'uslt' && exactKeys(item, ['kind', 'text']) && text(item['text']) && item['text'].length > 0) return { kind: 'uslt', text: item['text'] };
+          if ((item['kind'] === 'uslt' || item['kind'] === 'vorbis-comment') && exactKeys(item, ['kind', 'text']) && text(item['text']) && item['text'].length > 0) return { kind: item['kind'], text: item['text'] };
           if (item['kind'] !== 'sylt' || !exactKeys(item, ['kind', 'lines']) || !Array.isArray(item['lines']) || item['lines'].length < 1 || item['lines'].length > 500) throw new RustMediaWorkerError('WORKER_FAILED');
           let previous = -1;
           const lines = item['lines'].map((line: unknown) => {

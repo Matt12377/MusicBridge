@@ -1,4 +1,34 @@
 {
+  "mousa41LocalFlacLyrics20261108": {
+    "branch": "codex/mousa-4-1-local-flac-lyrics",
+    "baseCommit": "e7d1bacc784c8fd0807f4a5cf67bdc5853799460",
+    "state": "targeted-passed-build-pending",
+    "report": "reports/MOUSA_4_1_LOCAL_FLAC_LYRICS_FIX_2026-11-08.md",
+    "scope": [
+      "bounded-readonly-flac-vorbis-lyrics",
+      "local-lyrics-first-existing-strict-resolver-fallback",
+      "attempt-bound-manual-matching"
+    ],
+    "tailscaleChanged": false,
+    "audioSourceFilesWritten": false,
+    "realProviderUsedForValidation": false,
+    "realPlaybackAcceptance": "not-performed",
+    "ownerAccepted": false,
+    "delivery": "pending-build",
+    "automaticGate": "targeted-lyrics-tests-typechecks-and-boundaries",
+    "engineeringValidation": {
+      "corePassed": 192,
+      "desktopPassed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "coreTypecheckExit": 0,
+      "desktopTypecheckExit": 0,
+      "desktopE2ETypecheckExit": 0,
+      "controlPlaneExit": 0,
+      "boundariesExit": 0,
+      "freshReaderInputsAndOutputsUnchanged": true
+    }
+  },
   "mousa41DualLatency20261025": {
     "branch": "codex/mousa-4-1-dual-latency",
     "baseCommit": "b89b45a596f1439e7f702c1fd34a256e9685847b",

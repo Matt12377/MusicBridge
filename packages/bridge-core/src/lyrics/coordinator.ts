@@ -1,4 +1,5 @@
 import { isLocalSourceLyricsSnapshot } from '../collection/local-source-ticket-types.js';
+import type { ManualLyricsContext } from '../lyrics-matching/manual-controller.js';
 import type { LyricsSnapshot, PlaybackSnapshot } from '@music-bridge/contracts';
 import { emptyLyricsSnapshot } from '../netease/lyrics.js';
 import type {
@@ -21,8 +22,9 @@ export interface LyricsCoordinatorOptions {
     resolveActive(request: ActiveLyricsResolutionRequest): Promise<LyricsResolution>;
     cancelActive(): void;
   };
+  onLocalMatchContext?: (context: ManualLyricsContext | undefined) => void;
   onLocalResolution?: (
-    context: Extract<LyricsRequestContext, { kind: 'local' }>,
+    context: ManualLyricsContext,
     resolution: LyricsResolution,
   ) => void;
   now?: () => number;
@@ -34,6 +36,8 @@ export interface LyricsCoordinatorOptions {
 export interface LocalFileLyricsContext {
   kind: 'local-file'; playbackGeneration: number; cacheKey: string;
   localTrackId: string; assetId: string; assetRevision: string; attemptId: string;
+  /** 只由实际播放元数据生成；本地缺词时用于版本匹配，不把UUID解释为Provider ID。 */
+  signature?: LocalTrackSignature;
 }
 export type LyricsRequestContext =
   | LocalFileLyricsContext
@@ -72,8 +76,15 @@ export function createLyricsRequestContext(
     if (!local || !item?.local || track.id !== local.local_track_id || item.trackId !== local.local_track_id
       || item.local.asset_id !== local.asset_id || item.local.asset_revision !== local.asset_revision || !local.attempt_id)
       return { kind: 'unavailable', playbackGeneration, cacheKey: `local_file:unavailable:${playbackGeneration}` };
+    let signature: LocalTrackSignature | undefined;
+    try {
+      signature = createLocalTrackSignature({ title: track.title, artists: track.artists, album: track.album,
+        ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+        ...(track.version !== undefined ? { version: track.version } : {}) });
+    } catch { /* 元数据不足时仍可读真实本地歌词，但不进行云端猜测。 */ }
     return { kind: 'local-file', playbackGeneration, cacheKey: JSON.stringify(['local_file',local.local_track_id,local.asset_id,local.asset_revision,local.attempt_id]),
-      localTrackId: local.local_track_id, assetId: local.asset_id, assetRevision: local.asset_revision, attemptId: local.attempt_id };
+      localTrackId: local.local_track_id, assetId: local.asset_id, assetRevision: local.asset_revision, attemptId: local.attempt_id,
+      ...(signature ? { signature } : {}) };
   }
   if (!item && snapshot.source !== 'roon') return undefined;
   const directRoon = item?.preferredSource === 'roon' || (!item && snapshot.source === 'roon');
@@ -199,6 +210,7 @@ export class LyricsCoordinator {
   private activeCacheKey: string | undefined;
   private activePlaybackGeneration: number | undefined;
   private activeLocalFileContext: LocalFileLyricsContext | undefined;
+  private activeRequestContext: LyricsRequestContext | undefined;
   private activeSource: PlaybackSnapshot['source'];
   private activeZoneId: string | undefined;
   private activePlaybackState: PlaybackSnapshot['state'] | undefined;
@@ -234,14 +246,16 @@ export class LyricsCoordinator {
     return this.loadNeteaseSnapshot(trackId, `netease:${trackId}`);
   }
 
-  async reloadActiveLocalLyrics(
-    context: Extract<LyricsRequestContext, { kind: 'local' }>,
-  ): Promise<void> {
+  async reloadActiveLocalLyrics(context: ManualLyricsContext): Promise<void> {
+    const active = this.activeRequestContext;
     if (
       this.activeTrackId === undefined
+      || !active || (active.kind !== 'local' && active.kind !== 'local-file')
+      || active.kind !== context.kind || active.signature?.key !== context.signature.key
       || this.activeCacheKey !== context.cacheKey
       || this.activePlaybackGeneration !== context.playbackGeneration
     ) return;
+    if (active.kind === 'local') this.options.onLocalMatchContext?.(this.options.localDisplay?.enabled ? undefined : active);
     this.cache.delete(context.cacheKey);
     this.stopEstimatedUpdates();
     this.generation += 1;
@@ -249,13 +263,14 @@ export class LyricsCoordinator {
     const trackId = this.activeTrackId;
     this.activeSnapshot = loadingSnapshot();
     this.emit(true);
-    await this.loadActive(trackId, context, generation);
+    await this.loadActive(trackId, active, generation);
     if (generation === this.generation && this.activePlaybackState === 'playing') this.markPlaying(trackId);
   }
 
   clearLocalCache(): void {
     for (const key of this.cache.keys()) if (key.startsWith('local:')) this.cache.delete(key);
-    this.options.localResolver?.cancelActive();
+    // Roon Display重置只失效native Roon缓存，不抢占本地文件的独立匹配请求。
+    if (this.activeRequestContext?.kind !== 'local-file') this.options.localResolver?.cancelActive();
   }
 
   onPlaybackChanged(
@@ -290,6 +305,8 @@ export class LyricsCoordinator {
       this.activeCacheKey = context.cacheKey;
       this.activePlaybackGeneration = context.playbackGeneration;
       this.activeLocalFileContext = context.kind === 'local-file' ? { ...context } : undefined;
+      this.activeRequestContext = { ...context };
+      this.options.onLocalMatchContext?.(context.kind === 'local' && !this.options.localDisplay?.enabled ? context : undefined);
       this.activeSource = snapshot.source;
       this.activeZoneId = snapshot.selectedZoneId;
       this.positionAnchorMs = undefined;
@@ -348,6 +365,8 @@ export class LyricsCoordinator {
     this.activeCacheKey = `netease:${trackId}`;
     this.activePlaybackGeneration = 0;
     this.activeLocalFileContext = undefined;
+    this.activeRequestContext = undefined;
+    this.options.onLocalMatchContext?.(undefined);
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;
@@ -402,6 +421,8 @@ export class LyricsCoordinator {
     this.activePlaybackGeneration = undefined;
     this.options.localResolver?.cancelActive();
     this.activeLocalFileContext = undefined;
+    this.activeRequestContext = undefined;
+    this.options.onLocalMatchContext?.(undefined);
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;
@@ -421,16 +442,16 @@ export class LyricsCoordinator {
         ? await this.loadNeteaseSnapshot(context.neteaseTrackId, context.cacheKey)
         : context.kind === 'local'
           ? await this.loadLocalSnapshot(context)
-          : context.kind === 'local-file' && this.options.localFile?.isCurrent(context)
-            ? await this.options.localFile.read(context) : emptyLyricsSnapshot('unavailable');
+          : context.kind === 'local-file'
+            ? await this.loadLocalFileSnapshot(context, generation) : emptyLyricsSnapshot('unavailable');
       if (
         generation !== this.generation
         || this.activeTrackId !== trackId
         || this.activeCacheKey !== context.cacheKey
         || this.activePlaybackGeneration !== context.playbackGeneration
       ) return;
-      this.activeSnapshot = context.kind === 'local-file'
-        && (!this.options.localFile?.isCurrent(context) || !isLocalSourceLyricsSnapshot(loaded))
+      // 原始本地回执在loadLocalFileSnapshot内严格校验；云来源只能由既有匹配器生成。
+      this.activeSnapshot = context.kind === 'local-file' && !this.options.localFile?.isCurrent(context)
         ? emptyLyricsSnapshot('unavailable') : cloneSnapshot(loaded);
       this.emit(true);
       if (this.positionAnchorMs !== undefined) {
@@ -447,6 +468,37 @@ export class LyricsCoordinator {
       this.activeSnapshot = errorSnapshot();
       this.emit(true);
     }
+  }
+
+  private isActiveContext(context: LyricsRequestContext, generation: number): boolean {
+    return generation === this.generation && this.activeCacheKey === context.cacheKey
+      && this.activePlaybackGeneration === context.playbackGeneration;
+  }
+
+  private async loadLocalFileSnapshot(context: LocalFileLyricsContext, generation: number): Promise<LyricsSnapshot> {
+    const current = () => this.isActiveContext(context, generation) && this.options.localFile?.isCurrent(context) === true;
+    const unavailable = () => emptyLyricsSnapshot('unavailable');
+    if (!current()) return unavailable();
+    // 不捕获lease释放等异常：源读取未闭合不能借云端回退掩盖或继续使用源事实。
+    const local = await this.options.localFile!.read(context);
+    if (!current()) return unavailable();
+    if (!isLocalSourceLyricsSnapshot(local)) return unavailable();
+    if (local.status !== 'unavailable') {
+      this.options.onLocalMatchContext?.(undefined);
+      return local;
+    }
+    const resolver = this.options.localResolver;
+    if (!resolver || !context.signature) return local;
+    const matching: ManualLyricsContext = { ...context, signature: context.signature, manualEligible: true };
+    this.options.onLocalMatchContext?.(matching);
+    const resolved = await resolver.resolveActive({ signature: matching.signature, playbackGeneration: context.playbackGeneration });
+    if (!current()) {
+      if (this.isActiveContext(context, generation)) this.options.onLocalMatchContext?.(undefined);
+      return unavailable();
+    }
+    this.options.onLocalResolution?.(matching, resolved);
+    if (!resolved.applied || resolved.status === 'stale') return unavailable();
+    return withNeteaseSource(resolved.lyrics ?? emptyLyricsSnapshot(resolved.status === 'error' ? 'error' : 'unavailable'));
   }
 
   private async loadNeteaseSnapshot(trackId: string, cacheKey: string): Promise<LyricsSnapshot> {
@@ -518,6 +570,8 @@ export class LyricsCoordinator {
     this.activePlaybackGeneration = undefined;
     this.options.localResolver?.cancelActive();
     this.activeLocalFileContext = undefined;
+    this.activeRequestContext = undefined;
+    this.options.onLocalMatchContext?.(undefined);
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;

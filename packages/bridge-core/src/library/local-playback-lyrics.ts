@@ -54,11 +54,11 @@ function timedLyrics(lines: { startMs: number; endMs?: number; text: string }[])
   const result: LyricsSnapshot = { status: 'ready', lines, activeLineIndex: -1, timingSource: 'static' };
   return isLocalSourceLyricsSnapshot(result) ? result : unavailable();
 }
-/** 只把实际同步正文投成原合同；USLT纯文本不会生成伪造时间戳。 */
+/** 只把实际同步正文投成原合同；USLT/Vorbis纯文本不会生成伪造时间戳。 */
 function embeddedLyrics(items: readonly MetadataEmbeddedLyricsCandidate[]): { snapshot: LyricsSnapshot; code: string } {
   const choices = new Map<string, LyricsSnapshot>();
   for (const item of items) {
-    const snapshot = item.kind === 'uslt' ? parseLocalPlaybackLrc(Buffer.from(item.text, 'utf8'))
+    const snapshot = item.kind !== 'sylt' ? parseLocalPlaybackLrc(Buffer.from(item.text, 'utf8'))
       : timedLyrics(item.lines.filter(line => line.text.trim()).map(line => ({ startMs: line.startMs, text: line.text.trim() })));
     if (snapshot.status === 'ready') choices.set(JSON.stringify(snapshot.lines), snapshot);
   }

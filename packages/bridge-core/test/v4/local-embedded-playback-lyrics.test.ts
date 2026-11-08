@@ -10,7 +10,7 @@ import { EMBEDDED_LYRICS_READ_BUDGET } from '../../src/library/metadata-reader-t
 import { createRustMediaWorkerPool, resolveRustMediaWorkerBinary, closeRustMediaWorkerPool, type RustMediaWorkerPool } from '../../src/library/rust-media-worker.js';
 import { LocalSourceFence, LocalFactsFenceBusy } from '../../src/stream/local-source-fence.js';
 import { catalogFixture } from '../mbrs006/catalog-fixture.js';
-import { wave, uslt, sylt, id3Frame, syntheticLrc } from '../helpers/embedded-lyrics-fixture.js';
+import { wave, flac, uslt, sylt, id3Frame, syntheticLrc } from '../helpers/embedded-lyrics-fixture.js';
 
 after(closeRustMediaWorkerPool);
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
@@ -20,7 +20,7 @@ async function actualPool(t: TestContext) {
   const binary = await resolveRustMediaWorkerBinary(), pool = createRustMediaWorkerPool({ binaryPath: binary, concurrency: 1, maxPending: 1 });
   t.after(async () => { await pool.close(); }); return pool;
 }
-async function read(pool: RustMediaWorkerPool, source: ReturnType<typeof wave>, budget: Partial<typeof EMBEDDED_LYRICS_READ_BUDGET> = {}) {
+async function read(pool: RustMediaWorkerPool, source: { bytes: Buffer; forbidden: { start: number; end: number }[] }, budget: Partial<typeof EMBEDDED_LYRICS_READ_BUDGET> = {}) {
   const before = Buffer.from(source.bytes), calls: { offset: number; length: number }[] = []; let settled = false;
   try {
     const result = await pool.readEmbeddedLyrics({ size: source.bytes.length, deadlineAtMs: performance.now() + 2000, budget,
@@ -81,11 +81,34 @@ test('真实Rust嵌词：规范USLT/SYLT、有界拒绝和原WAV兼容，始终�
   });
 });
 
-async function owner(t: TestContext, source: ReturnType<typeof wave> = wave()) {
-  const f = await catalogFixture(t);
-  await fsp.writeFile(path.join(f.media, '一.wav'), source.bytes); await fsp.writeFile(path.join(f.media, '二.wav'), source.bytes);
-  (await f.commit(['一.wav', '二.wav'])).apply();
-  const state = f.repository.localScan.privateCurrentFileState(f.root.id, '一.wav')!.value;
+test('真实Rust FLAC嵌词：读取Vorbis同步正文，跳过大封面/普通注释/音频', { timeout: 30_000 }, async t => {
+  const pool = await actualPool(t);
+  for (const key of ['LYRICS', 'UNSYNCEDLYRICS', 'SYNCEDLYRICS', 'lyrics']) {
+    const source = flac(['TITLE=合成曲目', `${key}=${syntheticLrc}`, `METADATA_BLOCK_PICTURE=${'A'.repeat(400_000)}`], { pictureBytes: 700_000, pictureFirst: key === 'LYRICS' });
+    const result = await read(pool, source);
+    assert.deepEqual(result.items, [{ kind: 'vorbis-comment', text: syntheticLrc }]);
+    assert.ok(result.readEvidence.bytesRead < 16 * 1024, '歌词操作不能读取大封面或音频正文');
+  }
+  assert.deepEqual((await read(pool, flac(['COMMENT=不是歌词', 'LYRICS=']))).items, []);
+});
+
+test('真实Rust FLAC嵌词：严格UTF8、块内边界、数量及正文预算', { timeout: 30_000 }, async t => {
+  const pool = await actualPool(t);
+  await assert.rejects(read(pool, flac([Buffer.from([76, 89, 82, 73, 67, 83, 61, 255])])), { code: 'PARSE_FAILED' });
+  await assert.rejects(read(pool, flac([`LYRICS=${'a'.repeat(65_537)}`])), { code: 'BUDGET_EXCEEDED' });
+  await assert.rejects(read(pool, flac(Array.from({ length: 9 }, () => `LYRICS=${syntheticLrc}`))), { code: 'BUDGET_EXCEEDED' });
+  const badVendor = flac(); badVendor.bytes.writeUInt32LE(0xffff_ffff, badVendor.commentStart);
+  await assert.rejects(read(pool, badVendor), { code: 'PARSE_FAILED' });
+  const badLength = flac(); const first = badLength.commentStart + 4 + badLength.bytes.readUInt32LE(badLength.commentStart) + 4;
+  badLength.bytes.writeUInt32LE(0xffff_ffff, first);
+  await assert.rejects(read(pool, badLength), { code: 'PARSE_FAILED' });
+});
+
+async function owner(t: TestContext, source: { bytes: Buffer } = wave(), extension = 'wav') {
+  const f = await catalogFixture(t), first = `一.${extension}`, second = `二.${extension}`;
+  await fsp.writeFile(path.join(f.media, first), source.bytes); await fsp.writeFile(path.join(f.media, second), source.bytes);
+  (await f.commit([first, second])).apply();
+  const state = f.repository.localScan.privateCurrentFileState(f.root.id, first)!.value;
   const selection = { ...f.requests[0]!, request_id: randomUUID(), local_track_id: state.trackId!, asset_id: state.assetId!,
     expected_asset_revision: f.repository.localCatalog.asset(state.assetId!).fileRevision };
   const capture = f.tickets.capture(selection), fence = new LocalSourceFence(capture.buffer);
@@ -118,6 +141,24 @@ test('真实Owner ticket：无旁置时同一个音频FD读USLT，原UUID/签名
   assert.equal(result.source, undefined); assert.equal(f.capture.facts.track.id, f.capture.metadata.id);
   assert.equal(files.opened.length, 1, 'fallback复用原audio FD，不另外开音频或邻曲'); assert.ok(files.opened[0]!.bytes > 0); quiet(files.opened);
   assert.equal(f.fence.references, 0); assert.equal(f.fence.current, true);
+});
+
+test('真实Owner FLAC ticket：无旁置直接读原FD，LRC优先且歧义/纯文本不伪造同步', async t => {
+  const f = await owner(t, flac(), 'flac'), files = observe(t, f.media);
+  const result = await f.tickets.readLyrics(f.capture.ticketId);
+  assert.equal(result.status, 'ready'); assert.equal(result.source, undefined);
+  assert.deepEqual(result.lines, [{ startMs: 1000, endMs: 3000, text: '第一行' }, { startMs: 3000, text: '第二行' }]);
+  assert.equal(files.opened.length, 1); quiet(files.opened); assert.equal(f.fence.references, 0);
+  await fsp.writeFile(path.join(f.media, '一.lrc'), '[00:02.00]FLAC旁置优先');
+  const before = files.opened.length, sidecar = await f.tickets.readLyrics(f.capture.ticketId);
+  assert.equal(sidecar.lines[0]?.text, 'FLAC旁置优先');
+  assert.equal(files.opened.slice(before).find(row => row.relative.endsWith('.flac'))!.bytes, 0); quiet(files.opened);
+  const duplicate = await owner(t, flac([`LYRICS=${syntheticLrc}`, `UNSYNCEDLYRICS=${syntheticLrc}`]), 'flac');
+  assert.equal((await duplicate.tickets.readLyrics(duplicate.capture.ticketId)).status, 'ready');
+  const ambiguous = await owner(t, flac([`LYRICS=${syntheticLrc}`, 'UNSYNCEDLYRICS=[00:01.00]另一版本正文']), 'flac');
+  assert.equal((await ambiguous.tickets.readLyrics(ambiguous.capture.ticketId)).status, 'unavailable');
+  const plain = await owner(t, flac(['LYRICS=没有时间戳的纯文本']), 'flac');
+  assert.equal((await plain.tickets.readLyrics(plain.capture.ticketId)).status, 'unavailable');
 });
 
 test('真实Owner ticket：有效旁置优先且音频零内容读；坏旁置闭合后才回原FD内嵌', async t => {

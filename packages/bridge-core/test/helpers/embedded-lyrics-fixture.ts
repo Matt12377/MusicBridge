@@ -45,3 +45,41 @@ export function wave(frames: readonly Buffer[] = [id3Frame('USLT', uslt())], opt
   }
   return { bytes, forbidden, tagStart };
 }
+
+export function flacBlock(kind: number, body: Buffer, last = false): Buffer {
+  const header = Buffer.alloc(4); header[0] = kind | (last ? 128 : 0); header.writeUIntBE(body.length, 1, 3);
+  return Buffer.concat([header, body]);
+}
+export function vorbisComments(comments: readonly (string | Buffer)[]): Buffer {
+  const length = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+  const vendor = Buffer.from('synthetic fixture');
+  return Buffer.concat([length(vendor.length), vendor, length(comments.length), ...comments.flatMap(value => {
+    const bytes = typeof value === 'string' ? Buffer.from(value) : value; return [length(bytes.length), bytes];
+  })]);
+}
+/** 真实编码的10ms双声道静音；只替换metadata，不含用户歌曲或外部音频夹具。 */
+export function flac(comments: readonly (string | Buffer)[] = [`LYRICS=${syntheticLrc}`], options: { pictureBytes?: number; pictureFirst?: boolean } = {}) {
+  const info = Buffer.from('EgASAAAAEAAAEAu4AvAAAAHgPaFYLaIu9UkHpPTNbV0aYA==', 'base64');
+  const audio = Buffer.from('//h6GAAB36YAAAAAAAAZBw==', 'base64');
+  const picture = options.pictureBytes ? Buffer.alloc(options.pictureBytes, 0x61) : undefined;
+  const blocks = [{ kind: 0, body: info }, ...(picture && options.pictureFirst ? [{ kind: 6, body: picture }] : []),
+    { kind: 4, body: vorbisComments(comments) }, ...(picture && !options.pictureFirst ? [{ kind: 6, body: picture }] : [])];
+  const chunks: Buffer[] = [Buffer.from('fLaC')], forbidden: { start: number; end: number }[] = [];
+  let at = 4, commentStart = 0;
+  for (const [index, block] of blocks.entries()) {
+    if (block.kind === 6) forbidden.push({ start: at + 4, end: at + 4 + block.body.length });
+    if (block.kind === 4) {
+      commentStart = at + 4;
+      let position = commentStart + 4 + block.body.readUInt32LE(0) + 4;
+      for (const comment of comments) {
+        const value = typeof comment === 'string' ? Buffer.from(comment) : comment;
+        const prefix = Buffer.from('METADATA_BLOCK_PICTURE=');
+        if (value.subarray(0, prefix.length).equals(prefix)) forbidden.push({ start: position + 4 + prefix.length, end: position + 4 + value.length });
+        position += 4 + value.length;
+      }
+    }
+    const bytes = flacBlock(block.kind, block.body, index === blocks.length - 1); chunks.push(bytes); at += bytes.length;
+  }
+  forbidden.push({ start: at, end: at + audio.length }); chunks.push(audio);
+  return { bytes: Buffer.concat(chunks), forbidden, commentStart };
+}

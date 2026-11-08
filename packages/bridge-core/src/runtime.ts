@@ -986,6 +986,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     localDisplay: displayLyrics,
     load: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
     localResolver: lyricsResolver,
+    onLocalMatchContext: context => manualLyrics.observeContext(context),
     onLocalResolution: (context, resolution) => {
       manualLyrics.observeResolution(context, resolution);
     },
@@ -1002,6 +1003,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
   });
 
+  const usesRoonDisplayLyrics = () => displayLyrics.enabled
+    && createLyricsRequestContext(controller.getPlaybackState(), controller.getPlaybackGeneration())?.kind === 'local';
   const publishPlaybackEvents = createPlaybackEventPublisher(emit, { ...(options.playbackEventProtocol ? { protocol: options.playbackEventProtocol } : {}) });
   const playbackMetadata = () => ({ generation: controller.getPlaybackGeneration(), kind: 'full' as const });
   const capturePlayback = () => options.playbackEventProtocol
@@ -1011,7 +1014,6 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const removeControllerListener = controller.subscribe((snapshot, metadata) => {
     const generation = controller.getPlaybackGeneration();
     const lyricsContext = createLyricsRequestContext(snapshot, generation);
-    manualLyrics.observeContext(!displayLyrics.enabled && lyricsContext?.kind === 'local' ? lyricsContext : undefined);
     lyrics.onPlaybackChanged(snapshot, lyricsContext);
     publishPlaybackEvents(snapshot, { generation, kind: metadata?.kind ?? 'full' });
   });
@@ -1395,16 +1397,15 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       const context = createLyricsRequestContext(snapshot, controller.getPlaybackGeneration());
       if (event.type === 'reset') {
         lyrics.clearLocalCache();
-        manualLyrics.observeContext(!displayLyrics.enabled && context?.kind === 'local' ? context : undefined);
       }
       if (context?.kind === 'local' && (event.type === 'reset' || event.zoneId === snapshot.selectedZoneId)) {
         await lyrics.reloadActiveLocalLyrics(context);
       }
       return { applied: true };
     },
-    getLocalLyricsMatch: () => displayLyrics.enabled ? { status: 'hidden', candidates: [], canRevoke: false } : manualLyrics.getSnapshot(),
+    getLocalLyricsMatch: () => usesRoonDisplayLyrics() ? { status: 'hidden', candidates: [], canRevoke: false } : manualLyrics.getSnapshot(),
     selectLocalLyricsMatch: (matchSessionId, candidateId) => {
-      if (displayLyrics.enabled) return Promise.reject(new BridgeError('BAD_REQUEST', '当前本地歌词使用 Roon Web Display', { httpStatus: 409 }));
+      if (usesRoonDisplayLyrics()) return Promise.reject(new BridgeError('BAD_REQUEST', '当前本地歌词使用 Roon Web Display', { httpStatus: 409 }));
       return manualLyrics.select(matchSessionId, candidateId);
     },
     revokeLocalLyricsMatch: () => manualLyrics.revoke(),

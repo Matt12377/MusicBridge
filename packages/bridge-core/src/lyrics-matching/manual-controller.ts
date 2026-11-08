@@ -13,7 +13,7 @@ const MATCH_SESSION_TTL_MS = 5 * 60_000
 const MAX_MANUAL_CANDIDATES = 20
 
 export interface ManualLyricsContext {
-  kind: 'local'
+  kind: 'local' | 'local-file'
   playbackGeneration: number
   cacheKey: string
   signature: LocalTrackSignature
@@ -58,6 +58,8 @@ function cloneSnapshot(snapshot: LocalLyricsMatchSnapshot): LocalLyricsMatchSnap
 
 function sameContext(left: ManualLyricsContext | undefined, right: ManualLyricsContext): boolean {
   return left?.manualEligible === true
+    && left.kind === right.kind
+    && left.cacheKey === right.cacheKey
     && left.signature.key === right.signature.key
     && left.playbackGeneration === right.playbackGeneration
 }

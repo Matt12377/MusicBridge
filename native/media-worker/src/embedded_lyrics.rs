@@ -147,11 +147,85 @@ fn tag(reader: &mut RemoteReader<'_>, at: u64, count: u64, lyrics: &mut Lyrics) 
     Err(Failure("BUDGET_EXCEEDED"))
 }
 
-/** 仅WAV内已有歌词：原容器/PCM守门后只随机读歌词帧，data/APIC正文从不请求。 */
+fn comment_length(reader: &mut RemoteReader<'_>, at: &mut u64, limit: u64) -> Result<usize> {
+    let next = formats::end(*at, 4, limit)?;
+    let value = reader.range(*at, 4)?; *at = next;
+    Ok(formats::le32(&value, 0) as usize)
+}
+
+// Vorbis键不区分ASCII大小写；只探测歌词键，不读取普通注释/内嵌封面的正文。
+fn vorbis_comment(reader: &mut RemoteReader<'_>, at: u64, length: usize, lyrics: &mut Lyrics) -> Result<()> {
+    let prefix = reader.range(at, length.min(7))?;
+    let keys: [&[u8]; 3] = [b"LYRICS=", b"UNSYNCEDLYRICS=", b"SYNCEDLYRICS="];
+    for key in keys {
+        if length < key.len() || !prefix.eq_ignore_ascii_case(&key[..prefix.len()]) { continue; }
+        if prefix.len() < key.len() {
+            let rest = reader.range(at + prefix.len() as u64, key.len() - prefix.len())?;
+            if !rest.eq_ignore_ascii_case(&key[prefix.len()..]) { continue; }
+        }
+        let size = length - key.len(); if size == 0 { return Ok(()); }
+        if lyrics.items.len() >= MAX_CANDIDATES || size > MAX_TEXT
+            || lyrics.text_bytes.saturating_add(size) > reader.budget.total_text_bytes.min(MAX_TEXT) {
+            return Err(Failure("BUDGET_EXCEEDED"));
+        }
+        let bytes = reader.range(at + key.len() as u64, size)?;
+        let text = std::str::from_utf8(&bytes).map_err(|_| Failure("PARSE_FAILED"))?;
+        if text.contains('\0') { return Err(Failure("PARSE_FAILED")); }
+        lyrics.text_bytes += size;
+        lyrics.items.push(json!({"kind":"vorbis-comment","text":text}));
+        break;
+    }
+    Ok(())
+}
+
+fn vorbis(reader: &mut RemoteReader<'_>, begin: u64, limit: u64, lyrics: &mut Lyrics) -> Result<()> {
+    let mut at = begin;
+    let vendor = comment_length(reader, &mut at, limit)?;
+    at = formats::end(at, vendor as u64, limit)?;
+    let count = comment_length(reader, &mut at, limit)?;
+    if count > 4096 { return Err(Failure("BUDGET_EXCEEDED")); }
+    for _ in 0..count {
+        reader.check()?;
+        let length = comment_length(reader, &mut at, limit)?;
+        let next = formats::end(at, length as u64, limit)?;
+        if length > 0 { vorbis_comment(reader, at, length, lyrics)?; }
+        at = next;
+    }
+    if at != limit { return Err(Failure("PARSE_FAILED")); }
+    Ok(())
+}
+
+fn flac(reader: &mut RemoteReader<'_>) -> Result<Value> {
+    let mut at = 4; let mut lyrics = Lyrics::default(); let mut comments_seen = false;
+    for count in 0..2048 {
+        reader.check()?;
+        formats::end(at, 4, reader.size)?;
+        let header = reader.range(at, 4)?; let kind = header[0] & 127;
+        let size = u64::from(header[1]) * 65536 + u64::from(header[2]) * 256 + u64::from(header[3]);
+        let begin = at + 4; let next = formats::end(begin, size, reader.size)?;
+        if kind > 6 || count == 0 && (kind != 0 || size != 34) || count > 0 && kind == 0 {
+            return Err(Failure("PARSE_FAILED"));
+        }
+        if kind == 4 {
+            if comments_seen { return Err(Failure("PARSE_FAILED")); }
+            comments_seen = true; vorbis(reader, begin, next, &mut lyrics)?;
+        }
+        // PICTURE/PADDING等只越过块边界；最后一个metadata后立即返回，不触碰FLAC帧。
+        if header[0] & 128 != 0 { return Ok(json!({"items":lyrics.items,"readEvidence":reader.evidence()})); }
+        at = next;
+    }
+    Err(Failure("BUDGET_EXCEEDED"))
+}
+
+/** 只读WAV的ID3或FLAC的Vorbis歌词；不解码音频，不请求封面正文。 */
 pub fn process(job: &Job, reader: &mut RemoteReader<'_>, start: Instant) -> Result<Value> {
     log(job, start, "container-check", "正在检查歌词音频容器");
     if reader.size < 12 { return Err(Failure("PARSE_FAILED")); }
     let header = reader.range(0, 12)?;
+    if header.starts_with(b"fLaC") {
+        log(job, start, "parse", "正在读取FLAC内嵌同步歌词");
+        return flac(reader);
+    }
     if !header.starts_with(b"RIFF") || &header[8..12] != b"WAVE" { return Err(Failure("UNSUPPORTED")); }
     if u64::from(formats::le32(&header, 4)) + 8 != reader.size { return Err(Failure("PARSE_FAILED")); }
     let container = formats::wave(reader, 0)?;

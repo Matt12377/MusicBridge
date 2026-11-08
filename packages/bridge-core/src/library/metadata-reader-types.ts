@@ -75,7 +75,7 @@ export interface MetadataReaderPort { read(input: MetadataReadInput, signal?: Ab
 export interface MetadataWorkerInput { fd: number; size: number; budget: MetadataReadBudget; dsdMetadataEnabled?: boolean; cueInputMetadataEnabled?: boolean; includeEmbeddedArtwork?: boolean }
 
 /** 仅可信Worker歌词操作的原始候选；不进入LocalMetadata/扫描历史或公开歌词来源。 */
-export type MetadataEmbeddedLyricsCandidate = { kind: 'uslt'; text: string }
+export type MetadataEmbeddedLyricsCandidate = { kind: 'uslt' | 'vorbis-comment'; text: string }
   | { kind: 'sylt'; lines: { startMs: number; text: string }[] };
 /** 专用只读歌词预算；原metadata字段4096B上限及其他操作均不扩大。 */
 export const EMBEDDED_LYRICS_READ_BUDGET: Readonly<MetadataReadBudget> = Object.freeze({
