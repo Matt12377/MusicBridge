@@ -2,7 +2,10 @@
   "mousa41LocalLyricsRemount20261108": {
     "branch": "codex/mousa-4-1-local-lyrics-followup",
     "baseCommit": "ae967c5a64896aed356afadba044718a24a26b70",
-    "state": "targeted-passed-build-pending",
+    "state": "verified-package-ready-no-agent-installation",
+    "implementationCommit": "f1bf2bb7f5f36d19b17501073a459f5fb73fad36",
+    "buildVersion": "20261108.143009",
+    "packageValidation": { "compiledFilesCompared": 38, "nativeSourceInputsCompared": 17, "isolatedMockSmokePassed": 4, "asarLyricsBodyVerified": true, "deepStrictSignatureExit": 0, "archiveIntegrityExit": 0, "asarSha256": "5671a5bf5e707bd661a2d3a5ade664b10159a9741fefdd9c4818f0864a91cc05", "archiveSha256": "d2f17c34336987071ad19eee615ea5976f744a746605a4fd678906a3a2d9336f" },
     "report": "reports/MOUSA_4_1_LOCAL_LYRICS_REMOUNT_2026-11-08.md",
     "scope": ["reuse-owner-approved-smb-remount-proof-for-local-lyrics", "common-lrc-metadata-id-length-language-tool"],
     "engineeringValidation": { "redExpectedFailures": 4, "redPass": 1, "corePassed": 85, "desktopPassed": 27, "failed": 0, "skipped": 0, "coreTypecheckExit": 0, "desktopAndE2ETypecheckExit": 0, "freshReaderInputsAndOutputsUnchanged": true },
@@ -15,7 +18,7 @@
     "runningAppReplacedOrRestarted": false,
     "tailscaleChanged": false,
     "ownerAccepted": false,
-    "delivery": "pending-build"
+    "delivery": "verified-arm64-archive-ready-no-running-app-replacement"
   },
   "mousa41LocalFlacLyrics20261108": {
     "branch": "codex/mousa-4-1-local-flac-lyrics",
