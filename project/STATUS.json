@@ -1,4 +1,62 @@
 {
+  "mousa41LocalPlaybackClick20261108": {
+    "branch": "codex/mousa-4-1-local-playback-click",
+    "baseCommit": "0710926e1ca3b21abd646e7e9067d415c7d358ba",
+    "state": "in-progress-core-media-proxy-route-confirmed",
+    "implementationCommit": "70bd8d49803ce7f10ee521aa1020106f8ccfa672",
+    "engineeringDelivery": "partial-diagnostics-feedback-and-devrun-not-playback-fix",
+    "report": "reports/MOUSA_4_1_LOCAL_PLAYBACK_CLICK_2026-11-08.md",
+    "scope": ["closed-media-path-diagnostics", "visible-playback-failure", "devrun-electron-environment"],
+    "experimentalMdnsRemedy": "withdrawn-after-real-playback-failure-private-evidence-preserved",
+    "latestEngineeringValidation": {
+      "coreMediaAndDiagnosticsPassed": 10,
+      "desktopPlaybackRecoveryPassed": 97,
+      "devEnvironmentPassed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "developmentBuildExit": 0,
+      "coreTestTypesExit": 0,
+      "desktopTypesExit": 0,
+      "desktopE2ETypesExit": 0,
+      "controlPlaneExit": 0,
+      "boundariesExit": 0,
+      "realPlaybackAcceptance": false
+    },
+    "realPlaybackAcceptance": "pending-local-flac-wav-and-online",
+    "realFailureReproduced": true,
+    "developerClickResult": "ipv4-only-mdns-roon-timeout-before-gateway-audio-request",
+    "transportEvidence": {
+      "originalNumericOrigin": "actual-peer-rejected",
+      "canonicalMdnsOrigin": "actual-roon-timeout-before-gateway",
+      "ipv4OnlyMdnsOrigin": "actual-roon-timeout-before-gateway",
+      "currentActorFixedIconDirect": "numeric-and-ipv4-mdns-http-200-not-audio-acceptance",
+      "positiveAudioGatewayBytesObserved": false,
+      "roonPlayingConfirmed": false,
+      "unknownRequestReplayed": false,
+      "hostRemedyValidated": false,
+      "currentInstalledRoonOnlineMediaViaProxyHttp404Confirmed": true,
+      "controlledFixedIconComparison": {
+        "numericDirect": 200,
+        "numericViaConfiguredProxy": 404,
+        "systemMdnsDirect": 200,
+        "systemMdnsViaConfiguredProxy": 502
+      },
+      "socketPeerObservation": {
+        "direct": "paired-core",
+        "viaConfiguredProxy": "gateway-host",
+        "proxyOutboundToGatewayObserved": true
+      },
+      "proxyDirectRuleIsNotClientBypass": true,
+      "httpsCoreControlProxyUseVerified": false
+    },
+    "networkProxyConfigurationChanged": false,
+    "audioSourceFilesWritten": false,
+    "selectedDeviceChangedByAgent": false,
+    "volumeChangedByAgent": false,
+    "packageOrInstallationPerformed": false,
+    "ownerAccepted": false,
+    "delivery": "verified-devrun-command-required-no-package"
+  },
   "mousa41LocalLyricsRemount20261108": {
     "branch": "codex/mousa-4-1-local-lyrics-followup",
     "baseCommit": "ae967c5a64896aed356afadba044718a24a26b70",
