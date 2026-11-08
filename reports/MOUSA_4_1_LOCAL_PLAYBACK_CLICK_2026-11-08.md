@@ -60,12 +60,26 @@
 
 当前网络相关源码只保留拒绝请求的闭集诊断事件：原精确 peer 检查、404、路由白名单和源读取顺序不改变。另保留普通页面失败可见性、UNKNOWN 不鼓励重放、开发启动环境隔离。上述是有效的部分改进，**不能替代代理链路修复或真实播放验收**。
 
-最新保留输入已重新构建，并完成 Core 媒体/诊断 10 项、Desktop 播放恢复 97 项、开发环境 2 项合成回归，均 0 failed / 0 skipped；Core 测试类型、Desktop/E2E 类型、Control plane、boundaries 及 diff check 均退出 0。未启动新的音频会话，Owner 当前安装版未替换。
+最新保留输入已重新构建，并完成 Core 媒体/诊断 10 项、Desktop 播放恢复 97 项、开发环境 2 项合成回归，均 0 failed / 0 skipped；Core 测试类型、Desktop/E2E 类型、Control plane、boundaries 及 diff check 均退出 0。上述合成 Gate 不启动真实音频；其后的一次真实窗口失败复核见下节，Owner 安装版二进制没有替换。
+
+## 最终实现源码的真实窗口复核
+
+已用报告提交 `6567ccc9f4a7c41753c2a65c93afbc172f2f2d97` 对应的实现源码正常构建、启动开发版；其实现身份仍为 `70bd8d49803ce7f10ee521aa1020106f8ccfa672`。先确认 Owner 安装版 Roon 已停止且没有 UNKNOWN 请求，再正常退出安装版，保证开发 Main 独占其子 Core，而不是连接另一个实例。选中设备保持。
+
+实际进入本地专辑，确认导航未触发点播、Core 为 idle、没有本地请求后，仅激活一次“播放首曲”。随后本次请求由 AWAITING_ROON 收敛为 FAILED / ownership NONE，返回 ROON_MEDIA_ERROR；不是 UNKNOWN 重放。没有再签发或重复提交。
+
+- 新增闭集诊断已在本次真实导出中记录 `roon_media_peer_rejected`。
+- 本次音频业务 `gatewayStage` 仍为 `none`；没有正音频字节、Playing 或进度推进。
+- Core 清空当前曲目后，真实窗口仍显示公开错误消息和“查看诊断”。已用精确目标窗口 AX 树及仅该窗口截图复核，不再只是静态模板测试。
+- 失败反馈是本次实际通过的部分能力；**音频播放仍失败，不能据此验收 FLAC/WAV 或在线成功**。
+- 本次已知失败没有覆盖 UNKNOWN 分支；该分支仍仅有合成回归，不把本次已知 FAILED 冒充 UNKNOWN 实机证明。
+
+诊断通过原生保存面板写入新的私有目录，没有覆盖此前证据。开发版正常退出，devrun 进程退出 0，自有 Main/Core 已消失；恢复原安装版，不安装或替换应用，不改变代理设置，不发送强制 Stop。
 
 ## UI 与开发入口
 
 - 错误提示不再依赖 `currentTrack` 仍存在，沿用单一通知区域和查看诊断入口，不增加自动重播按钮。
-- 实机发现：页面未保存旧请求时，Core 的 `SUBMISSION_UNKNOWN` 不能被普通“重试”提示覆盖。已补充基于 Core 本地状态的只核对提示和合成回归；本轮最新 UI 已重建并通过类型及恢复测试，实际窗口提示仍待最终源码复核。
+- 实机发现：页面未保存旧请求时，Core 的 `SUBMISSION_UNKNOWN` 不能被普通“重试”提示覆盖。已补充基于 Core 本地状态的只核对提示和合成回归；本轮最新 UI 已重建并通过类型及恢复测试，普通已知失败提示也已完成真实窗口复核；UNKNOWN 特定提示不冒充本次实机覆盖。
 - 开发子进程仅移除继承的 `ELECTRON_RUN_AS_NODE`，不改全局环境；否则 Electron 会按 Node 入口运行而无法加载 `BrowserWindow`。
 - 实际窗口测试使用已授权 Accessibility，验证唯一启用按钮与精确键盘焦点。AXPress 返回成功、鼠标事件已投递或按钮获焦，均不单独算作点播成功。
 
@@ -78,7 +92,9 @@
 | IPv4 别名、listener、闭集诊断合成回归 | 22 passed / 0 failed，退出 0 | 不连接真实 Provider/Roon；不等于实机播放 |
 | 对应 Core 测试类型检查 | 退出 0 | 仅当时 Core 输入 |
 | 对应开发构建与普通启动 | 退出成功并实际启动 | 运行是启动证据，不是音频证据 |
-| 最新 UNKNOWN 反馈合成回归 | 5 passed / 0 failed / 0 skipped，退出 0 | 已纳入最终 97 项；实际窗口提示待复核 |
+| 最新 UNKNOWN 反馈合成回归 | 5 passed / 0 failed / 0 skipped，退出 0 | 已纳入最终 97 项；UNKNOWN 实机分支未覆盖 |
+| 最终源码真实窗口一次本地点播 | **失败：ROON_MEDIA_ERROR / peer rejected / gateway none** | FAILED/NONE 收敛；错误消息和诊断入口可见，不计音频通过 |
+| 最终源码 devrun 普通启动与退出 | 独占 Main/Core、窗口可操作、退出 0 | 不计音频通过；原安装版已恢复 |
 | Control plane / boundaries | PASS / PASS，退出 0 | 在本轮网络试验改动后运行 |
 | diff whitespace | 退出 0 | 最终提交前仍须复核 |
 | 实际 FLAC 点播 | **失败：ROON_TIMEOUT，音频 Gateway stage none** | 保留失败，不计验收通过 |
@@ -105,10 +121,10 @@
 
 ## 开发命令
 
-在本任务工作树运行：
+先正常退出其他 Mousa 实例，避免两个窗口混用同一 Core，再在本任务工作树运行（本轮已由代理自行完成该单实例验证）：
 
 ```bash
 corepack pnpm@10.17.1 dev:desktop
 ```
 
-入口已实际构建并启动过。此命令可打开开发版，但目前不能据此承诺播放已修复；源输入变化后必须正常重建，不能把旧运行实例作为新源码验收。
+最终实现源码已按此命令实际构建、单实例启动、操作窗口并正常退出（退出 0）。此命令可打开开发版，但目前不能据此承诺播放已修复；源输入变化后必须正常重建，不能把旧运行实例作为新源码验收。

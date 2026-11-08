@@ -24,7 +24,21 @@
     },
     "realPlaybackAcceptance": "pending-local-flac-wav-and-online",
     "realFailureReproduced": true,
-    "developerClickResult": "ipv4-only-mdns-roon-timeout-before-gateway-audio-request",
+    "developerClickResult": "committed-numeric-origin-peer-rejected-local-media-error-before-gateway-audio",
+    "latestRealWindowVerification": {
+      "testedSourceHead": "6567ccc9f4a7c41753c2a65c93afbc172f2f2d97",
+      "freshLocalIntentCount": 1,
+      "playbackResult": "ROON_MEDIA_ERROR",
+      "localPhase": "FAILED",
+      "ownership": "NONE",
+      "currentTrackPresent": false,
+      "failureMessageVisible": true,
+      "diagnosticsActionVisible": true,
+      "closedPeerRejectionRecorded": true,
+      "gatewayStage": "none",
+      "normalDevExit": 0,
+      "installedAppRestored": true
+    },
     "transportEvidence": {
       "originalNumericOrigin": "actual-peer-rejected",
       "canonicalMdnsOrigin": "actual-roon-timeout-before-gateway",
@@ -55,7 +69,7 @@
     "volumeChangedByAgent": false,
     "packageOrInstallationPerformed": false,
     "ownerAccepted": false,
-    "delivery": "verified-devrun-command-required-no-package"
+    "delivery": "latest-code-devrun-and-failure-feedback-verified-no-package-playback-not-accepted"
   },
   "mousa41LocalLyricsRemount20261108": {
     "branch": "codex/mousa-4-1-local-lyrics-followup",
