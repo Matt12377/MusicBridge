@@ -2,7 +2,18 @@
   "mousa41LocalPlaybackClick20261108": {
     "branch": "codex/mousa-4-1-local-playback-click",
     "baseCommit": "0710926e1ca3b21abd646e7e9067d415c7d358ba",
-    "state": "in-progress-core-media-proxy-route-confirmed",
+    "state": "blocked-external-core-media-proxy-route",
+    "blockingCondition": {
+      "class": "core-client-proxy-route-outside-readonly-scope",
+      "persistedGoalRounds": 3,
+      "coreHttpProxyStillEnabled": true,
+      "samePreviouslyConfirmedProxyHop": true,
+      "remoteAuthority": "readonly-media-diagnosis",
+      "networkConfigurationChangesAuthorized": false,
+      "requiredNextCapability": "authorized-core-side-precise-media-direct-route-change-and-real-verification",
+      "gatewayAdmissionRelaxed": false,
+      "playbackAcceptanceBlocked": true
+    },
     "implementationCommit": "70bd8d49803ce7f10ee521aa1020106f8ccfa672",
     "engineeringDelivery": "partial-diagnostics-feedback-and-devrun-not-playback-fix",
     "report": "reports/MOUSA_4_1_LOCAL_PLAYBACK_CLICK_2026-11-08.md",
