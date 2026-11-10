@@ -324,3 +324,80 @@ test('close等待原claim提交静止，晚回包不会产生可发送令牌', a
   await assert.rejects(finish, failure(503)); await close; assert.equal(settled, true);
   assert.deepEqual(f.counts, { issues: 1, claims: 1 }); assert.equal(f.ended.length, 1);
 });
+
+const TAIL_ORIGIN = 'https://100.100.100.10:45391', TAIL_CERT = 'cd'.repeat(32);
+const TAIL_PEER: MobilePairingBootstrapPeer = { ...PEER, remoteAddress: '100.100.100.11', origin: TAIL_ORIGIN, certificateSha256: TAIL_CERT };
+
+test('Tailscale shares the original auth subject and native short-code protocol, not a second device registry', async t => {
+  const f = fixture(t);
+  f.coordinator.addEndpoint({ origin: TAIL_ORIGIN, certificateSha256: TAIL_CERT });
+  const started = await f.start({ ...request(), certificateSha256: TAIL_CERT }, TAIL_PEER);
+  assert.equal(started.challenge.origin, TAIL_ORIGIN);
+  assert.equal(started.challenge.certificateSha256, TAIL_CERT);
+  const c = await prove(f, started, TAIL_PEER);
+  const tokens = c.decrypt(await f.coordinator.finish(started.challenge.requestId, c.finish, TAIL_PEER));
+  const principal = await f.auth.authenticate(tokens.accessToken);
+  assert.equal(principal.deviceId, tokens.deviceId);
+  assert.equal(tokens.serverId, SERVER);
+  assert.equal(f.counts.issues, 1);
+  assert.equal(f.prompts.size, 1);
+});
+
+test('Tailscale cannot exchange or finish a LAN attempt even when both endpoints share a trusted server', async t => {
+  const f = fixture(t);
+  f.coordinator.addEndpoint({ origin: TAIL_ORIGIN, certificateSha256: TAIL_CERT });
+  const started = await f.start();
+  const c = client(started.body, started.challenge, f.prompts.get(started.challenge.requestId)!.code);
+  const aliasedPeer = { ...TAIL_PEER, remoteAddress: PEER.remoteAddress };
+  await assert.rejects(f.coordinator.exchange(started.challenge.requestId, c.exchange, aliasedPeer), failure(401));
+  await f.coordinator.exchange(started.challenge.requestId, c.exchange, PEER);
+  await assert.rejects(f.coordinator.finish(started.challenge.requestId, c.finish, aliasedPeer), failure(401));
+  await f.coordinator.finish(started.challenge.requestId, c.finish, PEER);
+});
+
+test('Tailscale origin remains part of retry identity even if leaf pin and client address are identical', async t => {
+  const f = fixture(t);
+  f.coordinator.addEndpoint({ origin: TAIL_ORIGIN, certificateSha256: CERT });
+  const body = request();
+  const first = await f.start(body);
+  await assert.rejects(f.coordinator.start(body, { ...PEER, origin: TAIL_ORIGIN }), failure(409));
+  assert.equal((await f.coordinator.start(body, PEER)).requestId, first.challenge.requestId);
+  assert.equal(f.prompts.size, 1);
+});
+
+test('Tailscale removal invalidates only its own pending attempt and leaves LAN pairing usable', async t => {
+  const f = fixture(t);
+  f.coordinator.addEndpoint({ origin: TAIL_ORIGIN, certificateSha256: TAIL_CERT });
+  const tail = await f.start({ ...request('installation.tail'), certificateSha256: TAIL_CERT }, TAIL_PEER);
+  const lan = await f.start(request('installation.lan'));
+  const tc = client(tail.body, tail.challenge, f.prompts.get(tail.challenge.requestId)!.code);
+  f.coordinator.removeEndpoint(TAIL_ORIGIN);
+  await assert.rejects(f.coordinator.exchange(tail.challenge.requestId, tc.exchange, TAIL_PEER), failure(401));
+  const lc = await prove(f, lan);
+  await f.coordinator.finish(lan.challenge.requestId, lc.finish, PEER);
+  assert.ok(f.ended.includes(tail.challenge.requestId));
+  assert.throws(() => f.coordinator.removeEndpoint(ORIGIN), failure(400));
+});
+
+test('Tailscale binding is bounded and rejects public, wildcard, malformed, and silently rotated origins', async t => {
+  const f = fixture(t);
+  for (const origin of ['https://8.8.8.8:45391', 'https://0.0.0.0:45391', 'https://example.ts.net:45391', 'http://100.100.100.10:45391', 'https://100.100.100.10:45391/']) {
+    assert.throws(() => f.coordinator.addEndpoint({ origin, certificateSha256: TAIL_CERT }), failure(400));
+  }
+  f.coordinator.addEndpoint({ origin: TAIL_ORIGIN, certificateSha256: TAIL_CERT });
+  f.coordinator.addEndpoint({ origin: TAIL_ORIGIN, certificateSha256: TAIL_CERT });
+  assert.throws(() => f.coordinator.addEndpoint({ origin: TAIL_ORIGIN, certificateSha256: CERT }), failure(409));
+  assert.throws(() => f.coordinator.addEndpoint({ origin: 'https://100.100.100.12:45391', certificateSha256: TAIL_CERT }), failure(503));
+});
+
+test('Tailscale and LAN share the same global pairing-start rate budget', async t => {
+  const f = fixture(t);
+  f.coordinator.addEndpoint({ origin: TAIL_ORIGIN, certificateSha256: TAIL_CERT });
+  for (let index = 0; index < MOBILE_PAIRING_BOOTSTRAP_LIMITS.maximumStartsGlobal; index++) {
+    const useTail = index % 2 === 0;
+    const peer = { ...(useTail ? TAIL_PEER : PEER), remoteAddress: `10.99.0.${index + 1}` };
+    const started = await f.start({ ...request(`installation.rate-${index}`), certificateSha256: peer.certificateSha256 }, peer);
+    f.coordinator.cancel(started.challenge.requestId);
+  }
+  await assert.rejects(f.coordinator.start({ ...request('installation.rate-overflow'), certificateSha256: TAIL_CERT }, TAIL_PEER), failure(429));
+});

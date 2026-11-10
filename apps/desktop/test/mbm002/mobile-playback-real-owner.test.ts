@@ -108,7 +108,8 @@ async function loadModules() {
       checked.push(artifact)
     }
   }
-  for (const file of ['mobile-backend', 'mobile-playback-backend', 'mobile-https-server', 'mobile-media-response', 'mobile-tls-identity']) {
+  for (const file of ['mobile-backend', 'mobile-playback-backend', 'mobile-https-server', 'mobile-media-response', 'mobile-tls-identity',
+    'mobile-endpoint-projection', 'mobile-connection-http']) {
     const source = preparation.sourceInputs.find(row => row.path === `apps/desktop/src/main/${file}.ts`)
     assert.ok(source, '生产 Main 源码也必须属于本轮准备输入。'); checked.push(source)
   }
@@ -292,7 +293,7 @@ async function fixture(t: TestContext) {
   assert.deepEqual(m.locks.physicalResourceLocks.combinedSnapshot(), { readers: 0, writers: 0, resources: 0 })
   const protectorKey = randomBytes(32)
   cleanup.unshift(() => { protectorKey.fill(0) })
-  const identity = await m.tls.loadOrCreateMobileIdentity({ directory: path.join(directory, 'identity'), hosts: ['127.0.0.1'], secretProtector: {
+  const secretProtector: Parameters<Modules['tls']['loadOrCreateMobileIdentity']>[0]['secretProtector'] = {
     encryptString(value) {
       const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', protectorKey, iv)
       const body = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()])
@@ -302,7 +303,8 @@ async function fixture(t: TestContext) {
       const decipher = createDecipheriv('aes-256-gcm', protectorKey, value.subarray(0, 12)); decipher.setAuthTag(value.subarray(12, 28))
       return Buffer.concat([decipher.update(value.subarray(28)), decipher.final()]).toString('utf8')
     },
-  } })
+  }
+  const identity = await m.tls.loadOrCreateMobileIdentity({ directory: path.join(directory, 'identity'), hosts: ['127.0.0.1'], secretProtector })
   cleanup.unshift(() => { identity.authKey.fill(0) })
   const sourceTrace: SourceTrace[] = []
   let nextVerifyDelay: { entered: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | undefined
@@ -336,9 +338,14 @@ async function fixture(t: TestContext) {
       requestOwner, assertCurrent: () => owner.domain.assertOpen(),
       resizeArtwork() { throw new Error('本用例不提供假封面缩放。') } })
     let server: ReturnType<Modules['https']['createMobileHttpsServer']> | undefined, closing: Promise<void> | undefined
+    const auxiliaryClosers = new Set<() => Promise<void>>()
     async function stop() {
       if (!closing) closing = (async () => {
-        try { await server?.close() } finally { await backend.close() }
+        try {
+          const retired = await Promise.allSettled([server?.close(), ...[...auxiliaryClosers].map(close => close())])
+          const failures = retired.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+          if (failures.length) throw new AggregateError(failures.map(result => result.reason), '自有HTTPS listener收口失败。')
+        } finally { await backend.close() }
         const snapshot = backend.playbackSnapshot(); assert.ok(snapshot)
         assert.equal(snapshot.liveResources, 0); assert.equal(snapshot.preparing, 0); assert.equal(snapshot.readers, 0)
         assert.equal(snapshot.releasing, 0); assert.equal(snapshot.pendingPersistence, false); assert.equal(snapshot.closing, true)
@@ -347,14 +354,39 @@ async function fixture(t: TestContext) {
       return closing
     }
     cleanup.push(stop)
-    assert.ok(backend.playbackBackend)
+    const playback = backend.playbackBackend
+    assert.ok(playback)
     server = m.https.createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM },
-      host: '127.0.0.1', port, backend: backend.backend, playback: backend.playbackBackend })
+      host: '127.0.0.1', port, backend: backend.backend, playback })
     const listening = await server.start(); assert.equal(listening.certificateSha256, identity.certificateSha256)
     backend.activatePlayback(listening.baseUrl)
     const foreign = await owner.domain.mobileMain!({ kind: 'media-source', datasetId: randomUUID(), request: { operation: 'release', handle: randomUUID() } })
     assert.equal('kind' in foreign && foreign.kind === 'mobile-error' && foreign.status === 400, true)
-    return { ...listening, identity, backend, owner, close: stop }
+    const primary = { ...listening, identity, backend, owner, close: stop }
+    async function openAlias() {
+      assert.equal(closing, undefined)
+      const child = await m.tls.loadOrCreateMobileIdentity({ directory: path.join(directory, 'alias-' + randomUUID()),
+        hosts: ['127.0.0.1'], secretProtector, sharedIdentity: identity })
+      assert.equal(child.serverId, identity.serverId)
+      assert.equal(child.certificateSha256 === identity.certificateSha256, false)
+      const auxiliary = m.https.createMobileHttpsServer({ tls: { key: child.privateKeyPEM, cert: child.certificatePEM },
+        host: '127.0.0.1', port: 0, backend: backend.backend, playback })
+      let aliasOrigin: string | undefined, retired: Promise<void> | undefined
+      function closeAlias() {
+        if (!retired) {
+          if (aliasOrigin) backend.unregisterPlaybackOrigin(aliasOrigin)
+          retired = auxiliary.close().finally(() => { child.authKey.fill(0) })
+        }
+        return retired
+      }
+      auxiliaryClosers.add(closeAlias)
+      try {
+        const opened = await auxiliary.start(); aliasOrigin = opened.baseUrl
+        backend.registerPlaybackOrigin(opened.baseUrl)
+        return { ...primary, ...opened, identity: child, close: closeAlias }
+      } catch (error) { await closeAlias(); throw error }
+    }
+    return { ...primary, openAlias }
   }
   async function reopenOwner() {
     assert.ok(currentOwner); const originalId = currentOwner.domain.datasetId
@@ -366,10 +398,11 @@ async function fixture(t: TestContext) {
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>
 type Http = Awaited<ReturnType<Fixture['start']>>
+type EndpointHttp = Omit<Http, 'openAlias'>
 interface RawReply { status: number; headers: [string, string][]; body: Uint8Array }
 interface ClientOptions { method?: string; token?: string; body?: Uint8Array; key?: string; extraHeaders?: MobileHeaderPairs; capBytes?: number }
 
-async function raw(h: Http, target: string, options: ClientOptions = {}): Promise<RawReply> {
+async function raw(h: EndpointHttp, target: string, options: ClientOptions = {}): Promise<RawReply> {
   const url = new URL(target, h.baseUrl), origin = new URL(h.baseUrl)
   assert.equal(url.origin === origin.origin, true, '测试只访问当前自有 HTTPS origin。')
   const headers = ['Host', origin.host, 'Connection', 'close']
@@ -408,7 +441,7 @@ function header(reply: RawReply, name: string): string | undefined {
   const pair = reply.headers.find(([key]) => key.toLowerCase() === name.toLowerCase()); return pair?.[1]
 }
 interface WireOptions { token?: string; key?: string; body?: unknown; resource?: MobileResourceSemanticContext }
-async function wire<O extends MobileOperationId>(h: Http, operation: O, target: string,
+async function wire<O extends MobileOperationId>(h: EndpointHttp, operation: O, target: string,
   options: WireOptions = {}): Promise<{ raw: RawReply; decoded: MobileReplyMap[O] }> {
   const url = new URL(target, h.baseUrl), response = await raw(h, target, {
     method: MOBILE_OPERATION_TABLE[operation].method,
@@ -434,7 +467,7 @@ function sameWholeReply(a: RawReply, b: RawReply) {
   assert.equal(a.status, b.status); assert.equal(a.body.length, b.body.length)
   assert.equal(hash(a.body) === hash(b.body), true, '原回执 whole body 必须相等，失败报告不输出许可/票据/token。')
 }
-async function pair(h: Http, installationId = randomUUID()) {
+async function pair(h: EndpointHttp, installationId = randomUUID()) {
   const permit = await h.backend.auth.issuePairing(), key = randomUUID()
   const body: MobilePairingClaim = { pairingSecret: permit.pairingSecret, installationId, deviceName: '自有合成设备' }
   const reply = await wire(h, 'claimPairing', '/mobile/v1/pairings/claim', { key, body })
@@ -443,7 +476,7 @@ async function pair(h: Http, installationId = randomUUID()) {
   sameWholeReply(reply.raw, (await wire(h, 'claimPairing', '/mobile/v1/pairings/claim', { key, body })).raw)
   return { tokens, installationId }
 }
-async function session(h: Http, tokens: MobileTokenPair) {
+async function session(h: EndpointHttp, tokens: MobileTokenPair) {
   const body = { clientInstanceId: randomUUID() }, key = randomUUID()
   const reply = await wire(h, 'createSession', '/mobile/v1/sessions', { token: tokens.accessToken, key, body })
   assert.equal(reply.raw.status, 201); const value = success(reply) as MobileSession
@@ -451,7 +484,7 @@ async function session(h: Http, tokens: MobileTokenPair) {
   sameWholeReply(reply.raw, (await wire(h, 'createSession', '/mobile/v1/sessions', { token: tokens.accessToken, key, body })).raw)
   return { value, body, key, original: reply.raw }
 }
-async function catalog(f: Fixture, h: Http, tokens: MobileTokenPair) {
+async function catalog(f: Fixture, h: EndpointHttp, tokens: MobileTokenPair) {
   const reply = await wire(h, 'listTracks', '/mobile/v1/tracks?source=local&limit=100', { token: tokens.accessToken })
   const page = success(reply) as MobileTrackPage; assert.equal(page.items.length, 2); assert.equal(page.nextCursor, null)
   const selected = new Map<AudioId, MobileTrack>()
@@ -487,14 +520,14 @@ function requestFor(track: MobileTrack): MobileResourceRequest {
     formats: [{ codec: track.audio.codec, container: track.audio.container, maxSampleRateHz: track.audio.sampleRateHz,
       maxChannels: track.audio.channels, maxBitsPerSample: track.audio.bitsPerSample }] }
 }
-async function context(h: Http, tokens: MobileTokenPair, sessionId: string, track: MobileTrack,
+async function context(h: EndpointHttp, tokens: MobileTokenPair, sessionId: string, track: MobileTrack,
   request: MobileResourceRequest, expectedResourceId: string | null = null): Promise<MobileResourceSemanticContext> {
   assert.ok(h.backend.playbackBackend)
   const caps = await h.backend.playbackBackend.resourceCapabilities(tokens.accessToken, sessionId, h.baseUrl, new AbortController().signal)
   assert.equal(caps.scope.deviceId, tokens.deviceId); assert.equal(caps.scope.serverId, h.identity.serverId)
   return { ...caps, request, source: track.source, sourceAudio: track.audio, expectedResourceId }
 }
-async function createResource(h: Http, tokens: MobileTokenPair, sessionId: string, track: MobileTrack, key = randomUUID()) {
+async function createResource(h: EndpointHttp, tokens: MobileTokenPair, sessionId: string, track: MobileTrack, key = randomUUID()) {
   const request = requestFor(track), semantic = await context(h, tokens, sessionId, track, request)
   const target = `/mobile/v1/sessions/${sessionId}/resources`
   const response = await wire(h, 'createResource', target, { token: tokens.accessToken, key, body: request, resource: semantic })
@@ -505,11 +538,11 @@ async function createResource(h: Http, tokens: MobileTokenPair, sessionId: strin
   return { id: value.id, sessionId, request, track, key, target, value, original: response.raw }
 }
 type Created = Awaited<ReturnType<typeof createResource>>
-async function getResource(h: Http, tokens: MobileTokenPair, created: Created) {
+async function getResource(h: EndpointHttp, tokens: MobileTokenPair, created: Created) {
   const semantic = await context(h, tokens, created.sessionId, created.track, created.request, created.id)
   return await wire(h, 'getResource', `${created.target}/${created.id}`, { token: tokens.accessToken, resource: semantic })
 }
-async function ready(h: Http, tokens: MobileTokenPair, created: Created): Promise<MobileReadyResource> {
+async function ready(h: EndpointHttp, tokens: MobileTokenPair, created: Created): Promise<MobileReadyResource> {
   const deadline = Date.now() + 10_000
   while (Date.now() < deadline) {
     const reply = await getResource(h, tokens, created)
@@ -529,7 +562,7 @@ async function ready(h: Http, tokens: MobileTokenPair, created: Created): Promis
   }
   throw new Error('原资源 GET 未在既定准备期限内 ready。')
 }
-async function readersQuiet(h: Http) {
+async function readersQuiet(h: EndpointHttp) {
   const deadline = Date.now() + 10_000
   while (Date.now() < deadline) {
     const snapshot = h.backend.playbackSnapshot(); assert.ok(snapshot)
@@ -551,7 +584,7 @@ function releaseQuiet(f: Fixture, handle: string) {
 function physicalQuiet(f: Fixture) {
   assert.deepEqual(f.m.locks.physicalResourceLocks.combinedSnapshot(), { readers: 0, writers: 0, resources: 0 })
 }
-async function stream(h: Http, resource: MobileReadyResource, original: Uint8Array, options: {
+async function stream(h: EndpointHttp, resource: MobileReadyResource, original: Uint8Array, options: {
   method?: 'GET' | 'HEAD'; range?: string; ifRange?: string; status: 200 | 206 | 400 | 416; start?: number; end?: number
 }) {
   const method = options.method ?? 'GET', extraHeaders: [string, string][] = []
@@ -570,7 +603,7 @@ async function stream(h: Http, resource: MobileReadyResource, original: Uint8Arr
   await readersQuiet(h)
   return reply
 }
-async function denyMedia(h: Http, resource: MobileReadyResource, status: number, code: string) {
+async function denyMedia(h: EndpointHttp, resource: MobileReadyResource, status: number, code: string) {
   const rawReply = await raw(h, resource.media.url)
   assert.equal(rawReply.status, status)
   const url = new URL(resource.media.url), decoded = decodeMobileResponse('getMediaAsset', { ...rawReply, finalUrl: url.href },
@@ -579,12 +612,45 @@ async function denyMedia(h: Http, resource: MobileReadyResource, status: number,
   if (!decoded.ok) throw new Error('媒体安全失败回包未通过正式 codec。')
   assert.equal(decoded.value.category, 'error'); assert.equal((decoded.value.body as MobileErrorEnvelope).error.code, code)
 }
-async function remove(h: Http, tokens: MobileTokenPair, f: Fixture, created: Created) {
+async function remove(h: EndpointHttp, tokens: MobileTokenPair, f: Fixture, created: Created) {
   const reply = await wire(h, 'releaseResource', `${created.target}/${created.id}`, { token: tokens.accessToken })
   assert.equal(reply.raw.status, 204); assert.equal(reply.raw.body.length, 0)
   releaseQuiet(f, created.id)
   assert.equal(h.backend.playbackSnapshot()?.readers, 0)
 }
+
+test('Tailscale 双入口合同：真实同一 Owner、不同叶证书、原资源原票据与两路共同刷新撤销', { timeout: 120_000 }, async t => {
+  // Two real pinned loopback HTTPS listeners, not a physical Tailscale/VPN or audible playback claim.
+  const f = await fixture(t), primary = await f.start(), alias = await primary.openAlias()
+  const device = await pair(primary), activeSession = await session(primary, device.tokens)
+  const track = (await catalog(f, primary, device.tokens)).get('core-wav'); assert.ok(track)
+  const created = await createResource(primary, device.tokens, activeSession.value.id, track)
+  const original = await ready(primary, device.tokens, created), projected = await ready(alias, device.tokens, created)
+  assert.equal(projected.id, original.id); assert.equal(projected.sessionId, original.sessionId)
+  const canonicalURL = new URL(original.media.url), aliasURL = new URL(projected.media.url)
+  assert.equal(canonicalURL.origin === primary.baseUrl, true); assert.equal(aliasURL.origin === alias.baseUrl, true)
+  assert.equal(aliasURL.pathname === canonicalURL.pathname, true)
+  assert.equal(hash(Buffer.from(aliasURL.search)) === hash(Buffer.from(canonicalURL.search)), true, '跨已登记listener不能重签票据。')
+  assert.equal(traceCount(f, 'prepare', created.id), 1); assert.equal(primary.backend.playbackSnapshot()?.liveResources, 1)
+  const replay = await wire(alias, 'createResource', created.target, { token: device.tokens.accessToken, key: created.key,
+    body: created.request, resource: await context(alias, device.tokens, activeSession.value.id, track, created.request, created.id) })
+  assert.equal(replay.raw.status, created.original.status); assert.equal((success(replay) as MobileResource).id, created.id)
+  assert.equal(traceCount(f, 'prepare', created.id), 1, '原幂等键跨入口查询不创建第二份源或资源。')
+  const bytes = f.originals.get('core-wav'); assert.ok(bytes)
+  await stream(alias, projected, bytes.bytes, { range: 'bytes=7-19', status: 206, start: 7, end: 19 })
+  const rotated = success(await wire(alias, 'refreshToken', '/mobile/v1/auth/refresh', {
+    key: randomUUID(), body: { refreshToken: device.tokens.refreshToken } })) as MobileTokenPair
+  for (const route of [primary, alias]) {
+    safeFailure(await wire(route, 'getSession', `/mobile/v1/sessions/${activeSession.value.id}`, { token: device.tokens.accessToken }), 401, 'UNAUTHORIZED')
+    assert.equal((await wire(route, 'getSession', `/mobile/v1/sessions/${activeSession.value.id}`, { token: rotated.accessToken })).raw.status, 200)
+  }
+  await stream(primary, original, bytes.bytes, { range: 'bytes=0-8', status: 206, start: 0, end: 8 })
+  await stream(alias, projected, bytes.bytes, { method: 'HEAD', status: 200 })
+  assert.equal((await wire(alias, 'logout', '/mobile/v1/auth/logout', { token: rotated.accessToken, body: {} })).raw.status, 204)
+  releaseQuiet(f, created.id)
+  await denyMedia(primary, original, 403, 'DEVICE_REVOKED'); await denyMedia(alias, projected, 403, 'DEVICE_REVOKED')
+  assert.equal(traceCount(f, 'prepare', created.id), 1); physicalQuiet(f); await f.assertOriginals()
+})
 
 test('002真 Owner 的 WAV/ALAC 全字节与 Range/HEAD，原初始回执和受控延迟202均不改写', { timeout: 120_000 }, async t => {
   const f = await fixture(t), h = await f.start(), device = await pair(h), s = await session(h, device.tokens)

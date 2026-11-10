@@ -1,4 +1,4 @@
-import { createHash, createPrivateKey, randomBytes, randomUUID, X509Certificate } from 'node:crypto'
+import { createHash, createPrivateKey, randomBytes, randomUUID, timingSafeEqual, X509Certificate } from 'node:crypto'
 import { constants, type Stats } from 'node:fs'
 import { access, lstat, mkdir, mkdtemp, open, link, unlink, rm, type FileHandle } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
@@ -19,6 +19,8 @@ export interface MobileTlsIdentityOptions {
   directory: string
   secretProtector: MobileSecretProtector
   hosts: readonly string[]
+  /** Main-owned auxiliary listener only: retain the existing server/auth subject, never replace its leaf pin. */
+  sharedIdentity?: Readonly<Pick<MobileTlsIdentity, 'serverId' | 'authKey'>>
 }
 export interface MobileTlsIdentity {
   serverId: string
@@ -185,8 +187,20 @@ export async function loadOrCreateMobileIdentity(options: MobileTlsIdentityOptio
     || options.directory === path.parse(options.directory).root || options.directory.includes('\0') || options.directory.length > 1024
     || !Array.isArray(options.hosts) || !options.hosts.length || options.hosts.length > 16
     || Array.from(options.hosts).some(host => !isMobilePrivateIPv4(host)) || new Set(options.hosts).size !== options.hosts.length
-    || typeof options.secretProtector?.encryptString !== 'function' || typeof options.secretProtector?.decryptString !== 'function') {
+    || typeof options.secretProtector?.encryptString !== 'function' || typeof options.secretProtector?.decryptString !== 'function'
+    || options.sharedIdentity !== undefined && (!options.sharedIdentity
+      || !/^server:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u.test(options.sharedIdentity.serverId)
+      || !Buffer.isBuffer(options.sharedIdentity.authKey) || options.sharedIdentity.authKey.length !== 32)) {
     throw new MobileTlsIdentityError('INVALID_CONFIGURATION')
+  }
+  // Capture mutable Main-owned material before any await; auxiliary cleanup cannot zero the parent's Buffer.
+  const shared = options.sharedIdentity ? { serverId: options.sharedIdentity.serverId, authKey: Buffer.from(options.sharedIdentity.authKey) } : undefined
+  const checkedShared = (value: MobileTlsIdentity): MobileTlsIdentity => {
+    if (shared && (value.serverId !== shared.serverId || !timingSafeEqual(value.authKey, shared.authKey))) {
+      value.authKey.fill(0)
+      throw new MobileTlsIdentityError('IDENTITY_INVALID')
+    }
+    return value
   }
   const directory = options.directory, hosts = [...options.hosts].sort(), file = path.join(directory, IDENTITY_FILE)
   const protector: MobileSecretProtector = {
@@ -199,12 +213,12 @@ export async function loadOrCreateMobileIdentity(options: MobileTlsIdentityOptio
     guarded = await guardedDirectory(directory)
     const existing = await readIdentity(file, protector, hosts)
     await guarded.check()
-    if (existing) return existing
+    if (existing) return checkedShared(existing)
     try { lock = await open(lockPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600) }
     catch (error) { if (exclusiveCollision(error)) throw new MobileTlsIdentityError('IDENTITY_BUSY'); throw error }
     const appeared = await readIdentity(file, protector, hosts)
-    if (appeared) { await guarded.check(); return appeared }
-    const serverId = `server:${randomUUID()}`, authKey = randomBytes(32)
+    if (appeared) { await guarded.check(); return checkedShared(appeared) }
+    const serverId = shared?.serverId ?? `server:${randomUUID()}`, authKey = shared ? Buffer.from(shared.authKey) : randomBytes(32)
     const pem = await generateCertificate(directory, serverId, hosts)
     await guarded.check()
     const plain = JSON.stringify({ schema: 1, serverId, authKey: authKey.toString('base64'), ...pem, hosts })
@@ -241,6 +255,7 @@ export async function loadOrCreateMobileIdentity(options: MobileTlsIdentityOptio
       finally { await lock.close().catch(() => { cleanupFailed = true }) }
     }
     await guarded?.handle.close().catch(() => { cleanupFailed = true })
+    shared?.authKey.fill(0)
     if (cleanupFailed) throw new MobileTlsIdentityError('STORAGE_FAILED')
   }
 }

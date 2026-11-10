@@ -290,6 +290,8 @@ export function createMobileBackend(options: {
   } : undefined;
   return { backend, auth, playbackBackend: playback?.backend, dsdBackend, contentBackend, artistSearchBackend,
     activatePlayback(origin: string): void { if (!playback) throw new MobileServiceError(400, 'INVALID_REQUEST'); playback.activate(origin); responseOrigin = origin; },
+    registerPlaybackOrigin(origin: string): void { if (!playback) throw new MobileServiceError(400, 'INVALID_REQUEST'); playback.addOrigin(origin); },
+    unregisterPlaybackOrigin(origin: string): void { if (!playback) throw new MobileServiceError(400, 'INVALID_REQUEST'); playback.removeOrigin(origin); },
     playbackSnapshot: () => playback?.snapshot(),
     getCloseDiagnosticContext: () => contentPort?.getCloseDiagnosticContext(),
     close(): Promise<void> {

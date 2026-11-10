@@ -3,13 +3,14 @@ import { mobileRangeWindowObserve } from '../../../../packages/bridge-core/src/m
 import { createHmac } from 'node:crypto';
 import { mobilePreparationAsync, mobilePreparationSync } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
 import {
-  encodeMobileJsonReply, MOBILE_OPERATION_TABLE, MOBILE_UNKNOWN_DURATION_FEATURE, mobileDataSnapshot, mobileRecord,
+  isMobileConnectionOrigin, MOBILE_OPERATION_TABLE, MOBILE_UNKNOWN_DURATION_FEATURE, mobileDataSnapshot, mobileRecord,
   type MobileCatalogFeatures, type MobileDecodedRequest, type MobileHeaderPairs, type MobileReplyMap,
   type MobileResourceCodecContext, type MobileResourceSemanticContext,
 } from '@music-bridge/contracts';
 import { createMobileAuthCrypto } from '../../../../packages/bridge-core/src/mobile/auth-crypto.js';
 import { createMobilePlaybackService, createMobilePlaybackReadComposition } from '../../../../packages/bridge-core/src/mobile/playback-service.js';
 import { createMobilePlaybackStateCodec } from './mobile-playback-state-codec-client.js';
+import { encodeMobileEndpointPlaybackReply } from './mobile-endpoint-projection.js';
 import {
   MOBILE002_CONTROL_OPERATIONS, MobilePlaybackError, type MobilePlaybackControlOperation,
   type MobilePlaybackMediaOperation, type MobilePlaybackService, type MobilePlaybackSourcePort,
@@ -70,6 +71,7 @@ export function createMobilePlaybackBackend(options: {
 }) {
   const key = new Uint8Array(createHmac('sha256', options.authKey).update('musicbridge-mobile-playback-v1').digest());
   let service: MobilePlaybackService | undefined, origin: string | undefined, closing = false;
+  const allowedOrigins = new Set<string>();
   let closeFlight: Promise<void> | undefined;
   let warmFlight: Promise<void> | undefined;
   let readComposition: MobilePlaybackReadComposition | undefined;
@@ -361,7 +363,7 @@ export function createMobilePlaybackBackend(options: {
     sourcePort.release = release;
   }
   const requireService = (requestOrigin: string): MobilePlaybackService => {
-    current(); if (!service || requestOrigin !== origin) throw new MobileServiceError(503, 'BUSY'); return service;
+    current(); if (!service || !origin || !allowedOrigins.has(requestOrigin)) throw new MobileServiceError(503, 'BUSY'); return service;
   };
   const backend: Mobile002Backend = {
     async resourceCapabilities(accessToken, sessionId, requestOrigin, signal) {
@@ -385,17 +387,15 @@ export function createMobilePlaybackBackend(options: {
           const reply = await mobilePreparationAsync('preparation.main.control', () => withControlActivity(input.signal,
             () => playback.control(input.operation as MobilePlaybackControlOperation, request, principal, input.signal)));
           const operation = input.operation as MobilePlaybackControlOperation;
-          const encoded = mobilePreparationSync('preparation.main.encode', () => {
-            const encoded = encodeMobileJsonReply(operation, { status: reply.status, category: reply.status >= 400 ? 'error' : reply.status === 204 ? 'empty' : 'success', body: reply.body } as MobileReplyMap[typeof operation],
-              { responseOrigin: input.origin, requestPath: request.path, ...(catalogFeatures === undefined ? {} : { catalogFeatures }),
-                ...(reply.resourceContext ? { resource: reply.resourceContext } : {}) });
-            if (!encoded.ok) throw new MobileServiceError(503, 'BUSY');
-            return encoded.value;
-          });
+          const projected = mobilePreparationSync('preparation.main.encode', () => encodeMobileEndpointPlaybackReply({ operation,
+            reply: { status: reply.status, category: reply.status >= 400 ? 'error' : reply.status === 204 ? 'empty' : 'success', body: reply.body } as MobileReplyMap[typeof operation],
+            context: { responseOrigin: origin!, requestPath: request.path, ...(catalogFeatures === undefined ? {} : { catalogFeatures }),
+              ...(reply.resourceContext ? { resource: reply.resourceContext } : {}) }, requestedOrigin: input.origin, allowedOrigins }));
+          const encoded = projected.encoded;
           return { kind: 'buffered', ...encoded, headers: [...encoded.headers, ['Cache-Control', 'private, no-store']] as MobileHeaderPairs,
-            ...(reply.resourceContext ? { resourceContext: reply.resourceContext } : {}), beforeSend: async () => {
+            ...(projected.resourceContext ? { resourceContext: projected.resourceContext } : {}), beforeSend: async () => {
               try {
-                mobilePreparationSync('preparation.main.beforeSend.current', () => { current(); input.signal.throwIfAborted(); });
+                mobilePreparationSync('preparation.main.beforeSend.current', () => { requireService(input.origin); input.signal.throwIfAborted(); });
                 await mobilePreparationAsync('preparation.main.beforeSend.auth', () => options.auth.assertCurrent(principal));
                 await mobilePreparationAsync('preparation.main.beforeSend.reply', () => reply.beforeSend());
               }
@@ -411,9 +411,9 @@ export function createMobilePlaybackBackend(options: {
         return { kind: 'media', operation, status: reply.status, headers: reply.headers, expectedBodyBytes,
           fullContentLength: reply.totalBytes, ticketExpiresAtMs: reply.ticketExpiresAtMs, resourceAbortSignal: reply.resourceAbortSignal,
           ...(range !== undefined && ifRange === undefined ? { rangeRequested: range } : {}),
-          beforeSend: async () => { try { current(); input.signal.throwIfAborted(); await reply.beforeSend(); } catch (error) { throw safeMobilePlaybackFailure(error); } },
+          beforeSend: async () => { try { requireService(input.origin); input.signal.throwIfAborted(); await reply.beforeSend(); } catch (error) { throw safeMobilePlaybackFailure(error); } },
           reader: { read: async (maxBytes, signal) => {
-            signal.throwIfAborted(); if (!reply.reader) return null;
+            requireService(input.origin); signal.throwIfAborted(); if (!reply.reader) return null;
             const block = await reply.reader.read(maxBytes); signal.throwIfAborted(); return block.byteLength ? new Uint8Array(block) : null;
           }, close: () => reply.close() } };
       } catch (error) { throw safeMobilePlaybackFailure(error); }
@@ -429,12 +429,21 @@ export function createMobilePlaybackBackend(options: {
       current(); if (service || origin) throw new MobileServiceError(409, 'INVALID_REQUEST');
       const parsed = new URL(listeningOrigin);
       if (parsed.protocol !== 'https:' || parsed.origin !== listeningOrigin || parsed.username || parsed.password) throw new MobileServiceError(400, 'INVALID_REQUEST');
-      origin = listeningOrigin;
+      origin = listeningOrigin; allowedOrigins.add(listeningOrigin);
       service = createMobilePlaybackService({ serverId: options.serverId, datasetId: options.datasetId, responseOrigin: origin,
         auth: options.auth, persistence, history, crypto: createMobileAuthCrypto(key), sourcePort, stateCodec: createMobilePlaybackStateCodec(),
         ...(readComposition?{readComposition}:{}) });
       // activate已通过原Core/Owner就绪围栏；只沿原enqueue冷恢复一次，不轮询或创建意图。
       warmFlight=service.initialize();void warmFlight.catch(()=>{});
+    },
+    addOrigin(value: string): void {
+      current(); if (!service || !origin || !isMobileConnectionOrigin(value)) throw new MobileServiceError(400, 'INVALID_REQUEST');
+      if (!allowedOrigins.has(value) && allowedOrigins.size >= 2) throw new MobileServiceError(503, 'BUSY');
+      allowedOrigins.add(value);
+    },
+    removeOrigin(value: string): void {
+      current(); if (value === origin || !isMobileConnectionOrigin(value)) throw new MobileServiceError(400, 'INVALID_REQUEST');
+      allowedOrigins.delete(value);
     },
     acquireControlActivity,
     revokeDevice: async (deviceId: string) => { await service?.revokeDevice(deviceId); },

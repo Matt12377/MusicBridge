@@ -8,7 +8,8 @@ import { constants } from 'node:fs';
 import { lstat, mkdir, open, rename, unlink } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { isMobileId } from '@music-bridge/contracts';
+import { isMobileId, mobileConnectionAddressKind, mobileConnectionPathsSnapshot, mobilePublicConnectionSnapshot,
+  type MobilePublicConnectionConfiguration } from '@music-bridge/contracts';
 import { createMobileBackend } from './mobile-backend.js';
 import { createMobileHttpsServer } from './mobile-https-server.js';
 import { isMobilePrivateIPv4, loadOrCreateMobileIdentity, type MobileSecretProtector } from './mobile-tls-identity.js';
@@ -20,6 +21,8 @@ import type { MobilePreparationProbe } from '../../../../packages/bridge-core/sr
 import type { MobileContentCancelRecheck } from './mobile-content-port.js';
 import { createMobilePairingBootstrap } from '../../../../packages/bridge-core/src/mobile/pairing-bootstrap.js';
 import { createMobilePairingBootstrapHttp } from './mobile-pairing-bootstrap-http.js';
+import { createMobileConnectionHttpBackend } from './mobile-connection-http.js';
+import { createMobileAuxiliaryListener } from './mobile-auxiliary-listener.js';
 import type { createMobileBonjourPublisher } from './mobile-bonjour.js';
 
 type PairingBootstrap = ReturnType<typeof createMobilePairingBootstrap>;
@@ -68,10 +71,15 @@ export function createMobileConnectionSettings(options: {
   let state: MobileConnectionSettings['state'] = 'off', epoch = 0, closing = false, queued = 0;
   let serial = Promise.resolve(), closeFlight: Promise<void> | undefined, stopFlight: Promise<void> | undefined;
   let active: { epoch: number; server: ReturnType<typeof createMobileHttpsServer>; service: ReturnType<typeof createMobileBackend>;
-    pairing?: PairingBootstrap; connection: NonNullable<MobileConnectionSettings['connection']> } | undefined;
+    pairing?: PairingBootstrap; connection: NonNullable<MobileConnectionSettings['connection']>;
+    connections: Map<string, MobilePublicConnectionConfiguration>; auxiliary: ReturnType<typeof createMobileAuxiliaryListener> } | undefined;
   const file = path.join(options.directory, 'connection.json');
+  const paths = (connections: Map<string, MobilePublicConnectionConfiguration>, serverId: string) => mobileConnectionPathsSnapshot({ schemaVersion: 1, serverId,
+    paths: [...connections.values()].map(value => ({ kind: mobileConnectionAddressKind(new URL(value.baseURL).hostname), baseURL: value.baseURL,
+      certificatePEM: value.certificatePEM, certificateSha256: value.certificateSha256 })) });
   const snapshot = (devices: MobileConnectionSettings['devices'] = []): MobileConnectionSettings => ({ schemaVersion: 1, enabled: pref.enabled, state,
-    host: pref.host, port: pref.port, hosts: hosts(), connection: active ? { ...active.connection } : null, devices });
+    host: pref.host, port: pref.port, hosts: hosts(), connection: active ? { ...active.connection } : null, devices,
+    connectionPaths: active ? paths(active.connections, active.connection.serverId) : null, tailscaleState: active?.auxiliary.state ?? 'off' });
   async function stop(): Promise<void> {
     // 撤销入口后仍保留原关闭任务；失败不能让下一次启停绕过未静止资源。
     if (stopFlight) return stopFlight;
@@ -81,7 +89,11 @@ export function createMobileConnectionSettings(options: {
     const pending = (async () => {
     try {
       try { await options.nearbyPairing?.publisher.stop(); }
-      finally { await withMobileCapabilityContext(context, () => observeMobileCapabilityTrace('main.close.https', () => old.server.close(), 'cleanup')); }
+      finally { await withMobileCapabilityContext(context, () => observeMobileCapabilityTrace('main.close.https', async () => {
+        const results = await Promise.allSettled([old.auxiliary.close(), old.server.close()]);
+        const failures = results.filter((value): value is PromiseRejectedResult => value.status === 'rejected').map(value => value.reason as unknown);
+        if (failures.length) throw new AggregateError(failures, '移动监听收尾尚未确认。');
+      }, 'cleanup')); }
     } finally {
       try {
         try { await old.pairing?.close(); }
@@ -103,7 +115,7 @@ export function createMobileConnectionSettings(options: {
     if (!isMobileId(datasetId) || generation !== epoch || closing || !options.isCoreReady()) return busy();
     // 证书只需覆盖实际监听地址；其他网卡变化不应使原手机信任失效。
     const identity = await loadOrCreateMobileIdentity({ directory: path.join(options.directory, 'identity'), secretProtector: options.protector, hosts: [pref.host] });
-    if (generation !== epoch || closing || !options.isCoreReady()) return busy();
+    if (generation !== epoch || closing || !options.isCoreReady()) { identity.authKey.fill(0); return busy(); }
     let starting = true;
     const assertCurrent = () => { if (closing || epoch !== generation || !options.isCoreReady() || !starting && active?.epoch !== generation) throw new MobileServiceError(503, 'BUSY'); };
     const service = createMobileBackend({ serverId: identity.serverId, datasetId, authKey: identity.authKey,
@@ -119,7 +131,13 @@ export function createMobileConnectionSettings(options: {
       origin, certificateSha256: identity.certificateSha256, assertCurrent,
       onRequest: input => options.nearbyPairing!.show({ ...input, onCancel: requestId => pairing!.cancel(requestId) }),
       onEnded: requestId => options.nearbyPairing!.dismiss(requestId) }) : undefined;
-    const server = createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: pref.host, port: pref.port,
+    const primary = mobilePublicConnectionSnapshot({ schemaVersion: 1, serverId: identity.serverId, baseURL: origin,
+      certificatePEM: identity.certificatePEM, certificateSha256: identity.certificateSha256 });
+    const connections = new Map<string, MobilePublicConnectionConfiguration>([[origin, primary]]);
+    const connectionHttp = createMobileConnectionHttpBackend({ serverId: identity.serverId, auth: service.auth, assertCurrent,
+      publicConnection: value => { const found = connections.get(value); if (!found) throw new MobileServiceError(503, 'BUSY'); return found; },
+      connectionPaths: () => paths(connections, identity.serverId) });
+    const sharedListenerOptions = {
       ...(options.rangeTimingProbe ? { rangeTimingProbe: options.rangeTimingProbe } : {}),
       ...(options.rangeWindowProbe ? { rangeWindowProbe: options.rangeWindowProbe } : {}),
       ...(options.preparationProbe ? { preparationProbe: options.preparationProbe } : {}),
@@ -128,20 +146,54 @@ export function createMobileConnectionSettings(options: {
       ...(pairing ? { pairing: createMobilePairingBootstrapHttp({ coordinator: pairing, serverId: identity.serverId }) } : {}),
       backend: service.backend, ...(service.playbackBackend ? { playback: service.playbackBackend } : {}),
       ...(service.dsdBackend ? { dsd: service.dsdBackend } : {}),
-      ...(service.contentBackend ? { content: service.contentBackend } : {}) });
+      ...(service.contentBackend ? { content: service.contentBackend } : {}), connection: connectionHttp };
+    const createListener = (input: { host: string; port: number; tls: { key: string; cert: string } }) => createMobileHttpsServer({ ...sharedListenerOptions, ...input });
+    const server = createListener({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: pref.host, port: pref.port });
+    const auxiliary = createMobileAuxiliaryListener({ primary, directory: path.join(options.directory, 'endpoint-identities'), protector: options.protector,
+      addresses: hosts, assertCurrent,
+      loadRootIdentity: () => loadOrCreateMobileIdentity({ directory: path.join(options.directory, 'identity'), secretProtector: options.protector, hosts: [pref.host] }),
+      createServer: createListener,
+      add(connection) {
+        assertCurrent(); service.registerPlaybackOrigin(connection.baseURL);
+        try { pairing?.addEndpoint({ origin: connection.baseURL, certificateSha256: connection.certificateSha256 }); }
+        catch (error) { service.unregisterPlaybackOrigin(connection.baseURL); throw error; }
+        connections.set(connection.baseURL, connection);
+      },
+      remove(connection) {
+        connections.delete(connection.baseURL);
+        // A complete service stop has already fenced this generation; physical listener cleanup still runs.
+        try { assertCurrent(); } catch { return; }
+        service.unregisterPlaybackOrigin(connection.baseURL); pairing?.removeEndpoint(connection.baseURL);
+      },
+    });
     try {
       const listening = await server.start();
-      if (generation !== epoch || closing || !options.isCoreReady()) return busy();
+      if (generation !== epoch || closing || !options.isCoreReady() || listening.baseUrl !== origin || listening.certificateSha256 !== identity.certificateSha256) return busy();
       service.activatePlayback(listening.baseUrl);
-      active = { epoch: generation, server, service, ...(pairing ? { pairing } : {}), connection: { schemaVersion: 1, serverId: identity.serverId, baseURL: listening.baseUrl,
-        certificatePEM: identity.certificatePEM, certificateSha256: identity.certificateSha256 } };
+      active = { epoch: generation, server, service, ...(pairing ? { pairing } : {}), connection: primary, connections, auxiliary };
       starting = false; state = 'ready';
+      await auxiliary.start();
+      if (generation !== epoch || closing || !options.isCoreReady()) return busy();
       // 广播失败不关闭原 HTTPS 与既有设备；高级连接入口仍可使用。
       if (options.nearbyPairing && generation === epoch && !closing) {
         try { await options.nearbyPairing.publisher.start({ serverId: identity.serverId, host: pref.host, port: pref.port }); }
         catch { /* 发现可单独失败，不改变原鉴权与已有连接。 */ }
       }
-    } catch { starting = false; await server.close(); await pairing?.close(); await service.close(); if (generation === epoch) state = 'failed'; return busy(); }
+    } catch {
+      starting = false; if (active?.epoch === generation) active = undefined;
+      const cleanup = (async () => {
+        const failures: unknown[] = [];
+        for (const result of await Promise.allSettled([auxiliary.close(), server.close()])) if (result.status === 'rejected') failures.push(result.reason);
+        try { await pairing?.close(); } catch (error) { failures.push(error); }
+        try { await service.close(); } catch (error) { failures.push(error); }
+        if (failures.length) throw new AggregateError(failures, '移动服务启动收尾尚未确认。');
+      })();
+      if (!stopFlight) {
+        stopFlight = cleanup;
+        void cleanup.then(() => { if (stopFlight === cleanup) stopFlight = undefined; }, () => {});
+      }
+      await cleanup; if (generation === epoch) state = 'failed'; return busy();
+    }
     finally { identity.authKey.fill(0); }
   }
   function exclusive<T>(work: () => Promise<T>): Promise<T> {

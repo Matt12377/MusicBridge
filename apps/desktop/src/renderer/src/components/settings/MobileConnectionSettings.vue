@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { MobileConnectionSettings } from '../../../../shared/mobile-settings.js'
+import { MOBILE_CONNECTION_DEFAULT_PORT, mobileConnectionAddressKind } from '@music-bridge/contracts'
 
 const api = window.musicBridgeMobile
 const capable = typeof api?.getMobileConnectionSettings === 'function' && typeof api?.configureMobileConnection === 'function'
@@ -8,6 +9,10 @@ const settings = ref<MobileConnectionSettings | null>(null), host = ref('127.0.0
 const busy = ref(false), message = ref(''), permit = ref<{ pairingSecret: string; expiresAt: string } | null>(null)
 const labels = { off: '已关闭', starting: '启动中', ready: '可配对', closing: '关闭中', failed: '连接未就绪' }
 const connection = computed(() => settings.value?.connection ? JSON.stringify(settings.value.connection, null, 2) : '')
+const tailscalePath = computed(() => settings.value?.connectionPaths?.paths.find(value => value.kind === 'tailscale'))
+const tailscaleHost = computed(() => tailscalePath.value ? new URL(tailscalePath.value.baseURL).hostname : '')
+const tailscaleIPEntry = computed(() => tailscalePath.value && Number(new URL(tailscalePath.value.baseURL).port || 443) === MOBILE_CONNECTION_DEFAULT_PORT)
+const tailscaleLabels = { off: '未开启', unavailable: '尚未就绪', ready: '服务可用', failed: '入口暂不可用' }
 let active = true, generation = 0, expiry: ReturnType<typeof setTimeout> | undefined
 function clearPermit() { clearTimeout(expiry); permit.value = null }
 async function refresh() {
@@ -26,7 +31,8 @@ async function configure(enabled: boolean) {
     // 首次开启优先选可用局域网地址；仍可在高级选项指定网卡。
     const selectedHost = enabled && host.value === '127.0.0.1'
       ? settings.value?.hosts.find(value => value.startsWith('192.168.'))
-        ?? settings.value?.hosts.find(value => value !== '127.0.0.1') ?? host.value : host.value
+        ?? settings.value?.hosts.find(value => mobileConnectionAddressKind(value) === 'lan' && !value.startsWith('127.'))
+        ?? settings.value?.hosts.find(value => mobileConnectionAddressKind(value) === 'tailscale') ?? host.value : host.value
     const value = await api!.configureMobileConnection!({ enabled, host: selectedHost, port: Number(port.value) })
     host.value = value.host
     if (active && own === generation) { settings.value = value; if (value.state === 'failed') message.value = '服务未能启动，请检查地址、端口及安全存储。' }
@@ -63,7 +69,7 @@ onUnmounted(() => { active = false; generation++; clearPermit() })
     <p v-if="!capable" class="feedback is-warning" role="status">移动连接服务尚未就绪。</p>
     <template v-else>
       <div class="setting-row">
-        <div class="row-copy"><h4>允许手机连接</h4><p>手机与这台电脑需要连接同一网络。</p></div>
+        <div class="row-copy"><h4>允许手机连接</h4><p>可通过同一局域网连接，也可让两台设备接入同一 Tailscale 网络后异地连接。</p></div>
         <div class="row-actions"><button type="button" :class="settings?.enabled ? 'secondary-button' : 'primary-button'" :disabled="busy" @click="configure(!settings?.enabled)">{{ busy ? '处理中…' : settings?.enabled ? '关闭连接' : '开启连接' }}</button><button type="button" class="text-button" :disabled="busy" @click="refresh">刷新状态</button></div>
       </div>
       <p v-if="settings?.state === 'failed'" class="feedback is-warning" role="status">连接未就绪，请检查连接选项后重新开启。</p>
@@ -71,6 +77,14 @@ onUnmounted(() => { active = false; generation++; clearPermit() })
       <template v-if="settings?.state === 'ready' && settings.connection">
         <div class="setting-row">
           <div class="row-copy"><h4>配对新手机</h4><p>在 iPhone 的 Mousa 中打开“连接电脑”，选择这台 Mac 并点击配对。验证码会自动显示在这台电脑上。</p></div>
+        </div>
+        <div v-if="settings.host !== '127.0.0.1'" class="setting-row tailscale-entry" data-mobile-tailscale-entry>
+          <div class="row-copy"><h4>Tailscale</h4>
+            <p v-if="tailscaleIPEntry">在 iPhone 的“连接电脑 → Tailscale”中输入这个 IP，再填写这台 Mac 自动显示的六位验证码。已配对设备切换路径无需重复配对。</p>
+            <p v-else-if="tailscalePath">当前 Tailscale 服务使用自定义端口，请使用高级连接入口。仅输入 IP 的入口使用标准端口 45391。</p>
+            <p v-else>请在这台 Mac 上保持 Tailscale 运行；iPhone 也需接入同一 Tailscale 网络。局域网连接不受影响。</p>
+          </div>
+          <div class="row-actions tailscale-actions"><span class="status-badge" :class="{ 'is-ready': !!tailscalePath }" role="status">{{ tailscalePath ? '服务可用' : tailscaleLabels[settings.tailscaleState ?? 'unavailable'] }}</span><code v-if="tailscaleHost" class="tailscale-host">{{ tailscaleHost }}</code><button v-if="tailscaleIPEntry" type="button" class="secondary-button" @click="copy(tailscaleHost)">复制 IP</button></div>
         </div>
         <details class="settings-disclosure">
           <summary>旧版客户端配对</summary>
@@ -116,6 +130,9 @@ h4 { font-size: 13px; line-height: 1.5; font-weight: 600; }
 .setting-row { min-height: 78px; padding: 16px 0; border-bottom: 1px solid var(--mb-glass-border); }
 .row-copy { min-width: 0; max-width: 440px; }
 .row-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; opacity: 1; }
+.tailscale-actions { max-width: 260px; }
+.tailscale-host { color: var(--mb-text-primary); font-size: 13px; overflow-wrap: anywhere; }
+.tailscale-actions button { min-height: 44px; }
 button { min-height: 36px; font: inherit; font-size: 12px; }
 button:disabled { cursor: default; opacity: .5; }
 .mobile-connection-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr); gap: 16px; margin-top: 14px; }

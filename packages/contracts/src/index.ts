@@ -90,3 +90,4 @@ export * from './artist-catalog-api.js';
 
 export * from './mobile-artist-search.js';
 export * from './mobile-pairing-bootstrap.js';
+export * from './mobile-connection-paths.js';

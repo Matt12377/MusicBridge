@@ -345,7 +345,7 @@ test('001 Main设备撤销使已算出的能力、两类页、两类详情及选
   assert.equal((await f.handle.auth.devices())[0]!.revoked, true);
 });
 
-test('001 Main刷新隔离旧发送与旧游标generation，新access不能接续原设备generation页', async t => {
+test('001 Main刷新隔离旧发送与旧access，当前mc2游标仅在原设备epoch内继续', async t => {
   const f = fixture(t, 103), p = await paired(f);
   const page = await dispatch(f, 'listTracks', { token: p.tokens.accessToken, query: [['limit', '100']] }); await beforeSend(page);
   const cursor = readBody('listTracks', page).nextCursor; assert.equal(typeof cursor, 'string');
@@ -353,8 +353,14 @@ test('001 Main刷新隔离旧发送与旧游标generation，新access不能接�
   const r = await refreshed(f, p.tokens);
   await assert.rejects(beforeSend(page), safeError(401, 'UNAUTHORIZED'));
   await assert.rejects(beforeSend(heldReply), safeError(401, 'UNAUTHORIZED'));
-  await assert.rejects(dispatch(f, 'listTracks', { token: r.tokens.accessToken,
-    query: [['limit', '100'], ['cursor', cursor!]] }), safeError(409, 'CURSOR_INVALID'));
+  // Current mc2 deliberately retains a signed cursor across refresh in the same device epoch.
+  // Old access and already-computed old-principal responses must still be fenced; mc1 remains strict in Core tests.
+  assert.match(cursor!, /^mc2\./u);
+  await assert.rejects(dispatch(f, 'listTracks', { token: p.tokens.accessToken,
+    query: [['limit', '100'], ['cursor', cursor!]] }), safeError(401, 'UNAUTHORIZED'));
+  const continued = await dispatch(f, 'listTracks', { token: r.tokens.accessToken,
+    query: [['limit', '100'], ['cursor', cursor!]] });
+  await beforeSend(continued); assert.equal(readBody('listTracks', continued).items.length, 3);
   const fresh = await dispatch(f, 'listTracks', { token: r.tokens.accessToken, query: [['limit', '100']] }); await beforeSend(fresh);
   assert.equal(readBody('listTracks', fresh).items.length, 100);
 });

@@ -1,5 +1,6 @@
 import { isMobileArtistSearchRequestTarget, type MobileArtistSearchBackend } from './mobile-artist-search-backend.js';
 import type { MobilePairingBootstrapHttpBackend } from './mobile-pairing-bootstrap-http.js';
+import { isMobileConnectionHttpPath, type MobileConnectionHttpBackend } from './mobile-connection-http.js';
 import { createMobileArtistSearchHttpObservation, describeMobileArtistSearchHttp } from './mobile-artist-search-observation.js';
 import { createMobileResourceCapacityProbe, MOBILE_RESOURCE_CAPACITY_FLAG } from '../../../../packages/bridge-core/src/mobile/resource-capacity-trace.js';
 import { createMobileHttpSocketGate, MobileHttpSocketGateError, canReuseMobileHttp, mobileHttpConnectionHeaders } from './mobile-http-reuse.js'
@@ -57,6 +58,8 @@ export interface MobileHttpsServerOptions {
   content?: MobileContentBackend
   artistSearch?: MobileArtistSearchBackend
   pairing?: MobilePairingBootstrapHttpBackend
+  /** Additive read-only identify/authorized path registration, separate from existing operation tables. */
+  connection?: MobileConnectionHttpBackend
   allowedHosts?: readonly string[]
   /** 可信Main单次旁注，缺省关闭，不进入HTTP或RPC合同。 */
   rangeTimingProbe?: MobileRangeTimingProbe
@@ -222,6 +225,7 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
     || typeof options.backend?.dispatch !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
   const dispatch = options.backend.dispatch.bind(options.backend)
   if (options.pairing && typeof options.pairing.dispatch !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
+  if (options.connection && typeof options.connection.dispatch !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
   const operationSet = new Set<string>(MOBILE001_OPERATIONS)
   if (options.playback) {
     if (typeof options.playback.dispatch !== 'function' || typeof options.playback.resourceCapabilities !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
@@ -302,6 +306,24 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
         const peer = request.socket.remoteAddress?.replace(/^::ffff:/u, '')
         if (!isMobilePrivateIPv4(peer)) throw serviceFailure(400, 'INVALID_REQUEST')
         const headers = headerPairs(request), origin = authority(headers, hosts, listeningPort), target = requestTarget(request.url)
+        if (isMobileConnectionHttpPath(target.path)) {
+          if (!options.connection) throw serviceFailure(404, 'INVALID_REQUEST')
+          if (request.method !== 'GET' || request.url !== target.path) throw serviceFailure(400, 'INVALID_REQUEST')
+          if (controls.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) throw serviceFailure(429, 'BUSY')
+          controls.add(controller)
+          socketTurn = socketGate.enter(request.socket, controller.signal)
+          await withAbort(socketTurn.ready, controller.signal)
+          const body = await readBody(request, headers, controller.signal, 0)
+          bodyConsumed = true
+          const reply = await withAbort(options.connection.dispatch({ method: request.method, path: target.path,
+            query: target.query, headers, body, remoteAddress: peer, origin, certificateSha256,
+            accessToken: accessToken(headers), signal: controller.signal }), controller.signal)
+          if (reply.beforeSend) await withAbort(reply.beforeSend(), controller.signal)
+          if (closed || controller.signal.aborted || response.destroyed) throw serviceFailure(503, 'BUSY')
+          await output(response, reply, canReuseMobileHttp(request, bodyConsumed, controller.signal))
+          successfulResponse = reply.status >= 200 && reply.status < 300 && response.writableFinished
+          return
+        }
         if (isMobilePairingBootstrapPath(target.path)) {
           if (!options.pairing) throw serviceFailure(404, 'INVALID_REQUEST')
           if (controls.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) throw serviceFailure(429, 'BUSY')

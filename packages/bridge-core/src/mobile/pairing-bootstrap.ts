@@ -3,7 +3,7 @@ import { performance } from 'node:perf_hooks';
 import { SRP, SrpServer } from 'fast-srp-hap';
 import {
   captureMobilePairingBeginRequest, captureMobilePairingExchangeRequest, captureMobilePairingFinishRequest,
-  isMobilePairingRequestId, mobileCommonResponseSnapshot, mobilePairingCanonicalBinding,
+  isMobilePairingRequestId, isMobileConnectionOrigin, mobileCommonResponseSnapshot, mobilePairingCanonicalBinding,
   MOBILE_PAIRING_BOOTSTRAP_FINISH_INFO, MOBILE_PAIRING_BOOTSTRAP_TOKEN_INFO,
   type MobilePairingBeginReply, type MobilePairingBeginRequest, type MobilePairingBootstrapBinding,
   type MobilePairingExchangeReply, type MobilePairingExchangeRequest,
@@ -17,6 +17,9 @@ export interface MobilePairingBootstrapPrompt {
 }
 export interface MobilePairingBootstrapPeer {
   remoteAddress: string; origin: string; certificateSha256: string; serverId: string;
+}
+export interface MobilePairingBootstrapEndpoint {
+  origin: string; certificateSha256: string;
 }
 export interface MobilePairingBootstrapOptions {
   auth: Pick<MobileAuthService, 'issuePairing' | 'claim'>;
@@ -82,8 +85,9 @@ function paddedProof(username: Buffer, salt: Buffer, clientPublic: Buffer, serve
 
 /** 新的临时引导只包装原许可及 claim；真实设备授权仍由原唯一鉴权实例和 Owner 提交。 */
 export function createMobilePairingBootstrap(options: MobilePairingBootstrapOptions) {
-  if (!/^https:\/\/[0-9]+(?:\.[0-9]+){3}(?::[1-9][0-9]{0,4})?(?![\s\S])/u.test(options.origin)
+  if (!isMobileConnectionOrigin(options.origin)
     || !/^[0-9a-f]{64}(?![\s\S])/u.test(options.certificateSha256)) return invalid();
+  const endpoints = new Map<string, string>([[options.origin, options.certificateSha256]]);
   const records = new Map<string, Pending>(), inFlight = new Set<Promise<unknown>>();
   const peerStarts = new Map<string, number[]>(); let globalStarts: number[] = [];
   const readWall = options.now ?? Date.now, readMonotonic = options.monotonicNow ?? (() => performance.now());
@@ -98,7 +102,7 @@ export function createMobilePairingBootstrap(options: MobilePairingBootstrapOpti
   function capturePeer(peer: MobilePairingBootstrapPeer): MobilePairingBootstrapPeer {
     const remoteAddress = normalizePeer(peer.remoteAddress);
     if (!/^[0-9]+(?:\.[0-9]+){3}(?![\s\S])/u.test(remoteAddress)
-      || peer.origin !== options.origin || peer.certificateSha256 !== options.certificateSha256
+      || endpoints.get(peer.origin) !== peer.certificateSha256
       || peer.serverId !== options.serverId) return denied();
     return { remoteAddress, origin: peer.origin, certificateSha256: peer.certificateSha256, serverId: peer.serverId };
   }
@@ -122,7 +126,8 @@ export function createMobilePairingBootstrap(options: MobilePairingBootstrapOpti
   function find(requestId: string, peer: MobilePairingBootstrapPeer): Pending {
     current(); if (!isMobilePairingRequestId(requestId)) return invalid();
     const record = records.get(requestId), captured = capturePeer(peer);
-    if (!record || record.peer.remoteAddress !== captured.remoteAddress) return denied();
+    if (!record || record.peer.remoteAddress !== captured.remoteAddress || record.peer.origin !== captured.origin
+      || record.peer.certificateSha256 !== captured.certificateSha256) return denied();
     alive(record); return record;
   }
   function admit(peer: string, at: number): void {
@@ -149,15 +154,36 @@ export function createMobilePairingBootstrap(options: MobilePairingBootstrapOpti
     alive(record); if (!samePair(checked, expected)) return denied();
   }
   const coordinator = {
+    /** Main registers only the exact additional owned TLS listener. Budgets/auth remain shared. */
+    addEndpoint(input: MobilePairingBootstrapEndpoint): void {
+      current();
+      if (!input || Object.getPrototypeOf(input) !== Object.prototype
+        || Reflect.ownKeys(input).length !== 2
+        || !['origin', 'certificateSha256'].every(key => {
+          const descriptor = Object.getOwnPropertyDescriptor(input, key);
+          return descriptor?.enumerable === true && Object.hasOwn(descriptor, 'value');
+        }) || !isMobileConnectionOrigin(input.origin) || typeof input.certificateSha256 !== 'string'
+        || !/^[0-9a-f]{64}(?![\s\S])/u.test(input.certificateSha256)) return invalid();
+      const previous = endpoints.get(input.origin);
+      if (previous !== undefined) { if (previous !== input.certificateSha256) return conflict(); return; }
+      if (endpoints.size >= 2) return busy();
+      endpoints.set(input.origin, input.certificateSha256);
+    },
+    removeEndpoint(origin: string): void {
+      current(); if (!isMobileConnectionOrigin(origin) || origin === options.origin) return invalid();
+      endpoints.delete(origin);
+      for (const record of [...records.values()]) if (record.peer.origin === origin) erase(record);
+    },
     async start(raw: unknown, peer: MobilePairingBootstrapPeer): Promise<MobilePairingBeginReply> {
       current(); const body = captureMobilePairingBeginRequest(raw); if (!body.ok) return invalid();
       const captured = capturePeer(peer), begin = body.value, at = clock();
-      if (begin.serverId !== options.serverId || begin.certificateSha256 !== options.certificateSha256) return denied();
+      if (begin.serverId !== options.serverId || begin.certificateSha256 !== captured.certificateSha256) return denied();
       for (const candidate of [...records.values()]) if (at >= candidate.deadline) erase(candidate);
       for (const candidate of records.values()) if (candidate.begin.installationId === begin.installationId) {
         const previous = candidate.begin;
         if (previous.clientNonce === begin.clientNonce && previous.claimIdempotencyKey === begin.claimIdempotencyKey) {
-          if (candidate.peer.remoteAddress !== captured.remoteAddress || !sameBegin(previous, begin)) return conflict();
+          if (candidate.peer.remoteAddress !== captured.remoteAddress || candidate.peer.origin !== captured.origin
+            || candidate.peer.certificateSha256 !== captured.certificateSha256 || !sameBegin(previous, begin)) return conflict();
           // 重试也须等原Mac提示登记，不能抢先发布随后会被拒绝的挑战。
           try { await candidate.registration; } catch (error) { throw safeFailure(error); }
           alive(candidate);
@@ -171,8 +197,8 @@ export function createMobilePairingBootstrap(options: MobilePairingBootstrapOpti
       const requestId = 'pair:' + randomBytes(24).toString('hex');
       const serverNonce = randomBytes(32).toString('hex'), salt = randomBytes(32);
       const expiresAtMs = wall + MOBILE_PAIRING_BOOTSTRAP_LIMITS.lifetimeMs, expiresAt = new Date(expiresAtMs).toISOString();
-      const fields: MobilePairingBootstrapBinding = { requestId, serverId: options.serverId, origin: options.origin,
-        certificateSha256: options.certificateSha256, installationId: begin.installationId, deviceName: begin.deviceName,
+      const fields: MobilePairingBootstrapBinding = { requestId, serverId: options.serverId, origin: captured.origin,
+        certificateSha256: captured.certificateSha256, installationId: begin.installationId, deviceName: begin.deviceName,
         clientNonce: begin.clientNonce, serverNonce, claimIdempotencyKey: begin.claimIdempotencyKey, expiresAt };
       const binding = Buffer.from(mobilePairingCanonicalBinding(fields)), username = Buffer.from('mousa-pair:' + hash(binding).toString('hex'));
       const code = String(randomInt(0, 1_000_000)).padStart(6, '0'), password = Buffer.from(code), privateKey = randomBytes(32);
@@ -181,7 +207,7 @@ export function createMobilePairingBootstrap(options: MobilePairingBootstrapOpti
       catch { binding.fill(0); return busy(); }
       finally { password.fill(0); privateKey.fill(0); }
       const challenge: MobilePairingBeginReply = { protocolVersion: 1, requestId, serverId: options.serverId,
-        origin: options.origin, certificateSha256: options.certificateSha256, serverNonce, salt: salt.toString('hex'),
+        origin: captured.origin, certificateSha256: captured.certificateSha256, serverNonce, salt: salt.toString('hex'),
         serverPublicKey: srp.computeB().toString('hex'), expiresAt };
       const record: Pending = { begin, challenge, peer: captured, binding, deadline: at + MOBILE_PAIRING_BOOTSTRAP_LIMITS.lifetimeMs,
         phase: 'pending', srp, ended: false };
