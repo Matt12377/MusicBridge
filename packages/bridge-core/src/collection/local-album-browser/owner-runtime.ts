@@ -123,6 +123,7 @@ export function createLocalAlbumOwnerRuntime(options: {
     },
     queryAlbums: (...args: Parameters<typeof service.queryAlbums>) => args[1]?.purpose === 'background'
       ? service.queryAlbums(...args) : foreground(() => service.queryAlbums(...args)),
+    queryVersionedAlbums: (...args: Parameters<typeof service.queryVersionedAlbums>) => foreground(() => service.queryVersionedAlbums(...args)),
     queryAlbumTracks: (...args: Parameters<typeof service.queryAlbumTracks>) => foreground(() => service.queryAlbumTracks(...args)),
     inspectAlbum: (...args: Parameters<typeof service.inspectAlbum>) => foreground(() => service.inspectAlbum(...args)),
     getArtwork: (...args: Parameters<typeof service.getArtwork>) => args[1]?.purpose === 'background'

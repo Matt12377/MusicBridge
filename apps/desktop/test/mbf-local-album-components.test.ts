@@ -1007,6 +1007,47 @@ test('同窗第25张512封面完成不使前24张成功图一起切换展示路�
   assert.equal(f.all().filter(element => element.type === 'img').length, 24, '近邻预备不为第25张图额外挂DOM或解码引用')
 })
 
+test('渐进核对期间专辑仍能浏览，显示保留项而不声称已载入3/2张', async t => {
+  const selected: string[] = [], values = [album(5001), album(5002), album(5003)]
+  const f = await mounted(t, 'LocalAlbumBrowser.vue', { state: snapshot({ items: values, total: 2, hasMore: true, reconciling: true }),
+    onSelect: (value: LocalAlbumSummary) => selected.push(value.id) })
+  assert.match(f.text(), /目录正在更新/u)
+  assert.match(f.text(), /已显示\s*3\s*张/u)
+  assert.doesNotMatch(f.text(), /已载入\s*3\s*\/\s*2/u)
+  const card = f.all().find(element => element.props['data-local-album-id'] === values[0]!.id)!
+  assert.ok(card); assert.notEqual(card.props.disabled, true)
+  await f.click(card); assert.deepEqual(selected, [values[0]!.id])
+})
+
+test('渐进稳定轮前插/删前缀保持可见专辑锚点，追加100张不改当前滚动位置', async t => {
+  // 正式Grid/useGridWindow，受控DOM几何；不是Chromium像素、GPU或Owner视觉接受。
+  const values = Array.from({ length: 200 }, (_, index) => album(6001 + index)), windows: LocalAlbumArtworkWindow[] = []
+  const f = await mounted(t, 'LocalAlbumGrid.vue', { albums: values, artwork: {}, loaded: true,
+    'onArtwork-window': (window: LocalAlbumArtworkWindow) => windows.push(window) })
+  const root = f.all().find(element => element.props['data-grid-window'] === 'true')!, scroll = f.scroll()
+  const originalStyle = Object.getOwnPropertyDescriptor(globalThis, 'getComputedStyle')
+  Object.defineProperty(globalThis, 'getComputedStyle', { configurable: true, value: () => ({ gridTemplateColumns: '164px 164px 164px 164px 164px', columnGap: '24px', rowGap: '28px' }) })
+  t.after(() => { if (originalStyle) Object.defineProperty(globalThis, 'getComputedStyle', originalStyle); else Reflect.deleteProperty(globalThis, 'getComputedStyle') })
+  const rect = (top: number, height: number) => ({ x: 0, y: top, top, bottom: top + height, left: 0, right: 920, width: 920, height, toJSON: () => ({}) })
+  Object.assign(scroll, { clientHeight: 620, getBoundingClientRect: () => rect(0, 620) })
+  Object.assign(root, { getBoundingClientRect: () => rect(-scroll.scrollTop, Number.parseFloat(root.style.height) || 0) })
+  const query = root.querySelector.bind(root)
+  root.querySelector = selector => selector === '[data-grid-index]' ? null : query(selector)
+  f.props.albums = [...values]; await f.settle()
+  scroll.scrollTop = 8 * 308 + 43; scroll.listeners.scroll!(f.event(scroll)); await f.settle()
+  assert.equal(windows.at(-1)!.visible[0]!.id, values[40]!.id)
+  const before = scroll.scrollTop, prefix = Array.from({ length: 100 }, (_, index) => album(9001 + index))
+  f.props.albums = [...prefix, ...values]; await f.settle()
+  assert.equal(scroll.scrollTop, before + 20 * 308)
+  assert.equal(windows.at(-1)!.visible[0]!.id, values[40]!.id)
+  f.props.albums = [...prefix.slice(10), ...values]; await f.settle()
+  assert.equal(scroll.scrollTop, before + 18 * 308)
+  assert.equal(windows.at(-1)!.visible[0]!.id, values[40]!.id)
+  const anchored = scroll.scrollTop
+  f.props.albums = [...prefix.slice(10), ...values, ...Array.from({ length: 100 }, (_, index) => album(12001 + index))]; await f.settle()
+  assert.equal(scroll.scrollTop, anchored)
+})
+
 test('MBF可见封面滚动：真实Grid测量窗口撤旧队列，迟到不回填且成功淘汰回屏自动复用读口', async t => {
   // 受控几何执行正式useGridWindow的scroll监听与Grid/model；磁盘读口是有界内存替身，不冒真实持久缓存/FD/decode。
   const values = Array.from({ length: 60 }, (_, index) => album(201 + index, { artworkAvailable: true, artworkState: 'available', statuses: ['has-artwork'] }))

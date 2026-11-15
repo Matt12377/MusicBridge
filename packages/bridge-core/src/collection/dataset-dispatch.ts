@@ -32,6 +32,7 @@ export async function dispatchLocalAlbumRead(runtime: DatasetDispatchTarget, req
   runtime.assertOpen?.();
   switch (request.command) {
     case 'localAlbum.query': return reader.queryAlbums(request.payload);
+    case 'localAlbum.queryVersioned': return reader.queryVersionedAlbums(request.payload);
     case 'localAlbum.tracks': return reader.queryAlbumTracks(request.payload);
     case 'localAlbum.artwork': return reader.getArtwork(request.payload);
   }

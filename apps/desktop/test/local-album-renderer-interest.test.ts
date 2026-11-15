@@ -60,7 +60,7 @@ function assertBudget(model: Browser, entries: number, bytes: number): void {
   assert.ok(usage.bytes <= bytes, `RAM字节 ${usage.bytes} 必须在 ${bytes} 内`)
 }
 
-test('正式双入口：默认自动读取9755项49页，离窗prepared不发RAM图API；可见近邻读图与返滚缓存继续工作', async t => {
+test('正式双入口：默认自动读取9755项98页，离窗prepared不发RAM图API；可见近邻读图与返滚缓存继续工作', async t => {
   const time = clock(t), values = Array.from({ length: 9755 }, (_, index) => album(index)), queries: LocalAlbumQuery[] = [], reads: LocalAlbumArtworkRequest[] = []
   const scope = effectScope(), pages = scope.run(() => useLocalAlbumBrowserPages({ api: api(() => values, {
     queryAlbums: async request => { queries.push(request); return page(request, values) },
@@ -68,12 +68,12 @@ test('正式双入口：默认自动读取9755项49页，离窗prepared不发RAM
   }) }))!
   t.after(() => scope.stop())
   const model = pages.localLibrary
-  await model.activate(); assert.equal(model.items.value.length, 200); assert.equal(queries.length, 1)
+  await model.activate(); assert.equal(model.items.value.length, 100); assert.equal(queries.length, 1)
   await time.advance(0)
-  assert.equal(reads.length, 0, '已prepared的首200项不能被Renderer重复全量hydrate')
-  await time.advance(1000)
+  assert.equal(reads.length, 0, '已prepared的首100项不能被Renderer重复全量hydrate')
+  await time.advance(16 * Math.ceil(values.length / 100))
   assert.equal(model.items.value.length, 9755); assert.equal(model.hasMore.value, false)
-  assert.deepEqual(queries.map(value => [value.offset, value.limit]), Array.from({ length: 49 }, (_, index) => [index * 200, 200]))
+  assert.deepEqual(queries.map(value => [value.offset, value.limit]), Array.from({ length: 98 }, (_, index) => [index * 100, 100]))
   assert.equal(reads.length, 0); assert.equal(model.backgroundArtwork.value, undefined, '不把Renderer检查数冒充Core补图进度')
   assert.deepEqual(model.getArtworkCacheUsage(), { entries: 0, bytes: 0, running: 0, queued: 0 })
   const visible = values.slice(0, 4), nearby = values.slice(4, 8)
@@ -87,7 +87,7 @@ test('正式双入口：默认自动读取9755项49页，离窗prepared不发RAM
   model.setArtworkWindow({ visible, nearby }); await Promise.all([...visible, ...nearby].map(value => model.ensureArtwork(value)))
   for (let index = 0; index < visible.length; index++) assert.equal(model.artworkFor(visible[index]!), retained[index])
   await time.advance(1500)
-  assert.equal(reads.length, 16); assert.equal(queries.length, 49, '同状态图不制造计数补读，兴趣外也不接着hydrate')
+  assert.equal(reads.length, 16); assert.equal(queries.length, 98, '同状态图不制造计数补读，兴趣外也不接着hydrate')
   assertBudget(model, 2048, 32 * 1024 * 1024)
   assert.equal(pages.coverDrop.items.value.length, 0, '未激活的第二入口不抢读全库')
 })
@@ -117,7 +117,7 @@ test('正式双入口：关闭全库RAM预热不阻止前台未prepared读取、
   await model.retryArtwork(original); assert.equal(reads.length, 2); assert.equal(reads[1]!.refresh, true)
   const ready = model.artworkFor(original); assert.equal(ready.status, 'ready')
   await time.advance(250)
-  assert.deepEqual(queries.map(value => value.limit), [200, 1], '状态真正变化后仍由一次权威回复核计数')
+  assert.deepEqual(queries.map(value => value.limit), [100, 1], '状态真正变化后仍由一次权威回复核计数')
   assert.equal(model.counts.value['has-artwork'], 2); assert.equal(model.counts.value['missing-artwork'], 1)
   assert.equal(model.items.value[2]!.artworkState, 'available'); assert.equal(model.artworkFor(original), ready)
   assert.ok(reads.every(value => value.albumKey === original.id), '不顺手读取其他prepared卡片')
@@ -148,5 +148,5 @@ test('正式双入口：真实计数补读失败仍保留错误和成功图片�
   await time.advance(250)
   assert.match(model.refreshError.value, /封面计数暂未更新/); assert.equal(model.stale.value, true)
   assert.equal(model.artworkFor(values[0]!), ready); assert.equal(model.items.value.length, 1)
-  await time.advance(1000); assert.deepEqual(queries.map(value => value.limit), [200, 1], '真实失败保留，由原显式恢复门禁处理')
+  await time.advance(1000); assert.deepEqual(queries.map(value => value.limit), [100, 1], '真实失败保留，由原显式恢复门禁处理')
 })

@@ -80,7 +80,8 @@ attachDatasetOwnerWorkerPort(parentPort, {
       db.prepare('INSERT INTO local_catalog_assets VALUES(?,?,?,?,?,?)').run(asset.id, rootId, sourceId, 'album-' + n + '/song.flac', null, JSON.stringify(asset))
       raw.set(track.id, { ordinal: n + 1, fields: { title: '合成歌曲' + n, artist: '合成艺人', album: '合成专辑' + n } })
     }
-    const fields = ['title', 'artist', 'album', 'year', 'disc', 'track'] as const
+    // 与当前正式raw/effective列合同一致；缺少artist列表列会在抵达撤销检查点前失败。
+    const fields = [...dto.LOCAL_METADATA_TEXT_FIELDS, ...dto.LOCAL_METADATA_ARTIST_FIELDS]
     const projectionSql = 'WITH source_full AS(SELECT json_extract(value,\'$.trackId\') track_id,json_extract(value,\'$.ordinal\') ordinal,json_extract(value,\'$.fields\') fields FROM json_each(@sourceRaw)),candidates AS (' +
       'SELECT t.rowid ordinal,t.id,t.asset_id,t.data,a.id asset_record_id,a.root_id,a.source_root_id,a.relative,a.sha256,a.data asset_data,' +
       fields.flatMap(field => ['json_extract(sf.fields,\'$.' + field + '\') raw_' + field, 'coalesce(json_extract(v.data,\'$.fields.' + field + '\'),json_extract(sf.fields,\'$.' + field + '\')) effective_' + field]).join(',') +

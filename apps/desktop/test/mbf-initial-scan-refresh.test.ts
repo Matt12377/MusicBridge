@@ -9,6 +9,7 @@ import * as contracts from '@music-bridge/contracts'
 import { useLocalWorkbenchLibrary } from '../src/renderer/src/composables/application/local-library-workbench/library.js'
 import { useLocalAlbumBrowserPages } from '../src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.js'
 import { useLocalLibrary } from '../src/renderer/src/composables/application/useLocalLibrary.js'
+import { useStartupLibraryPreview } from '../src/renderer/src/composables/application/startup-library-preview.js'
 import { isCoreRuntimeStable } from '../src/renderer/src/core-readiness.js'
 import { localLibraryScanPresentation } from '../src/renderer/src/composables/application/local-library-browser/scan-presentation.js'
 
@@ -135,7 +136,7 @@ async function fixture(t: TestContext, options: { jobs?: contracts.ScanJobRecord
     },
     async queryAlbumTracks() { throw new Error('本例不打开详情') }, async getArtwork() { throw new Error('本例不冒充实际IMG解码') },
   }
-  const localLibrary = options.localSession ?? { maintenanceLocked: ref(false), loaded: ref(false), error: ref(''), rootsError: ref(''), refreshContext: async () => {}, refresh: async () => { trackRefreshes++ } }, workbenchLyrics = { pending: ref(false) }
+  const localLibrary = options.localSession ?? { displayDatasetId: ref<string | null>(null), maintenanceLocked: ref(false), loaded: ref(false), error: ref(''), rootsError: ref(''), refreshContext: async () => {}, refresh: async () => { trackRefreshes++ } }, workbenchLyrics = { pending: ref(false) }
   const storage = new Map<string, string>()
   const window = { musicBridge: api, localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => { storage.set(key, value) } },
     addEventListener: (name: string, callback: () => void) => { listeners.set(name, callback) }, removeEventListener: (name: string) => { listeners.delete(name) } }
@@ -145,7 +146,7 @@ async function fixture(t: TestContext, options: { jobs?: contracts.ScanJobRecord
   scope.run(() => {
     pages = useLocalAlbumBrowserPages({ api: modelApi })
     const wrap = (page: typeof pages.localLibrary) => ({ ...page, invalidateArtwork: async () => { invalidations++; await page.invalidateArtwork() } })
-    const parameters = ['window', 'watch', 'onMounted', 'onUnmounted', 'currentView', 'localWorkbenchDto', 'useLocalWorkbenchLibrary', 'localLibrary', 'workbenchLyrics', 'albumBrowser', 'coverDropBrowser', 'setTimeout', 'clearTimeout', 'shallowRef', 'ref', 'logLibraryOperation', 'remoteCoreState', 'isCoreRuntimeStable', 'Date']
+    const parameters = ['window', 'watch', 'onMounted', 'onUnmounted', 'currentView', 'localWorkbenchDto', 'useLocalWorkbenchLibrary', 'localLibrary', 'workbenchLyrics', 'albumBrowser', 'coverDropBrowser', 'setTimeout', 'clearTimeout', 'shallowRef', 'ref', 'logLibraryOperation', 'remoteCoreState', 'isCoreRuntimeStable', 'Date', 'desktopReadReady', 'useStartupLibraryPreview']
     // 仅隔离VM拦截原生finally入口，在真实尾微任务中投递请求；不改App区段或替代drain。
     const factory = options.drainTail ? runInNewContext(`(() => {
       const originalFinally = Promise.prototype.finally;
@@ -154,7 +155,7 @@ async function fixture(t: TestContext, options: { jobs?: contracts.ScanJobRecord
     })()`, { beforeDrainFinally: () => drainTail?.() }) : new Function(...parameters, sourceBlock())
     host = factory(
       window, watch, (callback: () => void) => mounts.push(callback), (callback: () => void) => unmounts.push(callback), currentView, contracts, useLocalWorkbenchLibrary,
-      localLibrary, workbenchLyrics, wrap(pages.localLibrary), wrap(pages.coverDrop), setTimeout, clearTimeout, shallowRef, ref, logLibraryOperation, remoteCoreState, isCoreRuntimeStable, { now: () => now })
+      localLibrary, workbenchLyrics, wrap(pages.localLibrary), wrap(pages.coverDrop), setTimeout, clearTimeout, shallowRef, ref, logLibraryOperation, remoteCoreState, isCoreRuntimeStable, { now: () => now }, ref(true), useStartupLibraryPreview)
   })
   let destroyed = false
   const destroy = () => { if (destroyed) return; destroyed = true; for (const callback of unmounts) callback(); host.workbenchLibrary.dispose(); scope.stop() }

@@ -54,6 +54,7 @@ export async function withLocalAlbumPreparedTrace<T>(api: dto.LocalAlbumLibraryP
   const trace = beginTrace(), request = preparedReaders.get(api);
   const reader: dto.LocalAlbumLibraryPublicApi = request ? {
     queryLocalAlbums: payload => request('localAlbum.query', payload, trace),
+    queryLocalAlbumsVersioned: payload => request('localAlbum.queryVersioned', payload, trace),
     getLocalAlbumTracks: payload => request('localAlbum.tracks', payload, trace),
     getLocalAlbumArtwork: payload => request('localAlbum.artwork', payload, trace),
   } : api;
@@ -66,9 +67,9 @@ export function createLocalAlbumClient(invoke: (channel: string, value: unknown)
     trace.stage = 'preload.input';
     const payloadValid = dto.isLocalAlbumCommandPayload(command, payload); trace.matches.dto = payloadValid;
     if (!payloadValid) return invalid();
+    const copied = structuredClone(payload);
     trace.stage = 'preload.scope'; const datasetId = await scope();
     if (!dto.isCommandOutboxDatasetId(datasetId)) return invalid();
-    const copied = structuredClone(payload);
     const invokeStartedAtMs = performance.now();
     trace.stage = 'preload.invoke'; const raw = await invoke('localAlbum:request', trace.id !== null && trace.sha256 !== null
       ? { datasetId, command, payload: copied, correlationId: trace.id } : { datasetId, command, payload: copied });
@@ -86,6 +87,7 @@ export function createLocalAlbumClient(invoke: (channel: string, value: unknown)
     trace.stage = 'preload.dto'; const resultValid = dto.isLocalAlbumCommandResult(command, result); trace.matches.dto = resultValid;
     if (!resultValid) return invalid();
     if (command === 'localAlbum.query') { const pageValid = dto.isLocalAlbumPage(result, copied as dto.LocalAlbumQuery); trace.matches.dto = pageValid; if (!pageValid) return invalid(); }
+    if (command === 'localAlbum.queryVersioned') { const pageValid = dto.isLocalAlbumVersionedPage(result, copied as dto.LocalAlbumQuery); trace.matches.dto = pageValid; if (!pageValid) return invalid(); }
     if (command === 'localAlbum.tracks') {
       const page = result as dto.LocalAlbumTrackPage;
       const pageValid = dto.isLocalAlbumTrackPage(page, copied as dto.LocalAlbumTrackQuery, page.album); trace.matches.dto = pageValid; if (!pageValid) return invalid();
@@ -96,6 +98,7 @@ export function createLocalAlbumClient(invoke: (channel: string, value: unknown)
   }
   const api: dto.LocalAlbumLibraryPublicApi = {
     queryLocalAlbums: async payload => { const trace = beginTrace(); return tracedCall(trace, () => request('localAlbum.query', payload, trace)); },
+    queryLocalAlbumsVersioned: async payload => { const trace = beginTrace(); return tracedCall(trace, () => request('localAlbum.queryVersioned', payload, trace)); },
     getLocalAlbumTracks: async payload => { const trace = beginTrace(); return tracedCall(trace, () => request('localAlbum.tracks', payload, trace)); },
     getLocalAlbumArtwork: async payload => { const trace = beginTrace(); return tracedCall(trace, () => request('localAlbum.artwork', payload, trace)); },
   };

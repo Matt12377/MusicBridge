@@ -46,6 +46,14 @@ export interface LocalAlbumPage extends LocalAlbumQuery {
   items: readonly LocalAlbumSummary[]
 }
 
+/** 桌面显式渐进读口的单次上限，不是扫描提交的最低阈值。 */
+export const LOCAL_ALBUM_PROGRESSIVE_PAGE_SIZE = 100
+/** 同一Owner读屏障内取得；修订只描述成员/排序事实，不授予Source或播放许可。 */
+export interface LocalAlbumVersionedPage {
+  revision: string
+  page: LocalAlbumPage
+}
+
 /** 保留原轨道、资产、元数据及版本事实，界面只向旧入口发出 facts.track.id。 */
 export interface LocalAlbumTrackItem {
   facts: LocalLibraryTrackDetail
@@ -95,6 +103,8 @@ export function isLocalAlbumArtworkGrid(value: unknown): value is LocalAlbumArtw
 /** 端口只读；选图、整理、CUE、写回和播放继续走现有工作台。 */
 export interface LocalAlbumReadPort {
   queryAlbums(request: LocalAlbumQuery): Promise<LocalAlbumPage>
+  /** 旧调用者保持原合同；桌面新实现显式选择有修订的100张流式页。 */
+  queryVersionedAlbums?(request: LocalAlbumQuery): Promise<LocalAlbumVersionedPage>
   queryAlbumTracks(request: LocalAlbumTrackQuery): Promise<LocalAlbumTrackPage>
   getArtwork(request: LocalAlbumArtworkRequest): Promise<LocalAlbumArtworkReply>
 }
@@ -191,20 +201,23 @@ export function isLocalAlbumArtworkReply(value: unknown, request: LocalAlbumArtw
     && (!Object.hasOwn(value, 'status') || value.status === 'ready' || value.status === 'source-unavailable' && value.image === null)
 }
 
-export const LOCAL_ALBUM_COMMANDS = ['localAlbum.query', 'localAlbum.tracks', 'localAlbum.artwork'] as const;
+export const LOCAL_ALBUM_COMMANDS = ['localAlbum.query', 'localAlbum.queryVersioned', 'localAlbum.tracks', 'localAlbum.artwork'] as const;
 export type LocalAlbumCommand = typeof LOCAL_ALBUM_COMMANDS[number];
 export interface LocalAlbumCommandPayloads {
   'localAlbum.query': LocalAlbumQuery;
+  'localAlbum.queryVersioned': LocalAlbumQuery;
   'localAlbum.tracks': LocalAlbumTrackQuery;
   'localAlbum.artwork': LocalAlbumArtworkRequest;
 }
 export interface LocalAlbumCommandResults {
   'localAlbum.query': LocalAlbumPage;
+  'localAlbum.queryVersioned': LocalAlbumVersionedPage;
   'localAlbum.tracks': LocalAlbumTrackPage;
   'localAlbum.artwork': LocalAlbumArtworkReply;
 }
 export interface LocalAlbumLibraryPublicApi {
   queryLocalAlbums(request: LocalAlbumQuery): Promise<LocalAlbumPage>;
+  queryLocalAlbumsVersioned?(request: LocalAlbumQuery): Promise<LocalAlbumVersionedPage>;
   getLocalAlbumTracks(request: LocalAlbumTrackQuery): Promise<LocalAlbumTrackPage>;
   getLocalAlbumArtwork(request: LocalAlbumArtworkRequest): Promise<LocalAlbumArtworkReply>;
 }
@@ -212,6 +225,14 @@ export function isLocalAlbumCommand(value: unknown): value is LocalAlbumCommand 
 export function isLocalAlbumQuery(value: unknown): value is LocalAlbumQuery {
   return closed(value, ['query','rootId','filter','offset','limit']) && isLocalCatalogText(value.query, true) && Array.from(value.query as string).length <= 256
     && (value.rootId === null || isCollectionId(value.rootId)) && isFilter(value.filter) && natural(value.offset) && natural(value.limit, 200) && value.limit > 0;
+}
+export function isLocalAlbumVersionedQuery(value: unknown): value is LocalAlbumQuery {
+  return isLocalAlbumQuery(value) && value.limit <= LOCAL_ALBUM_PROGRESSIVE_PAGE_SIZE;
+}
+export function isLocalAlbumVersionedPage(value: unknown, request: LocalAlbumQuery): value is LocalAlbumVersionedPage {
+  return isLocalAlbumVersionedQuery(request) && closed(value, ['revision', 'page'])
+    && typeof value.revision === 'string' && /^[a-f0-9]{64}$/u.test(value.revision)
+    && isLocalAlbumPage(value.page, request) && payloadBound(value);
 }
 export function isLocalAlbumTrackQuery(value: unknown): value is LocalAlbumTrackQuery {
   return closed(value, ['albumKey','rootId','offset','limit']) && opaqueIdentity(value.albumKey) && isCollectionId(value.rootId) && natural(value.offset) && natural(value.limit, 200) && value.limit > 0;
@@ -223,7 +244,7 @@ export function isLocalAlbumArtworkRequest(value: unknown): value is LocalAlbumA
     && (value.editionId === null || isCollectionId(value.editionId)) && (value.representativeTrackId === null || isCollectionId(value.representativeTrackId)) && revision(value.revision);
 }
 export function isLocalAlbumCommandPayload<C extends LocalAlbumCommand>(command: C, value: unknown): value is LocalAlbumCommandPayloads[C] {
-  switch (command) { case 'localAlbum.query': return isLocalAlbumQuery(value); case 'localAlbum.tracks': return isLocalAlbumTrackQuery(value); case 'localAlbum.artwork': return isLocalAlbumArtworkRequest(value); }
+  switch (command) { case 'localAlbum.query': return isLocalAlbumQuery(value); case 'localAlbum.queryVersioned': return isLocalAlbumVersionedQuery(value); case 'localAlbum.tracks': return isLocalAlbumTrackQuery(value); case 'localAlbum.artwork': return isLocalAlbumArtworkRequest(value); }
   return false;
 }
 /** 响应闭集之外，客户端还须以原请求再次验证身份。 */
@@ -236,6 +257,11 @@ export function isLocalAlbumCommandResult<C extends LocalAlbumCommand>(command: 
     case 'localAlbum.query': {
       const request = { query: row.query, rootId: row.rootId, filter: row.filter, offset: row.offset, limit: row.limit };
       return isLocalAlbumQuery(request) && isLocalAlbumPage(value, request);
+    }
+    case 'localAlbum.queryVersioned': {
+      if (!closed(value, ['revision', 'page']) || !isLocalAlbumCommandResult('localAlbum.query', row.page)) return false;
+      const page = row.page;
+      return isLocalAlbumVersionedPage(value, { query: page.query, rootId: page.rootId, filter: page.filter, offset: page.offset, limit: page.limit });
     }
     case 'localAlbum.tracks': {
       const request = { albumKey: row.albumKey, rootId: row.rootId, offset: row.offset, limit: row.limit };

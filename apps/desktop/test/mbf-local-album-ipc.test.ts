@@ -28,6 +28,42 @@ test('本地专辑合同：未探测封面/离线不冒充缺图，未知字段�
   assert.equal(calls, 0)
 })
 
+test('版本化专辑实际Preload/Main只走新命名读口，限100并在原请求和迟到dataset前封口', async () => {
+  const request = { ...query, limit: 100 }, original = { revision: 'a'.repeat(64), page: page(request) }
+  let handler!: (event: {}, value: unknown) => Promise<unknown>, reply: unknown = original, dataset = id(1), reads = 0, changeDataset = false
+  const calls: unknown[] = []
+  registerLocalAlbumIpc({ ipcMain: { handle(_channel, callback) { handler = callback } }, assertTrusted() {},
+    assertDataset(value) { if (value !== dataset) throw new Error('合成dataset已更换') },
+    async read(body) { reads++; assert.equal(body.command, 'localAlbum.queryVersioned'); assert.deepEqual(body.payload, request); if (changeDataset) dataset = id(9); return reply as dto.LocalAlbumVersionedPage /* 仅此故障注入边界提供不可信后端值，由真实Main拒收。 */ },
+  })
+  const client = createLocalAlbumClient(async (channel, body) => { assert.equal(channel, 'localAlbum:request'); calls.push(structuredClone(body)); return handler({}, body) }, async () => dataset)
+  assert.ok(client.queryLocalAlbumsVersioned)
+  assert.deepEqual(await client.queryLocalAlbumsVersioned(request), original)
+  const before = calls.length
+  await assert.rejects(client.queryLocalAlbumsVersioned({ ...request, limit: 101 }), /无效/u); assert.equal(calls.length, before)
+  for (const value of [{ ...original, revision: '不得发布路径/正文' }, { ...original, page: page({ ...request, query: '另一请求' }) }, { ...original, privateSeal: true }]) {
+    reply = value; await assert.rejects(client.queryLocalAlbumsVersioned(request), /无效/u)
+  }
+  const isolated = createLocalAlbumClient(async () => ({ ...original, page: page({ ...request, query: '不能只靠Main守门' }) }), async () => id(1))
+  await assert.rejects(isolated.queryLocalAlbumsVersioned!(request), /无效/u)
+  reply = original; changeDataset = true
+  await assert.rejects(client.queryLocalAlbumsVersioned(request), /dataset已更换/u)
+  assert.equal(reads, 5); assert.equal(calls.length, 5)
+})
+
+test('版本化Preload在首次await前捕获原始请求，等待scope时的调用方变更不能替换页身份', async t => {
+  const request = { ...query, limit: 100 }, original = structuredClone(request), expected = { revision: 'b'.repeat(64), page: page(original) }
+  let release!: () => void, enter!: () => void, scopes = 0, sent: unknown
+  const held = new Promise<void>(resolve => { release = resolve }), entered = new Promise<void>(resolve => { enter = resolve })
+  t.after(() => release())
+  const client = createLocalAlbumClient(async (_channel, body) => { sent = structuredClone(body); return expected }, async () => { if (++scopes === 1) { enter(); await held }; return id(1) })
+  assert.ok(client.queryLocalAlbumsVersioned)
+  const pending = client.queryLocalAlbumsVersioned(request); await entered
+  request.query = '等待期间被修改的调用方对象'; release()
+  assert.deepEqual(await pending, expected)
+  assert.deepEqual((sent as { payload: unknown }).payload, original)
+})
+
 test('本地专辑 client：只调用固定读入口，闭集、分页回声及数据集变化逐项拒绝', async () => {
   const calls: unknown[] = []
   let dataset = id(1), reply: unknown = page()

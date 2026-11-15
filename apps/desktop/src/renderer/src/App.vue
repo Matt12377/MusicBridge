@@ -154,7 +154,7 @@ async function readLocalAlbumWithSafeTrace<T>(action: () => Promise<T>): Promise
     throw error
   }
 }
-async function queryLocalAlbumsWithFlow(request: localWorkbenchDto.LocalAlbumQuery): Promise<localWorkbenchDto.LocalAlbumPage> {
+async function queryLocalAlbumsWithFlow(request: localWorkbenchDto.LocalAlbumQuery, read: () => Promise<localWorkbenchDto.LocalAlbumPage> = () => window.musicBridge.queryLocalAlbums(request)): Promise<localWorkbenchDto.LocalAlbumPage> {
   const started = performance.now()
   logLibraryOperation('ui', 'albums.page', 'start', { offset: request.offset })
   const entry = captureLocalAlbumPageEntry(request)
@@ -167,7 +167,7 @@ async function queryLocalAlbumsWithFlow(request: localWorkbenchDto.LocalAlbumQue
       if (!localAlbumPageRuntimeReady()) continue
       const generation = localAlbumRecoveryGeneration, contextRead = captureInitialAlbumContextPage(request)
       let page: localWorkbenchDto.LocalAlbumPage
-      try { page = await readLocalAlbumWithSafeTrace(() => window.musicBridge.queryLocalAlbums(request)) }
+      try { page = await readLocalAlbumWithSafeTrace(read) }
       catch (cause) {
         if (!localAlbumPageEntryCurrent(entry)) throw cause
         // 只舍弃真实换代/切换期间的旧纯读；同代就绪后的原失败仍直接交给model显示。
@@ -184,6 +184,20 @@ async function queryLocalAlbumsWithFlow(request: localWorkbenchDto.LocalAlbumQue
     if (!entry || localAlbumPageEntryCurrent(entry)) logLibraryOperation('ui', 'albums.page', 'error', { offset: request.offset, elapsedMs: Math.max(0, performance.now() - started) })
     throw cause
   }
+}
+async function queryLocalAlbumsVersionedWithFlow(request: localWorkbenchDto.LocalAlbumQuery): Promise<localWorkbenchDto.LocalAlbumVersionedPage> {
+  const reader = window.musicBridge.queryLocalAlbumsVersioned, original = structuredClone(request)
+  if (!reader) throw new Error('版本化专辑读取尚未就绪，请重新连接后重试。')
+  let revision: string | undefined
+  // 复用同一个Renderer就绪/换代/首次页面准入，不另造可绕过它的分页旁路。
+  const page = await queryLocalAlbumsWithFlow(original, async () => {
+    const value = await reader(structuredClone(original))
+    if (!localWorkbenchDto.isLocalAlbumVersionedPage(value, original)) throw new Error('版本化专辑页身份无效。')
+    revision = value.revision
+    return value.page
+  })
+  if (!revision) throw new Error('专辑页修订尚未确认。')
+  return { revision, page }
 }
 async function readLocalArtworkWithFlow(request: localWorkbenchDto.LocalAlbumArtworkRequest): Promise<localWorkbenchDto.LocalAlbumArtworkReply> {
   const started = performance.now()
@@ -209,7 +223,9 @@ async function readLocalAlbumTracksWithFlow(request: localWorkbenchDto.LocalAlbu
     throw cause
   }
 }
-const { localLibrary: albumBrowser, coverDrop: coverDropBrowser } = useLocalAlbumBrowserPages({ api: { queryAlbums: queryLocalAlbumsWithFlow, queryAlbumTracks: readLocalAlbumTracksWithFlow, getArtwork: readLocalArtworkWithFlow } })
+const { localLibrary: albumBrowser, coverDrop: coverDropBrowser } = useLocalAlbumBrowserPages({ api: { queryAlbums: queryLocalAlbumsWithFlow,
+  ...(typeof window.musicBridge.queryLocalAlbumsVersioned === 'function' ? { queryVersionedAlbums: queryLocalAlbumsVersionedWithFlow } : {}),
+  queryAlbumTracks: readLocalAlbumTracksWithFlow, getArtwork: readLocalArtworkWithFlow } })
 const workbenchLyrics = useLocalWorkbenchLyrics({ api: window.musicBridge, readOriginalResultEntry: (key, context) => resultReaders.readLyricsEntry(key, context) })
 const workbenchLibrary = useLocalWorkbenchLibrary({ api: window.musicBridge, storage: window.localStorage, canChangeLibrary: () => !workbenchLyrics.pending.value && !localLibrary.maintenanceLocked.value, onChanged: () => { void refreshLocalLibraryFromWorkbench() } })
 const startupLibraryPreview = useStartupLibraryPreview({ storage: window.localStorage, ready: desktopReadReady,

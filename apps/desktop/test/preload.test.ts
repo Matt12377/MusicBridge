@@ -314,6 +314,7 @@ test('Preload exposes only sanitized business methods', async () => {
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
     'queryLocalAlbums',
+    'queryLocalAlbumsVersioned',
     'getLocalAlbumTracks',
     'getLocalAlbumArtwork',
     'requestLocalWorkbenchRead',

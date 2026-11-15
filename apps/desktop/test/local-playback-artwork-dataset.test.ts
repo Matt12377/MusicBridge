@@ -79,10 +79,10 @@ function fixture(t:TestContext) {
   assert.ok(begin>=0&&end>begin,'必须执行正式App播放器图叶，不能复制dataset fallback表达式')
   const code=ts.transpileModule(source.slice(begin,end)+'\nreturn currentTrack;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText
   let datasetSelector!:()=>string|null
-  const currentTrack=scope.run(()=>new Function('useLocalPlaybackArtwork','workbenchLibrary','localLibrary','coreState','playbackSyncStatus','playbackClockIdentity','playback','sourceCurrentTrack','albumBrowser','coverDropBrowser','readLocalArtworkWithFlow',code)(
+  const currentTrack=scope.run(()=>new Function('useLocalPlaybackArtwork','workbenchLibrary','localLibrary','coreState','playbackSyncStatus','playbackClockIdentity','playback','sourceCurrentTrack','albumBrowser','coverDropBrowser','readLocalArtworkWithFlow','desktopReadReady',code)(
     (options:Parameters<typeof useLocalPlaybackArtwork>[0])=>{datasetSelector=options.getDatasetId;return useLocalPlaybackArtwork(options)},
     {state:workbenchState},localLibrary,core,sync,clock,{playbackState:snapshot},sourceTrack,{selectedAlbum,tracks},{selectedAlbum:ref(null),tracks:ref([])},
-    (request:LocalAlbumArtworkRequest)=>new Promise<LocalAlbumArtworkReply>((resolve,reject)=>images.push({request:structuredClone(request),resolve,reject})))) as import('vue').ComputedRef<import('@music-bridge/contracts').TrackSummary|undefined>
+    (request:LocalAlbumArtworkRequest)=>new Promise<LocalAlbumArtworkReply>((resolve,reject)=>images.push({request:structuredClone(request),resolve,reject})),ref(true))) as import('vue').ComputedRef<import('@music-bridge/contracts').TrackSummary|undefined>
   t.after(async()=>{scope.stop();localLibrary.dispose();for(const hold of heldReads)hold.release.resolve();for(const image of images)image.resolve(reply(image.request));await drain()})
   const activate=()=>localLibrary.activate({deferTrackReads:true,deferContextReads:true})
   const holdOutbox=()=>{const gate={entered:latch(),release:latch()};heldReads.push(gate);held=gate;return gate}

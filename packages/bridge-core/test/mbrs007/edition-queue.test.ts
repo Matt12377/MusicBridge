@@ -88,7 +88,7 @@ async function albumQueue950(t:test.TestContext,count=3){
    const {materializeLocalAlbumQueue}=await import('../../src/collection/mb-queue-materializer.js');
    return materializeLocalAlbumQueue(f.repository,albums,request.payload.selection,f.datasetId,request.payload.expiresAtMs,()=>{if(!f.localSources.isLocalSourceCurrent?.())throw new Error('原Owner已失权');});
   }
-  switch(request.command){case 'localAlbum.query':return albums.queryAlbums(request.payload);case 'localAlbum.tracks':return albums.queryAlbumTracks(request.payload);case 'localAlbum.artwork':return albums.getArtwork(request.payload);}
+  switch(request.command){case 'localAlbum.query':return albums.queryAlbums(request.payload);case 'localAlbum.queryVersioned':return albums.queryVersionedAlbums(request.payload);case 'localAlbum.tracks':return albums.queryAlbumTracks(request.payload);case 'localAlbum.artwork':return albums.getArtwork(request.payload);}
  };
  const unavailable=async():Promise<never>=>{throw new Error('本组件不做元数据/搬迁写入');};
  const api:LocalLibraryPublicApi&Pick<CommandOutboxPublicApi,'getCommandOutbox'>={

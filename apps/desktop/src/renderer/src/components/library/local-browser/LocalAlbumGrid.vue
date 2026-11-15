@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<{
   loaded?: boolean
   initialLoading?: boolean
   refreshing?: boolean
+  reconciling?: boolean
   loadingMore?: boolean
   hasMore?: boolean
   total?: number
@@ -31,7 +32,7 @@ const props = withDefaults(defineProps<{
   artworkPrefetchRows?: number
   showPageStatus?: boolean
 }>(), {
-  active: true, loaded: false, initialLoading: false, refreshing: false, loadingMore: false, hasMore: false,
+  active: true, loaded: false, initialLoading: false, refreshing: false, reconciling: false, loadingMore: false, hasMore: false,
   total: 0, error: '', loadMoreError: '', searching: false, filtering: false,
   readAvailable: true, managementAvailable: true, showManagementActions: true, artworkPrefetchRows: 3, showPageStatus: true,
 })
@@ -59,6 +60,7 @@ let automaticPageRequest: string | null = null
 let disposed = false
 const idleArtwork: LocalAlbumArtworkState = { status: 'idle', dataUrl: null, error: '', canRetry: false }
 const grid = useGridWindow(computed(() => props.albums), root, {
+  itemKey: album => album.id,
   nearbyRows: props.artworkPrefetchRows,
   profile: album => localAlbumIssueLabel(album.statuses) ? 'issue' : 'plain',
   prepareProbe: (element, album) => {
@@ -292,12 +294,14 @@ defineExpose({ focusAlbum, refresh: grid.refresh })
         <button v-else-if="props.showManagementActions && (artworkCoverage(album) === 'missing' || artworkCoverage(album) === 'unknown' || artworkFor(album).status === 'missing')" type="button" class="secondary-button local-album-cover-action" :disabled="!props.managementAvailable" :aria-label="`为 ${album.title} ${artworkCoverage(album) === 'unknown' ? '查找或选择' : '选择'}封面`" @click="requestWorkbench(localAlbumWorkbenchRequest(album, 'artwork'))">{{ artworkCoverage(album) === 'unknown' ? '查找封面' : '选择封面' }}</button>
       </div>
     </div>
-    <div v-if="props.hasMore" ref="sentinel" class="roon-library-more" :class="{ 'local-album-page-sentinel': !props.showPageStatus }" :aria-live="props.showPageStatus ? 'polite' : undefined">
+    <div v-if="props.hasMore || props.reconciling" ref="sentinel" class="roon-library-more" :class="{ 'local-album-page-sentinel': !props.showPageStatus }" :aria-live="props.showPageStatus ? 'polite' : undefined">
       <template v-if="props.showPageStatus">
+        <span v-if="props.reconciling" role="status">目录正在更新，保留已显示的专辑。</span>
         <span v-if="props.loadingMore" role="status">正在加载更多专辑…</span>
         <template v-else-if="props.loadMoreError"><span role="alert">{{ props.loadMoreError }}</span><button type="button" class="text-button" :disabled="!props.active || !props.readAvailable || props.initialLoading || props.refreshing" @click="requestMore(true)">重试加载</button></template>
-        <span v-else>专辑会继续自动载入</span>
-        <span>已载入 {{ props.albums.length }} / {{ props.total }} 张专辑</span>
+        <span v-else-if="!props.reconciling">专辑会继续自动载入</span>
+        <span v-if="props.reconciling">已显示 {{ props.albums.length }} 张专辑</span>
+        <span v-else>已载入 {{ props.albums.length }} / {{ props.total }} 张专辑</span>
       </template>
     </div>
   </template>

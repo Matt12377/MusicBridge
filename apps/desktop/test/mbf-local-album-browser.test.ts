@@ -248,7 +248,7 @@ test('MBF合并作用域setScope一次更新搜索来源和筛选，只发一个
   const selected=album(1,{rootId:otherRoot,title:'合并专辑',statuses:['has-artwork','track-named-audio']}),pending=deferred<LocalAlbumPage>(),requests:LocalAlbumQuery[]=[]
   const model=createLocalAlbumBrowserModel({api:api([selected],{queryAlbums:request=>{requests.push(request);return requests.length===1?pending.promise:Promise.resolve(page(request,[selected]))}})});t.after(model.dispose)
   const activating=model.activate();await model.setScope({query:' 合并 ',rootId:otherRoot,filter:'track-named-audio'})
-  assert.equal(requests.length,2);assert.deepEqual(requests[1],{query:'合并',rootId:otherRoot,filter:'track-named-audio',offset:0,limit:200})
+  assert.equal(requests.length,2);assert.deepEqual(requests[1],{query:'合并',rootId:otherRoot,filter:'track-named-audio',offset:0,limit:100})
   assert.equal(model.getSnapshot().items[0]!.id,selected.id);const current=model.getSnapshot()
   pending.resolve(page(requests[0]!,[]));await activating;assert.equal(model.getSnapshot(),current)
   await model.setScope({query:'合并',rootId:otherRoot,filter:'track-named-audio'});assert.equal(requests.length,2)
@@ -497,6 +497,7 @@ test('公共封面贯穿client/Main/model：合法JPEG进入ready，RPC和错DTO
     async read(request){
       if(request.command==='localAlbum.query')return page(request.payload,[selected]);
       if(request.command==='localAlbum.tracks')return trackPage(request.payload,selected);
+      if(request.command!=='localAlbum.artwork')throw new Error('此旧封面夹具不提供其他读口');
       requested.push(structuredClone(request.payload));
       if(mode==='rpc-rejected')throw new Error('受控内部错误 /private/不应进入Renderer消息');
       return {...artworkTuple(request.payload as LocalAlbumArtworkRequest),...(mode==='wrong-tuple'?{revision:'wrong-revision'}:{}), image:mode==='missing'||mode==='source-unavailable'?null:displayed,
@@ -576,7 +577,7 @@ test('MBF重新激活593：成功空结果离页后源变1，原scope返回只�
   model.setScrollTop(314);model.deactivate();const before=model.getSnapshot()
   values.push(album(9,{rootId:otherRoot,title:'返回后的真实合成专辑'}))
   await model.activate();assert.equal(requests.length,2,'离页后的成功empty不得免除这次当前gallery读取')
-  assert.deepEqual(requests[1],{query:'返回',rootId:otherRoot,filter:'has-artwork',offset:0,limit:200})
+  assert.deepEqual(requests[1],{query:'返回',rootId:otherRoot,filter:'has-artwork',offset:0,limit:100})
   const current=model.getSnapshot();assert.equal(current.active,true);assert.equal(current.loaded,true);assert.equal(current.status,'ready');assert.equal(current.total,1);assert.deepEqual(current.items.map(value=>value.id),[values[0]!.id]);assert.equal(current.stale,false)
   assert.equal(current.query,before.query);assert.equal(current.rootId,before.rootId);assert.equal(current.filter,before.filter);assert.equal(current.scrollTop,before.scrollTop)
   const same=current;await model.activate();assert.equal(requests.length,2,'已active不得重复query');assert.equal(model.getSnapshot(),same)
@@ -718,7 +719,7 @@ test('MBF临时封面恢复：foreign真实两票连续繁忙后释放，同身�
   assert.equal(reads, 3)
 })
 
-// 显式小页覆盖合成来源观察；默认200的规模用例另核，不证明真实SQL、IMG解码或万级性能。
+// 显式小页覆盖合成来源观察；默认100的规模用例另核，不证明真实SQL、IMG解码或万级性能。
 test('MBF连续浏览封面观察变化：187项未知封面首图成功后分页继续至完整墙', async t => {
   const albums = Array.from({ length: 187 }, (_, index) => album(index + 1, { artworkAvailable: false, artworkState: 'unknown', statuses: [] }))
   const requests: LocalAlbumQuery[] = [], replies: LocalAlbumPage[] = [], artworkRequests: LocalAlbumArtworkRequest[] = []
@@ -761,8 +762,8 @@ test('MBF连续浏览封面观察变化：187项未知封面首图成功后分�
   assert.equal(complete.counts['missing-artwork'], 0); assert.equal(artworkRequests.length, 1)
 })
 
-test('MBF连续浏览规模：10001项以默认200完整读取51页，末页10000起1项且身份唯一', async t => {
-  // 只核原model与内存分页API；51页不是SQL耗时、Native或持久缓存资格。
+test('MBF旧API兼容规模：10001项以默认100完整读取101页，末页10000起1项且身份唯一', async t => {
+  // 只核原model与内存分页API；101页不是SQL耗时、Native或持久缓存资格。
   const albums = Array.from({ length: 10001 }, (_, index) => album(index + 1, { artworkAvailable: false, artworkState: 'unknown', statuses: [] }))
   const requests: LocalAlbumQuery[] = [], lengths: number[] = []
   let failRefresh = false
@@ -771,34 +772,34 @@ test('MBF连续浏览规模：10001项以默认200完整读取51页，末页1000
     assert.equal(isLocalAlbumPage(reply, request), true); lengths.push(reply.items.length); return reply
   }, getArtwork: async () => { throw new Error('此例不读取或解码封面') } }) }); t.after(model.dispose)
   await model.activate()
-  assert.equal(model.getSnapshot().items.length, 200); assert.equal(model.getSnapshot().total, 10001)
-  for (let index = 1; index < 51; index++) {
+  assert.equal(model.getSnapshot().items.length, 100); assert.equal(model.getSnapshot().total, 10001)
+  for (let index = 1; index < 101; index++) {
     assert.equal(model.getSnapshot().hasMore, true)
     await model.loadMore()
-    assert.equal(model.getSnapshot().items.length, Math.min((index + 1) * 200, 10001))
+    assert.equal(model.getSnapshot().items.length, Math.min((index + 1) * 100, 10001))
     assert.equal(model.getSnapshot().loadMoreError, '')
   }
-  assert.equal(requests.length, 51); assert.deepEqual(requests.map(value => value.offset), Array.from({ length: 51 }, (_, index) => index * 200))
-  assert.ok(requests.every(value => value.limit === 200)); assert.equal(requests[50]!.offset, 10000)
-  assert.ok(lengths.slice(0, 50).every(value => value === 200)); assert.equal(lengths[50], 1)
+  assert.equal(requests.length, 101); assert.deepEqual(requests.map(value => value.offset), Array.from({ length: 101 }, (_, index) => index * 100))
+  assert.ok(requests.every(value => value.limit === 100)); assert.equal(requests[100]!.offset, 10000)
+  assert.ok(lengths.slice(0, 100).every(value => value === 100)); assert.equal(lengths[100], 1)
   const complete = model.getSnapshot()
   assert.equal(complete.items.length, 10001); assert.equal(complete.total, 10001); assert.equal(complete.counts.all, 10001)
   assert.equal(complete.hasMore, false); assert.equal(new Set(complete.items.map(value => value.id)).size, 10001)
   assert.deepEqual(complete.items.map(value => value.id), albums.map(value => value.id))
   model.setScrollTop(50_000); model.setSelectedAlbums([albums.at(-1)!.id])
   failRefresh = true; await model.refresh(true)
-  assert.equal(requests.length, 52); assert.equal(requests.at(-1)!.offset, 0, '明确刷新失败也只准尝试一个首页')
+  assert.equal(requests.length, 102); assert.equal(requests.at(-1)!.offset, 0, '明确刷新失败也只准尝试一个首页')
   assert.equal(model.getSnapshot().items, complete.items); assert.equal(model.getSnapshot().scrollTop, 50_000)
   assert.deepEqual(model.getSnapshot().selectedAlbumIds, [albums.at(-1)!.id]); assert.equal(model.getSnapshot().stale, true); assert.match(model.getSnapshot().refreshError, /刷新暂未完成/u)
   failRefresh = false; await model.refresh(true)
   const restarted = model.getSnapshot()
-  assert.equal(requests.length, 53); assert.equal(requests.at(-1)!.offset, 0, '已加载10001项后的明确刷新只重新查询第一页')
-  assert.equal(restarted.items.length, 200); assert.equal(restarted.total, 10001); assert.equal(restarted.counts.all, 10001); assert.equal(restarted.hasMore, true)
+  assert.equal(requests.length, 103); assert.equal(requests.at(-1)!.offset, 0, '已加载10001项后的明确刷新只重新查询第一页')
+  assert.equal(restarted.items.length, 100); assert.equal(restarted.total, 10001); assert.equal(restarted.counts.all, 10001); assert.equal(restarted.hasMore, true)
   assert.equal(restarted.scrollTop, 0); assert.deepEqual(restarted.selectedAlbumIds, []); assert.equal(restarted.stale, false); assert.equal(restarted.refreshError, '')
-  assert.deepEqual(restarted.items.map(value => value.id), albums.slice(0, 200).map(value => value.id))
-  await model.loadMore(); assert.equal(requests.length, 54); assert.equal(requests.at(-1)!.offset, 200)
-  assert.equal(model.getSnapshot().items.length, 400); assert.equal(model.getSnapshot().total, 10001); assert.equal(model.getSnapshot().loadMoreError, '')
-  assert.deepEqual(model.getSnapshot().items.map(value => value.id), albums.slice(0, 400).map(value => value.id), '不能混入旧尾页或跳过新首页之后的成员')
+  assert.deepEqual(restarted.items.map(value => value.id), albums.slice(0, 100).map(value => value.id))
+  await model.loadMore(); assert.equal(requests.length, 104); assert.equal(requests.at(-1)!.offset, 100)
+  assert.equal(model.getSnapshot().items.length, 200); assert.equal(model.getSnapshot().total, 10001); assert.equal(model.getSnapshot().loadMoreError, '')
+  assert.deepEqual(model.getSnapshot().items.map(value => value.id), albums.slice(0, 200).map(value => value.id), '不能混入旧尾页或跳过新首页之后的成员')
 })
 
 test('MBF连续浏览集合守门：总数、非封面计数与封面筛选计数变化仍拒收', async t => {
@@ -974,6 +975,7 @@ test('MBF可见封面刷新运输：literaltrue经真实Client和Main到读口�
     read: async request => {
       if (request.command === 'localAlbum.query') return page(request.payload, [selected])
       if (request.command === 'localAlbum.tracks') return trackPage(request.payload, selected)
+      if (request.command !== 'localAlbum.artwork') throw new Error('此旧封面刷新夹具不提供其他读口')
       requests.push({ ...request.payload })
       const reply = { ...artworkTuple(request.payload), image: displayed }
       return poisonMain ? { ...reply, refresh: true } : reply

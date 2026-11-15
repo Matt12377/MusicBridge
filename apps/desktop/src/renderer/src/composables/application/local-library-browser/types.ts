@@ -49,6 +49,8 @@ export interface LocalAlbumBrowserSnapshot {
   refreshError: string
   loadMoreError: string
   stale: boolean
+  /** 已显示项保持可用；扫描修订漂移或更新轮尚未收齐时后台核对成员/顺序。 */
+  reconciling?: boolean
   scrollTop: number
   selectedAlbumIds?: readonly string[]
   selectedAlbum: LocalAlbumSummary | null

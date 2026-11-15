@@ -89,6 +89,7 @@ export function isLocalAlbumOwnerReadResult(value: unknown, original: LocalAlbum
   if (!dto.isLocalAlbumCommandResult(original.command, value)) return false
   switch (original.command) {
     case 'localAlbum.query': return dto.isLocalAlbumPage(value, original.payload)
+    case 'localAlbum.queryVersioned': return dto.isLocalAlbumVersionedPage(value, original.payload)
     case 'localAlbum.tracks': return dto.isLocalAlbumTrackPage(value, original.payload, (value as dto.LocalAlbumTrackPage).album)
     case 'localAlbum.artwork': return dto.isLocalAlbumArtworkReply(value, original.payload)
   }

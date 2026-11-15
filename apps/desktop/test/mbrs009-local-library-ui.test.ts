@@ -218,8 +218,8 @@ test('App真实导航watch在专辑首屏前只激活会话，旧表模式仍立
   scope.run(() => new Function('watch', 'currentView', 'localLibrary', 'localLibraryViewMode', 'localLibrarySelectedTrackId', 'loadWorkspace', 'albumBrowser', 'coverDropBrowser',
     'workbenchOpenGeneration', 'maintenanceUiGeneration', 'maintenanceUiOpened', 'workbenchOpening', 'workbenchEntryError', 'invalidateResultInspections',
     'recordingInitialPhysical', 'recordingReservationNavigation', 'beginInitialAlbumContext', 'deferInitialAlbumContextReads', 'requestInitialScanRefresh',
-    'catalogActionGeneration', 'catalogActionPending', block)(vue.watch, currentView, model, viewMode, selectedTrackId, () => {}, { deactivate() {} }, { deactivate() {} },
-    0, 0, null, vue.ref(false), vue.ref(''), () => {}, vue.ref(), vue.ref(), beginContext, ()=>deferredContext, async()=>{}, 0, catalogActionPending))
+    'catalogActionGeneration', 'catalogActionPending', 'desktopReadReady', block)(vue.watch, currentView, model, viewMode, selectedTrackId, () => {}, { deactivate() {} }, { deactivate() {} },
+    0, 0, null, vue.ref(false), vue.ref(''), () => {}, vue.ref(), vue.ref(), beginContext, ()=>deferredContext, async()=>{}, 0, catalogActionPending, vue.ref(true)))
   const enter = async (view: string) => { currentView.value = view; for (let i = 0; i < 8; i++) await vue.nextTick() }
   await enter('local-library'); assert.deepEqual(counts, { tracks: 0, roots: 0, target: 0, outbox: 0 })
   assert.equal(catalogActionPending.value, false, '执行真实页面换代取消分支，同时保留原会话激活顺序')
@@ -554,9 +554,9 @@ function settingsUpdatedAncestor593(t: test.TestContext, environment: Record<str
   const start = source.indexOf('// 首扫原任务观察开始：'), end = source.indexOf('// 首扫原任务观察结束。', start)
   assert.ok(start >= 0 && end > start, '设置事件必须执行原完整扫描观察闭包，不能只抽出转发函数')
   const compile = (code: string) => ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
-  const observation = new Function('albumBrowser', 'coverDropBrowser', 'localLibrary', 'workbenchLibrary', 'currentView', 'shallowRef', 'ref', 'localWorkbenchDto', 'logLibraryOperation',
+  const observation = new Function('albumBrowser', 'coverDropBrowser', 'localLibrary', 'workbenchLibrary', 'currentView', 'shallowRef', 'ref', 'localWorkbenchDto', 'logLibraryOperation', 'desktopReadReady',
     `${compile(source.slice(start, end))}\nreturn { refresh: refreshLocalBrowserViews, observe: ()=>requestInitialScanRefresh(false), close: closeInitialScanObservation };`)(
-    environment.albumBrowser, environment.coverDropBrowser, environment.localLibrary, observationLibrary, vue.ref(environment.currentView), vue.shallowRef, vue.ref, localWorkbenchDto, libraryOperationLog.logLibraryOperation,
+    environment.albumBrowser, environment.coverDropBrowser, environment.localLibrary, observationLibrary, vue.ref(environment.currentView), vue.shallowRef, vue.ref, localWorkbenchDto, libraryOperationLog.logLibraryOperation, vue.ref(true),
   ) as { refresh(): Promise<void>; observe(): Promise<void>; close(): void }
   t.after(observation.close)
   // 原完整节点包含全部 props、事件和 slot；补一个永假前邻，仅使原 v-else-if 在此受控祖链合法编译。
@@ -636,7 +636,7 @@ test('009设置目录变化向上传递一次，失效两页原读范围且挂�
   assert.equal(pages.localLibrary.snapshot.value.items[0]!.revision, '1')
   revision = '3'; holdNext = true; await f.poll()
   assert.equal(updates, 2); assert.equal(albumRequests.length, 4); assert.ok(held)
-  assert.deepEqual(held.request, { query: '整理', rootId: id(2), filter: 'has-artwork', offset: 0, limit: 200 })
+  assert.deepEqual(held.request, { query: '整理', rootId: id(2), filter: 'has-artwork', offset: 0, limit: 100 })
   assert.equal(pages.coverDrop.snapshot.value.refreshing, true); assert.equal(pages.localLibrary.snapshot.value.stale, true)
   assert.equal(pages.coverDrop.snapshot.value.items[0]!.revision, '2', '原刷新未返回前继续保留原成功结果')
   held.resolve(albumPage(held.request)); await Promise.all(pending)
@@ -717,9 +717,9 @@ test('009整理读取失败按原阶段回显，真实上下文未确认与换�
       workbench: { isOpen, readback, error, openLibrary: () => { calls.push('open-library'); fail('open-library') },
         open: async () => { calls.push('open'); fail('open'); isOpen.value = failure !== 'closed'; readback.value = failure === 'closed' ? null : captured } },
       workbenchLyrics: { bind: () => { calls.push('lyrics-bind') } }, bindWorkbenchLyrics: () => { calls.push('bind') },
-      workbenchEntryError: entryError, workbenchOpening: opening,
+      workbenchEntryError: entryError, workbenchOpening: opening, desktopReadReady: vue.ref(true),
     }
-    const body = `const {window,workbenchLibrary,workbenchPorts,createLocalWorkbenchRendererPorts,openOriginalMaintenance,maintenanceUiGeneration,currentView,coverDropViewRef,localMaintenanceAvailability,localMaintenanceOpened,workbench,workbenchLyrics,bindWorkbenchLyrics,workbenchEntryError,workbenchOpening}=environment;\n${code}\nreturn {loadWorkspace,captureWorkbenchTargets,advance:()=>{workbenchOpenGeneration++}};`
+    const body = `const {window,workbenchLibrary,workbenchPorts,createLocalWorkbenchRendererPorts,openOriginalMaintenance,maintenanceUiGeneration,currentView,coverDropViewRef,localMaintenanceAvailability,localMaintenanceOpened,workbench,workbenchLyrics,bindWorkbenchLyrics,workbenchEntryError,workbenchOpening,desktopReadReady}=environment;\n${code}\nreturn {loadWorkspace,captureWorkbenchTargets,advance:()=>{workbenchOpenGeneration++}};`
     const runtime = new Function('environment', body)(environment) as { loadWorkspace(): Promise<boolean>; captureWorkbenchTargets(intent: unknown): Promise<void>; advance(): void }
     return { runtime, calls, rpc, contexts, entryError, opening, error, isOpen, entered, rejectCapture, privateError, inspected: () => inspectedError }
   }

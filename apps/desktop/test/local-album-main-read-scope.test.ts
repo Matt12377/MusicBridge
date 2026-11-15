@@ -34,6 +34,7 @@ const counts = Object.fromEntries([['all', 1], ...dto.LOCAL_ALBUM_STATUSES.map(s
 function resultFor(call: LocalAlbumMainRequest): dto.LocalAlbumCommandResults[dto.LocalAlbumCommand] {
   switch (call.request.command) {
     case 'localAlbum.query': return { ...call.request.payload, items: call.request.payload.offset === 0 ? [album] : [], total: 1, hasMore: false, counts }
+    case 'localAlbum.queryVersioned': return { revision: 'a'.repeat(64), page: { ...call.request.payload, items: call.request.payload.offset === 0 ? [album] : [], total: 1, hasMore: false, counts } }
     case 'localAlbum.tracks': return { ...call.request.payload, album, items: [], total: 0, hasMore: false }
     case 'localAlbum.artwork': return { ...call.request.payload, image: null, status: 'ready' }
   }
@@ -97,16 +98,16 @@ async function fixture(t: TestContext) {
   }
 }
 
-test('Main实际factory：三个IPC各首末核Owner2次，固定读口和真实DTO/主frame核验保留', async t => {
+test('Main实际factory：四个具名读命令各首末核Owner2次，固定读口和真实DTO/主frame核验保留', async t => {
   const f = await fixture(t)
-  for (const [command, payload] of [['localAlbum.query', query], ['localAlbum.tracks', tracks], ['localAlbum.artwork', artwork]] as const) {
+  for (const [command, payload] of [['localAlbum.query', query], ['localAlbum.queryVersioned', query], ['localAlbum.tracks', tracks], ['localAlbum.artwork', artwork]] as const) {
     const before = f.ownerChecks.length, actual = await f.invoke({ datasetId, command, payload })
     assert.equal(f.ownerChecks.length, before + 2)
     assert.deepEqual(actual, resultFor(f.calls.at(-1)!)); assert.equal(f.calls.at(-1)!.request.command, command)
     assert.equal(f.ownerChecks[before]!.binding, f.ownerChecks[before + 1]!.binding)
     assert.equal(Object.isFrozen(f.ownerChecks[before]!.binding), true)
   }
-  assert.equal(f.calls.length, 3); assert.equal(f.metrics().dtoChecks, 3); assert.ok(f.metrics().trustedChecks >= 18)
+  assert.equal(f.calls.length, 4); assert.equal(f.metrics().dtoChecks, 4); assert.ok(f.metrics().trustedChecks >= 24)
   assert.equal(f.metrics().fullChecks, f.metrics().originalFull, '本地显示不降级或升级成工作台完整写许可')
 })
 

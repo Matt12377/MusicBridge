@@ -107,7 +107,7 @@ test('Main在Core就绪时启动打印worker，失效与退出时停止，公开
       assert.equal(declaration.initializer.whenFalse.getText(source), 'undefined')
     } else assert.ok(ts.isExpressionStatement(statement), '停止打印worker前不能提前return或引入分支绕过')
   }
-  assert.match(preload, /createRecordingPrintClient\(\(channel, value\) => invokePerformance\(channel, value\)\)/u)
+  assert.match(preload, /createRecordingPrintClient\(\(channel, value\) => invokePerformance\(channel, value\), \(\) => initialBootstrapReady\)/u)
 })
 
 

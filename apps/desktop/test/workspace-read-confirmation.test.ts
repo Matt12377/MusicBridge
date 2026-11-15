@@ -110,9 +110,9 @@ function fixture(t: TestContext) {
     watch, workbench: { isOpen, action, readback, focusedAlbum, error, openLibrary: () => { opens.push('library'); if (!control.blockOpen) { isOpen.value = true; action.value = 'library'; readback.value = null; focusedAlbum.value = null } },
       open: async (request: { action: string }, capture: contracts.LocalWorkbenchReadback) => { opens.push(request); if (!control.blockOpen) { isOpen.value = true; action.value = request.action; readback.value = structuredClone(capture); focusedAlbum.value = readback.value.albums[0] ?? null } } },
     workbenchLyrics: { ...lyrics, bind: (...args: Parameters<typeof lyrics.bind>) => { bindings.push(structuredClone(args)); return lyrics.bind(...args) } },
-    workbenchEntryError: entryError, workbenchOpening: opening,
+    workbenchEntryError: entryError, workbenchOpening: opening, desktopReadReady: ref(true),
   }
-  const body = `const {window,workbenchLibrary,workbenchPorts,createLocalWorkbenchRendererPorts,openOriginalMaintenance,maintenanceUiGeneration,currentView,coverDropViewRef,localMaintenanceAvailability,localMaintenanceOpened,workbench,workbenchLyrics,watch,workbenchEntryError,workbenchOpening}=environment;\n${entryCode}\nreturn {loadWorkspace,captureWorkbenchTargets,captureSelectedLyricsLibraries,bindWorkbenchLyrics,advance:()=>{workbenchOpenGeneration++}};`
+  const body = `const {window,workbenchLibrary,workbenchPorts,createLocalWorkbenchRendererPorts,openOriginalMaintenance,maintenanceUiGeneration,currentView,coverDropViewRef,localMaintenanceAvailability,localMaintenanceOpened,workbench,workbenchLyrics,watch,workbenchEntryError,workbenchOpening,desktopReadReady}=environment;\n${entryCode}\nreturn {loadWorkspace,captureWorkbenchTargets,captureSelectedLyricsLibraries,bindWorkbenchLyrics,advance:()=>{workbenchOpenGeneration++}};`
   const scope = effectScope(); t.after(() => scope.stop())
   const app = scope.run(() => new Function('environment', body)(environment)) as { loadWorkspace(): Promise<boolean>; captureWorkbenchTargets(intent: unknown): Promise<void>; captureSelectedLyricsLibraries(): Promise<void>; bindWorkbenchLyrics(): void; advance(): void }
   const captures = () => calls.filter(value => value.command === 'library.album.capture' || value.command === 'library.albums.capture')

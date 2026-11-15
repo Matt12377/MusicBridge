@@ -1,5 +1,5 @@
 import { withLocalAlbumPreparedTrace } from './local-album-client.js'
-import { isLocalAlbumQuery, isLocalAlbumPage, isLocalAlbumTrackQuery, isLocalAlbumTrackPage, isLocalAlbumArtworkRequest, isLocalAlbumArtworkReply } from '@music-bridge/contracts'
+import { isLocalAlbumQuery, isLocalAlbumPage, isLocalAlbumVersionedQuery, isLocalAlbumVersionedPage, isLocalAlbumTrackQuery, isLocalAlbumTrackPage, isLocalAlbumArtworkRequest, isLocalAlbumArtworkReply } from '@music-bridge/contracts'
 import type { LocalAlbumLibraryPublicApi, LocalWorkbenchPublicApi } from '@music-bridge/contracts'
 import type { LocalWorkbenchLyricsPublicApi } from './local-workbench-client.js'
 import type {LocalLibraryPublicApi,LocalArtworkPublicApi,LocalOrganizerPublicApi,LocalLegacyLinksPublicApi,LocalSourceWritesPublicApi,LocalRelocationPlanPublicApi} from '@music-bridge/contracts'
@@ -173,7 +173,7 @@ export interface MusicBridgePublicApi extends LocalAlbumLibraryPublicApi, LocalW
 /** 可选的只读能力；旧客户端仍只暴露下面的固定具名入口。 */
 export const PUBLIC_LIBRARY_READ_API_KEYS = ['readLibrary', 'cancelLibraryRead'] as const
 export const PUBLIC_API_KEYS = [
-  'queryLocalAlbums', 'getLocalAlbumTracks', 'getLocalAlbumArtwork', 'requestLocalWorkbenchRead', 'cancelLocalWorkbenchRead', 'localWorkbenchCapabilities', 'readLocalWorkbenchAlbums', 'findLocalWorkbenchArtwork', 'searchLocalWorkbenchArtwork', 'chooseLocalWorkbenchArtwork', 'importLocalWorkbenchArtwork', 'previewLocalWorkbenchArtwork', 'suggestLocalWorkbenchNames', 'previewLocalWorkbenchNames', 'chooseLocalWorkbenchCueTarget', 'previewLocalWorkbenchCue', 'applyLocalWorkbenchPlan', 'readLocalWorkbenchReceipt', 'cancelLocalWorkbenchPlan', 'openLocalWorkbenchExisting', 'localLibraryManagement', 'localNameSettings', 'localLibraryLyrics',
+  'queryLocalAlbums', 'queryLocalAlbumsVersioned', 'getLocalAlbumTracks', 'getLocalAlbumArtwork', 'requestLocalWorkbenchRead', 'cancelLocalWorkbenchRead', 'localWorkbenchCapabilities', 'readLocalWorkbenchAlbums', 'findLocalWorkbenchArtwork', 'searchLocalWorkbenchArtwork', 'chooseLocalWorkbenchArtwork', 'importLocalWorkbenchArtwork', 'previewLocalWorkbenchArtwork', 'suggestLocalWorkbenchNames', 'previewLocalWorkbenchNames', 'chooseLocalWorkbenchCueTarget', 'previewLocalWorkbenchCue', 'applyLocalWorkbenchPlan', 'readLocalWorkbenchReceipt', 'cancelLocalWorkbenchPlan', 'openLocalWorkbenchExisting', 'localLibraryManagement', 'localNameSettings', 'localLibraryLyrics',
   'previewLocalOrganizer', 'getLocalOrganizerPlan', 'listLocalOrganizerHistory', 'confirmLocalOrganizer', 'undoLocalOrganizer', 'cancelLocalOrganizer',
   'getLocalArtworkContext', 'findLocalArtworkCandidates', 'searchLocalArtworkCandidates', 'chooseLocalArtworkFile', 'importLocalArtworkBytes', 'applyLocalArtworkSelection', 'createLocalArtworkEdition', 'cancelLocalArtworkLookup',
   'listLocalLibraryRoots',
@@ -687,13 +687,23 @@ export function createPreloadApi(
   const relocationApi: LocalRelocationPlanPublicApi = localRelocationTransport ? createLocalRelocationClient(localRelocationTransport) : { localRelocationPlan: async () => { throw new Error('[NOT_READY] 搬迁服务尚未就绪；原文件与现有记录保留。') } }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   const albumInvalid = (): never => { throw new Error('[INVALID_IPC_REQUEST] 本地专辑原请求或结果身份无效。') }
-  // 原donor client等待固定scope后才复制；正式factory先保存调用时原body，等待不允许表单改写意图。
+  // factory与固定client均在首次await前保存调用时原body；两层各自核验，不允许等待期间改写意图。
   const localAlbumPrepared: LocalAlbumLibraryPublicApi | undefined = localAlbumApi ? {
     queryLocalAlbums(payload) { return withLocalAlbumPreparedTrace(localAlbumApi, async (reader, trace) => {
       const inputValid = isLocalAlbumQuery(payload); trace.matches.dto = inputValid
       if (!inputValid) return albumInvalid()
       const original = structuredClone(payload), result = await reader.queryLocalAlbums(structuredClone(original))
       const resultValid = isLocalAlbumPage(result, original); trace.matches.dto = resultValid
+      if (!resultValid) return albumInvalid()
+      return result
+    }) },
+    queryLocalAlbumsVersioned(payload) { return withLocalAlbumPreparedTrace(localAlbumApi, async (reader, trace) => {
+      const inputValid = isLocalAlbumVersionedQuery(payload); trace.matches.dto = inputValid
+      if (!inputValid) return albumInvalid()
+      const original = structuredClone(payload)
+      if (!reader.queryLocalAlbumsVersioned) throw new Error('[NOT_READY] 版本化专辑读取尚未就绪，请重新连接后重试。')
+      const result = await reader.queryLocalAlbumsVersioned(structuredClone(original))
+      const resultValid = isLocalAlbumVersionedPage(result, original); trace.matches.dto = resultValid
       if (!resultValid) return albumInvalid()
       return result
     }) },
@@ -716,7 +726,7 @@ export function createPreloadApi(
   } : undefined
   const workbenchUnavailable = async (): Promise<never> => { throw new Error('[NOT_READY] 本地整理服务尚未正式装配，请重新读取；原请求与源文件保留。') }
   return Object.freeze({
-    ...(localAlbumPrepared ?? { queryLocalAlbums: workbenchUnavailable, getLocalAlbumTracks: workbenchUnavailable, getLocalAlbumArtwork: workbenchUnavailable }),
+    ...(localAlbumPrepared ?? { queryLocalAlbums: workbenchUnavailable, queryLocalAlbumsVersioned: workbenchUnavailable, getLocalAlbumTracks: workbenchUnavailable, getLocalAlbumArtwork: workbenchUnavailable }),
     ...(localWorkbenchApi ?? { requestLocalWorkbenchRead: workbenchUnavailable, cancelLocalWorkbenchRead: workbenchUnavailable, localWorkbenchCapabilities: workbenchUnavailable, readLocalWorkbenchAlbums: workbenchUnavailable, findLocalWorkbenchArtwork: workbenchUnavailable, searchLocalWorkbenchArtwork: workbenchUnavailable, chooseLocalWorkbenchArtwork: workbenchUnavailable, importLocalWorkbenchArtwork: workbenchUnavailable, previewLocalWorkbenchArtwork: workbenchUnavailable, suggestLocalWorkbenchNames: workbenchUnavailable, previewLocalWorkbenchNames: workbenchUnavailable, chooseLocalWorkbenchCueTarget: workbenchUnavailable, previewLocalWorkbenchCue: workbenchUnavailable, applyLocalWorkbenchPlan: workbenchUnavailable, readLocalWorkbenchReceipt: workbenchUnavailable, cancelLocalWorkbenchPlan: workbenchUnavailable, openLocalWorkbenchExisting: workbenchUnavailable, localLibraryManagement: workbenchUnavailable, localNameSettings: workbenchUnavailable }),
     ...(localLyricsApi ?? { localLibraryLyrics: workbenchUnavailable }),
     ...(localOrganizerApi ?? {previewLocalOrganizer:collectionUnavailable,getLocalOrganizerPlan:collectionUnavailable,listLocalOrganizerHistory:collectionUnavailable,confirmLocalOrganizer:collectionUnavailable,undoLocalOrganizer:collectionUnavailable,cancelLocalOrganizer:collectionUnavailable}),

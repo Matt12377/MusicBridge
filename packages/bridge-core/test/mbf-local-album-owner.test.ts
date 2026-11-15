@@ -63,6 +63,63 @@ function rows(file: string) {
   finally { db.close() }
 }
 
+test('渐进页由同一原Owner读屏障返回修订与≤100张；旧页与持久业务表不变', async t => {
+  const f = await fixture(t), before = rows(f.file), original = f.repository.localCatalog.privateAlbumBrowserQuery
+  let capturedRevision = ''
+  f.repository.localCatalog.privateAlbumBrowserQuery = (request, scope) => { capturedRevision = scope.revision; return original.call(f.repository.localCatalog, request, scope) }
+  const read = f.albums.queryVersionedAlbums
+  assert.equal(typeof read, 'function')
+  const request = { ...query, limit: 100 }, value = await read(request)
+  assert.equal(value.revision, capturedRevision); assert.match(value.revision, /^[a-f0-9]{64}$/u)
+  assert.deepEqual(value.page, await f.albums.queryAlbums(request)); assert.equal(Object.hasOwn(value.page, 'revision'), false)
+  assert.deepEqual(rows(f.file), before, '显示分页不新增业务ledger、扫描任务、队列或Source许可')
+})
+
+test('专辑总量不变的实际元数据提交仍推进分页修订，不能只靠total/counts判断稳定', async t => {
+  const f = await fixture(t), read = f.albums.queryVersionedAlbums
+  assert.equal(typeof read, 'function')
+  const first = await read(query)
+  f.repository.localCatalog.observeMetadata({ commandId: randomUUID(), trackId: f.tracks[0]!.id, source: 'synthetic', parserVersion: 'progressive-gate-v1',
+    fields: { title: '新版合成曲目', artist: '合成作者', album: '更名前置的合成专辑' } })
+  const next = await read(query)
+  assert.equal(next.page.total, first.page.total); assert.notEqual(next.revision, first.revision)
+  assert.ok(next.page.items.some((album: dto.LocalAlbumSummary) => album.title === '更名前置的合成专辑'))
+})
+
+test('只有封面筛选把库存修订并入渐进身份：相同total/counts的成员互换仍能识别', async t => {
+  const f = await fixture(t), existing = await f.albums.queryAlbums(query)
+  assert.equal(existing.items.length, 2)
+  const states = new Map<string, 'available' | 'missing'>([[existing.items[0]!.id, 'available'], [existing.items[1]!.id, 'missing']])
+  let inventoryRevision = 1, barriers = 0
+  const reader = createLocalAlbumOwnerService({ repository: f.repository, assertCurrent() {},
+    async readRootViews() { return [{ root: f.repository.localCatalog.root(f.root.id), label: '合成来源', availability: await sourceRootAvailability(f.repository.sources.root(f.root.sourceRootId)) }] },
+    async readArtwork() { throw new Error('分页不得用探测源图伪造库存') },
+    savedArtworkInventory: { revision: () => String(inventoryRevision), read(key, rootId) { assert.equal(rootId, f.root.id); return states.get(key) ?? null } },
+    withArtworkInventoryRead(read) { barriers++; return read() },
+  })
+  try {
+    const all = await reader.queryVersionedAlbums(query), filtered = await reader.queryVersionedAlbums({ ...query, filter: 'has-artwork' })
+    assert.equal(filtered.page.total, 1); assert.equal(filtered.page.items[0]!.id, existing.items[0]!.id)
+    states.set(existing.items[0]!.id, 'missing'); states.set(existing.items[1]!.id, 'available'); inventoryRevision++
+    const allNext = await reader.queryVersionedAlbums(query), filteredNext = await reader.queryVersionedAlbums({ ...query, filter: 'has-artwork' })
+    assert.equal(allNext.revision, all.revision, '普通墙的成员排序不因封面观察变化失效')
+    assert.deepEqual(filteredNext.page.counts, filtered.page.counts); assert.equal(filteredNext.page.total, filtered.page.total)
+    assert.notEqual(filteredNext.page.items[0]!.id, filtered.page.items[0]!.id); assert.notEqual(filteredNext.revision, filtered.revision)
+    assert.equal(barriers, 4, '修订与页仍在四次独立原库存读屏障内捕获')
+  } finally { reader.close() }
+})
+
+test('新渐进读口在Owner内也拒绝101张和已关闭作者，不只依赖Renderer参数', async t => {
+  const f = await fixture(t), read = f.albums.queryVersionedAlbums
+  assert.equal(typeof read, 'function')
+  let reads = 0
+  const original = f.repository.localCatalog.privateAlbumBrowserQuery
+  f.repository.localCatalog.privateAlbumBrowserQuery = (...args) => { reads++; return original.apply(f.repository.localCatalog, args) }
+  await assert.rejects(read({ ...query, limit: 101 })); assert.equal(reads, 0)
+  f.albums.close()
+  await assert.rejects(read(query)); assert.equal(reads, 0)
+})
+
 test('专辑私有计时：原Owner与SQL冷热路径同SHA且旁注故障保原首错与返回', async t => {
   // 仅合成Owner/SQLite计时链；不证明Worker投递、真实目录或普通App延迟首因。
   const originalInfo = console.info, outerContext = captureLocalAlbumContext(), restorations: Array<() => void> = []

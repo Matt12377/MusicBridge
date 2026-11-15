@@ -1,12 +1,14 @@
 import { emitRendererArtwork, desktopArtworkStarted, desktopArtworkElapsed, desktopArtworkKey } from '../../../../../../../../packages/bridge-core/src/shared/desktop-artwork-trace.js'
-import { isCollectionId, isLocalCatalogText, isLocalAlbumSummary, isLocalAlbumPage, isLocalAlbumTrackPage, isLocalAlbumArtworkReply } from '@music-bridge/contracts'
+import { isCollectionId, isLocalCatalogText, isLocalAlbumSummary, isLocalAlbumPage, isLocalAlbumTrackPage, isLocalAlbumArtworkReply, isLocalAlbumVersionedPage, LOCAL_ALBUM_PROGRESSIVE_PAGE_SIZE } from '@music-bridge/contracts'
+import { createProgressiveAlbumPass, type ProgressiveAlbumPass } from './progressive-pass.js'
 import { logLibraryOperation } from '../../../../../../../../packages/bridge-core/src/shared/library-operation-log.js'
 import { readLocalAlbumSafeMarker } from '../../../../../shared/library-read-trace.js'
 import { LOCAL_ALBUM_STATUSES, type LocalAlbumArtworkRequest, type LocalAlbumArtworkState, type LocalAlbumArtworkWindow, type LocalAlbumBrowserOptions, type LocalAlbumBrowserSnapshot, type LocalAlbumFilter, type LocalAlbumFilterCounts, type LocalAlbumPage, type LocalAlbumQuery, type LocalAlbumReturnTarget, type LocalAlbumSummary, type LocalAlbumTrackItem, type LocalAlbumTrackPage, type LocalAlbumTrackQuery } from './types.js'
 export { isLocalAlbumSummary, isLocalAlbumPage, isLocalAlbumTrackItem, isLocalAlbumTrackPage, isLocalAlbumArtworkReply } from '@music-bridge/contracts'
 export { localAlbumTrackPresentation } from './presentation.js'
 
-export const LOCAL_ALBUM_PAGE_SIZE = 200
+export const LOCAL_ALBUM_PAGE_SIZE = LOCAL_ALBUM_PROGRESSIVE_PAGE_SIZE
+export const LOCAL_ALBUM_RECONCILE_INTERVAL_MS = 1000
 export const LOCAL_ALBUM_TRACK_PAGE_SIZE = 100
 /** 本地资源回复可并发；源文件提取仍由 Core 独立的两槽队列限制。 */
 export const LOCAL_ALBUM_ARTWORK_CONCURRENCY = 8
@@ -43,7 +45,9 @@ function positiveOption(value: number | undefined, fallback: number, max: number
 
 /** 纯只读状态机；各次读取按代际与请求身份提交，迟到回复不覆盖当前页面。 */
 export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) {
-  const pageSize = positiveOption(options.pageSize, LOCAL_ALBUM_PAGE_SIZE, 200)
+  const pageSize = positiveOption(options.pageSize, LOCAL_ALBUM_PAGE_SIZE, LOCAL_ALBUM_PROGRESSIVE_PAGE_SIZE)
+  const queryVersionedAlbums = options.api.queryVersionedAlbums?.bind(options.api)
+  let progressivePass: ProgressiveAlbumPass | undefined, progressiveReconcileAtMs = 0, lastProgressiveRefreshAtMs: number | undefined
   const trackPageSize = positiveOption(options.trackPageSize, LOCAL_ALBUM_TRACK_PAGE_SIZE, 200)
   const artworkConcurrency = positiveOption(options.artworkConcurrency, LOCAL_ALBUM_ARTWORK_CONCURRENCY, LOCAL_ALBUM_ARTWORK_CONCURRENCY)
   const artworkCacheBytes = positiveOption(options.artworkCacheBytes, LOCAL_ALBUM_ARTWORK_CACHE_BYTES, 64 * 1024 * 1024)
@@ -77,7 +81,7 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   let artworkDetailRefreshPending: Promise<void> | undefined
   let artworkRefreshGeneration: number | null = null
   let state: LocalAlbumBrowserSnapshot = Object.freeze({ active: false, query: '', rootId: null, filter: 'all', items: Object.freeze([]), total: 0, hasMore: false, counts: emptyCounts(), loaded: false,
-    status: 'idle', initialLoading: false, refreshing: false, loadingMore: false, error: '', refreshError: '', loadMoreError: '', stale: false, scrollTop: 0,
+    status: 'idle', initialLoading: false, refreshing: false, loadingMore: false, error: '', refreshError: '', loadMoreError: '', stale: false, reconciling: false, scrollTop: 0,
     selectedAlbum: null, selectedAlbumIds: Object.freeze([]), tracks: Object.freeze([]), trackTotal: 0, tracksHasMore: false, detailStatus: 'idle', detailLoading: false, detailRefreshing: false, detailLoadingMore: false,
     detailError: '', detailRefreshError: '', detailLoadMoreError: '', detailStale: false, returnTarget: null, artwork: Object.freeze(Object.create(null)) as Readonly<Record<string, LocalAlbumArtworkState>> })
   let artworkSnapshotDirty = false, artworkSnapshotSize = 0
@@ -148,10 +152,13 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   }
   function scheduleBackground(): void {
     if (!options.backgroundLoading || disposed || !state.active || !state.loaded) return
-    if (state.hasMore && !state.initialLoading && !state.refreshing && !state.loadingMore && !state.loadMoreError && galleryPending?.generation !== galleryGeneration && !galleryBackgroundTimer) {
-      const generation = galleryGeneration
-      // 每页让出事件循环，首屏、滚动和播放不等待完整目录。
-      galleryBackgroundTimer = setTimeout(() => { galleryBackgroundTimer = undefined; if (currentGallery(generation)) void readGallery('more') }, 16)
+    const reconcile = !!queryVersionedAlbums && progressivePass?.complete && progressivePass.needsReconciliation && !galleryRefreshDeferred
+    if ((state.hasMore || reconcile) && !state.initialLoading && !state.refreshing && !state.loadingMore && !state.loadMoreError
+      && (!queryVersionedAlbums || !state.refreshError) && galleryPending?.generation !== galleryGeneration && !galleryBackgroundTimer) {
+      const generation = galleryGeneration, mode = state.hasMore ? 'more' : 'refresh'
+      // 正常页逐次让出事件循环；漂移轮结束后至多约每秒重核一次，不按扫描文件重读整前缀。
+      const delay = mode === 'more' ? 16 : Math.max(1, progressiveReconcileAtMs - Date.now())
+      galleryBackgroundTimer = setTimeout(() => { galleryBackgroundTimer = undefined; if (currentGallery(generation)) void readGallery(mode) }, delay)
     }
     // 全页发现与RAM读图分离；正式页面由Grid兴趣窗口读图，Core持续补齐持久副本。
     if (!backgroundArtworkLoading || state.refreshing || artworkBackgroundTimer || artworkBackgroundWork) return
@@ -313,8 +320,9 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
         const membershipChanged = artworkFilter && current.some(value => currentCountObservation(value)!.statuses.includes(state.filter as 'has-artwork' | 'missing-artwork')
           !== (state.filter === (value.state === 'available' ? 'has-artwork' : 'missing-artwork')))
         if (membershipChanged || total !== state.total || !countsEqual(counts, state.counts, 'all')) {
-          // 成员资格或其他集合事实变化只重建一次首页；不把失效尾页接到新集合。
-          await readGallery('refresh', true); return
+          // 新读口合并到原渐进pass并保留卡片/滚动；旧读口仍沿原严格首页重建。
+          if (queryVersionedAlbums) await refreshProgressiveGallery(); else await readGallery('refresh', true)
+          return
         }
         const updates = new Map(current.map(value => [value.request.albumKey, value]))
         const updated = (album: LocalAlbumSummary): LocalAlbumSummary => {
@@ -372,7 +380,37 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
       void refreshGallery().then(deferred.finish, deferred.fail)
     }, GALLERY_REFRESH_TAIL_MS)
   }
+  function invalidateProgressivePass(): void {
+    if (progressivePass && !progressivePass.needsReconciliation) progressiveReconcileAtMs = Date.now() + LOCAL_ALBUM_RECONCILE_INTERVAL_MS
+    progressivePass?.invalidate()
+    if (!state.reconciling) publish({ reconciling: true })
+  }
+  function refreshProgressiveGallery(): Promise<void> {
+    if (disposed || !state.active) return Promise.resolve()
+    if (galleryRefreshDeferred?.epoch === galleryRefreshEpoch) return galleryRefreshDeferred.promise
+    if (galleryPending?.generation === galleryGeneration || progressivePass && !progressivePass.complete && !state.error && !state.refreshError && !state.loadMoreError) {
+      invalidateProgressivePass()
+      scheduleBackground()
+      return galleryPending?.generation === galleryGeneration ? galleryPending.promise : Promise.resolve()
+    }
+    const remaining = lastProgressiveRefreshAtMs === undefined ? 0 : LOCAL_ALBUM_RECONCILE_INTERVAL_MS - (Date.now() - lastProgressiveRefreshAtMs)
+    if (remaining > 0) {
+      let finish!: () => void, fail!: (error: unknown) => void
+      const promise = new Promise<void>((resolve, reject) => { finish = resolve; fail = reject })
+      const deferred = { epoch: galleryRefreshEpoch, promise, finish, fail, timer: undefined as ReturnType<typeof setTimeout> | undefined }
+      galleryRefreshDeferred = deferred
+      deferred.timer = setTimeout(() => {
+        if (galleryRefreshDeferred !== deferred) return
+        galleryRefreshDeferred = undefined
+        if (disposed || !state.active || deferred.epoch !== galleryRefreshEpoch) { finish(); return }
+        void refreshProgressiveGallery().then(finish, fail)
+      }, remaining)
+      return promise
+    }
+    return readProgressiveGallery(state.loaded ? 'refresh' : 'initial')
+  }
   function refreshGallery(): Promise<void> {
+    if (queryVersionedAlbums) return refreshProgressiveGallery()
     if (disposed || !state.active) return Promise.resolve()
     if (galleryRefreshDeferred?.epoch === galleryRefreshEpoch) return galleryRefreshDeferred.promise
     const current = galleryRefreshWork
@@ -401,7 +439,53 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
     return promise
   }
 
+  async function readProgressiveGallery(mode: 'initial' | 'refresh' | 'more', restart = false): Promise<void> {
+    if (!queryVersionedAlbums || !state.active || disposed || mode === 'more' && (!state.loaded || !state.hasMore)) return
+    if (galleryPending?.generation === galleryGeneration && mode !== 'initial') {
+      if (mode === 'refresh') invalidateProgressivePass()
+      return galleryPending.promise
+    }
+    if (mode === 'more' && (!progressivePass || progressivePass.complete)) return readProgressiveGallery('refresh', restart)
+    clearTimeout(galleryBackgroundTimer); galleryBackgroundTimer = undefined
+    galleryReadSerial++
+    const generation = mode === 'more' ? galleryGeneration : ++galleryGeneration
+    const scope = { query: state.query, rootId: state.rootId, filter: state.filter }
+    if (mode !== 'more') { progressivePass = createProgressiveAlbumPass(scope, state.loaded); progressiveReconcileAtMs = 0 }
+    const pass = progressivePass!, request: LocalAlbumQuery = { ...scope, offset: pass.offset, limit: pageSize }
+    if (mode === 'refresh') lastProgressiveRefreshAtMs = Date.now()
+    const artworkRetryGeneration = artworkGeneration, observedBeforePage = artworkCountSerial
+    const unavailableEntries = mode === 'refresh' ? [...artworkCache.values()].filter(entry => entry.state === unavailableArtwork) : []
+    publish({ initialLoading: mode === 'initial', refreshing: mode === 'refresh', loadingMore: mode === 'more',
+      ...(mode === 'initial' ? { status: 'loading' as const, error: '' } : mode === 'refresh' ? { refreshError: '', reconciling: true } : { loadMoreError: '' }) })
+    const promise = (async () => {
+      try {
+        const reply = await queryVersionedAlbums(request)
+        if (!currentGallery(generation) || progressivePass !== pass) return
+        if (!isLocalAlbumVersionedPage(reply, request)) throw new Error('无效渐进专辑投影')
+        const value = immutable(reply), patch = pass.accept(request, value, state.items)
+        observeRevisions(value.page.items)
+        if (artworkRetryGeneration === artworkGeneration) galleryArtworkCountSerial = Math.max(galleryArtworkCountSerial, observedBeforePage)
+        if (pass.complete && pass.needsReconciliation) progressiveReconcileAtMs = Date.now() + LOCAL_ALBUM_RECONCILE_INTERVAL_MS
+        publish({ ...patch, loaded: true, status: patch.items.length ? 'ready' : 'empty', stale: false, error: '', refreshError: '', loadMoreError: '',
+          ...(restart ? { scrollTop: 0, selectedAlbumIds: Object.freeze([]) } : {}) })
+        if (currentGallery(generation)) retryRefreshedUnavailableArtwork(patch.items, unavailableEntries, artworkRetryGeneration)
+      } catch {
+        if (!currentGallery(generation)) return
+        publish(mode === 'initial' ? { status: 'error', loaded: false, error: '专辑暂时无法读取，请重试。已保存的音乐库信息保留。' }
+          : mode === 'refresh' ? { stale: true, refreshError: '专辑刷新暂未完成，保留上次成功读取的结果，请重试。' }
+            : { loadMoreError: '更多专辑暂时无法读取，请重试。已显示的专辑保留。' })
+      } finally {
+        if (currentGallery(generation)) publish({ initialLoading: false, refreshing: false, loadingMore: false })
+      }
+    })()
+    const pending = { generation, promise }; galleryPending = pending
+    await promise
+    if (galleryPending === pending) galleryPending = undefined
+    if (currentGallery(generation)) scheduleBackground()
+  }
+
   async function readGallery(mode: 'initial' | 'refresh' | 'more', restart = false): Promise<void> {
+    if (queryVersionedAlbums) return readProgressiveGallery(mode, restart)
     if (!state.active || disposed || mode === 'more' && (!state.loaded || !state.hasMore)) return
     if (mode === 'more' && galleryPending?.generation === galleryGeneration) return galleryPending.promise
     clearTimeout(galleryBackgroundTimer); galleryBackgroundTimer = undefined
@@ -534,10 +618,11 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   }
   async function resetScope(patch: Pick<Partial<LocalAlbumBrowserSnapshot>, 'query' | 'rootId' | 'filter'>): Promise<void> {
     cancelGalleryRefreshes()
+    progressivePass = undefined; progressiveReconcileAtMs = 0; lastProgressiveRefreshAtMs = undefined
     galleryGeneration++; clearDetail(false); cancelArtworkRequests()
     backgroundSeen.clear(); backgroundCompleted.clear(); backgroundCompletedCount = 0; backgroundReadyCount = 0; backgroundCursor = 0
     publish({ ...patch, selectedAlbumIds: Object.freeze([]), items: Object.freeze([]), total: 0, hasMore: false, counts: emptyCounts(), loaded: false, status: 'idle', initialLoading: false, refreshing: false, loadingMore: false,
-      error: '', refreshError: '', loadMoreError: '', stale: false, scrollTop: 0 })
+      error: '', refreshError: '', loadMoreError: '', stale: false, reconciling: false, scrollTop: 0 })
     await readGallery('initial')
   }
   /** 同一次页面动作合并搜索、来源与筛选；只建立一个新代际和一次首页请求。 */
@@ -874,17 +959,18 @@ export function createLocalAlbumBrowserModel(options: LocalAlbumBrowserOptions) 
   }
   function deactivate(releaseArtwork = false): void {
     if (disposed || !state.active) return
+    if (galleryPending?.generation === galleryGeneration) progressivePass?.invalidate()
     cancelGalleryRefreshes()
     galleryGeneration++; detailGeneration++; cancelArtworkRequests()
     detailArtwork = undefined
     // 独立页面保留浏览位置，离页释放显示图；两页不能各自占用一份完整封面缓存。
     if (releaseArtwork) clearCachedArtwork()
     publish({ active: false, initialLoading: false, refreshing: false, loadingMore: false, detailLoading: false, detailRefreshing: false, detailLoadingMore: false,
-      stale: state.stale || state.refreshing, detailStale: state.detailStale || state.detailRefreshing,
+      stale: state.stale || state.refreshing, reconciling: state.reconciling || !!progressivePass?.needsReconciliation, detailStale: state.detailStale || state.detailRefreshing,
       status: state.loaded ? state.status : 'idle', detailStatus: state.detailStatus === 'loading' ? 'idle' : state.detailStatus,
       ...(releaseArtwork ? { artworkInvalidation: Object.freeze({ epoch: ++artworkInvalidationEpoch, albumKey: null }) } : {}) })
   }
-  function dispose(): void { if (disposed) return; deactivate(); disposed = true; clearCachedArtwork(); publish() }
+  function dispose(): void { if (disposed) return; deactivate(); disposed = true; progressivePass = undefined; clearCachedArtwork(); publish() }
   return { getSnapshot: () => state, activate, deactivate, dispose, setScope, search, setFilter, setRoot, refresh, loadMore: () => readGallery('more'),
     openAlbum, openAlbumReference, closeAlbum: () => clearDetail(true), refreshAlbum, loadMoreTracks: () => readDetail('more'), setSelectedAlbums, setScrollTop, artworkFor, setArtworkWindow, ensureArtwork, retryArtwork, invalidateArtwork,
     getArtworkCacheUsage: () => ({ entries: artworkCache.size, bytes: [...artworkCache.values()].reduce((total, entry) => total + entry.bytes, detailArtwork?.bytes ?? 0), running: artworkRunning, queued: artworkQueue.length }) }

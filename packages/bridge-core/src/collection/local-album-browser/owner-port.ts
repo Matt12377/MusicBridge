@@ -325,10 +325,11 @@ export function createLocalAlbumOwnerService(options: LocalAlbumOwnerPortOptions
     if (closedService) changed()
     if (read.signal?.aborted) { const error = new Error('后台封面读取已取消。'); error.name = 'AbortError'; throw error }
   }
-  async function queryAlbums(request: dto.LocalAlbumQuery, read: LocalAlbumPrivateReadOptions = {}): Promise<dto.LocalAlbumPage> {
+  /** 页和修订在同一原Owner/库存读屏障中捕获；不钉住事务、不预建整库DTO。 */
+  async function readAlbumPage(request: dto.LocalAlbumQuery, read: LocalAlbumPrivateReadOptions, versioned: boolean): Promise<dto.LocalAlbumVersionedPage> {
     return protect(async () => {
       assertRead(read)
-      localAlbumPhase('owner.input'); const requestValid = dto.isLocalAlbumQuery(request); localAlbumMatch('dto', requestValid)
+      localAlbumPhase('owner.input'); const requestValid = versioned ? dto.isLocalAlbumVersionedQuery(request) : dto.isLocalAlbumQuery(request); localAlbumMatch('dto', requestValid)
       if (!requestValid) return invalid()
       localAlbumPhase('owner.refresh'); await refresh(); assertRead(read)
       return withInventoryRead(() => {
@@ -339,13 +340,23 @@ export function createLocalAlbumOwnerService(options: LocalAlbumOwnerPortOptions
           artworkPrepared: options.readPreparedArtwork ? savedInventory(() => options.readPreparedArtwork!({ albumKey: album.id, rootId: album.rootId,
             editionId: album.editionId, representativeTrackId: album.representativeTrackId, revision: album.revision }), () => false)
             : readSavedState(album.id, album.rootId) === 'available' })) } : originalPage
+        // 普通画廊补图不重排成员；按封面筛选时，库存修订也是成员资格的一部分。
+        const revision = versioned && (request.filter === 'has-artwork' || request.filter === 'missing-artwork')
+          ? hash([current.revision, inventory.revision()]) : current.revision
         noteReadTiming('owner.sql.albums', 'ok')
         localAlbumPhase('owner.seal'); seal(current)
-        localAlbumPhase('owner.dto'); const pageValid = dto.isLocalAlbumPage(page, request); localAlbumMatch('dto', pageValid)
+        const result = { revision, page }
+        localAlbumPhase('owner.dto'); const pageValid = versioned ? dto.isLocalAlbumVersionedPage(result, request) : dto.isLocalAlbumPage(page, request); localAlbumMatch('dto', pageValid)
         if (!pageValid) return unavailable()
-        emitLocalAlbumNodeTrace('ok'); noteReadTiming('owner.return', 'ok'); return page
+        emitLocalAlbumNodeTrace('ok'); noteReadTiming('owner.return', 'ok'); return result
       })
     })
+  }
+  async function queryAlbums(request: dto.LocalAlbumQuery, read: LocalAlbumPrivateReadOptions = {}): Promise<dto.LocalAlbumPage> {
+    return (await readAlbumPage(request, read, false)).page
+  }
+  async function queryVersionedAlbums(request: dto.LocalAlbumQuery, read: LocalAlbumPrivateReadOptions = {}): Promise<dto.LocalAlbumVersionedPage> {
+    return readAlbumPage(request, read, true)
   }
   /** 只交给同Owner后台闭包；public query的purpose字段不能选择此读取。 */
   async function privateBackgroundCandidates(request: LocalAlbumBackgroundCandidateQuery, signal: AbortSignal): Promise<LocalAlbumBackgroundCandidatePage> {
@@ -487,7 +498,7 @@ export function createLocalAlbumOwnerService(options: LocalAlbumOwnerPortOptions
   function clearObservations(): void { queueAuditEpoch = Object.freeze({}); generation++; observations.clear(); pending.clear(); observationSourceRevision = null; observationEpoch++; observationCount = 0; lastRevision = null }
   function invalidate(): void { clearObservations(); if (datasetId) options.repository.privateLocalAlbumArtworkObservations?.removeDataset(datasetId) }
   function invalidateRoot(libraryId:string):void{queueAuditEpoch = Object.freeze({});for(const values of [observations,pending])for(const [key,value]of values)if(value.rootId===libraryId)values.delete(key);observationCount=new Set([...observations.keys(),...pending.keys()]).size;options.repository.privateLocalAlbumArtworkObservations?.removeRoot(libraryId);observationEpoch++;lastRevision=null}
-  return { queryAlbums, queryAlbumTracks, getArtwork, inspectAlbum, invalidate,invalidateRoot, privateMobile, privateBackgroundCandidates,
+  return { queryAlbums, queryVersionedAlbums, queryAlbumTracks, getArtwork, inspectAlbum, invalidate,invalidateRoot, privateMobile, privateBackgroundCandidates,
     getCacheInfo: () => ({ mode: 'sql-paged' as const, revision: lastRevision, observationCount, bytes: Buffer.byteLength(JSON.stringify([...observations.values(), ...pending.values()])) }),
     close() { closedService = true; views = null; clearObservations() },
   }

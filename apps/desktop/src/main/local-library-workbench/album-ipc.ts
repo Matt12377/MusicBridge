@@ -33,6 +33,7 @@ export function registerLocalAlbumIpc(options: LocalAlbumIpcOptions): void {
     localAlbumPhase('main.dto')
     if (!dto.isLocalAlbumCommandResult(command, result)
       || command === 'localAlbum.query' && !dto.isLocalAlbumPage(result, request.payload as dto.LocalAlbumQuery)
+      || command === 'localAlbum.queryVersioned' && !dto.isLocalAlbumVersionedPage(result, request.payload as dto.LocalAlbumQuery)
       || command === 'localAlbum.tracks' && !dto.isLocalAlbumTrackPage(result, request.payload as dto.LocalAlbumTrackQuery, (result as dto.LocalAlbumTrackPage).album)
       || command === 'localAlbum.artwork' && !dto.isLocalAlbumArtworkReply(result, request.payload as dto.LocalAlbumArtworkRequest)) throw new Error('本地专辑读取结果无效。')
     return structuredClone(result)

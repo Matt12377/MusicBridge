@@ -37,16 +37,16 @@ async function until(predicate: () => boolean, message: string): Promise<void> {
   assert.ok(predicate(), message)
 }
 
-test('正式专辑墙默认200项首屏后无需滚动继续发现407项并暖图，滚回复用网格图，详情独立读取高清', async t => {
+test('正式专辑墙默认100项首屏后无需滚动继续发现407项并暖图，滚回复用网格图，详情独立读取高清', async t => {
   const values = albums(407), queries: LocalAlbumQuery[] = [], reads: LocalAlbumArtworkRequest[] = []
   const model = createLocalAlbumBrowserModel({ backgroundLoading: true, compactGridArtwork: true, artworkCacheEntries: 2048, artworkCacheBytes: 32 * 1024 * 1024,
     api: api(values, { queryAlbums: async request => { queries.push(request); return page(request, values) }, getArtwork: async request => { reads.push(request); return reply(request) } }) })
   t.after(model.dispose)
   await model.activate()
-  assert.equal(model.getSnapshot().items.length, 200, '首屏只等待一页，不等待后台全库加载')
+  assert.equal(model.getSnapshot().items.length, 100, '首屏只等待一页，不等待后台全库加载')
   assert.equal(queries.length, 1)
   await until(() => model.getSnapshot().items.length === 407 && model.getSnapshot().backgroundArtwork?.completed === 407, '目录与封面必须在没有滚动事件时自动推进')
-  assert.deepEqual(queries.map(value => [value.offset, value.limit]), [[0, 200], [200, 200], [400, 200]])
+  assert.deepEqual(queries.map(value => [value.offset, value.limit]), [[0, 100], [100, 100], [200, 100], [300, 100], [400, 100]])
   assert.equal(reads.length, 407); assert.equal(model.getArtworkCacheUsage().entries, 407)
   assert.ok(reads.every(value => value.variant === 'grid'), '画廊传输只申请持久网格副本')
   assert.equal(model.getSnapshot().backgroundArtwork?.running, false)
@@ -117,20 +117,20 @@ test('双入口显式开启RAM预热仍自动读取目录，普通多页返回�
   assert.equal(requests.length, reads); assert.equal(pages.localLibrary.items.value, before.items); assert.equal(pages.localLibrary.scrollTop.value, 400)
 })
 
-test('10001项默认51页普通返回不重复查询，明确刷新与范围变更仍读取真实新事实', async t => {
+test('10001项默认101页普通返回不重复查询，明确刷新与范围变更仍读取真实新事实', async t => {
   const values = albums(10001), requests: LocalAlbumQuery[] = []
   const model = createLocalAlbumBrowserModel({ reuseLoadedOnActivate: true, api: api(values, {
     queryAlbums: async request => { requests.push(request); return page(request, values) },
   }) }); t.after(model.dispose); await model.activate()
   while (model.getSnapshot().hasMore) await model.loadMore()
-  assert.equal(requests.length, 51); const before = model.getSnapshot()
+  assert.equal(requests.length, 101); const before = model.getSnapshot()
   model.setScrollTop(10000); model.deactivate(); await model.activate()
-  assert.equal(requests.length, 51, '普通返回不能再同步串读51页')
+  assert.equal(requests.length, 101, '普通返回不能再同步串读101页')
   assert.equal(model.getSnapshot().items, before.items); assert.equal(model.getSnapshot().scrollTop, 10000)
   await model.refresh(true)
-  assert.equal(requests.length, 52); assert.equal(requests.at(-1)!.offset, 0); assert.equal(model.getSnapshot().items.length, 200)
+  assert.equal(requests.length, 102); assert.equal(requests.at(-1)!.offset, 0); assert.equal(model.getSnapshot().items.length, 100)
   await model.search('合成专辑 10000')
-  assert.equal(requests.length, 53); assert.equal(model.getSnapshot().items.length, 1); assert.equal(model.getSnapshot().items[0]!.id, 'background-10000')
+  assert.equal(requests.length, 103); assert.equal(model.getSnapshot().items.length, 1); assert.equal(model.getSnapshot().items[0]!.id, 'background-10000')
   model.deactivate(); await model.invalidateArtwork(); const count = requests.length
   await model.activate(); assert.equal(requests.length, count + 1, '失效信号仍强制重新查询，缓存不冒充当前事实')
 })

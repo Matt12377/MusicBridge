@@ -9,6 +9,7 @@ import * as contracts from '@music-bridge/contracts'
 import { useLocalWorkbenchLibrary } from '../src/renderer/src/composables/application/local-library-workbench/library.js'
 import { useLocalAlbumBrowserPages } from '../src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.js'
 import { useLocalLibrary } from '../src/renderer/src/composables/application/useLocalLibrary.js'
+import { useStartupLibraryPreview } from '../src/renderer/src/composables/application/startup-library-preview.js'
 import { isCoreRuntimeStable } from '../src/renderer/src/core-readiness.js'
 import { localLibraryScanPresentation } from '../src/renderer/src/composables/application/local-library-browser/scan-presentation.js'
 
@@ -43,7 +44,7 @@ function sourceBlock() {
     const createLocalWorkbenchRendererPorts=()=>({}), localMaintenanceAvailability=()=>false, localMaintenanceOpened=()=>{}, invalidateResultInspections=()=>{};
     ${source.slice(bindingStart,bindingEnd)}\n${source.slice(start,end)}\n${source.slice(queryStart,queryEnd)}\n${source.slice(workspaceStart,workspaceEnd)}\n${source.slice(navigationStart,navigationEnd)}
     installInitialScanObservationLifecycle();
-    return { workbenchLibrary, localLibraryViewMode, queryLocalAlbumsWithFlow, refreshLocalBrowserViews, refreshLocalLibraryFromWorkbench,
+    return { workbenchLibrary, localLibraryViewMode, queryLocalAlbumsWithFlow, queryLocalAlbumsVersionedWithFlow, refreshLocalBrowserViews, refreshLocalLibraryFromWorkbench,
       flush:()=>initialScanWork??Promise.resolve(), observations:()=>[...initialScanObservations.values()], budgets:()=>initialScanDiscoveryBudgets.map(value=>({...value})),
       epoch:()=>initialScanEpoch, timer:()=>initialScanTimer, observeInitialScan:()=>requestInitialScanRefresh(false),
       scanStatus:()=>initialScanStatusError.value, scanJobs:()=>initialScanJobs.value, attemptedRoots:()=>[...initialScanAttemptedRoots],
@@ -53,7 +54,7 @@ function sourceBlock() {
   return ts.transpileModule(body, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
 }
 
-async function fixture(t: TestContext, options: { jobs?: contracts.ScanJobRecord[]; rootPresent?: boolean; phase?: contracts.ScanJobRecord['phase']; total?: number; drainTail?: boolean; initialView?: string; localSession?: ReturnType<typeof useLocalLibrary>; initialReadFailure?: boolean; runtime?: contracts.RuntimeStatus; remoteStatus?: contracts.RemoteCoreTunnelStatus } = {}) {
+async function fixture(t: TestContext, options: { jobs?: contracts.ScanJobRecord[]; rootPresent?: boolean; phase?: contracts.ScanJobRecord['phase']; total?: number; drainTail?: boolean; initialView?: string; localSession?: ReturnType<typeof useLocalLibrary>; initialReadFailure?: boolean; runtime?: contracts.RuntimeStatus; remoteStatus?: contracts.RemoteCoreTunnelStatus; progressive?: boolean } = {}) {
   const currentView = ref(options.initialView ?? 'home'), scope = effectScope(), mounts: (() => void)[] = [], unmounts: (() => void)[] = []
   const timers = new Map<number, () => void>(), listeners = new Map<string, () => void>(), gates: ReturnType<typeof deferred>[] = []
   const calls: { command: string; payload: any }[] = [], galleryQueries: contracts.LocalAlbumQuery[] = []
@@ -152,15 +153,23 @@ async function fixture(t: TestContext, options: { jobs?: contracts.ScanJobRecord
   }
   const localLibrary = options.localSession ?? useLocalLibrary({api:api as unknown as contracts.LocalLibraryPublicApi,getSelectedZone:()=>undefined,play:async()=>{throw new Error('纯读Gate禁止点播')}}), workbenchLyrics = { pending: ref(false) }
   const storage = new Map<string, string>()
-  const window = { musicBridge: {...api,queryLocalAlbums:rawModelApi.queryAlbums}, localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => { storage.set(key, value) } },
+  const window = { musicBridge: { ...api,
+    queryLocalAlbums: options.progressive ? async () => { throw new Error('版本化App读口不得降级旧分页') } : rawModelApi.queryAlbums,
+    ...(options.progressive ? { queryLocalAlbumsVersioned: async (request: contracts.LocalAlbumQuery) => {
+      const page = await rawModelApi.queryAlbums(request)
+      return { revision: page.total.toString(16).padStart(64, '0'), page }
+    } } : {}),
+  }, localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => { storage.set(key, value) } },
     addEventListener: (name: string, callback: () => void) => { listeners.set(name, callback) }, removeEventListener: (name: string) => { listeners.delete(name) } }
   const setTimeout = (callback: () => void, delay: number) => { assert.ok(delay > 0 && delay <= 15_000); const timer = ++nextTimer; timers.set(timer, callback); timerDelays.set(timer, delay); maxTimers = Math.max(maxTimers, timers.size); return timer }
   const clearTimeout = (timer: number | undefined) => { if (timer !== undefined) { timers.delete(timer); timerDelays.delete(timer) } }
   let pages!: ReturnType<typeof useLocalAlbumBrowserPages>, host: any
   scope.run(() => {
-    pages = useLocalAlbumBrowserPages({ api: {...rawModelApi,queryAlbums:request=>host.queryLocalAlbumsWithFlow(request)} })
+    pages = useLocalAlbumBrowserPages({ api: { ...rawModelApi, queryAlbums: request => host.queryLocalAlbumsWithFlow(request),
+      ...(options.progressive ? { queryVersionedAlbums: (request: contracts.LocalAlbumQuery) => host.queryLocalAlbumsVersionedWithFlow(request) } : {}),
+    } })
     const wrap = (page: typeof pages.localLibrary) => ({ ...page, invalidateArtwork: async () => { invalidations++; await page.invalidateArtwork() } })
-    const parameters = ['window', 'watch', 'onMounted', 'onUnmounted', 'currentView', 'localWorkbenchDto', 'useLocalWorkbenchLibrary', 'localLibrary', 'workbenchLyrics', 'albumBrowser', 'coverDropBrowser', 'setTimeout', 'clearTimeout', 'shallowRef', 'ref', 'logLibraryOperation', 'remoteCoreState', 'isCoreRuntimeStable', 'Date', 'readLocalAlbumWithSafeTrace', 'coreState']
+    const parameters = ['window', 'watch', 'onMounted', 'onUnmounted', 'currentView', 'localWorkbenchDto', 'useLocalWorkbenchLibrary', 'localLibrary', 'workbenchLyrics', 'albumBrowser', 'coverDropBrowser', 'setTimeout', 'clearTimeout', 'shallowRef', 'ref', 'logLibraryOperation', 'remoteCoreState', 'isCoreRuntimeStable', 'Date', 'readLocalAlbumWithSafeTrace', 'coreState', 'desktopReadReady', 'startupFailed', 'useStartupLibraryPreview']
     // 仅隔离VM拦截原生finally入口，在真实尾微任务中投递请求；不改App区段或替代drain。
     const factory = options.drainTail ? runInNewContext(`(() => {
       const originalFinally = Promise.prototype.finally;
@@ -169,7 +178,7 @@ async function fixture(t: TestContext, options: { jobs?: contracts.ScanJobRecord
     })()`, { beforeDrainFinally: () => drainTail?.() }) : new Function(...parameters, sourceBlock())
     host = factory(
       window, watch, (callback: () => void) => mounts.push(callback), (callback: () => void) => unmounts.push(callback), currentView, contracts, useLocalWorkbenchLibrary,
-      localLibrary, workbenchLyrics, wrap(pages.localLibrary), wrap(pages.coverDrop), setTimeout, clearTimeout, shallowRef, ref, logLibraryOperation, remoteCoreState, isCoreRuntimeStable, { now: () => now }, async(action:()=>Promise<unknown>)=>action(), coreState)
+      localLibrary, workbenchLyrics, wrap(pages.localLibrary), wrap(pages.coverDrop), setTimeout, clearTimeout, shallowRef, ref, logLibraryOperation, remoteCoreState, isCoreRuntimeStable, { now: () => now }, async(action:()=>Promise<unknown>)=>action(), coreState, ref(true), ref(false), useStartupLibraryPreview)
   })
   let destroyed = false
   const destroy = () => { if (destroyed) return; destroyed = true; for (const callback of unmounts) callback(); host.workbenchLibrary.dispose(); localLibrary.dispose(); scope.stop() }
@@ -196,6 +205,31 @@ async function fixture(t: TestContext, options: { jobs?: contracts.ScanJobRecord
 function contextCalls(f:Awaited<ReturnType<typeof fixture>>) {
   const c=f.counters();return {roots:c.rootsReads,library:c.libraryReads,outbox:c.outboxReads,target:c.targetReads,capabilities:c.capabilityReads,scan:f.calls.filter(call=>call.command.startsWith('localScan.')).length}
 }
+
+test('版本化App首100张复用原首次页面准入，250张正在扫描时逐页展示而不等待completed', async t => {
+  const f = await fixture(t, { total: 250, progressive: true }), first = f.hold('nextQuery'), entering = f.enter()
+  await first.entered
+  assert.deepEqual(contextCalls(f), { roots: 0, library: 0, outbox: 0, target: 0, capabilities: 0, scan: 0 })
+  first.release(); await entering
+  assert.equal(f.pages.localLibrary.snapshot.value.items.length, 100); assert.equal(f.host.deferred(), false)
+  const tail = f.hold('nextQuery'), pending = f.pages.localLibrary.loadMore(); await tail.entered
+  assert.equal(f.state.phase, 'running'); assert.equal(f.pages.localLibrary.snapshot.value.items.length, 100)
+  tail.release(); await pending; assert.equal(f.pages.localLibrary.snapshot.value.items.length, 200)
+  await f.pages.localLibrary.loadMore(); assert.equal(f.pages.localLibrary.snapshot.value.items.length, 250)
+  assert.deepEqual(f.galleryQueries.map(value => [value.offset, value.limit]), [[0, 100], [100, 100], [200, 100]])
+  assert.equal(f.state.phase, 'running'); f.noWrites()
+})
+
+test('版本化App仍拒收旧Core在途首屏，只有新代真实页可以放行目录上下文', async t => {
+  const f = await fixture(t, { total: 7, progressive: true }), held = f.hold('nextQuery'), entering = f.enter()
+  await held.entered; f.coreEvent('core.health', 'starting'); await nextTick()
+  held.release(); await f.drain()
+  assert.equal(f.host.deferred(), true)
+  assert.deepEqual(contextCalls(f), { roots: 0, library: 0, outbox: 0, target: 0, capabilities: 0, scan: 0 })
+  f.coreEvent('core.ready'); await entering; await f.drain()
+  assert.equal(f.host.deferred(), false); assert.equal(f.pages.localLibrary.snapshot.value.items.length, 7)
+  assert.ok(f.counters().rootsReads > 0); f.noWrites()
+})
 
 test('FIRST_ALBUM_CONTEXT_GATE 首次真实页接受前零自动目录/工作台/扫描/Outbox读取，页成功无需health即可补齐',async t=>{
   const f=await fixture(t,{total:7}),hold=f.hold('nextQuery'),entering=f.enter();await hold.entered

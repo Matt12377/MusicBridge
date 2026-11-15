@@ -37,7 +37,7 @@ function closed(value: unknown, keys: readonly string[]): value is Record<string
 export function isLocalAlbumMainRequest(value: unknown): value is LocalAlbumMainRequest {
   return closed(value, ['version', 'type', 'id', 'datasetId', 'request']) && value.version === 1 && value.type === 'local-album-main-request'
     && dto.isCollectionId(value.id) && dto.isCommandOutboxDatasetId(value.datasetId) && isLocalAlbumOwnerReadRequest(value.request)
-    && (value.request.command === 'localAlbum.query' || value.request.command === 'localAlbum.tracks' || value.request.command === 'localAlbum.artwork')
+    && (value.request.command === 'localAlbum.query' || value.request.command === 'localAlbum.queryVersioned' || value.request.command === 'localAlbum.tracks' || value.request.command === 'localAlbum.artwork')
 }
 export function isLocalAlbumMainResponse(value: unknown, original: LocalAlbumMainRequest): value is LocalAlbumMainResponse {
   if (!isLocalAlbumMainRequest(original) || value === null || typeof value !== 'object') return false
