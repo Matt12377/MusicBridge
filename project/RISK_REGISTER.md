@@ -1,5 +1,13 @@
 # WAVE-3 风险登记
 
+## Mousa 4.1 渐进音乐库第四项（2026-11-15）
+
+| ID | 风险 | 当前控制 | 关闭条件 |
+|---|---|---|---|
+| MOUSA-PL-04-IO | 慢盘、并行 Range、不明媒体归属或真实 Roon/录音负载下，不能从单一 playing 状态推断安全扫描能力 | 原前台关键期预算 0；同代所有权、无 NEXT 工作、唯一实际 token/首字节资格稳定至少 2000ms 后最多一槽；逐读原票据、总容量、统一 Source claims 与实际 quiet 保留，未知继续暂缓，不承诺两秒必恢复或无条件边播边扫 | 在另获授权的具体真实环境/成品使用接受中验证；软件 Gate、loopback body、SDK 确认或 Electron 启动不能替代听感、真实设备/HAL 或录音负载证明，详见[第四项报告](../reports/MOUSA_4_1_PROGRESSIVE_LIBRARY_PLAYBACK_2026-11-15.md) |
+| MOUSA-PL-04-EVIDENCE | 将最大预算当剩余空槽/读许可会自取消；把诊断 parse/start、尾部受控门闩或小样本计时误写成真实解析/8万首起声证明 | 非授权预算不扣自身票据，硬 acquire 不放宽；Native 真正请求并经原 FD 读字节后才做撤权 Gate；原冻结八槽/Reader八槽独立证明实际一槽128项；Runtime Reader一槽、尾部新FD前计时、64项后合格请求及稳定续扫明确分场景，并纳入标准CI | 后续改调度/解析/授权须保留标准实际 Rust、FD/EBADF、原 Runtime、零票据稳定窗、手动控制及 Owner 反向帧保护；真实80k扫描→音频端到端另取证，不能拼接两个独立专项作性能承诺 |
+| MOUSA-PL-04-MPC8 | 第三项已成对复现的可选 MPC8 PARSE_FAILED 在本项相同固定 Worker 上仍使原严格五族 Gate 为8 accepted/2 rejected | 保留原10 accepted/0 rejected期望及唯一深层失败，不 skip/降期望、不改本任务外 parser，不签发新格式资格；其余208项深层保护、标准Core及桌面通过 | 后续独立修复、实际五族重新资格通过前不标绿；[原风险与基线证据](../reports/MOUSA_4_1_PROGRESSIVE_LIBRARY_AUDIT_2026-11-15.md)继续有效 |
+
 ## Mousa 4.1 渐进音乐库第三项（2026-11-15）
 
 | ID | 风险 | 当前控制 | 关闭条件 |
