@@ -5,7 +5,7 @@ import {chmod,lstat,mkdir,readFile,rename,utimes,writeFile} from 'node:fs/promis
 import {fstatSync,renameSync,writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {isDeepStrictEqual} from 'node:util';
-import {audioFixture,loadFreshMetadataReader,sha256} from '../helpers/mbrs003-audio-fixtures.js';
+import {audioFixture,loadFreshMetadataReader,closeFreshMetadataReaderPool,assertRustMetadataReadsQuiet,sha256} from '../helpers/mbrs003-audio-fixtures.js';
 import {authorizeSourceDirectory,readonlySourceCandidateMetadata} from '../../src/recording/source-files.js';
 import {createCollectionRepository} from '../../src/collection/repository.js';
 import {createLocalScanCoordinator} from '../../src/collection/local-scan-coordinator.js';
@@ -13,6 +13,7 @@ import {createScanReadAdmission} from '../../src/library/scan-read-admission.js'
 import type {DatasetProjectionPort,DatasetProjectionCommand,DatasetProjectionCommandPayloads,DatasetProjectionCommandResults} from '../../src/collection/dataset-owner-protocol.js';
 import type {MetadataReaderLifecycle,MetadataReaderPort,MetadataReadInput,MetadataReadResult} from '../../src/library/metadata-reader-types.js';
 
+test.after(closeFreshMetadataReaderPool);
 // 所有媒体是独立自有合成copy；普通文件操作控制真实故障，不返回FakeReader结果。
 async function fixture(t:test.TestContext,ids:readonly string[],hooks?:{beforeRead?(input:MetadataReadInput):void|Promise<void>;onLifecycle?(event:MetadataReaderLifecycle):void}) {
   const original=await audioFixture(t),directory=path.join(original.directory,'fault-media');await mkdir(directory,{mode:0o700});
@@ -39,7 +40,7 @@ async function fixture(t:test.TestContext,ids:readonly string[],hooks?:{beforeRe
   async function close(){if(closed)return;await coordinator.close();admission.close();assert.equal(admission.resourceCounts().permits,0);assert.equal(admission.resourceCounts().watches,0);repository.close();closed=true;}
   t.after(close);
   async function scan(){const job=coordinator.start({commandId:randomUUID(),libraryRootId:root.id,expectedRootRevision:root.revision});await coordinator.privateWait(job.jobId);return coordinator.get(job.jobId);}
-  function quiet(){if(observationError)throw observationError;const starts=events.filter(e=>e.type==='worker-start');
+  function quiet(){if(observationError)throw observationError;assertRustMetadataReadsQuiet(events);const starts=events.filter(e=>e.type==='worker-start');
     for(const start of starts){if(start.type!=='worker-start')continue;const from=events.indexOf(start),exit=events.findIndex((e,i)=>i>from&&e.type==='worker-exit'&&e.threadId===start.threadId);
       assert(exit>from);const release=events.findIndex((e,i)=>i>exit&&e.type==='lease-released'&&e.fd===start.fd);assert(release>exit);
       const complete=events.findIndex((e,i)=>i>release&&e.type==='read-complete');assert(complete>release);}

@@ -11,7 +11,8 @@ import { SourceWritesError } from './local-source-writes-journal.js';
 import { LocalRelocationError } from './local-relocation-journal.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { logLibraryOperation } from '../shared/library-operation-log.js';
-import { restoreLocalStartupAuditCache, saveLocalStartupAuditCache, captureLocalStartupAuditForActor, type PreparedLocalStartupAudit } from './local-startup-audit-cache.js';
+import { saveLocalStartupAuditCache, captureLocalStartupAuditForActor, type PreparedLocalStartupAudit } from './local-startup-audit-cache.js';
+import { runLocalLibraryStartupAudit } from './local-library-startup-audit.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
@@ -348,11 +349,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
         startupStage('recording-page-search', () => verifyRecordingRecordPageSearch(db));
         startupStage('preparation-sessions', () => verifyPreparationZipSessionDatabase(db));
         startupStage('recording-prints', () => recoverRecordingPrints(db));
-        startupAuditReused = restoreLocalStartupAuditCache(db, options.filePath, options.startupAudit);
-        if (!startupAuditReused) {
-          startupStage('catalog', () => verifyLocalCatalogDatabase(db));
-          startupStage('scan', () => verifyLocalScanDatabase(db));
-        }
+        startupAuditReused = runLocalLibraryStartupAudit({ db, filePath: options.filePath, ...(options.startupAudit ? { candidate: options.startupAudit } : {}), stage: startupStage });
         startupStage('queue', () => verifyMBQueueDatabase(db, false));
         const publishScanAudit = startupStage('scan-recovery', () => recoverLocalScanJobs(db, 'cold-open'));
         const attemptCandidate = startupStage('attempt-recovery', () => recoverRecordingAttempts(db, new Date().toISOString(), options.beforeCommit ? undefined : attemptAudit));

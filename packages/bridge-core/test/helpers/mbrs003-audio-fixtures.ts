@@ -7,6 +7,7 @@ import type { TestContext } from 'node:test';
 import { buildStoragePolicy } from '../../../../apps/desktop/scripts/build-storage-root.mjs';
 import { authorizeSourceDirectory } from '../../src/recording/source-files.js';
 import { readFixedMetadataWorkerBundle } from '../../scripts/metadata-reader-bundle-artifacts.mjs';
+import type { MetadataReaderLifecycle } from '../../src/library/metadata-reader-types.js';
 
 export interface AudioFixtureEntry {
   id: string; file: string; bytes: number; sha256: string; kind: 'audio' | 'png';
@@ -129,4 +130,31 @@ export async function loadFreshMetadataReader(): Promise<typeof import('../../sr
   assert.deepEqual(binding.fixedWorkerBundle, fixed.manifest, 'v2必须覆盖实际bundle、builder、adapter、graph及map');
   const reader = await import(pathToFileURL(path.join(coreRoot, 'dist/library/metadata-reader.js')).href) as typeof import('../../src/library/metadata-reader.js');
   assert.equal(typeof reader.createMetadataReader, 'function'); return reader;
+}
+
+/** 同一次fresh compiled图的进程级池由测试根收口，不能拿Reader.close冒充共享池退出。 */
+export async function closeFreshMetadataReaderPool(): Promise<void> {
+  await loadFreshMetadataReader();
+  const runtime = await import(pathToFileURL(path.join(coreRoot, 'dist/library/rust-media-worker.js')).href) as typeof import('../../src/library/rust-media-worker.js');
+  await runtime.closeRustMediaWorkerPool();
+}
+
+/** 常驻Rust不逐项退出：每次实际解析settled→同一源FD释放→read-complete，不能用零个旧JS事件假证明quiet。 */
+export function assertRustMetadataReadsQuiet(events: readonly MetadataReaderLifecycle[]): void {
+  const starts = events.filter(event => event.type === 'metadata-phase' && event.stage === 'parse' && event.state === 'start');
+  const ids = new Set<string>();
+  for (const start of starts) {
+    assert.ok(start.type === 'metadata-phase' && start.backend === 'rust-media-worker');
+    assert.equal(ids.has(start.readId), false); ids.add(start.readId);
+    const from = events.indexOf(start);
+    const lease = events.slice(0, from).reverse().find(event => event.type === 'lease-acquired' || event.type === 'lease-released');
+    assert.ok(lease?.type === 'lease-acquired');
+    const settled = events.findIndex((event, index) => index > from && event.type === 'metadata-phase'
+      && event.readId === start.readId && event.stage === 'parse' && event.state !== 'start');
+    assert.ok(settled > from);
+    const released = events.findIndex((event, index) => index > settled && event.type === 'lease-released' && event.fd === lease.fd);
+    const completed = events.findIndex((event, index) => index > released && event.type === 'read-complete');
+    assert.ok(released > settled && completed > released);
+  }
+  assert.equal(events.filter(event => event.type === 'lease-acquired').length, events.filter(event => event.type === 'lease-released').length);
 }

@@ -11,10 +11,13 @@ import { createLocalScanCoordinator } from '../../src/collection/local-scan-coor
 import { createScanReadAdmission } from '../../src/library/scan-read-admission.js';
 import type { DatasetProjectionPort, DatasetProjectionCommand, DatasetProjectionCommandResults, DatasetProjectionCommandPayloads } from '../../src/collection/dataset-owner-protocol.js';
 import type { MetadataReaderPort, MetadataReaderLifecycle } from '../../src/library/metadata-reader-types.js';
-import { loadFreshMetadataReader } from '../helpers/mbrs003-audio-fixtures.js';
+import { loadFreshMetadataReader, closeFreshMetadataReaderPool, assertRustMetadataReadsQuiet } from '../helpers/mbrs003-audio-fixtures.js';
+import { RUST_MEDIA_METADATA_PARSER_VERSION } from '../../src/library/metadata-reader-types.js';
 import { createCompletedScanSnapshotView, verifyCompletedScanSnapshotDatabase, LOCAL_SCAN_SNAPSHOT_LIMITS } from '../../src/collection/local-scan-snapshot-view.js';
 import { scheduleScanAlbums, LOCAL_SCAN_DEFAULT_SETTINGS } from '../../src/collection/local-scan-settings.js';
 
+test.after(closeFreshMetadataReaderPool);
+const parseStarts = (events: readonly MetadataReaderLifecycle[]) => events.filter(event => event.type === 'metadata-phase' && event.stage === 'parse' && event.state === 'start').length;
 const digest = (value: Buffer) => createHash('sha256').update(value).digest('hex');
 function wav(): Buffer {
   const value = Buffer.alloc(44 + 800); value.write('RIFF'); value.writeUInt32LE(value.length - 8, 4); value.write('WAVEfmt ', 8);
@@ -67,6 +70,7 @@ async function fixture(t: TestContext, albums = 3, options: { fault?: () => void
     assert.throws(() => repository.localCatalog.roots()); assert.throws(() => state.overview());
     const starts = events.filter(event => event.type === 'worker-start'), exits = events.filter(event => event.type === 'worker-exit');
     assert.equal(starts.length, exits.length); assert.ok(exits.every(event => event.type === 'worker-exit' && event.exitCode === 0));
+    assertRustMetadataReadsQuiet(events);
     assert.equal(events.filter(event => event.type === 'lease-acquired').length, events.filter(event => event.type === 'lease-released').length);
     for (const source of sourceFiles) { const bytes = await readFile(source.file), info = await lstat(source.file); assert.equal(bytes.length, source.bytes); assert.equal(digest(bytes), source.sha256); assert.equal(info.nlink, 1); }
   }
@@ -91,7 +95,8 @@ test('002完成快照：实际Scanner同库全批全文及完整目录字段落�
   assert.equal(view.status, 'ready'); assert.equal(view.lastSuccess?.snapshot.members.length, 6); assert.deepEqual(view.lastSuccess?.snapshot.job, done);
   const batches = before.local_scan_batches!;
   assert.deepEqual(view.lastSuccess?.snapshot.batches, batches.map(row => ({ batchId: row.id, request: row.request, result: row.result })));
-  assert.equal(view.lastSuccess?.snapshot.frozen.readerConcurrency, 1); assert.equal(f.view.captureCompleted(done.jobId).lastSuccess?.attempt.attemptId, view.lastSuccess?.attempt.attemptId);
+  // Coordinator冻结的是原默认两槽上限；夹具Reader自身的一槽不重写已持久设置。
+  assert.equal(view.lastSuccess?.snapshot.frozen.readerConcurrency, 2); assert.equal(f.view.captureCompleted(done.jobId).lastSuccess?.attempt.attemptId, view.lastSuccess?.attempt.attemptId);
   await f.close(); const repository = createCollectionRepository({ filePath: f.file }), state = createBackupWorkflowStore({ filePath: f.stateFile });
   try { repository.localCatalog.roots(); const identity = state.datasetIdentities.bind('default', f.file, false); assert.equal(identity.datasetId, f.identity.datasetId);
     repository.localCatalog.privateBindWorkbenchDataset(identity); const cold = createCompletedScanSnapshotView({ repository, identity });
@@ -101,13 +106,13 @@ test('002完成快照：实际Scanner同库全批全文及完整目录字段落�
 
 test('002完成快照：捕获失败独立留attempt及旧成功原件，显式retry不重新扫描或解析', { timeout: 60_000 }, async t => {
   let failure = false; const f = await fixture(t, 2, { fault() { if (failure) throw new Error('受控派生快照故障'); } });
-  const first = await f.scan(), success = f.view.load(f.library.id).lastSuccess!; const readerCount = f.events.filter(event => event.type === 'worker-start').length;
+  const first = await f.scan(), success = f.view.load(f.library.id).lastSuccess!; const readerCount = parseStarts(f.events);
   failure = true; const next = await f.scan(), failed = f.view.load(f.library.id); assert.equal(next.phase, 'completed'); assert.equal(failed.status, 'failed');
   assert.deepEqual(failed.lastSuccess, success); assert.equal(failed.retryJobId, next.jobId); assert.equal(failed.latestAttempt?.failureCode, 'CAPTURE_FAILED');
   const immutableScan = originalScanRows(f.file); assert.equal(f.view.captureCompleted(next.jobId).latestAttempt?.attemptId, failed.latestAttempt?.attemptId);
   failure = false; await f.coordinator.retryCompletedSnapshot(next.jobId); const recovered = f.view.load(f.library.id);
   assert.equal(recovered.status, 'ready'); assert.equal(recovered.lastSuccess?.snapshot.job.jobId, next.jobId);
-  assert.equal(recovered.latestAttempt?.attempt, 2); assert.equal(f.events.filter(event => event.type === 'worker-start').length, readerCount);
+  assert.equal(recovered.latestAttempt?.attempt, 2); assert.equal(parseStarts(f.events), readerCount);
   assert.deepEqual(originalScanRows(f.file), immutableScan); assert.equal(f.coordinator.get(first.jobId).phase, 'completed');
   f.repository.privateMobileCatalogAccess!(db => { assert.equal(Number(db.prepare("SELECT count(*) n FROM local_scan_snapshot_commits WHERE json_extract(data,'$.status')='failed'").get()!.n), 1); verifyCompletedScanSnapshotDatabase(db); });
 });
@@ -166,7 +171,7 @@ test('002完成快照：10000/32MiB上限固定，真实整组收紧预算失败
   bytesLimited.close(); f.repository.privateMobileCatalogAccess!(verifyCompletedScanSnapshotDatabase);
 });
 
-// 新入口全部使用同一次实际compiled Core图；五输入是纯合成字节，普通测试不执行Native/全音频解码。
+// 新入口全部使用同一次实际compiled Core图；五输入是纯合成字节，不执行音频输出/全音频解码。
 import { fstatSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createCueSyntheticRareInputs } from '../../src/library/local-cue-format-qualification.js';
@@ -240,7 +245,7 @@ async function normalScan503(t:TestContext,options:{badMagic?:boolean;readerBudg
   coordinator=graph.scanner.createLocalScanCoordinator({repository,identity,settings,datasetId:identity.datasetId,assertCurrent:()=>identity.assertCurrent(),projection:port,
     reader,cueReader,cueInputMetadataEnabled:true,async onCompleted(job){view.captureCompleted(job.jobId);}});
   let closed=false;async function close(){if(closed)return;await coordinator.close();view.close();admission.close();repository.close();state.close();closed=true;
-    assert.equal(permits.size,0);assert.deepEqual(fdErrors,[]);
+    assert.equal(permits.size,0);assert.deepEqual(fdErrors,[]);assertRustMetadataReadsQuiet(metadata);
     for(const events of [metadata,cues]){assert.equal(events.filter(e=>e.type==='worker-start').length,events.filter(e=>e.type==='worker-exit').length);
       assert.equal(events.filter(e=>e.type==='lease-acquired').length,events.filter(e=>e.type==='lease-released').length);}
     for(const original of originals){const bytes=await readFile(original.file);assert.equal(bytes.length,original.bytes);assert.equal(digest(bytes),original.sha256);}}
@@ -252,13 +257,13 @@ test('CD35正常Scan495：默认APE拒绝保持，显式冷门读取经真实Wor
   const f=await normalScan503(t),probe=path.join(f.directory,'默认APE');await mkdir(probe,{mode:0o700});
   const ape=await readFile(new URL('../fixtures/mbrs003/ape-assessment/silence_mono8k.ape',import.meta.url));assert.equal(ape.length,174);assert.equal(digest(ape),'e49c9f3a28587d9f10644d64a72e047432249a8b3a8ff34f2c8f61fe4c07ba1c');
   await writeFile(path.join(probe,'默认.ape'),ape,{flag:'wx',mode:0o600});const capability=f.repository.sources.authorize(randomUUID(),await f.graph.sources.authorizeSourceDirectory(probe)),observed=await f.graph.sources.readonlySourceCandidateMetadata(capability,'默认.ape');
-  const reader=f.graph.reader.createMetadataReader();try{const rejected=await reader.read({root:capability,relative:'默认.ape',expectedSignature:observed.signature});assert.equal(rejected.status,'failure');assert.ok(rejected.status==='failure');assert.equal(rejected.code,'UNSUPPORTED');assert.equal(rejected.readEvidence?.bytesRead,64);}finally{await reader.close();}
+  const reader=f.graph.reader.createMetadataReader();try{const rejected=await reader.read({root:capability,relative:'默认.ape',expectedSignature:observed.signature});assert.equal(rejected.status,'failure');assert.ok(rejected.status==='failure');assert.equal(rejected.code,'UNSUPPORTED');assert.equal(rejected.readEvidence,null,'Rust拒绝结果不伪造成功读取证据');}finally{await reader.close();}
   const done=await f.scan();assert.equal(done.phase,'completed');assert.deepEqual(done.progress,{visited:'10',accepted:'10',rejected:'0'});
   assert.equal(f.repository.localScan.privateJobParserVersion(done.jobId),'cue-input-scan/v39-v1');assert.equal(f.repository.localCatalog.pageTracks({offset:0,limit:200}).items.length,5);
   const facts=[];
   for(const fixture of f.fixtures){const relative=fixture.id+'-合成专辑/'+fixture.file,entry=f.repository.localScan.privateCurrentFileState(f.library.id,relative)!;
     assert.equal(entry.value.outcome,'accepted');assert.ok(entry.value.assetId&&entry.value.trackId&&entry.value.readFacts);assert.equal(entry.value.readFacts.technical.sampleRateHz,44100);assert.equal(entry.value.readFacts.technical.channels,2);
-    assert.equal(entry.value.parserVersion,['tta','tak'].includes(fixture.id)?'musicbridge-cue-header/mbrs003-v1':'music-metadata-11.15.0/mbrs003-v4');
+    assert.equal(entry.value.parserVersion,['tta','tak'].includes(fixture.id)?'musicbridge-cue-header/mbrs003-v1':RUST_MEDIA_METADATA_PARSER_VERSION);
     assert.equal(entry.value.readFacts.readEvidence.wholeAudioHash,false);assert.equal(entry.value.readFacts.readEvidence.wholeAudioDecode,false);
     const asset=f.repository.localCatalog.asset(entry.value.assetId);assert.equal(asset.sampleFrames,null);assert.equal(asset.timebaseHz,null);
     const cue=f.repository.localScan.privateCueSnapshot(f.library.id,fixture.id+'-合成专辑/专辑.cue')!;assert.equal(cue.item.outcome,'accepted');assert.equal(cue.item.result!.tracks.length,2);
@@ -270,15 +275,19 @@ test('CD35正常Scan495：默认APE拒绝保持，显式冷门读取经真实Wor
     assert.deepEqual(originalScanRows(f.file),rows);for(const row of facts){assert.deepEqual(cold.localScan.privateCurrentFileState(f.library.id,row.relative),row.entry);assert.deepEqual(cold.localScan.privateCueSnapshot(f.library.id,row.cue.item.relative),row.cue);}
   }finally{cold.close();state.close();}
   t.diagnostic('同一次真实compiled Core/固定Worker、正常Walk/原lease/同SQL资产与CUE冷读；头声明不冒实际PCM/Native分轨或完整Main。');
-  await relocationCold507(t, f.graph);
 });
-test('CD35正常Scan495：坏头与收紧预算不建资产，取消等实际Worker和FD闭口后不接纳迟到事实',async t=>{
+// 与五族资格Gate分开：保留其MPC8失败，不让既存可选格式债务遮住原搬迁/冷读保护。
+test('CD35原搬迁冷读：实际Rust的APE与TTA/FLAC/MPC7混合经原Main、claims及冷开审计', async t => {
+  const graph = await (compiledGraph503 ??= readCompiledGraph503());
+  await relocationCold507(t, graph);
+});
+test('CD35正常Scan495：坏头与收紧预算不建资产，实际Rust解析后取消等FD闭口且不接纳迟到事实',async t=>{
   const bad=await normalScan503(t,{badMagic:true}),failed=await bad.scan();assert.equal(failed.phase,'completed');assert.deepEqual(failed.progress,{visited:'10',accepted:'0',rejected:'10'});
   assert.equal(bad.repository.localCatalog.pageTracks({offset:0,limit:200}).items.length,0);for(const fixture of bad.fixtures){const file=bad.repository.localScan.privateCurrentFileState(bad.library.id,fixture.id+'-合成专辑/'+fixture.file)!;assert.equal(file.value.outcome,'rejected');assert.equal(file.value.assetId,null);assert.equal(file.value.failureCode,'UNSUPPORTED');}
   await bad.close();const budget=await normalScan503(t,{single:true,readerBudget:true}),bounded=await budget.scan();assert.deepEqual(bounded.progress,{visited:'1',accepted:'0',rejected:'1'});
   const boundedFile=budget.repository.localScan.privateCurrentFileState(budget.library.id,'tta-合成专辑/'+budget.fixtures[0]!.file)!;assert.equal(boundedFile.value.failureCode,'BUDGET_EXCEEDED');assert.equal(boundedFile.value.assetId,null);await budget.close();
   let cancel:Promise<import('@music-bridge/contracts').ScanJobRecord>|undefined;
-  const current=await normalScan503(t,{single:true,onMetadata(event,coordinator){if(event.type==='worker-start'&&!cancel){const job=coordinator.page({offset:0,limit:1}).items[0]!;cancel=coordinator.cancel({commandId:randomUUID(),jobId:job.jobId,expectedRevision:job.jobRevision});}}});
+  const current=await normalScan503(t,{single:true,onMetadata(event,coordinator){if(event.type==='metadata-phase'&&event.backend==='rust-media-worker'&&event.stage==='parse'&&event.state==='complete'&&!cancel){const job=coordinator.page({offset:0,limit:1}).items[0]!;cancel=coordinator.cancel({commandId:randomUUID(),jobId:job.jobId,expectedRevision:job.jobRevision});}}});
   const pending=current.scan();while(!cancel){await new Promise<void>(resolve=>setImmediate(resolve));}const cancelled=await cancel;assert.equal(cancelled.phase,'cancelled');await pending;assert.equal(current.coordinator.get(cancelled.jobId).phase,'cancelled');
   assert.equal(current.repository.localCatalog.pageTracks({offset:0,limit:200}).items.length,0);assert.equal(current.coordinator.privateReaderTurn().occupied,false);assert.equal(current.permits.size,0);
   const before=originalScanRows(current.file);await new Promise<void>(resolve=>setImmediate(resolve));await new Promise<void>(resolve=>setImmediate(resolve));assert.deepEqual(originalScanRows(current.file),before);await current.close();
@@ -367,11 +376,11 @@ async function relocationCold507(t: TestContext, graph: Awaited<ReturnType<typeo
   const locks = await load('stream/physical-resource-locks') as typeof import('../../src/stream/physical-resource-locks.js');
   const qualification = await load('library/local-cue-format-qualification') as typeof import('../../src/library/local-cue-format-qualification.js');
   const dto = await import(pathToFileURL(path.join(core, '../contracts/dist/index.js')).href) as typeof import('@music-bridge/contracts');
-  const rare = qualification.createCueSyntheticRareInputs(), mm = 'music-metadata-11.15.0/mbrs003-v4', header = 'musicbridge-cue-header/mbrs003-v1', jobVersion = 'cue-input-scan/v39-v1';
+  const rare = qualification.createCueSyntheticRareInputs(), audio = RUST_MEDIA_METADATA_PARSER_VERSION, header = 'musicbridge-cue-header/mbrs003-v1', jobVersion = 'cue-input-scan/v39-v1';
   const input = (id: 'ape' | 'tta' | 'mpc7', container: string): RelocationInput507 => { const row = rare.find(value => value.id === id); assert.ok(row);
-    assert.equal(row.data.length, row.bytes); assert.equal(digest(row.data), row.sha256); return { id, file: row.file, data: Buffer.from(row.data), parserVersion: id === 'tta' ? header : mm, container }; };
+    assert.equal(row.data.length, row.bytes); assert.equal(digest(row.data), row.sha256); return { id, file: row.file, data: Buffer.from(row.data), parserVersion: id === 'tta' ? header : audio, container }; };
   const scenarios = [{ id: 'single-ape', files: [input('ape', 'APE')] },
-    { id: 'mixed-tta-flac-mpc7', files: [input('tta', 'TTA'), { id: 'flac', file: '原自有.flac', data: await relocationOwnedFlac507(), parserVersion: mm, container: 'FLAC' } as RelocationInput507, input('mpc7', 'MPC')] }];
+    { id: 'mixed-tta-flac-mpc7', files: [input('tta', 'TTA'), { id: 'flac', file: '原自有.flac', data: await relocationOwnedFlac507(), parserVersion: audio, container: 'FLAC' } as RelocationInput507, input('mpc7', 'MPC')] }];
   for (const scenario of scenarios) {
     remaining(); const directory = await ownedRoot(), media = path.join(directory, 'audio'), destination = path.join(directory, '目的音乐'); await mkdir(destination, { mode: 0o700 });
     const file = path.join(directory, 'collection.sqlite'), stateFile = path.join(directory, 'identity.sqlite');
@@ -384,7 +393,7 @@ async function relocationCold507(t: TestContext, graph: Awaited<ReturnType<typeo
     const pending = new Map<string, { request: import('@music-bridge/contracts').LocalRelocationMainRequest; resolve(value: unknown): void; reject(error: unknown): void; timer: ReturnType<typeof setTimeout> }>();
     const mainWork = new Set<Promise<void>>(), mainErrors: unknown[] = [], lifecycleErrors: unknown[] = [], events: MetadataReaderLifecycle[] = [];
     const permits = new Set<string>(), requests: import('@music-bridge/contracts').LocalRelocationMainRequest[] = [];
-    let flight: { fd: number; started: boolean; exited: boolean; released: boolean; completed: boolean } | undefined, completedReads = 0;
+    let flight: { fd: number; readId: string | null; started: boolean; settled: boolean; released: boolean; completed: boolean } | undefined, completedReads = 0;
     const countResources = (closed: boolean) => { assert.ok(admission); assert.deepEqual(admission.resourceCounts(), { permits: 0, revoked: 0, watches: 0, timers: 0, closed });
       assert.equal(permits.size, 0); assert.deepEqual(locks.physicalResourceLocks.combinedSnapshot(), { readers: 0, writers: 0, resources: 0 }); };
     async function close(): Promise<void> {
@@ -414,7 +423,7 @@ async function relocationCold507(t: TestContext, graph: Awaited<ReturnType<typeo
       let result: unknown; assert.ok(admission);
       if (command === 'scanReadAcquire') { const value = admission.acquire(scope); assert.equal(value.status, 'granted'); assert.ok(value.status === 'granted'); permits.add(value.permitId); result = value; }
       else if (command === 'scanReadWatchRevocation') result = await admission.watchRevocation(scope, (payload as { permitId: string }).permitId);
-      else if (command === 'scanReadRelease') { assert.ok(flight?.completed && flight.released && flight.exited); const id = (payload as { permitId: string }).permitId;
+      else if (command === 'scanReadRelease') { assert.ok(flight?.completed && flight.released && flight.settled); const id = (payload as { permitId: string }).permitId;
         result = admission.release(scope, id); assert.equal(permits.delete(id), true); }
       else throw new Error('507 无 Provider 或其它媒体投影'); return result as DatasetProjectionCommandResults[K];
     } };
@@ -422,11 +431,13 @@ async function relocationCold507(t: TestContext, graph: Awaited<ReturnType<typeo
       events.push(event);
       // Reader 吞掉诊断观察者异常，因此错误另存并在真实 read/close 完成后断言。
       try {
-        if (event.type === 'lease-acquired') { assert.ok(!flight || flight.completed); flight = { fd: event.fd, started: false, exited: false, released: false, completed: false }; }
-        else if (event.type === 'worker-start') { assert.ok(flight && flight.fd === event.fd && !flight.started); flight.started = true; }
-        else if (event.type === 'worker-exit') { assert.ok(flight && flight.fd === event.fd && flight.started && !flight.released); assert.equal(event.exitCode, 0); flight.exited = true; }
-        else if (event.type === 'lease-released') { assert.ok(flight && flight.fd === event.fd && flight.exited); assert.throws(() => fstatSync(event.fd), { code: 'EBADF' }); flight.released = true; }
-        else if (event.type === 'read-complete') { assert.ok(flight?.released && flight.exited); assert.equal(event.status, 'ok'); flight.completed = true; ++completedReads; }
+        if (event.type === 'lease-acquired') { assert.ok(!flight || flight.completed); flight = { fd: event.fd, readId: null, started: false, settled: false, released: false, completed: false }; }
+        else if (event.type === 'metadata-phase' && event.stage === 'parse' && event.state === 'start') {
+          assert.ok(flight && !flight.started); assert.equal(event.backend, 'rust-media-worker'); flight.started = true; flight.readId = event.readId;
+        } else if (event.type === 'metadata-phase' && event.stage === 'parse' && event.state !== 'start') {
+          assert.ok(flight?.started && !flight.released); assert.equal(event.readId, flight.readId); assert.equal(event.state, 'complete'); flight.settled = true;
+        } else if (event.type === 'lease-released') { assert.ok(flight && flight.fd === event.fd && flight.settled); assert.throws(() => fstatSync(event.fd), { code: 'EBADF' }); flight.released = true; }
+        else if (event.type === 'read-complete') { assert.ok(flight?.released && flight.settled); assert.equal(event.status, 'ok'); flight.completed = true; ++completedReads; }
       } catch (error) { lifecycleErrors.push(error); }
     } });
     view = graph.view.createCompletedScanSnapshotView({ repository, identity });

@@ -1,4 +1,5 @@
 import { verifyCompletedScanSnapshotDatabase } from './local-scan-snapshot-view.js';
+import { createLocalScanAuditReadSession, type LocalScanAuditReadSession } from './local-scan-audit-read-session.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { albumScanRevision } from './local-album-browser/owner-store.js';
 import { beginLocalAlbumScanDelta, recordLocalAlbumScanWrites, recordLocalAlbumScanDirectory, approveLocalAlbumScanDelta, publishLocalAlbumScanDelta, discardLocalAlbumScanDelta, localAlbumScanPoint, localAlbumScanPath } from './local-album-browser/scan-delta.js';
@@ -513,20 +514,22 @@ function verifyRelocationOrigin(db: DatabaseSync, job: dto.ScanJobRecord, batch:
   return fact;
 }
 
-/** 冷开、迁移及隔离备份/恢复全量流式核验；热批提交不调用此函数。 */
+/** 仅原冷启动持有的同步事务使用；普通核验保持逐项原文实读。 */
+export function verifyLocalScanStartupTransaction(db: DatabaseSync, assertReadActive?: () => void): void {
+  verifyLocalScanWithSession(db, assertReadActive, true);
+}
+/** 迁移、隔离备份/恢复与普通读方仍走原全量实读核验；热批提交不调用。 */
 export function verifyLocalScanDatabase(db: DatabaseSync, assertReadActive?: () => void): void {
-  // 只保留本次完整核验的最多32条语句；每次仍实读SQLite，不缓存行或跨调用续用。
-  const statements = new Map<string, StatementSync>();
-  const prepare = (sql: string): StatementSync => {
-    assertReadActive?.();
-    const saved = statements.get(sql);
-    if (saved) return saved;
-    const statement = db.prepare(sql);
-    if (statements.size >= 32) statements.delete(statements.keys().next().value!);
-    statements.set(sql, statement);
-    return statement;
-  };
+  verifyLocalScanWithSession(db, assertReadActive, false);
+}
+function verifyLocalScanWithSession(db: DatabaseSync, assertReadActive: (() => void) | undefined, originalTransaction: boolean): void {
   clearLocalScanAuditState(db);
+  const reads = createLocalScanAuditReadSession({ db, originalTransaction, ...(assertReadActive ? { assertReadActive } : {}), fail: corrupt });
+  try { verifyLocalScanDatabaseState(db, assertReadActive, reads); }
+  finally { reads.close(); }
+}
+function verifyLocalScanDatabaseState(db: DatabaseSync, assertReadActive: (() => void) | undefined, reads: LocalScanAuditReadSession): void {
+  const prepare = reads.prepare;
   // 只沿原取消异常退出；调用方负责真实回滚，不把未完成全核当成损坏或成功。
   assertReadActive?.();
   const originIndex = createScanOriginIndex(), originStartedAtMs = performance.now();
@@ -659,7 +662,8 @@ export function verifyLocalScanDatabase(db: DatabaseSync, assertReadActive?: () 
     const checkpoint = prepare('SELECT data FROM local_scan_checkpoints WHERE id=? AND job_id=?').get(job.checkpointRef, job.jobId);
     if (!checkpoint || !equal(parse(checkpoint.data, isScanCheckpoint).progress, job.progress)) return corrupt();
   }
-  // 仅本次同步冷核有效。每行仍实读原batch，原始文本完全一致才复用已通过原guard的对象。
+  // 仅本次同步冷核有效。普通核验逐项实读batch；原冷启动事务逐项核SQL水位，
+  // 同一保护scope才复用已读原文。每行state与全部关联仍实际核验，不跨调用保留。
   const fileBatchMemo = new Map<string, { request: string; result: string; batch: ScanPreparedBatch; committed: ScanCommittedBatch; bytes: number; allocation: number }>();
   const memoMaxEntries = 64, memoMaxBytes = 4 * 1024 * 1024, memoMaxAllocation = 32 * 1024 * 1024;
   let memoBytes = 0, memoAllocation = 0, peakMemoAllocation = 0, peakMemoEntries = 0, parsedFileBatches = 0, uncachedFileBatches = 0, verifiedFileRows = 0;
@@ -667,11 +671,13 @@ export function verifyLocalScanDatabase(db: DatabaseSync, assertReadActive?: () 
   for (const row of prepare('SELECT * FROM local_scan_file_state ORDER BY rowid').iterate()) {
     assertReadActive?.();
     const state = parse(row.data, isScanFileState, 65_536), job = jobs.get(String(row.job_id));
-    const batchRow = prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(String(row.batch_id), String(row.job_id));
-    if (!job || !batchRow || row.library_root_id !== state.libraryRootId || state.libraryRootId !== job.libraryRootId
-      || row.relative !== state.relative || row.asset_id !== state.assetId || row.track_id !== state.trackId) return corrupt();
     const memoKey = JSON.stringify([row.job_id, row.batch_id]);
     let memo = fileBatchMemo.get(memoKey);
+    reads.assertCurrent();
+    const batchRow = reads.reusesOriginalTransaction && memo ? memo
+      : prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(String(row.batch_id), String(row.job_id));
+    if (!job || !batchRow || row.library_root_id !== state.libraryRootId || state.libraryRootId !== job.libraryRootId
+      || row.relative !== state.relative || row.asset_id !== state.assetId || row.track_id !== state.trackId) return corrupt();
     if (memo && (memo.request !== batchRow.request || memo.result !== batchRow.result)) {
       fileBatchMemo.delete(memoKey); memoBytes -= memo.bytes; memoAllocation -= memo.allocation; memo = undefined;
     }
@@ -740,6 +746,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync, assertReadActive?: () 
   verifyCompletedScanSnapshotDatabase(db, assertReadActive);
   if (scanDataVersion(db) !== initialVersion) return corrupt();
   assertReadActive?.();
+  reads.assertCurrent();
   publishScanAudit(db, { rows: counts, bytes, dataVersion: initialVersion }, true);
   stageScanOriginIndex(db, originIndex);
   logLibraryOperation('cache', 'scan.origin-index', originIndex.overflow ? 'skipped' : 'complete', {

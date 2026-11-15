@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { createCollectionRepository } from '../../src/collection/repository.js'
-import { verifyLocalScanDatabase, type ScanPreparedBatch, type ScanPreparedItem } from '../../src/collection/local-scan-store.js'
+import { verifyLocalScanDatabase, verifyLocalScanStartupTransaction, type ScanPreparedBatch, type ScanPreparedItem } from '../../src/collection/local-scan-store.js'
 import { authorizeSourceDirectory } from '../../src/recording/source-files.js'
 import { readLibraryOperationLine, type LibraryOperationEvent } from '../../src/shared/library-operation-log.js'
 
@@ -60,7 +60,7 @@ type BatchRow = { request: string; result: string }
 /** 每项仍调用真实SQLite get；仅在指定只读返回值上注入故障，不更换持久Source或validator。 */
 function observeFileReads(t: TestContext, database: DatabaseSync, alter?: (row: BatchRow, ordinal: number) => BatchRow) {
   const prepare = DatabaseSync.prototype.prepare
-  let readingFiles = false, batchReads = 0, batchPrepares = 0
+  let readingFiles = false, batchReads = 0, batchPrepares = 0, pointReads = 0
   const mock = t.mock.method(DatabaseSync.prototype, 'prepare', function (this: DatabaseSync, sql: string) {
     const statement = prepare.call(this, sql)
     if (this !== database) return statement
@@ -81,10 +81,13 @@ function observeFileReads(t: TestContext, database: DatabaseSync, alter?: (row: 
         assert.equal(typeof value.request, 'string'); assert.equal(typeof value.result, 'string')
         return alter ? alter(value as BatchRow, batchReads) : value
       })
+    } else if (sql.includes('total_changes() changes') && sql.includes('pragma_foreign_keys')) {
+      const get = statement.get
+      t.mock.method(statement, 'get', (...args: unknown[]) => { pointReads++; return Reflect.apply(get, statement, args) })
     }
     return statement
   })
-  return { reads: () => batchReads, prepares: () => batchPrepares, restore: () => mock.mock.restore() }
+  return { reads: () => batchReads, prepares: () => batchPrepares, points: () => pointReads, restore: () => mock.mock.restore() }
 }
 
 test('扫描冷核memo：多文件真实批每行实读batch，24行只解析3对JSON，同连接再核不跨调用复用', async t => {
@@ -174,6 +177,94 @@ test('扫描冷核memo：原文件state被篡改仍拒绝，不能拿已核batch
   const state = JSON.parse(String(row.data)); state.signature += '-篡改'
   f.db.prepare('UPDATE local_scan_file_state SET data=? WHERE library_root_id=? AND relative=?').run(JSON.stringify(state), String(row.library_root_id), String(row.relative))
   assert.throws(() => f.verify())
+})
+
+test('冷启动事务scope：每行仍实读state与SQL水位，24项只传输3份batch原文，下一次核验不复用旧scope', async t => {
+  const f = await fixture(t), logged = events(t), reads = observeFileReads(t, f.db)
+  const before = f.db.prepare('SELECT total_changes() n').get()!.n
+  f.db.exec('BEGIN IMMEDIATE')
+  try {
+    verifyLocalScanStartupTransaction(f.db)
+    assert.equal(reads.reads(), 3, '保护事务内同一原文只在memo未命中时跨SQLite边界传输')
+    assert.ok(reads.points() >= 26, '至少初始、逐24行和发布前都实际核SQL水位，不能只检查一次事务flag')
+    assert.equal(completion(logged).total, 24); assert.equal(completion(logged).count, 3)
+    logged.length = 0
+    verifyLocalScanStartupTransaction(f.db)
+    assert.equal(reads.reads(), 6, 'scope不能跨完整核验调用续借')
+    assert.equal(completion(logged).total, 24); assert.equal(completion(logged).count, 3)
+    assert.equal(f.db.prepare('SELECT total_changes() n').get()!.n, before)
+  } finally { f.db.exec('ROLLBACK') }
+})
+
+test('冷启动事务scope：未持有原事务时不能启用派生原文复用', async t => {
+  const f = await fixture(t), reads = observeFileReads(t, f.db)
+  assert.throws(() => verifyLocalScanStartupTransaction(f.db))
+  assert.equal(reads.reads(), 0)
+})
+
+for (const mutation of ['data', 'schema', 'temp-schema', 'user-version'] as const) test(`冷启动事务scope：同连接真实${mutation}变化撤销整个proof，不使用已核旧原文`, async t => {
+  const f = await fixture(t), reads = observeFileReads(t, f.db)
+  let changed = false
+  f.db.exec('BEGIN IMMEDIATE')
+  try {
+    assert.throws(() => verifyLocalScanStartupTransaction(f.db, () => {
+      if (changed || reads.reads() !== 1) return
+      changed = true
+      // 不改目标batch或下一文件，必须以实际SQL水位变化拒绝，而不是碰巧由当前行比对失败。
+      if (mutation === 'data') f.db.prepare("UPDATE physical_sequences SET next_value=next_value+1 WHERE format='cassette'").run()
+      else if (mutation === 'schema') f.db.exec('CREATE TABLE startup_audit_changed(value TEXT)')
+      else if (mutation === 'temp-schema') f.db.exec('CREATE TEMP TABLE startup_audit_changed(value TEXT)')
+      else f.db.exec('PRAGMA user_version=35')
+    }))
+    assert.equal(changed, true)
+  } finally { f.db.exec('ROLLBACK') }
+})
+
+test('冷启动事务scope：所有文件之后的最后回调写入也必须由发布前水位拒绝', async t => {
+  const f = await fixture(t), logged = events(t)
+  let changed = false
+  f.db.exec('BEGIN IMMEDIATE')
+  try {
+    assert.throws(() => verifyLocalScanStartupTransaction(f.db, () => {
+      if (changed || !logged.some(event => event.action === 'scan.verify-file-state.memo' && event.state === 'complete')) return
+      changed = true
+      f.db.prepare("UPDATE physical_sequences SET next_value=next_value+1 WHERE format='cassette'").run()
+    }))
+    assert.equal(changed, true)
+  } finally { f.db.exec('ROLLBACK') }
+})
+
+test('冷启动事务scope：保护事务提前结束即拒绝，核验者不自行重开或提交', async t => {
+  const f = await fixture(t), reads = observeFileReads(t, f.db)
+  let ended = false
+  f.db.exec('BEGIN IMMEDIATE')
+  try {
+    assert.throws(() => verifyLocalScanStartupTransaction(f.db, () => {
+      if (ended || reads.reads() !== 1) return
+      ended = true; f.db.exec('ROLLBACK')
+    }))
+    assert.equal(ended, true); assert.equal(f.db.isTransaction, false)
+  } finally { if (f.db.isTransaction) f.db.exec('ROLLBACK') }
+})
+
+test('冷启动事务scope：取消只沿原异常退出，不变成就绪或吞掉为缓存miss', async t => {
+  const f = await fixture(t), reads = observeFileReads(t, f.db), cancelled = new Error('controlled audit cancellation')
+  f.db.exec('BEGIN IMMEDIATE')
+  try { assert.throws(() => verifyLocalScanStartupTransaction(f.db, () => { if (reads.reads() === 1) throw cancelled }), error => error === cancelled) }
+  finally { f.db.exec('ROLLBACK') }
+})
+
+test('冷启动事务scope：64项逐出后必须重传旧batch，仍逐项验证130份真实state', async t => {
+  const f = await fixture(t, 65, 2)
+  f.db.prepare('UPDATE local_scan_file_state SET rowid=1000000 WHERE library_root_id=? AND relative=?').run(f.root.id, f.prepared[0]!.items[1]!.relative)
+  const logged = events(t), reads = observeFileReads(t, f.db)
+  f.db.exec('BEGIN IMMEDIATE')
+  try {
+    verifyLocalScanStartupTransaction(f.db)
+    assert.equal(reads.reads(), 66)
+    const result = completion(logged); assert.equal(result.total, 130); assert.equal(result.count, 66); assert.equal(result.active, 64)
+    assert.ok(result.bytes! <= 32 * 1024 * 1024)
+  } finally { f.db.exec('ROLLBACK') }
 })
 
 test('扫描冷核memo：外部真实提交即使不变更batch文本，末scanDataVersion仍拒绝旧核验', async t => {

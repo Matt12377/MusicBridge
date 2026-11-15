@@ -6,7 +6,7 @@ import {fstatSync} from 'node:fs';
 import path from 'node:path';
 import {isDeepStrictEqual} from 'node:util';
 import {DatabaseSync} from 'node:sqlite';
-import {audioFixture,loadFreshMetadataReader,sha256} from '../helpers/mbrs003-audio-fixtures.js';
+import {audioFixture,loadFreshMetadataReader,closeFreshMetadataReaderPool,assertRustMetadataReadsQuiet,sha256} from '../helpers/mbrs003-audio-fixtures.js';
 import {authorizeSourceDirectory} from '../../src/recording/source-files.js';
 import {createCollectionRepository} from '../../src/collection/repository.js';
 import {createLocalScanCoordinator} from '../../src/collection/local-scan-coordinator.js';
@@ -14,6 +14,7 @@ import {createScanReadAdmission} from '../../src/library/scan-read-admission.js'
 import type {DatasetProjectionPort,DatasetProjectionCommand,DatasetProjectionCommandPayloads,DatasetProjectionCommandResults} from '../../src/collection/dataset-owner-protocol.js';
 import type {MetadataReaderLifecycle,MetadataReaderPort,MetadataReadResult} from '../../src/library/metadata-reader-types.js';
 
+test.after(closeFreshMetadataReaderPool);
 function same(a:unknown,b:unknown){assert.equal(isDeepStrictEqual(a,b),true,'合成逻辑事实必须精确保持');}
 // 只打开此test自建的合成DB只读连接以数实体，不seed、不改变任何SQL行。
 function counts(file:string){const db=new DatabaseSync(file,{readOnly:true,allowExtension:false});try{return {
@@ -44,7 +45,8 @@ test('MBRS003 permission recovery：真实EACCES恢复后显式重扫只保留�
   t.after(async()=>{await chmod(target,0o600);await coordinator.close();admission.close();assert.equal(admission.resourceCounts().permits,0);assert.equal(admission.resourceCounts().watches,0);repository.close();
     assert.equal(sha256(await readFile(target)),sha256(bytes));assert.equal((await lstat(target)).nlink,1);await original.assertUnchanged();});
   async function scan(){const job=coordinator.start({commandId:randomUUID(),libraryRootId:root.id,expectedRootRevision:root.revision});await coordinator.privateWait(job.jobId);return coordinator.get(job.jobId);}
-  function quiet(){if(observationError)throw observationError;const starts=events.filter(e=>e.type==='worker-start');
+  const parseStarts=()=>events.filter(event=>event.type==='metadata-phase'&&event.stage==='parse'&&event.state==='start').length;
+  function quiet(){if(observationError)throw observationError;assertRustMetadataReadsQuiet(events);const starts=events.filter(e=>e.type==='worker-start');
     for(const start of starts){if(start.type!=='worker-start')continue;const from=events.indexOf(start),exit=events.findIndex((e,i)=>i>from&&e.type==='worker-exit'&&e.threadId===start.threadId);assert(exit>from);
       const release=events.findIndex((e,i)=>i>exit&&e.type==='lease-released'&&e.fd===start.fd);assert(release>exit);
       assert(events.findIndex((e,i)=>i>release&&e.type==='read-complete')>release);}
@@ -64,11 +66,11 @@ test('MBRS003 permission recovery：真实EACCES恢复后显式重扫只保留�
     same(repository.localCatalog.metadata(track.id),metadata);same(repository.localCatalog.observations(track.id),observations);same(repository.localCatalog.receipt(manualCommand),manualReceipt);quiet();
   }finally{await chmod(target,0o600);}
   assert.equal((await lstat(target)).mode&0o777,0o600);assert.equal(sha256(await readFile(target)),sha256(bytes));
-  const calls=results.length,workerStarts=events.filter(e=>e.type==='worker-start').length;
+  const calls=results.length,parses=parseStarts();
   // 明确新command、新job，真实重解析恢复；不是重放老start回执或SQL重建实体。
   const recovered=await scan();assert.equal(recovered.phase,'completed');assert.notEqual(recovered.jobId,first.jobId);same(recovered.progress,{visited:'1',accepted:'1',rejected:'0'});
   assert.equal(results.length-calls,1,'恢复后的唯一源确实重入Reader');assert.equal(results.at(-1)!.status,'ok');
-  assert.equal(events.filter(e=>e.type==='worker-start').length-workerStarts,1);quiet();
+  assert.equal(parseStarts()-parses,1,'恢复确实经过常驻Rust实际解析，不靠已淘汰的逐项JS Worker计数');quiet();
   same(counts(file),{assets:1,tracks:1});const page=repository.localCatalog.pageTracks({offset:0,limit:200});assert.equal(page.total,1);assert.equal(page.items[0]!.id,track.id);assert.equal(page.items[0]!.assetId,asset.id);
   const restoredAsset=repository.localCatalog.asset(asset.id);assert.equal(restoredAsset.id,asset.id);assert.equal(restoredAsset.libraryRootId,asset.libraryRootId);assert.equal(restoredAsset.sourceRootId,asset.sourceRootId);
   // chmod会改变stat签名，fileRevision可以增加；不能把正确修订递增误判为身份丢失。
