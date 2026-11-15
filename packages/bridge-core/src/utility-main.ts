@@ -1092,13 +1092,14 @@ export async function runCoreUtilityProcess(
             if(command==='normalizeLocalAlbumArtwork')return albumArtworkBridge!.call(payload as DatasetProjectionCommandPayloads['normalizeLocalAlbumArtwork'],context);
             if(isDatasetNameProviderCommand(command))return nameProviderBridge!.call(command,payload as DatasetProjectionCommandPayloads[typeof command],context);
             if(isDatasetLyricsProviderCommand(command))return lyricsProviderBridge!.call(command,payload as DatasetProjectionCommandPayloads[typeof command],context);
-            if (command === 'scanReadStatus' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+            if (command === 'scanReadStatus' || command === 'scanReadBudget' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
               if (!isDatasetProjectionPayload(command, payload) || !ownerIdentity || context.epoch !== ownerIdentity.epoch
                 || context.datasetId !== ownerIdentity.datasetId) throw new DatasetOwnerDispatchError(responseFailure(context.epoch, 'NOT_READY', '扫描读取私有来源已失效。'));
               const admission = runtime?.getDatasetScanReadAdmission?.();
               if (!admission || context.datasetId === undefined) throw new DatasetOwnerDispatchError(responseFailure(context.epoch, 'NOT_READY', '扫描读取准入尚未就绪。'));
               const scope = { epoch: context.epoch, datasetId: context.datasetId };
               if (command === 'scanReadStatus') return admission.status(scope);
+              if (command === 'scanReadBudget') return admission.budget(scope);
               if (command === 'scanReadAcquire') return admission.acquire(scope, Object.getOwnPropertyDescriptor(payload, 'purpose')?.value as 'local-album-display' | undefined);
               const permitId = (payload as { permitId: string }).permitId;
               return command === 'scanReadWatchRevocation' ? admission.watchRevocation(scope, permitId) : admission.release(scope, permitId);

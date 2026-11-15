@@ -9,7 +9,7 @@ import path from 'node:path';
 import { isLocalMetadata, isLocalCatalogText, isCollectionId, isAudioAsset, isLocalTrack, isLocalCatalogRevision,
   type LocalMetadata, type ScanJobRecord, type LocalScanStartRequest, type LocalScanTransitionRequest } from '@music-bridge/contracts';
 import type { CollectionRepository } from './repository.js';
-import type { DatasetProjectionPort, DatasetProjectionCommandResults } from './dataset-owner-protocol.js';
+import { isDatasetProjectionResult, type DatasetProjectionPort, type DatasetProjectionCommandResults } from './dataset-owner-protocol.js';
 import { LocalSourceReadError } from './local-source-read-projection.js';
 import { SourceFileError, MetadataLeaseReleaseError, withCheckedReadonlyMetadataSource, sourceRootAvailability, readonlySourceCandidateMetadata, type RootCapability } from '../recording/source-files.js';
 import { observeRelocationFile } from './source-relocation-verify.js';
@@ -163,6 +163,8 @@ export interface LocalScanCoordinatorOptions {
   cueInputMetadataEnabled?: boolean;
   repository:CollectionRepository;datasetId:string;assertCurrent():void;
   projection?:DatasetProjectionPort;assertReady?():void;
+  /** 唯一Owner生产组合开启；窗口提示只减小原冻结并发，逐读仍须原Core票据。 */
+  corePlaybackBudget?: boolean;
   /** 仅可信测试替换读取port；生产组合总是创建真实有限reader。 */
   reader?:MetadataReaderPort;
   cueReader?:CueSidecarReader;
@@ -196,6 +198,24 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
       || typeof source.dev !== 'string' || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(source.dev) || typeof source.ino !== 'string' || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(source.ino)
       || typeof source.authorized !== 'boolean' || typeof source.label !== 'string') throw new Error('扫描SourceStore根结构无效。');
     if(!source.authorized) throw new SourceFileError('REVOKED');return source;
+  }
+  async function schedulingConcurrency(job: ScanJobRecord, signal = new AbortController().signal): Promise<1 | 2 | 8> {
+    const maximum = frozenSettings.get(job.jobId)?.readerConcurrency ?? 2;
+    if (!options.corePlaybackBudget) return maximum;
+    if (!options.projection) throw new ScanYield('deferred');
+    let result: DatasetProjectionCommandResults['scanReadBudget'];
+    try { result = await options.projection.call('scanReadBudget', {}, { signal }); }
+    catch (error) {
+      if (signal.aborted) throw new ScanYield('control');
+      if (error instanceof LocalSourceReadError && error.code === 'SOURCE_READ_CLOSED') throw new ScanYield('admission-closed');
+      throw error;
+    }
+    signal.throwIfAborted(); assertCurrent();
+    if (!isDatasetProjectionResult('scanReadBudget', result)) {
+      fatal = new ScanFatal('原Core扫描预算回执无效；禁止猜测并发或读取Source。'); throw fatal;
+    }
+    if (result.concurrency === 0) throw new ScanYield('deferred');
+    return Math.min(maximum, result.concurrency) as 1 | 2 | 8;
   }
   async function consumeReadTurn<T>(job: ScanJobRecord, signal: AbortSignal, consume: () => Promise<T>): Promise<T> {
     const queued = performance.now(), current = () => readerTurn.consume(signal, async () => {
@@ -458,7 +478,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
       catch(error) {signal.throwIfAborted();if(error instanceof SourceFileError && ['MISSING','CONTENT_CHANGED','OUTSIDE_ROOT'].includes(error.code)) return false;throw error;}
     };
     // 仅原冻结八槽任务并行；旧任务和未launch的公开prepare仍沿用串行重核。
-    const concurrency=frozenSettings.get(job.jobId)?.readerConcurrency===8 ? 8:1;
+    const concurrency=Math.min(frozenSettings.get(job.jobId)?.readerConcurrency===8 ? 8:1, await schedulingConcurrency(job, signal));
     let cursor=0,unchanged=true,stopped=false;
     const worker=async():Promise<void>=>{
       while(!stopped && !signal.aborted) {
@@ -497,8 +517,8 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
     } catch(error){logLibraryOperation('scan','scan.commit',signal?.aborted ? 'cancelled':'error',{id:request.jobId,elapsedMs:performance.now()-started,commitMs});throw error;}
   }
   /** 新八槽manifest只预读未来有限项；每个持久discovery与commit仍严格一项。 */
-  function cuePrefetch(job:ScanJobRecord,frontier:readonly string[],discovery:ScanDiscovery,parent:AbortSignal) {
-    if(frozenSettings.get(job.jobId)?.readerConcurrency!==8 || !discovery.cueMode || discovery.entries.length!==1
+  function cuePrefetch(job:ScanJobRecord,frontier:readonly string[],discovery:ScanDiscovery,parent:AbortSignal,concurrency:1|2|8) {
+    if(concurrency!==8 || frozenSettings.get(job.jobId)?.readerConcurrency!==8 || !discovery.cueMode || discovery.entries.length!==1
       || frontier.length!==1 || !frontier[0]?.startsWith('~cue-manifest-v1/'))return null;
     const entries:{before:string;relative:string;frontier:string[]}[]=[],seen=new Set<string>();
     let cursorFrontier=[...frontier];
@@ -555,6 +575,8 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
       walk=new Walk(authority(job),signal,()=>{authority(job);},false,false,options.dsdMetadataEnabled === true,cueInputJob(job),store.privateUseCueDiscoveryManifest?.(jobId) ?? false);
       while(!signal.aborted && !closing && job.phase === 'running') {
         authority(job);
+        const windowConcurrency = await schedulingConcurrency(job, signal);
+        if (windowConcurrency !== 8) { await cueWindow?.close(); cueWindow = null; }
         const pending=store.privatePreparedBatches(jobId);
         if(pending.length) {
           const batch=pending[0]!;
@@ -597,7 +619,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
         const batchItems=discovery.cueMode ? 1:flushItems;
         if(discovery.cueMode && discovery.entries.length===1) {
           const relative=discovery.entries[0]!.relative;
-          if(!cueWindow?.matches(frontier,relative)){await cueWindow?.close();cueWindow=cuePrefetch(job,frontier,discovery,signal);}
+          if(!cueWindow?.matches(frontier,relative)){await cueWindow?.close();cueWindow=cuePrefetch(job,frontier,discovery,signal,windowConcurrency);}
         } else {await cueWindow?.close();cueWindow=null;}
         type ParsedItem={cue:LocalCuePreparedItem}|{audio:ScanPreparedItem|null}|null;
         const results=new Map<number,ParsedItem>(), control=new AbortController(), parseSignal=AbortSignal.any([signal,control.signal]);
@@ -644,7 +666,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
                 const value=cueWindow?.matches(frontier,relative) ? await cueWindow.take(frontier,relative,local):await cueItem(job,relative,local);
                 return value ? {cue:value}:null;}
               catch(error){if(error instanceof SourceFileError && error.code==='MISSING')return null;throw error;}
-            },async(value,index)=>{results.set(consumed+index,value);let ready=flushed;while(results.has(ready))ready++;if(ready-flushed>=batchItems)await requestFlush();},discovery.cueMode ? 1 : frozenSettings.get(jobId)?.readerConcurrency ?? 2);
+            },async(value,index)=>{results.set(consumed+index,value);let ready=flushed;while(results.has(ready))ready++;if(ready-flushed>=batchItems)await requestFlush();},discovery.cueMode ? 1 : windowConcurrency);
           await requestFlush(true);
         } catch(error){parseFailure=error;control.abort(error);}
         finally {clearInterval(timer);await flushChain;}
@@ -722,6 +744,8 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
           if(closing || fatal || mediaYielding)return;
           if(runs.has(captured.jobId) || controlledJobs.has(captured.jobId) || controlledLibraries.has(captured.libraryRootId))continue;
           try {
+            // 前台忙时保留原暂停状态，不每5秒重写resume→pause或读Source目录。
+            await schedulingConcurrency(captured);
             const root=authority(captured);
             if(!options.repository.localCatalog.privateLibraryManagementRootAvailable(captured.libraryRootId)
               || await sourceRootAvailability(root)!=='ONLINE')continue;

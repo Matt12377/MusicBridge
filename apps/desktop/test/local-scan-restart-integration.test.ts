@@ -125,7 +125,8 @@ if (!isMainThread) {
                   assert.ok(admission); assert.ok(context.datasetId)
                   const scope = { epoch: context.epoch, datasetId: context.datasetId }
                   let result: unknown
-                  if (command === 'scanReadAcquire') result = admission.acquire(scope)
+                  if (command === 'scanReadBudget') result = admission.budget(scope)
+                  else if (command === 'scanReadAcquire') result = admission.acquire(scope)
                   else if (command === 'scanReadWatchRevocation') result = await admission.watchRevocation(scope, (payload as { permitId: string }).permitId)
                   else if (command === 'scanReadRelease') result = admission.release(scope, (payload as { permitId: string }).permitId)
                   else throw new Error('此合成 fixture 只允许真实扫描读取许可。')
@@ -165,7 +166,7 @@ if (!isMainThread) {
     await supervisor.start()
     // FD 已打开时，异步撤权订阅仍可能在主线程队列中；两项均就绪后才开始验证重启。
     await until(() => Atomics.load(signals, 0) > 0 && projections.includes('scanReadWatchRevocation'), '冷恢复扫描必须打开自有音频 FD，并完成真实撤权订阅。')
-    assert.ok(projections.includes('scanReadAcquire')); assert.ok(projections.includes('scanReadWatchRevocation'))
+    assert.ok(projections.includes('scanReadBudget')); assert.ok(projections.includes('scanReadAcquire')); assert.ok(projections.includes('scanReadWatchRevocation'))
     try { await supervisor.restart() }
     catch (error) {
       t.diagnostic(JSON.stringify({ first: errorShape(error), failures, forks, lifecycle, projections, counters: [...signals], ownerEvents: await readFile(evidence, 'utf8') }))

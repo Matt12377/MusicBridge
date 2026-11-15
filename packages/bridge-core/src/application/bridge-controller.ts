@@ -514,6 +514,7 @@ export class BridgeController {
     result: Promise<{ metadata: TrackMetadata; stream: ResolvedAudioStream; resolvedAtMs: number; expiresAtMs: number } | undefined>;
   } | undefined;
   private preparationInFlight = false;
+  private readonly backgroundScanPreparations = new Set<object>();
   private nextInsertionQueueIndex: number | undefined;
   private nextInsertionCursor: number | undefined;
   private readonly playbackListeners = new Set<PlaybackChangedListener>();
@@ -1231,6 +1232,8 @@ export class BridgeController {
     const current=()=>next.promoted?this.owner===next.promoted && !next.promoted.abort.signal.aborted && this.queue[this.queueIndex]===item && target.isCurrent() && !!owner.local?.fence.current && port.isLocalSourceCurrent?.()===true:this.localNext===next && !owner.abort.signal.aborted && this.queue[this.queueIndex+1]===item
       && target.isCurrent() && !!owner.local?.fence.current && port.isLocalSourceCurrent?.()===true;
     this.localNext=next;
+    const releaseScanPriority = this.beginBackgroundScanPreparation();
+    let scanQuiet: Promise<unknown> | undefined;
     next.work=(async()=>{
       try {
         const request=this.localRequest(item);await this.resolveQueueEdition(item);
@@ -1245,9 +1248,12 @@ export class BridgeController {
         if(!current())throw this.cancelled();item.preflight={state:'PREPARED',reason:null};this.queueProjectionDirty=true;this.notifyPlaybackChanged();
       } catch(error) {
         next.failed=true;item.preflight={state:'FAILED',reason:'SOURCE_UNAVAILABLE'};this.queueProjectionDirty=true;
-        const quiet=this.disposeLocal(owner);if(error instanceof LocalSourcePrepareInterrupted)this.trackLocalCleanup(quiet);else await quiet;
+        const quiet=this.disposeLocal(owner);scanQuiet=quiet;if(error instanceof LocalSourcePrepareInterrupted)this.trackLocalCleanup(quiet);else await quiet;
         if(!owner.local)this.localLaneBusy[lane]=false;if(!this.localClosing)this.notifyPlaybackChanged();
         // 明确失败，当前entry保留；不扫描后面的曲目，也不循环重开。
+      } finally {
+        // 原中断路径不等待dispose；扫描优先标记仍等实际quiet，未知关闭不归零。
+        if (scanQuiet) void scanQuiet.then(releaseScanPriority, () => {}); else releaseScanPriority();
       }
     })();this.trackLocalCleanup(next.work);
   }
@@ -3090,6 +3096,21 @@ export class BridgeController {
     } catch { return true; }
   }
 
+  /** 稳定播放的扫描资格，不改变原所有权、显示许可、Source grant或停止能力。 */
+  canReadBackgroundScanDuringPlayback(): boolean {
+    try {
+      return this.hasPlaybackOwnership() && !this.hasDisplayReadPriorityBlocker()
+        && !this.preparationInFlight && this.backgroundScanPreparations.size === 0
+        && this.dependencies.gateway.hasOnlyMediaReadsForToken(this.activeToken) === true;
+    } catch { return false; }
+  }
+
+  private beginBackgroundScanPreparation(): () => void {
+    const marker = {}, notify = (): void => { try { this.notifyReadPriorityChanged(); } catch { /* 观察不改变原准备。 */ } };
+    this.backgroundScanPreparations.add(marker); notify();
+    return () => { if (this.backgroundScanPreparations.delete(marker)) notify(); };
+  }
+
   /** 每个原操作只释放自己的标记；通知异常不改变原Promise或原错误。 */
   private beginDisplayReadPriority(): () => void {
     const marker = {};
@@ -3267,6 +3288,7 @@ export class BridgeController {
     const isCurrent = () => !abort.signal.aborted && this.queue.includes(item)
       && (this.nextPreparation?.abort === abort || this.owner?.item === item);
     this.preparationInFlight = true;
+    const releaseScanPriority = this.beginBackgroundScanPreparation();
     const result = (async () => {
       try {
         const resolvedAtMs = this.now();
@@ -3284,7 +3306,7 @@ export class BridgeController {
         // 预解析失败不改变当前歌曲、登录状态或队列；真正播放时走正常错误路径。
         return undefined;
       } finally {
-        this.preparationInFlight = false;
+        this.preparationInFlight = false; releaseScanPriority();
         // 队列可能在请求期间被替换，只为当前紧邻下一首调度后继请求。
         if (abort.signal.aborted || this.queue[this.queueIndex + 1] !== item) queueMicrotask(() => this.scheduleNextPreparation());
       }

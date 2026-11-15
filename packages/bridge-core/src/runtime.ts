@@ -1,4 +1,5 @@
 import { createScanReadAdmission, type ScanReadAdmission } from './library/scan-read-admission.js';
+import { createScanPlaybackBudget } from './library/scan-playback-budget.js';
 import { runLibraryShutdownStep } from './shared/library-shutdown-log.js';
 import { traceLibraryStartup } from './shared/library-operation-log.js';
 import { createTestDatasetDomain } from './collection/dataset-domain.js';
@@ -465,6 +466,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const matchCache = createMatchCache();
   let matchLibraryAvailable = roon.getLibraryService() !== undefined;
   let scanReadAdmission: ScanReadAdmission | undefined;
+  let scanPlaybackBudget: ReturnType<typeof createScanPlaybackBudget> | undefined;
   let observedRoonReadBusy = false;
   let observedRoonDisplayActivity = false;
   const sampleRoonReadBusy = () => {
@@ -486,7 +488,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
     remoteDevelopmentMode: config.mode === 'remote-core-development',
     ...(options.localMediaNetwork ? { localMediaNetwork: options.localMediaNetwork } : {}),
-    onMediaReadActivityChanged: () => { scanReadAdmission?.observe(); },
+    onMediaReadActivityChanged: () => { scanPlaybackBudget?.interrupt(); scanReadAdmission?.observe(); },
   });
   let notifyProviderExpired: () => void = () => undefined;
   let resolveSmartSource: (track: TrackSummary) => Promise<SmartRoonResolution | undefined> = async () => undefined;
@@ -663,11 +665,29 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     owner: options.datasetOwnerEndpoint, netease,
     assertCurrent: () => { if (runtime !== 'ready' || shutdownStarted) throw new MobileServiceError(503, 'BUSY'); },
   }) : undefined;
-  scanReadAdmission = createScanReadAdmission({ concurrency: options.localScanReadProfile === 'bulk-v2' ? 8 : 2, isBusy: () => {
-    sampleRoonReadBusy();
-    return runtime !== 'ready' || shutdownStarted || controller.hasPlaybackOwnership()
-      || observedRoonReadBusy || gateway.getActiveMediaReadCount() > 0;
-  }, isDisplayBusy: () => {
+  scanPlaybackBudget = createScanPlaybackBudget({ idleConcurrency: options.localScanReadProfile === 'bulk-v2' ? 8 : 2, observe: () => {
+    const state = sampleRoonReadBusy();
+    if (runtime !== 'ready' || shutdownStarted || controller.hasDisplayReadPriorityBlocker() !== false) return { mode: 'blocked' };
+    if (controller.hasPlaybackOwnership()) {
+      // 显示资格本身不是扫描许可：还须原所有权、同代确认、无NEXT准备和实际媒体请求归属。
+      if ((state === 'playing' || state === 'paused') && controller.canReadBackgroundScanDuringPlayback()) {
+        return { mode: 'stable-owned', generation: controller.getPlaybackGeneration() };
+      }
+      return { mode: 'blocked' };
+    }
+    if (observedRoonReadBusy || gateway.getActiveMediaReadCount() > 0) return { mode: 'blocked' };
+    if (state === 'stopped') return { mode: 'idle' };
+    if (state === undefined && !observedRoonDisplayActivity) {
+      const connection = roon.getState();
+      if (!connection.selectedZoneId || !['ready', 'playing', 'paused'].includes(connection.status)) return { mode: 'idle' };
+    }
+    // 有活动后失观测、外部paused或未知Zone都不冒充已确认空闲。
+    return { mode: 'blocked' };
+  } });
+  scanReadAdmission = createScanReadAdmission({ concurrency: options.localScanReadProfile === 'bulk-v2' ? 8 : 2,
+    getScanConcurrency: () => scanPlaybackBudget?.read() ?? 0,
+    isBusy: () => (scanPlaybackBudget?.read() ?? 0) === 0,
+    isDisplayBusy: () => {
     const state = sampleRoonReadBusy();
     if (runtime !== 'ready' || shutdownStarted || controller.hasDisplayReadPriorityBlocker() !== false) return true;
     if (state === 'playing' || state === 'paused' || state === 'stopped') return false;

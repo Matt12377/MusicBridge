@@ -311,6 +311,8 @@ export interface DatasetProjectionCommandPayloads {
   lyricsProviderJoin:{operationId:string};
   normalizeLocalAlbumArtwork: { copies: LocalArtworkSourceCopies };
   scanReadStatus: Record<string, never>;
+  /** Core↔唯一Owner私有调度提示，不授予Source读许可。 */
+  scanReadBudget: Record<string, never>;
   scanReadAcquire: Record<string, never> | { purpose: 'local-album-display' };
   scanReadWatchRevocation: {permitId:string};
   scanReadRelease: {permitId:string};
@@ -333,6 +335,7 @@ export interface DatasetProjectionCommandResults {
   lyricsProviderJoin:{operationId:string;physicalClosed:true};
   normalizeLocalAlbumArtwork: { image: LocalArtworkImage | null; status: 'ready' | 'source-unavailable'; grid?: dto.LocalAlbumArtworkGrid };
   scanReadStatus: {status:'ready'|'deferred'};
+  scanReadBudget: {concurrency:0|1|2|8};
   scanReadAcquire: {status:'granted';permitId:string}|{status:'deferred'};
   scanReadWatchRevocation: {reason:'media-busy'|'admission-closed'|'permit-released'|'renew'};
   scanReadRelease: {released:true};
@@ -582,14 +585,14 @@ export function isDatasetOwnerResponse(value: unknown): value is DatasetOwnerRes
     || !['localAlbumRead','mobileMain','materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','readLocalSourceLyrics','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
   return value.ok === true ? value.failure === undefined && Object.hasOwn(value,'result') : value.ok === false && value.result === undefined && isDatasetOwnerFailure(value.failure);
 }
-export const DATASET_PROJECTION_COMMANDS = ['normalizeLocalAlbumArtwork','browseAlbumCandidates','captureAlbumMetadata','captureTrackMetadataBatch','acquirePermit','releasePermit','scanReadStatus','scanReadAcquire','scanReadWatchRevocation','scanReadRelease','lyricsProviderStart','lyricsProviderRead','lyricsProviderCancel','lyricsProviderJoin','nameProviderStart','nameProviderRead','nameProviderCancel','nameProviderJoin'] as const;
+export const DATASET_PROJECTION_COMMANDS = ['normalizeLocalAlbumArtwork','browseAlbumCandidates','captureAlbumMetadata','captureTrackMetadataBatch','acquirePermit','releasePermit','scanReadStatus','scanReadBudget','scanReadAcquire','scanReadWatchRevocation','scanReadRelease','lyricsProviderStart','lyricsProviderRead','lyricsProviderCancel','lyricsProviderJoin','nameProviderStart','nameProviderRead','nameProviderCancel','nameProviderJoin'] as const;
 export function isDatasetProjectionPayload(command: unknown, payload: unknown): payload is DatasetProjectionCommandPayloads[DatasetProjectionCommand] {
   if(isDatasetNameProviderCommand(command))return isDatasetNameProviderPayload(command,payload);
   if(isDatasetLyricsProviderCommand(command))return isDatasetLyricsProviderPayload(command,payload);
-  if (command === 'scanReadStatus' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+  if (command === 'scanReadStatus' || command === 'scanReadBudget' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
     if (wbNodeTypes.isProxy(payload) || !ownerRecord(payload) || ![Object.prototype,null].includes(Object.getPrototypeOf(payload))) return false;
     const fields = Reflect.ownKeys(payload);
-    if (command === 'scanReadStatus') return fields.length === 0;
+    if (command === 'scanReadStatus' || command === 'scanReadBudget') return fields.length === 0;
     if (command === 'scanReadAcquire' && fields.length === 0) return true;
     const key = command === 'scanReadAcquire' ? 'purpose' : 'permitId', descriptor = Object.getOwnPropertyDescriptor(payload, key);
     return fields.length === 1 && fields[0] === key && descriptor?.enumerable === true && Object.hasOwn(descriptor, 'value')
@@ -615,9 +618,15 @@ export function isDatasetProjectionResult(command: DatasetProjectionCommand, val
     && (value.status === 'ready' || value.status === 'source-unavailable') && (value.image === null || isLocalArtworkImage(value.image))
     && (!Object.hasOwn(value, 'grid') || value.image !== null && dto.isLocalAlbumArtworkGrid(value.grid))
     && (value.status !== 'source-unavailable' || value.image === null);
-  if (command === 'scanReadStatus' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+  if (command === 'scanReadStatus' || command === 'scanReadBudget' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+    if (command === 'scanReadBudget' && wbNodeTypes.isProxy(value)) return false;
     if (!ownerRecord(value) || ![Object.prototype,null].includes(Object.getPrototypeOf(value))) return false;
     const closedScan=(names:readonly string[])=>Reflect.ownKeys(value).length === names.length && names.every(k=>Object.prototype.propertyIsEnumerable.call(value,k));
+    if(command === 'scanReadBudget') {
+      const capacity = Object.getOwnPropertyDescriptor(value, 'concurrency');
+      return closedScan(['concurrency']) && capacity !== undefined && Object.hasOwn(capacity, 'value')
+        && !Object.is(capacity.value, -0) && [0, 1, 2, 8].includes(capacity.value);
+    }
     if(command === 'scanReadStatus') { const status=Object.getOwnPropertyDescriptor(value,'status');return closedScan(['status'])&&status!==undefined&&Object.hasOwn(status,'value')&&(status.value==='ready'||status.value==='deferred'); }
     if(command === 'scanReadAcquire') return value.status === 'deferred' ? closedScan(['status']) : value.status === 'granted' && closedScan(['status','permitId']) && isCollectionId(value.permitId);
     return command === 'scanReadRelease' ? closedScan(['released']) && value.released === true : closedScan(['reason']) && ['media-busy','admission-closed','permit-released','renew'].includes(String(value.reason));

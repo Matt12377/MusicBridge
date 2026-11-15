@@ -103,23 +103,38 @@ test('显示读取私有用途：显示采样异常保守撤销，缺省谓词�
   assert.equal(legacy.resourceCounts().permits, 1);
 });
 
-type ScanProjectionCommand = 'scanReadAcquire' | 'scanReadWatchRevocation' | 'scanReadRelease';
+type ScanProjectionCommand = 'scanReadStatus' | 'scanReadBudget' | 'scanReadAcquire' | 'scanReadWatchRevocation' | 'scanReadRelease';
 type ScanProjection = (command: ScanProjectionCommand, payload: unknown, context: ScanReadContext) => Promise<unknown>;
-/** 精确提取原Utility含status的私有分支，行为仍核原三命令；不启动或冒充完整Utility/Owner。 */
+/** 精确提取原Utility扫描私有分支（含非授权预算），不启动或冒充完整Utility/Owner。 */
 async function originalUtilityProjection(admission: ScanReadAdmission, identity: ScanReadContext | undefined): Promise<ScanProjection> {
   const source = await readFile(new URL('../src/utility-main.ts', import.meta.url), 'utf8');
-  const start = "            if (command === 'scanReadStatus' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {";
+  const start = "            if (command === 'scanReadStatus' || command === 'scanReadBudget' || command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {";
   const end = '\n            return projectionGateway!.handler(';
   assert.equal(source.split(start).length, 2); assert.equal(source.split(end).length, 2);
   const begin = source.indexOf(start), finish = source.indexOf(end, begin); assert.ok(finish > begin);
   const extracted = source.slice(begin, finish);
-  const compiled = ts.transpileModule(`const projection = async (command: unknown, payload: unknown, context: { epoch: string; datasetId?: string }) => {\n${extracted}\nthrow new Error('此定向测试只接受扫描私有三命令。');\n};`, {
+  const compiled = ts.transpileModule(`const projection = async (command: unknown, payload: unknown, context: { epoch: string; datasetId?: string }) => {\n${extracted}\nthrow new Error('此定向测试只接受扫描私有命令。');\n};`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }, reportDiagnostics: true,
   });
   assert.equal((compiled.diagnostics ?? []).some(value => value.category === ts.DiagnosticCategory.Error), false);
   const instantiate = new Function('isDatasetProjectionPayload', 'DatasetOwnerDispatchError', 'responseFailure', 'runtime', 'ownerIdentity', `${compiled.outputText}\nreturn projection;`);
   return instantiate(isDatasetProjectionPayload, DatasetOwnerDispatchError, responseFailure, { getDatasetScanReadAdmission: () => admission }, identity) as ScanProjection;
 }
+
+test('扫描预算私有用途：原Utility同epoch/dataset门禁只返回上限，不授予或释放Source票据', async () => {
+  const admission = createScanReadAdmission({ concurrency: 8, isBusy: () => false, getScanConcurrency: () => 1 });
+  const projection = await originalUtilityProjection(admission, scope), before = admission.resourceCounts();
+  assert.deepEqual(await projection('scanReadBudget', {}, scope), { concurrency: 1 });
+  assert.deepEqual(admission.resourceCounts(), before);
+  for (const identity of [{ ...scope, epoch: other }, { ...scope, datasetId: other }]) {
+    await assert.rejects(projection('scanReadBudget', {}, identity), DatasetOwnerDispatchError);
+  }
+  await assert.rejects(projection('scanReadBudget', { concurrency: 8 }, scope), DatasetOwnerDispatchError);
+  const missing = await originalUtilityProjection(admission, undefined);
+  await assert.rejects(missing('scanReadBudget', {}, scope), DatasetOwnerDispatchError);
+  assert.deepEqual(admission.resourceCounts(), before);
+  admission.close(); assert.deepEqual(await projection('scanReadBudget', {}, scope), { concurrency: 0 });
+});
 
 test('显示读取私有用途：原Utility身份门禁后接同一准入，旧空payload不能取得显示资格', async t => {
   const admission = createScanReadAdmission({ isBusy: () => true, isDisplayBusy: () => false });

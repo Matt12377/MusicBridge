@@ -2577,6 +2577,50 @@ test('原点播守卫旁注：原SDK等待中重复及冲突不覆盖原阶段�
   const settledRows=f.rows.length;assert.equal(f.controller.playLocal(request),work);assert.equal(f.rows.length,settledRows);
 });
 
+test('扫描播放资格：原所有权与代次不变，受理pause/seek/resume/未知停止/关闭同步失去资格', async t => {
+  const f = makeHarness();
+  displayReadTestCleanup(t, [() => { f.roon.shouldFailOnStop = false; }, () => f.controller.shutdown(), () => f.gateway.stop()]);
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false, '空闲不是稳定播放资格');
+  const playing = f.controller.play({ trackId: '99501' });
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false); await playing;
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), true); assert.equal(f.controller.hasPlaybackOwnership(), true);
+  const generation = f.controller.getPlaybackGeneration();
+  for (const operation of [() => f.controller.pause(), () => f.controller.seek(500), () => f.controller.seekRoonTransport(750), () => f.controller.resume()]) {
+    const work = operation(); assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false);
+    await work; assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), true);
+    assert.equal(f.controller.getPlaybackGeneration(), generation, '新扫描资格不创建第二播放代');
+  }
+  const state = f.roon.state; f.roon.state = { ...state, selectedZoneId: 'controlled-unrelated-zone' };
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false); f.roon.state = state;
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), true);
+  f.roon.shouldFailOnStop = true; const stopped = f.controller.stop();
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false); await assert.rejects(stopped, /Roon stop failed/u);
+  f.roon.state = { ...f.roon.state, transportState: 'playing' };
+  assert.equal(f.controller.hasPlaybackOwnership(), true); assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false);
+  f.roon.shouldFailOnStop = false; await f.controller.stop();
+  assert.equal(f.controller.hasPlaybackOwnership(), false); assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false);
+  const closing = f.controller.shutdown(); assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false); await closing;
+});
+
+test('扫描播放资格：原NEXT预解析实际工作优先，完成后才可进入稳定窗，切歌仍唯一队列', async t => {
+  const f = makeHarness(); let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; }), resolveStream = f.netease.resolveStream.bind(f.netease);
+  displayReadTestCleanup(t, [() => { release(); }, () => f.controller.shutdown(), () => f.gateway.stop()]);
+  f.netease.resolveStream = async (trackId, quality) => {
+    const value = await resolveStream(trackId, quality); if (trackId === '99503') await gate; return value;
+  };
+  await f.controller.replaceQueue([{ trackId: '99502' }, { trackId: '99503' }]);
+  await waitFor(() => f.netease.resolveCalls === 2);
+  assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false, 'NEXT在途不是稳定低优先IO');
+  assert.equal(f.roon.playRequests.length, 1); assert.equal(f.registry.size, 1);
+  release(); await waitFor(() => f.controller.canReadBackgroundScanDuringPlayback());
+  const switching = f.controller.next(); assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), false); await switching;
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(), true);
+  assert.equal(f.netease.resolveCalls, 2); assert.equal(f.roon.playRequests.length, 2);
+  assert.equal(f.controller.getPlaybackState().queue.items.length, 2);
+});
+
 test('封面显示关键期：冷idle与确认playing暂停可读，控制受理和关闭同步阻断', async t => {
   let controller: BridgeController | undefined;
   const notifications: boolean[] = [], f = makeHarness(206, undefined, undefined, () => { notifications.push(controller?.hasDisplayReadPriorityBlocker() ?? true); });

@@ -200,6 +200,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const localTickets = createLocalSourceTickets(collection, options.localSourceEpoch ?? randomUUID(), identity.datasetId, () => { assertOpen(); if (!scanBootReady) throw new Error('本地事实Owner尚未boot。'); });
   const localScan=createLocalScanCoordinator({repository:collection,datasetId:identity.datasetId,assertCurrent:assertDataset,dsdMetadataEnabled:mobilePreparedCache?.qualified === true,cueInputMetadataEnabled:options.localWorkbenchNative?.cue !== null && options.localWorkbenchNative?.cue !== undefined,assertReady:()=>{if(!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未commitBoot。');},
     ...(options.localScanReadProfile ? {localScanReadProfile:options.localScanReadProfile}:{}),
+    corePlaybackBudget: sourceProjection !== undefined,
     onCommitted:job=>{if(!closing)notifyArtworkBatch(job.libraryRootId,`${job.jobId}:${job.phase==='completed'?'completed':'scanning'}`);},
     ...(scanSettings?{identity:options.collectionDatasetIdentity!,settings:scanSettings}:{}),
     ...(completedScanSnapshots?{onCompleted:async(job,context)=>{

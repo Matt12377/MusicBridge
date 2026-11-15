@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { ScanReadConcurrency } from './scan-playback-budget.js';
 
 /** 仅可信 Core/唯一 DatasetOwner 通道；不是 Roon 元数据许可或 SourceLock。 */
 export interface ScanReadContext { epoch: string; datasetId: string }
@@ -9,6 +10,8 @@ export interface ScanReadWatchResult { reason: ScanReadRevocationReason }
 export interface ScanReadAdmission {
   /** 只读当次scan准入状态，不发票据、不撤销或释放已有读取。 */
   status(context: ScanReadContext): { status: 'ready' | 'deferred' };
+  /** 非授权的调度窗口上限，不代表当前槽空闲；不发票或提前释放撤销中的旧票。 */
+  budget(context: ScanReadContext): { concurrency: ScanReadConcurrency };
   acquire(context: ScanReadContext, purpose?: ScanReadPurpose): ScanReadAcquireResult;
   watchRevocation(context: ScanReadContext, permitId: string): Promise<ScanReadWatchResult>;
   /** 调用方必须先等实际 read 退出和 FD 关闭；LRF 不得伪造此确认。 */
@@ -25,7 +28,7 @@ export class ScanReadAdmissionError extends Error {
 const validId = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(value);
 const sameContext = (a: ScanReadContext, b: ScanReadContext): boolean => a.epoch === b.epoch && a.datasetId === b.datasetId;
 /** 繁忙从原 Controller/网关实时采样；通知只用于迅速撤销，不创造第二份播放真相。 */
-export function createScanReadAdmission(options: { isBusy(): boolean; isDisplayBusy?(): boolean; watchTimeoutMs?: number; concurrency?: 1 | 2 | 8 }): ScanReadAdmission {
+export function createScanReadAdmission(options: { isBusy(): boolean; isDisplayBusy?(): boolean; getScanConcurrency?(): ScanReadConcurrency; watchTimeoutMs?: number; concurrency?: 1 | 2 | 8 }): ScanReadAdmission {
   const concurrency = options.concurrency ?? 2;
   const watchTimeoutMs = options.watchTimeoutMs ?? 1000;
   if (![1, 2, 8].includes(concurrency) || !Number.isSafeInteger(watchTimeoutMs) || watchTimeoutMs < 1 || watchTimeoutMs > 1000) throw new ScanReadAdmissionError();
@@ -38,14 +41,28 @@ export function createScanReadAdmission(options: { isBusy(): boolean; isDisplayB
     try { return (purpose === 'local-album-display' && options.isDisplayBusy ? options.isDisplayBusy() : options.isBusy()) !== false; }
     catch { return true; }
   };
+  const scanLimit = (): ScanReadConcurrency => {
+    try {
+      const value = options.getScanConcurrency ? options.getScanConcurrency() : concurrency;
+      return [0, 1, 2, 8].includes(value) ? Math.min(concurrency, value) as ScanReadConcurrency : 0;
+    } catch { return 0; }
+  };
+  const scanCount = (): number => {
+    let count = 0; for (const permit of permits.values()) if (permit.purpose === 'scan') ++count; return count;
+  };
+  const readBudget = (): ScanReadConcurrency => closed || busy('scan') ? 0 : scanLimit();
   const finishWatch = (permit: Permit, reason: ScanReadRevocationReason): void => {
     const watch = permit.watch;
     if (!watch) return;
     delete permit.watch; clearTimeout(watch.timer); watch.resolve({ reason });
   };
   const observe = (): void => {
+    // 即使零票据也取原实时事实，不能漏掉两次稳定播放之间的短暂前台操作。
+    const limit = scanLimit(), scanBusy = busy('scan'), displayBusy = busy('local-album-display');
+    const overBudget = scanCount() > limit;
     for (const permit of permits.values()) {
-      if (!closed && !busy(permit.purpose)) continue;
+      const blocked = permit.purpose === 'scan' ? scanBusy || limit === 0 || overBudget : displayBusy;
+      if (!closed && !blocked) continue;
       permit.revoked ??= closed ? 'admission-closed' : 'media-busy';
       finishWatch(permit, permit.revoked);
     }
@@ -59,14 +76,17 @@ export function createScanReadAdmission(options: { isBusy(): boolean; isDisplayB
   return {
     status(context) {
       current(context);
-      return { status: closed || busy('scan') || permits.size >= concurrency ? 'deferred' : 'ready' };
+      const limit = readBudget();
+      return { status: limit === 0 || permits.size >= concurrency || scanCount() >= limit ? 'deferred' : 'ready' };
     },
+    budget(context) { current(context); return { concurrency: readBudget() }; },
     acquire(context, purpose: ScanReadPurpose = 'scan') {
       current(context);
       if (purpose !== 'scan' && purpose !== 'local-album-display') throw new ScanReadAdmissionError();
       observe();
       // 撤销尚不等于资源释放；原票据仍占可信组合指定的槽。
-      if (closed || busy(purpose) || permits.size >= concurrency) return { status: 'deferred' };
+      if (closed || busy(purpose) || permits.size >= concurrency
+        || purpose === 'scan' && scanCount() >= scanLimit()) return { status: 'deferred' };
       const permitId = randomUUID(); permits.set(permitId, { context: { ...context }, purpose });
       return { status: 'granted', permitId };
     },

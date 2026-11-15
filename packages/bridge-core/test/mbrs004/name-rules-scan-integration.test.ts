@@ -27,7 +27,8 @@ test('MBRS004 AT005/006：关闭AI，实际扫描入库与重扫保留人工名�
   const context = { datasetId: randomUUID(), epoch: randomUUID() }, admission = createScanReadAdmission({ isBusy: () => false });
   const projection: DatasetProjectionPort = { async call<K extends DatasetProjectionCommand>(command: K, payload: DatasetProjectionCommandPayloads[K]): Promise<DatasetProjectionCommandResults[K]> {
     let result: unknown;
-    if (command === 'scanReadAcquire') result = admission.acquire(context);
+    if (command === 'scanReadBudget') result = admission.budget(context);
+    else if (command === 'scanReadAcquire') result = admission.acquire(context);
     else if (command === 'scanReadWatchRevocation') result = await admission.watchRevocation(context, (payload as { permitId: string }).permitId);
     else if (command === 'scanReadRelease') result = admission.release(context, (payload as { permitId: string }).permitId);
     else throw new Error('本验收关闭AI和外部投影，只允许实际扫描票据');
@@ -201,7 +202,8 @@ async function cd01RoleFixture(t:import('node:test').TestContext,role:import('@m
   const admission=createScanReadAdmission({isBusy:()=>false}),context={datasetId:identity.datasetId,epoch}
   const projection:DatasetProjectionPort={async call<K extends DatasetProjectionCommand>(command:K,payload:DatasetProjectionCommandPayloads[K]):Promise<DatasetProjectionCommandResults[K]>{
     let result:unknown
-    if(command==='scanReadAcquire')result=admission.acquire(context)
+    if(command==='scanReadBudget')result=admission.budget(context)
+    else if(command==='scanReadAcquire')result=admission.acquire(context)
     else if(command==='scanReadWatchRevocation')result=await admission.watchRevocation(context,(payload as {permitId:string}).permitId)
     else if(command==='scanReadRelease')result=admission.release(context,(payload as {permitId:string}).permitId)
     else throw new Error('CD01正常扫描只消费原实际扫描准入，不提供外部Provider或Source写许可。')

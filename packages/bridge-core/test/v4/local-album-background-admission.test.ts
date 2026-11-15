@@ -107,7 +107,7 @@ test('只读scan状态：私有空正文与单字段结果闭集；不进入公�
 test('实际Utility+Client+Worker+来源队列：新状态经过真实反向帧闭环，每次重读且原epoch/dataset拒绝不旁路', async t => {
   let busy = true
   const admission = createScanReadAdmission({ isBusy: () => busy }), utility = await utilityRoute(admission), channel = new MessageChannel()
-  const datasetId = randomUUID(), observed: string[] = [], reasons: unknown[] = [], packets: unknown[] = []
+  const datasetId = randomUUID(), observed: string[] = [], budgets: number[] = [], reasons: unknown[] = [], packets: unknown[] = []
   let epoch: string = randomUUID(), projector!: DatasetProjectionPort
   class PortWorker extends EventEmitter { postMessage(value: unknown) { channel.port1.postMessage(value) } }
   const worker = new PortWorker()
@@ -115,7 +115,11 @@ test('实际Utility+Client+Worker+来源队列：新状态经过真实反向帧�
   channel.port1.once('close', () => worker.emit('exit', 0))
   let shared: ReturnType<typeof createLocalSourceReadProjection>
   const domain: OwnedDatasetDomain = { datasetId, commitBoot() {}, async dispatch() { throw new Error('本测试无mutation') },
-    async workbenchContext() { const result = await shared.port.call('scanReadStatus', {}); observed.push(result.status); return { epoch, datasetId, ready: true } },
+    async workbenchContext() {
+      const result = await shared.port.call('scanReadStatus', {}); observed.push(result.status)
+      const budget = await shared.port.call('scanReadBudget', {}, { signal: new AbortController().signal }); budgets.push(budget.concurrency)
+      return { epoch, datasetId, ready: true }
+    },
     async dispatchWorkbench() { throw new Error('状态读取不得派发公开mutation') },
     async dispatchWorkbenchOwner() { throw new Error('状态读取不得派发Owner mutation') },
     async closeWorkbench() { shared.seal() },
@@ -128,12 +132,13 @@ test('实际Utility+Client+Worker+来源队列：新状态经过真实反向帧�
   t.after(async () => { try { await endpoint.close() } finally { channel.port1.close(); channel.port2.close(); admission.close() } })
   const identity = await endpoint.prepare(); utility.bind(identity); await endpoint.commitBoot()
   assert.equal((await endpoint.workbenchContext!()).ready, true); assert.deepEqual(observed, ['deferred'])
-  busy = false; await endpoint.workbenchContext!(); assert.deepEqual(observed, ['deferred', 'ready'])
+  busy = false; await endpoint.workbenchContext!(); assert.deepEqual(observed, ['deferred', 'ready']); assert.deepEqual(budgets, [0, 2])
   assert.equal(packets.filter(value => protocol.isDatasetOwnerProjectionRequest(value) && value.command === 'scanReadStatus').length, 2)
+  assert.equal(packets.filter(value => protocol.isDatasetOwnerProjectionRequest(value) && value.command === 'scanReadBudget').length, 2)
   assert.deepEqual(shared!.inspect(), { active: 0, pending: 0, closed: false, fatal: false })
   assert.equal(admission.resourceCounts().permits, 0); assert.deepEqual(reasons, [])
   for (const scope of [{ ...identity, epoch: randomUUID() }, { ...identity, datasetId: randomUUID() }]) {
-    await assert.rejects(utility.route('scanReadStatus', {}, scope), error => error instanceof protocol.DatasetOwnerDispatchError && error.failure.error.code === 'NOT_READY')
+    for (const command of ['scanReadStatus', 'scanReadBudget'] as const) await assert.rejects(utility.route(command, {}, scope), error => error instanceof protocol.DatasetOwnerDispatchError && error.failure.error.code === 'NOT_READY')
   }
   const invalidPayload: unknown = { purpose: 'local-album-display' }
   await assert.rejects(utility.route('scanReadStatus', invalidPayload as DatasetProjectionCommandPayloads['scanReadStatus'], identity))

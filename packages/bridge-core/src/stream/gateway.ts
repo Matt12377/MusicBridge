@@ -228,6 +228,8 @@ export class StreamGateway {
   private readonly stageObservers = new Map<string, GatewayObserverBinding>();
   private activeTimerCount = 0;
   private activeMediaReadCount = 0;
+  // 仅记最多8个实际在途请求的私有绑定；超出不能证明当前单流，保守阻止后台扫描。
+  private readonly activeMediaReadBindings = new Set<{ readonly token: string | undefined; streaming: boolean }>();
   private activePreflightOwnerListenerCount = 0;
   private readonly roonMedia: RoonMediaListener;
   private readonly mediaDiagnosticIds = new Map<string, string>();
@@ -303,7 +305,17 @@ export class StreamGateway {
 
   getActiveMediaReadCount(): number { return this.activeMediaReadCount; }
 
-  private beginMediaRead(): () => void {
+  /** Node私有资格谓词：零读或唯一实际请求精确属于当前原播放token，不泄出token。 */
+  hasOnlyMediaReadsForToken(token: string | undefined): boolean {
+    if (this.activeMediaReadCount !== this.activeMediaReadBindings.size || this.activeMediaReadCount > 1) return false;
+    if (this.activeMediaReadCount === 0) return true;
+    for (const binding of this.activeMediaReadBindings) return token !== undefined && binding.token === token && binding.streaming;
+    return false;
+  }
+
+  private beginMediaRead(token?: string): (() => void) & { streaming(): void } {
+    const binding = { token, streaming: false };
+    if (this.activeMediaReadBindings.size < 8) this.activeMediaReadBindings.add(binding);
     ++this.activeMediaReadCount;
     const notify = (): void => {
       try { this.options.onMediaReadActivityChanged?.(); }
@@ -311,7 +323,9 @@ export class StreamGateway {
     };
     notify();
     let released = false;
-    return () => { if (!released) { released = true; --this.activeMediaReadCount; notify(); } };
+    return Object.assign(() => { if (!released) { released = true; --this.activeMediaReadCount; this.activeMediaReadBindings.delete(binding); notify(); } }, {
+      streaming: () => { if (!released && !binding.streaming) { binding.streaming = true; notify(); } },
+    });
   }
 
   async start(): Promise<void> {
@@ -421,10 +435,11 @@ export class StreamGateway {
         {outcome:'capacity-rejected',statusCode:429,pipelineBodyBytesObserved:0,observedBytesCapped:false,responseFinished:response.writableFinished,elapsedMs:0});
       return true;
     }
-    this.localRequests++; const release = this.beginMediaRead();
+    this.localRequests++; const release = this.beginMediaRead(match![1]!);
     if(!binding?.localDiagnostic)try{this.options.logger.info('roon_gateway_local_request',{method,routeClass:'local-file',rangeClass});}catch{/* 原有限日志失败同样不改变传输。 */}
     try { await serveLocalFile(registration.lease, request, response, fallbackContentTypeForFormat(registration.format),stage=>{
       this.notifyStage(match![1]!,stage);
+      if(stage==='streaming')release.streaming();
       if(stage==='streaming')try{this.options.logger.info('roon_gateway_first_body_bytes',{diagnosticId:this.mediaDiagnosticId(match![1]!),routeClass:'local-file'});}catch{/* 观察不改变传输。 */}
     },
       requestSequence===undefined?undefined:evidence=>this.logLocalMedia(binding!,requestSequence!,method,rangeClass,'transfer-terminal',evidence)); }
@@ -666,7 +681,7 @@ export class StreamGateway {
     let upstreamBodyErrored = false;
     let clientAbortBeforeUpstreamBodyError = false;
     let bytesForwarded = 0;
-    let releaseMediaRead: (() => void) | undefined;
+    let releaseMediaRead: ((() => void) & { streaming(): void }) | undefined;
 
     const onRequestAborted = (): void => {
       if (!upstreamBodyErrored) clientAbortBeforeUpstreamBodyError = true;
@@ -686,7 +701,7 @@ export class StreamGateway {
 
     try {
       const registration = this.options.registry.get(token);
-      releaseMediaRead = this.beginMediaRead();
+      releaseMediaRead = this.beginMediaRead(token);
       let resolved = await registration.resolve();
       const range = request.headers.range;
       const ifRangeValue = request.headers['if-range'];
@@ -790,6 +805,7 @@ export class StreamGateway {
         upstreamBodyErrored = true;
       });
       const firstBodyBytes = (): void => {
+        releaseMediaRead?.streaming();
         try { this.options.logger.info('roon_gateway_first_body_bytes', { diagnosticId: this.mediaDiagnosticId(token), routeClass: 'stream' }); }
         catch { /* 观察失败不阻断音频读取。 */ }
       };

@@ -16,7 +16,9 @@ import { createLogger } from '../../src/shared/logger.js';
 import { readonlySourceCandidateMetadata } from '../../src/recording/source-files.js';
 import type { RoonPort, RoonState, RoonTerminalReason } from '../../src/roon/types.js';
 import type { MetadataReaderLifecycle } from '../../src/library/metadata-reader-types.js';
-import { audioFixture, loadFreshMetadataReader } from '../helpers/mbrs003-audio-fixtures.js';
+import { audioFixture, loadFreshMetadataReader, closeFreshMetadataReaderPool, assertRustMetadataReadsQuiet } from '../helpers/mbrs003-audio-fixtures.js';
+
+test.after(closeFreshMetadataReaderPool);
 
 const { createMetadataReader } = await loadFreshMetadataReader();
 const context = (): ScanReadContext => ({ epoch: randomUUID(), datasetId: randomUUID() });
@@ -104,18 +106,21 @@ test('MBRS003真实Controller受理pending即撤销，paused与unknown停止也�
   assert.deepEqual(f.admission.acquire(scope),{ status:'deferred' });
   f.setStopFailure(false); await f.controller.stop(); const after=permit(f.admission,scope); f.admission.release(scope,after);
 });
-test('MBRS003真实Controller触发compiled reader撤销，实际exit与原FD关闭后release，同文件重读成功', { timeout:20_000 }, async t => {
+test('MBRS003真实Controller触发compiled reader撤销，实际Rust settled与原FD关闭后release，同文件重读成功', { timeout:20_000 }, async t => {
   const f=await audioFixture(t),core=productionController(),scope=context(),id=permit(core.admission,scope),events:MetadataReaderLifecycle[]=[],abort=new AbortController();
   let trustedYield=false,play:Promise<unknown>|undefined,readingSettled=false;
   const watch=core.admission.watchRevocation(scope,id).then(value => { if (value.reason==='media-busy') { trustedYield=true;abort.abort(); } return value; });
-  const reader=createMetadataReader({ onLifecycle:event => { events.push(event);if(event.type==='worker-online')play=core.start(); } });
+  const reader=createMetadataReader({ onLifecycle:event => { events.push(event);if(event.type==='metadata-phase' && event.stage==='parse' && event.state==='start' && !play)play=core.start(); } });
   t.after(async () => { await reader.close();await core.controller.shutdown();core.admission.close(); });
   const relative=f.entry('core-flac').file,expectedSignature=(await readonlySourceCandidateMetadata(f.root,relative)).signature;
   const result=await reader.read({ root:f.root,relative,expectedSignature },abort.signal);readingSettled=true;
   assert.equal(trustedYield,true);assert.equal(result.status,'failure');if(result.status==='failure')assert.equal(result.code,'CANCELLED');
   const acquired=events.find(e=>e.type==='lease-acquired');assert.ok(acquired && acquired.type==='lease-acquired');
-  const exit=events.findIndex(e=>e.type==='worker-exit'),released=events.findIndex(e=>e.type==='lease-released'),complete=events.findIndex(e=>e.type==='read-complete');
-  assert.equal(exit>=0 && released>exit && complete>released,true);
+  const parsing=events.findIndex(e=>e.type==='metadata-phase' && e.stage==='parse' && e.state==='start');
+  const settled=events.findIndex((e,i)=>i>parsing && e.type==='metadata-phase' && e.stage==='parse' && e.state!=='start');
+  const released=events.findIndex(e=>e.type==='lease-released'),complete=events.findIndex(e=>e.type==='read-complete');
+  assert.equal(parsing>=0 && settled>parsing && released>settled && complete>released,true);
+  assertRustMetadataReadsQuiet(events);
   assert.throws(()=>fstatSync(acquired.fd),(error:NodeJS.ErrnoException)=>error.code==='EBADF');
   assert.equal(core.admission.resourceCounts().permits,1);assert.equal(readingSettled,true);
   core.admission.release(scope,id);assert.deepEqual(await watch,{ reason:'media-busy' });await play;await core.controller.stop();

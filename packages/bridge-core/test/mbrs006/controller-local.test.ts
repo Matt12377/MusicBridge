@@ -20,8 +20,8 @@ import {catalogFixture} from './catalog-fixture.js';
 import {eventually} from '../mbrs005/fixture.js';
 async function fixture(t:test.TestContext,timeout=500,roonLibrary?:NonNullable<ConstructorParameters<typeof BridgeController>[0]['roonLibrary']>){
  const f=await catalogFixture(t),pool=new LocalFileSourcePool(),registry=new StreamRegistry({localSourcePool:pool}),gateway=new StreamGateway({host:'127.0.0.1',port:0,publicBaseUrl:'http://127.0.0.1:0',registry,logger:silentLogger});await gateway.start();const sdk=await adapterFixture(timeout,Number(new URL(gateway.iconUrl()).port));
- let alive=true,captures=0,gate:Promise<void>|undefined;
- const localSources:DatasetOwnerEndpoint={prepare:async()=>({epoch:f.epoch,datasetId:f.datasetId}),dispatch:async()=>undefined,commitBoot:async()=>{},close:async()=>{},isLocalSourceCurrent:()=>alive,sealLocalSources(){alive=false;f.tickets.seal();},captureLocalSource:async request=>{captures++;if(gate)await gate;return f.tickets.capture(request);},revalidateLocalSource:async ticket=>f.tickets.revalidate(ticket),releaseLocalSource:async ticket=>f.tickets.release(ticket)};
+ let alive=true,captures=0,gateAfter=0,gate:Promise<void>|undefined;
+ const localSources:DatasetOwnerEndpoint={prepare:async()=>({epoch:f.epoch,datasetId:f.datasetId}),dispatch:async()=>undefined,commitBoot:async()=>{},close:async()=>{},isLocalSourceCurrent:()=>alive,sealLocalSources(){alive=false;f.tickets.seal();},captureLocalSource:async request=>{captures++;if(gate && captures>gateAfter)await gate;return f.tickets.capture(request);},revalidateLocalSource:async ticket=>f.tickets.revalidate(ticket),releaseLocalSource:async ticket=>f.tickets.release(ticket)};
  const controller=new BridgeController({roon:sdk.adapter,registry,gateway,logger:silentLogger,localSources,...(roonLibrary?{roonLibrary}:{}),netease:new Proxy({configured:true},{get(target,key){if(key==='configured')return true;return ()=>{throw new Error('本地点播禁止调用云或隐式fallback');};}}) as NeteasePort});
  t.after(async()=>{
   const errors:unknown[]=[];
@@ -30,7 +30,7 @@ async function fixture(t:test.TestContext,timeout=500,roonLibrary?:NonNullable<C
  });
  const request=(i=0,action:LocalPlayRequest['action']='PLAY_NOW')=>({...f.requests[i]!,request_id:randomUUID(),action});
  const start=async(i=0)=>{const req=request(i),work=controller.playLocal(req);await eventually(()=>sdk.sessions.length>sdk.sends.length,'已发起唯一begin');sdk.sessions.at(-1)!('SessionBegan',{session_id:`controlled-${sdk.sessions.length}`});await work;return req;};
- return {...f,...sdk,controller,pool,registry,gateway,request,start,captures:()=>captures,setGate(value?:Promise<void>){gate=value;}};
+ return {...f,...sdk,controller,pool,registry,gateway,request,start,captures:()=>captures,setGate(value?:Promise<void>,after=0){gate=value;gateAfter=after;}};
 }
 test('006原Controller三动作与原字节HTTP：受理/确认/Playing分开，HTTP完成不推进队列或撤ACTIVE lease',async t=>{
  const f=await fixture(t),req=f.request(),work=f.controller.playLocal(req);await eventually(()=>f.sessions.length===1,'唯一begin');
@@ -54,6 +54,33 @@ test('006已发送begin超时为UNKNOWN；晚确认仅调和本attempt，重复�
  const f=await fixture(t,15),req=f.request();await f.controller.playLocal(req);assert.equal(f.controller.getPlaybackState().local?.phase,'SUBMISSION_UNKNOWN');assert.equal(f.sessions.length,1);assert.equal(f.sends.length,0);
  await f.controller.playLocal(req);assert.equal(f.sessions.length,1);f.sessions[0]!('SessionBegan',{session_id:'late-current'});await tick();assert.equal(f.controller.getPlaybackState().local?.phase,'PLAYING');assert.equal(f.sends.length,1);
  f.sessions[0]!('SessionBegan',{session_id:'duplicate'});assert.equal(f.sends.length,1);
+});
+test('扫描播放资格：真实本地attempt未知不借Zone播放，确认后才有资格且pause受理同步撤销',async t=>{
+ const f=await fixture(t,15),req=f.request();assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),false);
+ const work=f.controller.playLocal(req);assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),false);await work;
+ assert.equal(f.controller.getPlaybackState().local?.phase,'SUBMISSION_UNKNOWN');assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),false);
+ f.zoneCallback('Changed',{zones_changed:[{zone_id:'synthetic-zone',state:'playing',outputs:[{output_id:'synthetic-output'}],is_pause_allowed:true,is_play_allowed:true,is_seek_allowed:true}]});
+ f.controller.syncRoonTransportState();assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),false);
+ f.sessions[0]!('SessionBegan',{session_id:'scan-original-confirmed-session'});await tick();
+ assert.equal(f.controller.getPlaybackState().local?.phase,'PLAYING');assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),true);
+ const pause=f.controller.pause();assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),false);await tick();
+ f.plays[0]!('Paused',{});f.zoneCallback('Changed',{zones_changed:[{zone_id:'synthetic-zone',state:'paused',outputs:[{output_id:'synthetic-output'}],is_pause_allowed:true,is_play_allowed:true,is_seek_allowed:true}]});await pause;
+ assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),true);assert.equal(f.sessions.length,1);assert.equal(f.sends.length,1);
+});
+test('扫描播放资格：本地NEXT的真实capture/准备优先，完成后不改变唯一会话/队列与原预读提升',async t=>{
+ const f=await fixture(t);await f.start(0);let release!:()=>void;const before=f.captures();
+ const gate=new Promise<void>(resolve=>{release=resolve;});f.setGate(gate,before+1);
+ try{
+  await f.controller.playLocal(f.request(1,'APPEND_MB_QUEUE'));await eventually(()=>f.captures()===before+2,'原APPEND事实捕获之后，NEXT才进入独立Owner捕获');
+  assert.equal(f.controller.hasDisplayReadPriorityBlocker(),false);assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),false);
+  assert.equal(f.sessions.length,1);assert.equal(f.pool.resourceSnapshot().openLeases,1);
+  release();f.setGate();await eventually(()=>f.controller.canReadBackgroundScanDuringPlayback(),'原NEXT实际准备工作完成');
+  assert.equal(f.pool.resourceSnapshot().openLeases,2);assert.equal(f.sessions.length,1);
+  const next=f.controller.next();assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),false);
+  await eventually(()=>f.sessions.length===2,'仅原NEXT提升后begin');f.sessions[1]!('SessionBegan',{session_id:'scan-next-original-session'});await next;
+  assert.equal(f.controller.canReadBackgroundScanDuringPlayback(),true);assert.equal(f.captures(),before+2);assert.equal(f.sends.length,2);
+  assert.equal(f.controller.getPlaybackState().queue.items.length,2);
+ }finally{release();f.setGate();}
 });
 test('封面显示关键期：真实提交UNKNOWN不借Zone播放放行，同attempt确认后playing暂停可读',async t=>{
  const f=await fixture(t,15),req=f.request();
