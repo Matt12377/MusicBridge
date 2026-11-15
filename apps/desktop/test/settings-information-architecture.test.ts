@@ -18,7 +18,7 @@ const labels = ['通用', '音乐库', '播放', '设备与连接', '账户', '�
 const transpile = (code: string) => ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
 
 // 只挂载正式设置壳及原App设置节点；子模块保留事件表面，不连接Owner、账号或真实音乐库。
-async function mountSettings(t: test.TestContext, appAncestor = false, options: { sourceWritesAvailable?: boolean; workspaceAvailable?: boolean } = {}) {
+async function mountSettings(t: test.TestContext, appAncestor = false, options: { sourceWritesAvailable?: boolean; workspaceAvailable?: boolean; servicesState?: 'starting' | 'ready' | 'unavailable' } = {}) {
   let focused: Host | null = null
   const mounts = new Map<string, number>(), updated: string[] = [], organized: unknown[] = [], outboxOpen = vue.ref(false)
   const all = (node: Host): Host[] => [node, ...node.children.flatMap(all)]
@@ -80,17 +80,24 @@ async function mountSettings(t: test.TestContext, appAncestor = false, options: 
     originalNameSave: vue.ref<unknown | null>(null), nameDirty: vue.ref(false), error: vue.ref('') }
   const props = { appInfo, ...(workspace ? { workbenchLibrary: workspace } : {}), authState: { status: 'idle' }, accountState: { status: 'missing' }, zones: [],
     roonStatus: 'disconnected', zoneStatus: 'empty', selectedQuality: 'lossless', authError: false, accountError: null, remoteCoreState: { status: 'idle' }, remoteAutoStart: false, remoteSshTarget: '' }
-  let root: vue.Component = vue.defineComponent({ setup: () => () => vue.h(component, props) })
+  const servicesState = vue.ref(options.servicesState ?? 'ready')
+  let root: vue.Component = vue.defineComponent({ setup: () => () => vue.h(component, { ...props, servicesState: servicesState.value }) })
   if (appAncestor) {
-    const app = parse(readFileSync(path.join(componentRoot, '../App.vue'), 'utf8')).descriptor, settings: any[] = []
-    const visit = (item: any): void => { if (item?.type === 1 && item.tag === 'SettingsView') settings.push(item); for (const child of item?.children ?? []) visit(child) }
-    visit(app.template?.ast); assert.equal(settings.length, 1)
-    const parentTemplate = compileTemplate({ id: 'settings-architecture-app', filename: 'App.vue', source: `<template v-if="false"></template>${settings[0].loc.source}`, compilerOptions: { expressionPlugins: ['typescript'], hoistStatic: false } })
+    const app = parse(readFileSync(path.join(componentRoot, '../App.vue'), 'utf8')).descriptor, settings: any[] = [], preparation: any[] = []
+    const visit = (item: any): void => {
+      if (item?.type === 1 && item.tag === 'SettingsView') settings.push(item)
+      if (item?.type === 1 && item.props?.some((prop: any) => prop.name === 'aria-labelledby' && prop.value?.content === 'preparation-view-heading')) preparation.push(item)
+      for (const child of item?.children ?? []) visit(child)
+    }
+    visit(app.template?.ast); assert.equal(settings.length, 1); assert.equal(preparation.length, 1)
+    const parentTemplate = compileTemplate({ id: 'settings-architecture-app', filename: 'App.vue', source: `<template v-if="false"></template>${preparation[0].loc.source}${settings[0].loc.source}`, compilerOptions: { expressionPlugins: ['typescript'], hoistStatic: false } })
     assert.deepEqual(parentTemplate.errors, [])
     const parentRendering = { exports: {} as { render: (...args: any[]) => any } }
     new Function('require', 'module', 'exports', transpile(parentTemplate.code))(imports, parentRendering, parentRendering.exports)
     const unexpected = () => assert.fail('设置事件祖链不应触发账户、播放或连接操作')
     const environment = { currentView: 'settings', ...props, localLibrary: { relocationPlans: undefined }, coreState: null, zoneLifecycleStatus: 'empty',
+      desktopReadReady: options.servicesState !== 'starting' && options.servicesState !== 'unavailable', settingsServicesState: servicesState,
+      startupFailed: options.servicesState === 'unavailable', preparationViewTitle: '设置',
       refreshLocalBrowserViews: () => updated.push('refresh'), openAlbumWorkbench: (request: unknown) => organized.push(request),
       commandOutboxTrigger: vue.ref(null), commandOutboxOpen: outboxOpen, navigate: unexpected,
       ...Object.fromEntries(['beginQrLogin', 'cancelQrLogin', 'logout', 'refreshAccountProfile', 'setSelectedQuality', 'selectZone', 'loadZones', 'startRemoteCore', 'stopRemoteCore', 'reconnectRemoteCore', 'updateRemoteAutoStart', 'updateRemoteSshTarget'].map(name => [name, unexpected])) }
@@ -115,7 +122,7 @@ async function mountSettings(t: test.TestContext, appAncestor = false, options: 
   await settle()
   const connected = (element: Host | null): boolean => { while (element && element !== host) element = element.parent; return element === host }
   const summary = (title: string) => { const found = find(element => element.type === 'summary' && text(element).includes(title)); assert.ok(found); return found }
-  return { all: () => all(host), text: (element: Host = host) => text(element), find, tab, click, select, toggle, press, settle, mounts, updated, organized, outboxOpen, workspace, summary, connected,
+  return { all: () => all(host), text: (element: Host = host) => text(element), find, tab, click, select, toggle, press, settle, mounts, updated, organized, outboxOpen, workspace, summary, connected, servicesState,
     active: () => focused, modules: () => all(host).filter(element => element.props['data-settings-module']).map(element => element.props['data-settings-module']).filter(name => name !== 'SidebarIcon') }
 }
 
@@ -132,6 +139,51 @@ test('设置任务分区：首次通用不挂载音乐库；六类只呈现自�
     assert.equal(panels[0]!.props['aria-labelledby'], f.tab(category).props.id)
     assert.deepEqual(f.modules(), modules)
   }
+})
+
+for (const servicesState of ['starting', 'unavailable'] as const) test(`实际App门禁在${servicesState}期间保留设置导航、外观与诊断，不挂载业务模块`, async t => {
+  const f = await mountSettings(t, true, { servicesState })
+  assert.deepEqual(f.modules(), ['AppearanceSettings'])
+  assert.equal(f.tab('application').props['aria-selected'], true)
+  assert.match(f.text(), /正在读取音乐库状态|音乐库状态暂不可用/u)
+  assert.doesNotMatch(f.text(), /0 个音乐库|添加文件夹/u)
+  for (const category of ['library', 'playback', 'roon', 'account', 'advanced']) {
+    await f.select(category)
+    assert.deepEqual(f.modules(), [], '准备期间不能提前发起子模块查询')
+    assert.ok(f.find(element => element.props['data-settings-service-notice'] !== undefined))
+    assert.doesNotMatch(f.text(), /未登录|连接你的音乐账户|未选择 Zone/u)
+  }
+  const diagnostic = f.find(element => element.type === 'button' && f.text(element) === '打开诊断')
+  assert.ok(diagnostic); assert.notEqual(diagnostic.props.disabled, true)
+  await f.select('application'); assert.deepEqual(f.modules(), ['AppearanceSettings'])
+})
+
+test('设置等当前服务就绪才读取，服务中断保留原模块并禁用控件，恢复不补发意图', async t => {
+  const f = await mountSettings(t, false, { servicesState: 'starting' })
+  await f.select('library'); assert.deepEqual(f.modules(), [])
+  f.servicesState.value = 'ready'; await f.settle()
+  assert.deepEqual(f.modules(), ['LocalLibrarySettings']); assert.equal(f.mounts.get('LocalLibrarySettings'), 1)
+  f.servicesState.value = 'unavailable'; await f.settle()
+  assert.deepEqual(f.modules(), ['LocalLibrarySettings']); assert.equal(f.mounts.get('LocalLibrarySettings'), 1)
+  const controls = f.find(element => element.type === 'fieldset' && element.props['data-settings-service-controls'] !== undefined)
+  assert.ok(controls); assert.equal(controls.props.disabled, true); assert.equal(controls.props.inert, true)
+  f.servicesState.value = 'ready'; await f.settle()
+  assert.equal(f.mounts.get('LocalLibrarySettings'), 1); assert.equal(controls.props.disabled, false)
+  assert.deepEqual(f.updated, []); assert.deepEqual(f.organized, [])
+})
+
+test('旧页曾经ready不能让断连后的另一页挂载查询模块', async t => {
+  const f = await mountSettings(t)
+  await f.select('library'); assert.deepEqual(f.modules(), ['LocalLibrarySettings'])
+  f.servicesState.value = 'unavailable'; await f.settle()
+  for (const category of ['roon', 'account', 'advanced', 'playback', 'library']) {
+    await f.select(category); assert.deepEqual(f.modules(), [])
+  }
+  assert.equal(f.mounts.has('MobileConnectionSettings'), false)
+  assert.equal(f.mounts.has('RoonDisplaySettings'), false)
+  f.servicesState.value = 'ready'; await f.settle()
+  assert.deepEqual(f.modules(), ['LocalLibrarySettings']); assert.equal(f.mounts.get('LocalLibrarySettings'), 2)
+  assert.deepEqual(f.updated, []); assert.deepEqual(f.organized, [])
 })
 
 test('设置垂直键盘将真实焦点交给新active tab，并始终只有一个Tab入口', async t => {
@@ -157,12 +209,12 @@ test('设置高级项按展开状态挂载，关闭后停止模块，回入保�
     assert.equal(details.props.open, true); assert.ok(f.modules().includes(name)); assert.equal(f.mounts.get(name), 1)
     await f.toggle(title, false); assert.equal(details.props.open, false); assert.equal(f.modules().includes(name), false)
   }
-  const remote = await f.toggle('远程 Core', true)
+  const remote = await f.toggle('SSH 回退', true)
   assert.ok(f.find(element => element.props.id === 'remote-ssh-target'))
   await f.select('application'); await f.select('advanced')
   const restored = f.find(element => element.type === 'details' && element.props.open === true)
   assert.ok(restored); assert.strictEqual(restored === remote, false); assert.ok(f.find(element => element.props.id === 'remote-ssh-target'))
-  await f.toggle('远程 Core', false); assert.equal(f.find(element => element.props.id === 'remote-ssh-target') === undefined, true)
+  await f.toggle('SSH 回退', false); assert.equal(f.find(element => element.props.id === 'remote-ssh-target') === undefined, true)
 })
 
 test('原App设置祖链保留updated和organize任务，并将操作记录slot放在高级', async t => {

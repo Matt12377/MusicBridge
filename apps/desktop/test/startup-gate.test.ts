@@ -142,6 +142,8 @@ function gateScript(file: 'startup-gate.mjs' | 'cold-start-credential-gate.mjs',
   const logs: string[] = []
   const directories: string[] = []
   const identityCalls: string[] = []
+  const nativeBuildCalls: string[] = []
+  const nativeBuild = (name: string) => async (directory: string) => { assert.equal(directory, path.resolve(cwd)); nativeBuildCalls.push(name) }
   const timerBudgets: number[] = []
   const closed = new Set<string>()
   let vaultExists = false
@@ -195,7 +197,9 @@ function gateScript(file: 'startup-gate.mjs' | 'cold-start-credential-gate.mjs',
       if (configuration.identityReject) throw new Error('合成身份拒绝')
       return { kind: 'SYNTHETIC_VM_IDENTITY_NOT_OFFICIAL_ELECTRON', executablePath: '/synthetic/electron' }
     } }
-    const builtins: Record<string, unknown> = { './electron-identity.mjs': identity, 'node:fs/promises': files, 'node:os': os, 'node:path': path, 'node:url': { fileURLToPath }, 'node:child_process': { spawn: spawnControlled }, 'node:fs': captureFs, 'node:crypto': { createHash }, electron: '/synthetic/electron' }
+    const builtins: Record<string, unknown> = { './native-cue-package.mjs': { captureNativeCue: nativeBuild('capture-cue'), sealNativeCueBuild: nativeBuild('seal-cue') },
+      './native-local-audio-tags-package.mjs': { captureNativeLocalAudioTags: nativeBuild('capture-tags'), captureNativeLibraryWatch: nativeBuild('capture-watch'), sealNativeLocalAudioTagsBuild: nativeBuild('seal-tags'), sealNativeLibraryWatchBuild: nativeBuild('seal-watch') },
+      './electron-identity.mjs': identity, 'node:fs/promises': files, 'node:os': os, 'node:path': path, 'node:url': { fileURLToPath }, 'node:child_process': { spawn: spawnControlled }, 'node:fs': captureFs, 'node:crypto': { createHash }, electron: '/synthetic/electron' }
     if (name in builtins) return builtins[name]
     if (moduleCache.has(name)) return moduleCache.get(name)
     const location = new URL('../scripts/' + name.replace(/^\.\//u, ''), import.meta.url)
@@ -215,7 +219,7 @@ function gateScript(file: 'startup-gate.mjs' | 'cold-start-credential-gate.mjs',
   const source = readFileSync(location, 'utf8').replaceAll('import.meta.url', JSON.stringify(location.href))
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText
   const finished: Promise<unknown> = runInNewContext('(async () => {\n' + compiled + '\n})()', { ...sandbox, exports: {} }).then(() => undefined, (error: unknown) => error)
-  return { calls, removals, logs, directories, identityCalls, timerBudgets, scriptProcess, finished, finishClose }
+  return { calls, removals, logs, directories, identityCalls, nativeBuildCalls, timerBudgets, scriptProcess, finished, finishClose }
 }
 
 const nextTurn = () => new Promise<void>(resolve => setImmediate(resolve))
@@ -225,6 +229,7 @@ test('startup显式mock必须传给Electron且报告软件模式，默认system�
     const gate = gateScript('startup-gate.mjs', { args: ['development', '--keychain=' + mode] })
     assert.equal(await gate.finished, undefined)
     assert.deepEqual(gate.identityCalls, ['verify'])
+    assert.deepEqual(gate.nativeBuildCalls, ['capture-cue', 'capture-tags', 'capture-watch', 'seal-cue', 'seal-tags', 'seal-watch'])
     assert.equal(gate.calls.find(call => call.stage === 'startup')?.args.includes('--use-mock-keychain'), mode === 'mock')
     assert.ok(gate.logs.includes('KEYCHAIN_MODE=' + mode))
     if (mode === 'mock') {

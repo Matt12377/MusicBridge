@@ -68,9 +68,10 @@ const invokeObserved: typeof ipcRenderer.invoke = createPerformanceInvoker(
   interactions.consume,
 ) as typeof ipcRenderer.invoke
 const invokePerformance: typeof ipcRenderer.invoke = (channel, ...args) => {
-  if (initialBootstrapReady) return invokeObserved(channel, ...args)
-  // 仅原启动纯读等待放行；任何变更都不进入延后执行队列。
-  if (channel === 'app:get-info' || channel === 'commandOutbox:context') return initialBootstrap.then(() => invokeObserved(channel, ...args))
+  // 固定的应用壳能力不依赖资料库/账号/播放；Main仍验证当前窗口与参数。
+  if (initialBootstrapReady || channel === 'app:get-info' || channel === 'app:set-appearance-theme') return invokeObserved(channel, ...args)
+  // 原启动序列从静态info继续到remote状态；只允许这两个纯读等待，不排队业务意图。
+  if (channel === 'remote-core:get-state' || channel === 'commandOutbox:context') return initialBootstrap.then(() => invokeObserved(channel, ...args))
   return Promise.reject(new Error('[NOT_READY] 应用正在准备，请稍后操作。'))
 }
 const invokeScoped = (channel: string, value?: unknown): Promise<unknown> => invokePerformance(channel, value)

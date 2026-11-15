@@ -4,6 +4,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { verifiedElectronExecution } from './electron-identity.mjs'
+import { captureNativeCue, sealNativeCueBuild } from './native-cue-package.mjs'
+import { captureNativeLocalAudioTags, captureNativeLibraryWatch, sealNativeLocalAudioTagsBuild, sealNativeLibraryWatchBuild } from './native-local-audio-tags-package.mjs'
 import { runStartupProcess } from './startup-gate-process.mjs'
 import { parseTestKeychainMode, testElectronArguments } from './test-keychain.mjs'
 
@@ -39,6 +41,10 @@ const userDataDirectory = await mkdtemp(
 let exitCode = 0
 
 try {
+  // 与正式build保持同一捕获/封口：vite会清空dist，不能丢失必需metadata或重认旁边的新包。
+  await captureNativeCue(desktopRoot)
+  await captureNativeLocalAudioTags(desktopRoot)
+  await captureNativeLibraryWatch(desktopRoot)
   const buildResult = await runStartupProcess(commandPath('electron-vite'), ['build', '--mode', mode], {
     cwd: desktopRoot, env: process.env, output: 'inherit', exitTimeoutMs: 120_000,
   })
@@ -47,6 +53,9 @@ try {
     console.error(`DESKTOP_BUILD_REASON=${buildResult.failure ?? 'process-exit'}`)
     exitCode = 1
   } else {
+    await sealNativeCueBuild(desktopRoot)
+    await sealNativeLocalAudioTagsBuild(desktopRoot)
+    await sealNativeLibraryWatchBuild(desktopRoot)
     const childEnvironment = {
       ...process.env,
       MUSIC_BRIDGE_STARTUP_TEST: '1',
@@ -75,7 +84,8 @@ try {
           : 'DESKTOP_STARTUP_READY'
     const result = await runStartupProcess(electron, testElectronArguments(['dist/main/index.js'], keychainMode), {
       cwd: desktopRoot, env: childEnvironment,
-      readyMarker: 'DESKTOP_STARTUP_READY', expectedMarker,
+      // 完整正常收尾的56条闭集阶段证据约68KiB；保留有限总预算而不截断或过滤收尾证据。
+      readyMarker: 'DESKTOP_STARTUP_READY', expectedMarker, outputLimitBytes: 128 * 1024,
     })
     if (result.failure || !result.markerSeen || !result.closed || result.code !== 0 || result.signal !== null) {
       console.error(`DESKTOP_STARTUP_FAIL=${mode}`)

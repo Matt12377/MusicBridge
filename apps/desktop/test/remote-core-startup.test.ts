@@ -279,7 +279,7 @@ test('偏好和ready仅限当前主window/frame/origin/nonce，拒Proxy/getter/�
   assert.equal(f.children.length, 0)
 })
 
-test('同源早期preload偏好不等DOM，全部context纯读等结算且变更不排队', async () => {
+test('同源早期preload偏好不等DOM，壳信息立即读、context等结算且业务不排队', async () => {
   const source = await readFile(new URL('../src/preload/index.ts', import.meta.url), 'utf8')
   const bootstrap = source.slice(source.indexOf('// 偏好消息与DOM/module完成独立'), source.indexOf('const rendererPerformance'))
   const invoker = source.slice(source.indexOf('const invokePerformance: typeof ipcRenderer.invoke = (channel'), source.indexOf('const invokeScoped'))
@@ -292,8 +292,9 @@ test('同源早期preload偏好不等DOM，全部context纯读等结算且变更
   })
   const context = result.invoke!('commandOutbox:context'), info = result.invoke!('app:get-info')
   await assert.rejects(result.invoke!('playback:play')); await turn()
-  assert.deepEqual(calls, ['remote-core:bootstrap-preference', 'remote-core:bootstrap-ready'])
-  ready.resolve(); assert.equal(await context, 'commandOutbox:context'); assert.equal(await info, 'app:get-info')
+  assert.deepEqual(calls, ['remote-core:bootstrap-preference', 'app:get-info', 'remote-core:bootstrap-ready'])
+  assert.equal(await info, 'app:get-info')
+  ready.resolve(); assert.equal(await context, 'commandOutbox:context')
   assert.equal(calls.includes('playback:play'), false)
 })
 

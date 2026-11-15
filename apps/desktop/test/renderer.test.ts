@@ -417,7 +417,7 @@ test('居中悬浮播放器保留完整内容，顶部横栏移除后未确认�
   assert.match(css, /\.global-player\s*\{[^}]*border-radius:\s*23px/)
   assert.doesNotMatch(app, /class="topbar"|<ToolbarStatusPopover/)
   assert.match(app, /<template #application-tools>[\s\S]*?commandOutboxTrigger[\s\S]*?未确认操作/)
-  assert.match(settings, /<slot name="application-tools"\s*\/>/)
+  assert.match(settings, /<slot v-if="servicesReady" name="application-tools"\s*\/>/)
 })
 
 test('悬浮播放器不再占用底部整行，内容与侧栏具备可滚动避让', async () => {

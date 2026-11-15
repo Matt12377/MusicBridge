@@ -1549,6 +1549,22 @@ function registerCurrentLocalAlbumIpc(supervisor: CoreSupervisor, assembly: Retu
   })
 }
 
+/** 独立应用壳不读取Core、账号或曲库；在创建早期窗口前装配。 */
+function registerAppShellHandlers(): void {
+  registerPerformanceHandler('app:set-appearance-theme', (event, theme: unknown) => {
+    const target = requireTrustedRenderer(event)
+    if (event.senderFrame !== target.webContents.mainFrame) return publicIpcFailure('NOT_READY', '应用外观只允许当前主页面修改。')
+    if (theme !== 'light' && theme !== 'dark') return publicIpcFailure('INVALID_IPC_REQUEST', '主题必须为浅色或深色')
+    nativeTheme.themeSource = theme
+    target.setBackgroundColor(theme === 'dark' ? '#3c4253' : '#f2edf1')
+  })
+  registerPerformanceHandler('app:get-info', (event) => {
+    const target = requireTrustedRenderer(event)
+    if (event.senderFrame !== target.webContents.mainFrame) return publicIpcFailure('NOT_READY', '应用信息只允许当前主页面读取。')
+    return appInfo()
+  })
+}
+
 function registerIpcHandlers(
   supervisor: CoreSupervisor,
   credentialVault: CredentialVault,
@@ -1711,16 +1727,6 @@ function registerIpcHandlers(
       set: async enabled => { if (!collectionReadonlySettings) return publicIpcFailure('NOT_READY', '收藏查询尚未就绪。'); try { return await collectionReadonlySettings.set(enabled) } catch { return publicIpcFailure('INTERNAL_ERROR', '收藏查询偏好未保存。') } },
       refresh: () => { if (!collectionReadonlySettings) return publicIpcFailure('NOT_READY', '收藏查询尚未就绪。'); return collectionReadonlySettings.refresh() },
     },
-  })
-  registerPerformanceHandler('app:set-appearance-theme', (event, theme: unknown) => {
-    const target = requireTrustedRenderer(event)
-    if (theme !== 'light' && theme !== 'dark') return publicIpcFailure('INVALID_IPC_REQUEST', '主题必须为浅色或深色')
-    nativeTheme.themeSource = theme
-    target.setBackgroundColor(theme === 'dark' ? '#3c4253' : '#f2edf1')
-  })
-  registerPerformanceHandler('app:get-info', (event) => {
-    requireTrustedRenderer(event)
-    return appInfo()
   })
   registerPerformanceHandler('core:get-health', (event) =>
     invokeCore(event, () => supervisor.request('core.getHealth', {})),
@@ -2949,6 +2955,7 @@ async function bootstrap(): Promise<void> {
   if (isCoreRestartCredentialRecoveryGate || electronColdStartStage === 'seed') {
     await prepared.credentialVault.save('v'.repeat(32))
   }
+  registerAppShellHandlers()
   // 专用无窗口Gate保持原入口；普通应用先读取同源偏好，再激活唯一首代Core。
   let earlyWindow: BrowserWindow | undefined
   if (!packagedRouteProbe && !isCoreRestartCredentialRecoveryGate && !isElectronColdStartGate) {

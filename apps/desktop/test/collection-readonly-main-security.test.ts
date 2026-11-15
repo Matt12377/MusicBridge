@@ -9,7 +9,7 @@ import { installCollectionReadonlyHandlers } from '../src/main/collection-readon
 test('实际Main普通控件IPC拒绝第二窗口/子frame/URL/额外参数，先于偏好副作用', async () => {
   const source = await readFile(new URL('../src/main/index.ts', import.meta.url), 'utf8')
   const trusted = source.slice(source.indexOf('function requireTrustedRenderer('), source.indexOf('async function invokeCore'))
-  const block = source.slice(source.indexOf('  installCollectionReadonlyHandlers<Electron.IpcMainInvokeEvent>'), source.indexOf("  registerPerformanceHandler('app:set-appearance-theme'"))
+  const block = source.slice(source.indexOf('  installCollectionReadonlyHandlers<Electron.IpcMainInvokeEvent>'), source.indexOf("  registerPerformanceHandler('core:get-health'"))
   const frame = { url: 'musicbridge://app/index.html' }, contents = { id: 7, mainFrame: frame }
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>(); let effects = 0
   const script = ts.transpileModule(trusted + block, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText

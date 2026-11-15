@@ -92,6 +92,10 @@ import type { LocalAlbumWorkbenchRequest, LocalAlbumWorkbenchBatchRequest, Local
 const appInfo = ref<AppInfo | null>(null)
 const preparation = useRendererPreparation()
 const desktopReadReady = preparation.ready
+// 应用壳不等待服务；仅依赖Core的设置控件按当前服务资格开放。
+const settingsServicesState = computed(() => preparation.failed.value ? 'unavailable'
+  : !desktopReadReady.value ? 'starting'
+    : isCoreRuntimeStable(coreState.value?.runtime, remoteCoreState.value.status) ? 'ready' : 'unavailable')
 const startupFailed = preparation.failed
 const startupMessage = preparation.message
 let preparingAuthState: PublicAuthState | undefined
@@ -2032,7 +2036,7 @@ onUnmounted(() => {
       <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
       <div ref="contentScroll" class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying, 'is-coverdrop': currentView === 'coverdrop' }">
         <StartupLibraryPreview v-if="!desktopReadReady && startupLibraryPreview && (currentView === 'home' || currentView === 'local-library')" :preview="startupLibraryPreview" :failed="startupFailed" />
-        <section v-else-if="!desktopReadReady && currentView !== 'home' && currentView !== 'diagnostics'" class="view" aria-labelledby="preparation-view-heading">
+        <section v-else-if="!desktopReadReady && currentView !== 'home' && currentView !== 'diagnostics' && currentView !== 'settings'" class="view" aria-labelledby="preparation-view-heading">
           <div class="view-heading"><div><p class="section-kicker">Mousa</p><h2 id="preparation-view-heading">{{ preparationViewTitle }}</h2><p class="lede">{{ startupFailed ? '当前页面尚未读取，可以继续切换页面查看状态。' : '已保留当前页面，准备完成后会读取真实资料。' }}</p></div></div>
         </section>
         <HomeView
@@ -2334,6 +2338,7 @@ onUnmounted(() => {
         <SettingsView
           v-else-if="currentView === 'settings'"
           :app-info="appInfo"
+          :services-state="settingsServicesState"
           :workbench-library="workbenchLibrary"
           :local-relocation-session="localLibrary.relocationPlans"
           @updated="refreshLocalBrowserViews"
